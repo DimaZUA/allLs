@@ -1,0 +1,313 @@
+html {   
+	font-family: Calibri, Arial, Helvetica, sans-serif;
+	    background-color: #f4f4f9;
+}
+
+
+.poster {
+    position: relative;
+    cursor: pointer;
+}
+
+.descr {
+    visibility: hidden; /* изначально скрыто */
+    opacity: 0; /* начальная непрозрачность */
+    padding: 10px;
+    background: #f3f3f3;
+    box-shadow: 0 5px 5px rgba(0, 0, 0, 0.3);
+    text-align: left;
+    width: 70vw;
+    max-width: calc(100vw - 20px)!important;
+    position: fixed; /* фиксированное положение */
+    transition: opacity 0.3s ease; /* плавный переход */
+    max-height: 80vh;
+    overflow-y: auto;
+    z-index: 9999;
+}
+
+.poster:hover .descr {
+    visibility: visible;
+    opacity: 1;
+}
+
+/* Основной стиль для таблицы */
+.subtable {
+    border-collapse: collapse;
+    text-align: center;
+    font-size: 12pt;
+    width: 100%; /* Таблица занимает всю ширину контейнера */
+}
+
+/* Стиль для всех ячеек в таблице */
+.subtable td, .subtable th {
+    padding: 4px; /* Отступы внутри ячеек */
+    width: 12% !important;
+    border: 1px solid black !important; /* Граница ячеек */
+}
+
+/* Заголовки по умолчанию центрированы */
+.subtable th {
+    text-align: center;
+    font-weight: bold; /* Жирный текст для заголовков */
+    background: #e8edff;
+}
+
+
+.box table#main tr:hover td {
+	background: #e8edff;
+}
+
+.toggle-box {
+	display: none;
+		
+}
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-100px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+.toggle-box:checked+label+div {
+	display: block;
+	animation: fadeIn 0.3s ease-in-out;
+		
+}
+
+.toggle-box+label+div {
+	display: none;
+    border-radius: 10px; /* Скругление углов */
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2); /* Тень */
+    background: #fff; /* Фон для контента */
+    padding: 5px; /* Отступы внутри div */
+    margin-top: 0px; /* Отступ сверху */
+		
+}
+
+
+.toggle-box+label {
+	float: left;
+	color: #444;
+	border-radius: 40px;
+	border: 1px solid #CCC;
+	background: #DDD;
+	box-shadow: 0 0 5px -1px rgba(0, 0, 0, 0.2);
+	cursor: pointer;
+	vertical-align: middle;
+	padding: 5px;
+	text-align: center;
+	font-size: xx-large;
+		
+}
+
+.toggle-box+label:active {
+	color: red;
+}
+.toggle-box+label:hover {
+	box-shadow: 0 0 15px -1px rgba(0, 0, 0, 0.6);
+}
+
+.toggle-box:checked+label {
+	background: #ACA;
+	border-radius: 4px;
+}
+
+.bold {
+	font-weight: bold
+}
+
+.big {
+	font-weight: bold;
+	font-size: x-large
+}
+
+table#main td {
+      	width: 20%;
+	border: 1px solid black;
+}
+
+table#main {
+	border-collapse: collapse;
+	page-break-after: always;
+	text-align: right !important;
+	width: 100%;
+}
+
+
+#maincontainer {
+	max-width: 960;
+	margin-left: auto;
+	margin-right: auto;
+}
+
+td:after {
+	content: attr(v);
+}
+
+td:last-child[v]:not([v^='-']):after {
+	color: red;
+}
+
+td[v]:after {
+	font-size: xx-large;
+}
+#table-container td[v]:after {
+    font-size: initial; /* Сбрасываем стиль для td[v] внутри #table-container */
+}
+td[v='0.00']:after {
+	content: '';
+}
+
+.toggle-box + label + div th, 
+.toggle-box + label + div td {
+    padding: 2px; /* Отступы внутри ячеек */
+    border: 1px solid #CCC; /* Граница ячеек */
+
+}
+
+
+
+/* Общие стили для блока с информацией о балансе */
+.balance-info {
+    padding: 10px;
+    margin: 10px 0;
+    font-size: 16px;
+    font-weight: bold;
+    border-radius: 5px;
+    text-align: right;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+
+#table-container table.main {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+}
+#table-container table.main tr:hover td {
+	background: #e8edff;
+}
+
+
+#table-container table.main th, #table-container table.main td {
+    border: 1px solid #ccc;
+    padding: 8px;
+}
+
+/* Выровнять все ячейки таблицы по правому краю */
+#table-container > table.main td {
+    text-align: right;
+}
+
+/* Выровнять ячейки первого столбца по центру */
+#table-container table.main td:first-child {
+    text-align: center;
+}
+
+/* Для заголовков оставляем стандартное выравнивание */
+#table-container table.main th {
+    background-color: #eee;
+    cursor: pointer;
+    text-align: center;
+}
+
+#table-container table.main th.sorted-asc::after {
+    content: " ▲";
+}
+
+#table-container table.main th.sorted-desc::after {
+    content: " ▼";
+}
+
+#filter-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    align-items: center;
+    justify-content: space-between;
+    padding: 15px;
+    background-color: #f9f9f9;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    max-width: 100%;
+    margin-bottom: 20px;
+}
+
+#filter-container label {
+    font-size: 14px;
+    margin-right: 10px;
+}
+
+#filter-container select, #filter-container input, #filter-container button {
+    padding: 8px 12px;
+    font-size: 14px;
+    border-radius: 4px;
+    border: 1px solid #ccc;
+}
+
+/* Стили для активной кнопки */
+#filter-container button {
+    background-color: #007BFF;
+    color: white;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+/* Изменение фона и курсора при наведении на активную кнопку */
+#filter-container button:hover {
+    background-color: #0056b3;
+}
+
+/* Стили для кнопки в состоянии disabled */
+#filter-container button:disabled {
+    background-color: #c6c6c6; /* Цвет фона для отключенной кнопки */
+    color: #999; /* Более светлый цвет для текста */
+    cursor: not-allowed; /* Указатель в виде "запрещено" */
+    border-color: #ccc; /* Цвет рамки, можно оставить тот же, чтобы не выделялась */
+}
+
+/* Стили для поля ввода и селектора в состоянии disabled */
+#filter-container select:disabled, 
+#filter-container input:disabled {
+    background-color: #f5f5f5; /* Легкий фон для отключенных полей */
+    cursor: not-allowed; /* Указатель в виде "запрещено" */
+    border-color: #ccc; /* Обычная рамка */
+}
+
+#filter-container input[type="month"] {
+    width: 150px;
+}
+
+#filter-container select {
+    width: 200px;
+}
+
+
+#filter-container select:focus, #filter-container input:focus {
+    border-color: #007BFF;
+    outline: none;
+}
+.itog {
+    background: #eee;
+}
+
+.subtable td:nth-child(2) {
+    text-align: left !important;  /* Выравнивание по левому краю для второго столбца */
+}
+
+.subtable td:nth-child(3) {
+    text-align: right !important;  /* Выравнивание по правому краю для третьего столбца */
+}
+
+.subtable td:nth-child(4) {
+    text-align: left !important;  /* Выравнивание по левому краю для четвёртого столбца */
+}
+
+.subtable td:nth-child(5) {
+    text-align: left !important;
+    width: 50% !important; /* Принудительно устанавливаем ширину для последнего столбца */
+}
