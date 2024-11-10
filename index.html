@@ -1,0 +1,42 @@
+﻿<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Меню сайта</title>
+    <link rel="stylesheet" href="css\menu.css">
+    <link rel="stylesheet" href="css\allLs.css">
+
+</head>
+<body>
+    <!-- Иконка "гамбургера" -->
+    <div class="hamburger" onclick="toggleMenu()">
+        <div></div>
+        <div></div>
+        <div></div>
+    </div>
+
+    <!-- Боковая панель с меню -->
+    <nav class="sidebar" id="sidebar">
+        <ul class="menu" id="menu">
+            <!-- Здесь JavaScript будет генерировать список домов -->
+        </ul>
+    </nav>
+
+    <!-- Основной контент -->
+    <div class="content">
+        <div id="preloader" class="preloader">
+             <div class="spinner"></div>
+        </div>
+
+        <div id="maincontainer"><div>
+    </div>
+
+    <!-- Подключение скриптов -->
+    <script src="js\toolTip.js"></script>
+    <script src="data\homes.js"></script>
+    <script src="js\addStuf.js"></script>
+    <script src="js\menu.js"></script>
+    <script src="js\table.js"></script>
+</body>
+</html>
