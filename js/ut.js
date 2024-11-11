@@ -1,4 +1,5 @@
-﻿function initPosters(){
+﻿  const host='https://dimazua.github.io/allLs/data/';
+function initPosters(){
         document.querySelectorAll('.poster').forEach(cell => {
             const tooltip = cell.querySelector('.descr');
             
