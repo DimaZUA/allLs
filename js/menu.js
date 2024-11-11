@@ -9,7 +9,6 @@ const actions = [
     { name: 'Информация по дому', actionCode: 'info' },
 ];
 
-toggleMenu();
 
 // Генерация меню
 const menu = document.getElementById('menu');
@@ -62,7 +61,6 @@ function handleMenuClick(homeCode, actionCode, actionLink) {
     document.querySelectorAll('.menu-item ul span').forEach(item => item.classList.remove('active-action'));
     actionLink.classList.add('active-action');
 
-        setSelectedHome(homeCode);
         if (actionCode === 'accounts') {
         document.getElementById('maincontainer').style.maxWidth = '1000px'; 
             loadScriptFromHtml(homeCode+'.js', function() {
@@ -78,19 +76,14 @@ function handleMenuClick(homeCode, actionCode, actionLink) {
         }else if (actionCode === 'info'){
         document.getElementById('maincontainer').innerHTML=`<DIV id='maincontainer'><H2>${actionCode} в разработке....</H2></DIV>`;
         } 
-
-
+    if (homeCode && actionCode){
+    localStorage.setItem('lastHomeCode', homeCode);
+    localStorage.setItem('lastActionCode', actionCode);
+    }
     console.log(`Дом: ${homeCode}, Действие: ${actionCode}`);
     // Здесь можно добавить логику для вызова нужной функции
 }
 
-// Переменная для хранения кода выбранного дома
-let selectedHomeCode = null;
-
-// Функция для обновления выбранного дома и загрузки соответствующего скрипта
-function setSelectedHome(homeCode) {
-    selectedHomeCode = homeCode; // Сохраняем код выбранного дома
-}
 
 // Функция для подключения скрипта
 function loadScriptFromHtml(scriptName, callback) {
@@ -182,3 +175,47 @@ Number.prototype.toFixedWithComma = function (decimals = 2) {
         maximumFractionDigits: decimals
     }).format(this);
 };
+
+document.addEventListener('DOMContentLoaded', () => {
+    toggleMenu();
+    const homeCode = localStorage.getItem('lastHomeCode');
+    const actionCode = localStorage.getItem('lastActionCode');
+
+    if (homeCode && actionCode) {
+        // Находим соответствующий дом в массиве homes по коду
+        const home = homes.find(home => home.code === homeCode);
+
+        if (home) {
+            // Находим элемент меню по имени дома
+            const homeItem = Array.from(document.querySelectorAll('.menu-item')).find(item => {
+                return item.querySelector('span').textContent === home.name;
+            });
+
+            if (homeItem) {
+                // Активируем этот дом
+                homeItem.classList.add('active');
+
+                // Находим и показываем подменю этого дома
+                const actionList = homeItem.querySelector('ul');
+                if (actionList) {
+                    actionList.style.display = 'block'; // Показываем подменю
+                }
+
+                // Находим и активируем соответствующий пункт действия по actionCode
+                const actionItem = Array.from(actionList.querySelectorAll('li')).find(item => {
+                    // Сравниваем actionCode с кодом действия
+                    const actionLink = item.querySelector('span');
+                    return actions.find(action => action.actionCode === actionCode && action.name === actionLink.textContent);
+                });
+
+                if (actionItem) {
+                    const actionLink = actionItem.querySelector('span');
+                    actionLink.classList.add('active-action'); // Добавляем класс активного действия
+                    handleMenuClick(homeCode, actionCode, actionLink); // Выполняем клик на пункте действия
+                }
+            }
+        }
+    }
+});
+
+
