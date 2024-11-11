@@ -206,9 +206,9 @@ function generateTable() {
                             totalCharges[serviceId] = (totalCharges[serviceId] || 0) + nach[accountId][year][month][serviceId];
                         }
                         if (oplat[accountId] && oplat[accountId][year] && oplat[accountId][year][month]) {
+                            payments.push(...oplat[accountId][year][month]);  
                             oplat[accountId][year][month].forEach(payment => {
                                 paymentsSum += payment.sum;
-                                payments.push(...oplat[accountId][year][month]);  
                                 totalPayments[month] = (totalPayments[month] || 0) + payment.sum;
                             });
                         }
