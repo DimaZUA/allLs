@@ -6,21 +6,25 @@
     <title>Меню сайта</title>
     <link rel="stylesheet" href="css\menu.css">
     <link rel="stylesheet" href="css\allLs.css">
+    <link rel="icon" type="image/png" href="favicon.png" />
+
 
 </head>
 <body>
     <!-- Иконка "гамбургера" -->
-    <div class="hamburger" onclick="toggleMenu()">
-        <div></div>
-        <div></div>
-        <div></div>
+    <div class="hamburger logo" onclick="toggleMenu()">
+        
+        <img src="img/AllLs.png" alt="Logo">
+        
     </div>
 
     <!-- Боковая панель с меню -->
     <nav class="sidebar" id="sidebar">
+   
         <ul class="menu" id="menu">
             <!-- Здесь JavaScript будет генерировать список домов -->
         </ul>
+        <br><br><br><br>
     </nav>
 
     <!-- Основной контент -->
@@ -29,7 +33,7 @@
              <div class="spinner"></div>
         </div>
 
-        <div id="maincontainer"><div>
+        <div id="maincontainer"><div class="center-container"><h1>Выберете дом на боковой панели слева</h1></div></div>
     </div>
 
     <!-- Подключение скриптов -->

@@ -256,14 +256,13 @@ function initLS() {
         document.getElementById('number').appendChild(option);
     });
     const results = /[#|\?]([\S\s]*)/.exec(decodeURI(window.location.href));
-    let ind;
-
+    let ind=1;
     if (!results || !results[1]) {
-        ind = Object.keys(ls)[0];
+        ind = Object.keys(ls)[1];
     } else {
         ind = Object.keys(ls).find(key => ls[key].kv === results[1] || ls[key].ls === results[1]);
         if (ind === undefined) {
-            ind = Object.keys(ls)[0];
+            ind = Object.keys(ls)[1];
         }
     }
     addStuff(ind);

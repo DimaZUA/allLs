@@ -191,7 +191,7 @@ function generateTable() {
         totalStartDebt += debitStart;
 
         const row = document.createElement('tr');
-        row.innerHTML = `<td>${ls[accountId].kv}</td><td>${debitStart.toFixedWithComma()}</td>`;
+        row.innerHTML = `<td>${ls[accountId].kv}</td><td v="${debitStart.toFixed(2)}"></td>`;
 
         if (displayMode === 'summarized') {
             const chargesByService = {};
@@ -217,12 +217,12 @@ function generateTable() {
             }
             Array.from(servicesWithCharges).forEach(serviceId => {
                 const charge = chargesByService[serviceId] || 0;
-                row.innerHTML += `<td>${charge.toFixedWithComma()}</td>`;
+                row.innerHTML += `<td v="${charge.toFixed(2)}"></td>`;
             });
             row.appendChild(generatePaymentCell(payments));
             const debitEnd = debitStart + Object.values(chargesByService).reduce((sum, charge) => sum + charge, 0) - paymentsSum;
             totalEndDebt += debitEnd;
-            row.innerHTML += `<td>${debitEnd.toFixedWithComma()}</td>`;
+            row.innerHTML += `<td v="${debitEnd.toFixed(2)}"></td>`;
         } else {
             let debitEnd = debitStart;
             let currentDate = new Date(start);
@@ -245,7 +245,7 @@ function generateTable() {
                 }
 
                 // Отображаем начисления и оплаты в ячейках
-                row.innerHTML += `<td>${charges.toFixedWithComma()}</td>`;
+                row.innerHTML += `<td v="${charges.toFixed(2)}"></td>`;
                 row.appendChild(generatePaymentCell(payments));
                 
                 // Обновляем долг на конец месяца
@@ -254,7 +254,7 @@ function generateTable() {
                 currentDate.setMonth(currentDate.getMonth() + 1);
             }
             totalEndDebt += debitEnd;
-            row.innerHTML += `<td>${debitEnd.toFixedWithComma()}</td>`;
+            row.innerHTML += `<td v="${debitEnd.toFixed(2)}"></td>`;
         }
 
         tbody.appendChild(row);
@@ -262,13 +262,13 @@ function generateTable() {
 
     const footerRow = document.createElement('tr');
         footerRow.classList.add('itog');
-    footerRow.innerHTML = `<td>Итого</td><td>${totalStartDebt.toFixedWithComma()}</td>`;
+    footerRow.innerHTML = `<td>Итого</td><td v="${totalStartDebt.toFixed(2)}"></td>`;
     if (displayMode === 'summarized') {
         Array.from(servicesWithCharges).forEach(serviceId => {
             const serviceTotal = totalCharges[serviceId] || 0;
-            footerRow.innerHTML += `<td>${serviceTotal.toFixedWithComma()}</td>`;
+            footerRow.innerHTML += `<td v="${serviceTotal.toFixed(2)}"></td>`;
         });
-        footerRow.innerHTML += `<td>${Object.values(totalPayments).reduce((sum, val) => sum + val, 0).toFixedWithComma()}</td><td>${totalEndDebt.toFixedWithComma()}</td>`;
+        footerRow.innerHTML += `<td v="${Object.values(totalPayments).reduce((sum, val) => sum + val, 0).toFixed(2)}"></td><td v="${totalEndDebt.toFixed(2)}"></td>`;
     } else {
         let currentDate = new Date(start);
         while (currentDate <= end) {
@@ -276,10 +276,10 @@ function generateTable() {
             const year = currentDate.getFullYear();
             const chargeTotal = totalCharges[`${year}-${month}`] || 0;
             const paymentTotal = totalPayments[`${year}-${month}`] || 0;
-            footerRow.innerHTML += `<td>${chargeTotal.toFixedWithComma()}</td><td>${paymentTotal.toFixedWithComma()}</td>`;
+            footerRow.innerHTML += `<td v="${chargeTotal.toFixed(2)}"></td><td v="${paymentTotal.toFixed(2)}"></td>`;
             currentDate.setMonth(currentDate.getMonth() + 1);
         }
-        footerRow.innerHTML += `<td>${totalEndDebt.toFixedWithComma()}</td>`;
+        footerRow.innerHTML += `<td v="${totalEndDebt.toFixed(2)}"></td>`;
     }
     
     thead.appendChild(footerRow);
@@ -292,7 +292,7 @@ function generateTable() {
     tableContainer.appendChild(table);
 
 initPosters();
-doRed();
+
 
 }
 
@@ -320,8 +320,8 @@ function sortTable(header) {
     rows.sort((rowA, rowB) => {
         const cellA = rowA.cells[index].getAttribute('v') || rowA.cells[index].textContent;
         const cellB = rowB.cells[index].getAttribute('v') || rowB.cells[index].textContent;
-        const valA = parseFloat(cellA.replace(/\s/g, '').replace(',', '.')) || 0;
-        const valB = parseFloat(cellB.replace(/\s/g, '').replace(',', '.')) || 0;
+        const valA = parseFloat(cellA) || cellA;
+        const valB = parseFloat(cellB) || cellB;
 
         return isAsc ? (valA < valB ? 1 : -1) : (valA > valB ? 1 : -1);
     });
@@ -342,11 +342,12 @@ function sortTable(header) {
 function generatePaymentCell(payments) {
     const totalPayment = payments.reduce((sum, payment) => sum + payment.sum, 0);
     const paymentCell = document.createElement('td');
+    paymentCell.setAttribute('v', totalPayment.toFixed(2));
 if (payments.length === 1) {
         const payment = payments[0];
         paymentCell.classList.add('poster');
         if (payment.date) {
-            paymentCell.innerHTML = `${totalPayment.toFixedWithComma()}
+            paymentCell.innerHTML = `
                 <div class="descr">
                     <div>Оплачено ${payment.date} через ${b[payment.yur] || 'неизвестный банк'}<br>
                     ${payment.kvit ? `Квітанція: ${payment.kvit}<br>` : ''}
@@ -374,14 +375,14 @@ if (payments.length === 1) {
             <tr>
                 <td>${payment.date}</td>
                 <td>${b[payment.yur] || 'неизвестный банк'}</td>
-                <td>${payment.sum.toFixedWithComma()}</td>
+                <td>${payment.sum.toFixed(2)}</td>
                 ${hasKvit ? `<td>${payment.kvit||''}</td>` : ''}
                 ${hasNazn ? `<td>${payment.nazn||''}</td>` : ''}
             </tr>
         `;
     });
 
-    paymentCell.innerHTML = `${totalPayment.toFixedWithComma()}
+    paymentCell.innerHTML = `
         <div class="descr">
             <table class="subtable">
                 <tbody>
@@ -397,7 +398,6 @@ if (payments.length === 1) {
             </table>
         </div>
     `;
-    
 }
     return paymentCell;
 }
@@ -474,31 +474,4 @@ handlePeriodChange();
     document.getElementById('start-date').addEventListener('input', handlePeriodChange);
     document.getElementById('end-date').addEventListener('input', handlePeriodChange);
 generateTable();
-}
-
-function doRed(){
-const table = document.querySelector('.main');
-for (const row of table.rows) {
-    const cells = row.cells;
-
-    // Второй столбец
-    const secondCellValue = parseFloat(cells[1].textContent);
-    if (secondCellValue > 0) {
-        cells[1].classList.add('red');
-    }
-
-    // Последний столбец
-    const lastCellValue = parseFloat(cells[cells.length - 1].textContent);
-    if (lastCellValue > 0) {
-        cells[cells.length - 1].classList.add('red');
-    }
-
-    // Столбцы между вторым и последним
-    for (let i = 2; i < cells.length - 1; i++) {
-        const cellValue = parseFloat(cells[i].textContent);
-        if (cellValue < 0) {
-            cells[i].classList.add('red');
-        }
-    }
-}
 }

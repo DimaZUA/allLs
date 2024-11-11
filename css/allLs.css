@@ -147,7 +147,7 @@ td:after {
 	content: attr(v);
 }
 
-td:last-child[v]:not([v^='-']):after {
+td:last-child[v]:not([v^='-']):after, .red {
 	color: red;
 }
 
