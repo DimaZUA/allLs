@@ -32,7 +32,6 @@ function setDefaultDates() {
 
     const currentDate = new Date();
     const presets = document.getElementById('preset-select');
-
     const monthNames = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"];
     const currentMonthIndex = currentDate.getMonth();
     const currentMonthName = `${monthNames[currentMonthIndex]} ${currentDate.getFullYear()}`;
@@ -51,7 +50,9 @@ function setDefaultDates() {
         <option value="previous-year">Прошлый год</option>
         <option value="custom">Произвольный период</option>
     `;
-
+    if (getParam('preset')) presets.value=getParam('preset');
+    if (getParam('end')) document.getElementById('end-date').value=getParam('end');
+    if (getParam('start')) document.getElementById('start-date').value=getParam('start')
     applyPreset();
 }
 
@@ -293,6 +294,10 @@ function generateTable() {
 
 initPosters();
 doRed();
+setParam('start',document.getElementById('start-date').value);
+setParam('end',document.getElementById('end-date').value);
+setParam('displayMode',displayMode);
+setParam('preset',document.getElementById('preset-select').value);
 
 }
 
@@ -473,7 +478,8 @@ handlePeriodChange();
     document.getElementById('preset-select').addEventListener('change', handlePeriodChange);
     document.getElementById('start-date').addEventListener('input', handlePeriodChange);
     document.getElementById('end-date').addEventListener('input', handlePeriodChange);
-generateTable();
+    if (getParam('displayMode')) document.getElementById('display-mode').value=getParam('displayMode');
+    generateTable();
 }
 
 function doRed(){

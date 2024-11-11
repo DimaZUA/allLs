@@ -77,11 +77,10 @@ function handleMenuClick(homeCode, actionCode, actionLink) {
         document.getElementById('maincontainer').innerHTML=`<DIV id='maincontainer'><H2>${actionCode} в разработке....</H2></DIV>`;
         } 
     if (homeCode && actionCode){
-    localStorage.setItem('lastHomeCode', homeCode);
-    localStorage.setItem('lastActionCode', actionCode);
+    setParam('homeCode', homeCode);
+    setParam('actionCode', actionCode);
     }
     console.log(`Дом: ${homeCode}, Действие: ${actionCode}`);
-    // Здесь можно добавить логику для вызова нужной функции
 }
 
 
@@ -126,8 +125,10 @@ function loadScriptFromHtml(scriptName, callback) {
 
             if (callback) callback();  // Вызов коллбэка, если он был передан
         })
-        .catch(() => {
-            console.error(`Ошибка загрузки скрипта ${scriptName} с хоста: ${host}`);
+	.catch((error) => {
+            console.error('Ошибка при загрузке скрипта:', error);
+            console.error('Сообщение ошибки:', error.message);
+            console.error('Стек вызовов:', error.stack);
             clearTimeout(preloaderTimeout);  // Останавливаем прелоадер, если произошла ошибка
             preloader.style.display = 'none'; // Скрываем прелоадер
         });
@@ -178,8 +179,10 @@ Number.prototype.toFixedWithComma = function (decimals = 2) {
 
 document.addEventListener('DOMContentLoaded', () => {
     toggleMenu();
-    const homeCode = localStorage.getItem('lastHomeCode');
-    const actionCode = localStorage.getItem('lastActionCode');
+
+    // Если параметры найдены в URL, используем их, иначе — из localStorage
+    const homeCode = getParam('homeCode');
+    const actionCode = getParam('actionCode');
 
     if (homeCode && actionCode) {
         // Находим соответствующий дом в массиве homes по коду
@@ -217,5 +220,3 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 });
-
-

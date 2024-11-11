@@ -168,6 +168,7 @@ if (cumulativeBalance !== 0) {
         lastYearToggle.checked = true;
     }
     initPosters();
+    setParam('kv', ls[accountId].kv);
 }
 
 
@@ -255,12 +256,11 @@ function initLS() {
         option.textContent = value.kv;
         document.getElementById('number').appendChild(option);
     });
-    const results = /[#|\?]([\S\s]*)/.exec(decodeURI(window.location.href));
-    let ind=1;
-    if (!results || !results[1]) {
+    let ind=getParam('kv');
+    if (!ind) {
         ind = Object.keys(ls)[1];
     } else {
-        ind = Object.keys(ls).find(key => ls[key].kv === results[1] || ls[key].ls === results[1]);
+        ind = Object.keys(ls).find(key => ls[key].kv === ind || ls[key].ls === ind);
         if (ind === undefined) {
             ind = Object.keys(ls)[1];
         }
@@ -315,3 +315,44 @@ function timeAgo(dateString) {
 }
 
 
+function setParam(paramName, paramValue) {
+    // Извлекаем параметры URL
+    const urlParams = new URLSearchParams(window.location.search);
+
+    // Удаляем старый параметр, если он существует
+    urlParams.delete(paramName);
+
+    // Добавляем новый параметр
+    urlParams.append(paramName, paramValue);
+
+    // Формируем новый URL
+    const newUrl = `${window.location.pathname}?${urlParams.toString()}`;
+
+    // Обновляем адресную строку
+    history.pushState(null, '', newUrl);
+
+    // Сохраняем параметр в localStorage с ключом 'last_paramName'
+    localStorage.setItem(`last_${paramName}`, paramValue);
+
+    console.log(`Updated URL: ${newUrl}`);
+    console.log(`Stored in localStorage: last_${paramName} = ${paramValue}`);
+}
+
+function getParam(paramName) {
+    // Извлекаем параметры из URL
+    const urlParams = new URLSearchParams(window.location.search);
+
+    // Проверяем, есть ли параметр в URL
+    if (urlParams.has(paramName)) {
+        return urlParams.get(paramName);  // Если параметр найден в URL, возвращаем его значение
+    }
+
+    // Если параметр не найден в URL, пытаемся найти его в localStorage
+    const storedValue = localStorage.getItem(`last_${paramName}`);
+    if (storedValue) {
+        return storedValue;  // Возвращаем значение из localStorage
+    }
+
+    // Если параметр не найден ни в URL, ни в localStorage, возвращаем null
+    return null;
+}
