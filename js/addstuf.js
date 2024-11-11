@@ -329,7 +329,7 @@ function setParam(paramName, paramValue) {
     const newUrl = `${window.location.pathname}?${urlParams.toString()}`;
 
     // Обновляем адресную строку
-    history.pushState(null, '', newUrl);
+    history.replaceState(null, '', newUrl);
 
     // Сохраняем параметр в localStorage с ключом 'last_paramName'
     localStorage.setItem(`last_${paramName}`, paramValue);
