@@ -1,47 +1,75 @@
-﻿  const host='https://dimazua.github.io/allLs/data/';
-function initPosters(){
-        document.querySelectorAll('.poster').forEach(cell => {
-            const tooltip = cell.querySelector('.descr');
-            
-            cell.addEventListener('mouseenter', function(event) {
+﻿  //const host='https://dimazua.github.io/allLs/data/';
+host='data/';
+function initPosters() {
+    const sidebar = document.querySelector('.sidebar'); // Предположим, что у панели есть класс 'sidebar'
+
+    document.querySelectorAll('.poster').forEach(cell => {
+        const tooltip = cell.querySelector('.descr');
+        let hideTimeout;
+
+        cell.addEventListener('mouseenter', function(event) {
+            if (!isCursorOverSidebar(event, sidebar)) {
+                clearTimeout(hideTimeout);
                 tooltip.style.display = 'block';
                 positionTooltip(event, tooltip);
-            });
-
-
-            cell.addEventListener('mouseleave', function() {
-                tooltip.style.display = 'none';
-            });
-        })
-}
-            function positionTooltip(event, tooltip) {
-                const { clientX: mouseX, clientY: mouseY } = event;
-                const { offsetWidth: tooltipWidth, offsetHeight: tooltipHeight } = tooltip;
-                const { innerWidth: windowWidth, innerHeight: windowHeight } = window;
-
-                let tooltipX = mouseX + 10; // Сдвигаем немного вправо от курсора
-                let tooltipY = mouseY + 10; // Сдвигаем немного вниз от курсора
-
-                // Проверка правой границы
-                if (tooltipX + tooltipWidth > windowWidth) {
-                    tooltipX = mouseX - tooltipWidth - 10; // Сдвигаем влево, если выходит за правую границу
-                }
-                // Проверка левой границы
-                if (tooltipX < 0) {
-                    tooltipX = 10; // Прижимаем к левой границе, если выходит за неё
-                }
-                // Проверка нижней границы
-                if (tooltipY + tooltipHeight > windowHeight) {
-                    tooltipY = mouseY - tooltipHeight - 10; // Сдвигаем вверх, если выходит за нижнюю границу
-                }
-                // Проверка верхней границы
-                if (tooltipY < 0) {
-                    tooltipY = 10; // Прижимаем к верхней границе, если выходит за неё
-                }
-
-                tooltip.style.left = `${tooltipX}px`;
-                tooltip.style.top = `${tooltipY}px`;
             }
+        });
+
+        cell.addEventListener('mousemove', function(event) {
+            if (!isCursorOverSidebar(event, sidebar)) {
+                positionTooltip(event, tooltip);
+            } else {
+                tooltip.style.display = 'none'; // Прячем подсказку, если над панелью
+            }
+        });
+
+        cell.addEventListener('mouseleave', function() {
+            hideTimeout = setTimeout(() => tooltip.style.display = 'none', 200);
+        });
+    });
+}
+
+// Функция для проверки, находится ли курсор над боковой панелью
+function isCursorOverSidebar(event, sidebar) {
+    if (!sidebar) return false;
+    const { left, top, right, bottom } = sidebar.getBoundingClientRect();
+    return event.clientX >= left && event.clientX <= right && event.clientY >= top && event.clientY <= bottom;
+}
+
+function positionTooltip(event, tooltip) {
+    const { clientX: mouseX, clientY: mouseY } = event;
+    const { offsetWidth: tooltipWidth, offsetHeight: tooltipHeight } = tooltip;
+    const { innerWidth: windowWidth, innerHeight: windowHeight } = window;
+
+    let tooltipX = mouseX + 10;
+    let tooltipY = mouseY + 10;
+
+    if (tooltipX + tooltipWidth > windowWidth) {
+        tooltipX = mouseX - tooltipWidth - 10;
+    }
+    if (tooltipX < 0) {
+        tooltipX = 10;
+    }
+    if (tooltipY + tooltipHeight > windowHeight) {
+        tooltipY = mouseY - tooltipHeight - 10;
+    }
+    if (tooltipY < 0) {
+        tooltipY = 10;
+    }
+
+    tooltip.style.left = `${tooltipX}px`;
+    tooltip.style.top = `${tooltipY}px`;
+}
+
+
+// Функция для проверки, находится ли курсор над боковой панелью
+function isCursorOverSidebar(event, sidebar) {
+    if (!sidebar) return false;
+    const { left, top, right, bottom } = sidebar.getBoundingClientRect();
+    return event.clientX >= left && event.clientX <= right && event.clientY >= top && event.clientY <= bottom;
+}
+
+
 Number.prototype.toFixedWithComma = function (decimals = 2) {
     return new Intl.NumberFormat('ru-RU', {
         minimumFractionDigits: decimals,
@@ -160,8 +188,6 @@ function setParam(paramName, paramValue) {
     // Сохраняем параметр в localStorage с ключом 'last_paramName'
     localStorage.setItem(`last_${paramName}`, paramValue);
 
-    console.log(`Updated URL: ${newUrl}`);
-    console.log(`Stored in localStorage: last_${paramName} = ${paramValue}`);
 }
 
 function getParam(paramName) {

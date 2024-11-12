@@ -3,7 +3,6 @@ html {
 	    background-color: #f4f4f9;
 }
 
-
 .poster {
     position: relative;
     cursor: pointer;
@@ -16,15 +15,13 @@ html {
     background: #f3f3f3;
     box-shadow: 0 5px 5px rgba(0, 0, 0, 0.3);
     text-align: left;
-    width: 70vw;
-    max-width: calc(100vw - 20px)!important;
+    max-width: calc(100vw - 80px)!important;
     position: fixed; /* фиксированное положение */
     transition: opacity 0.3s ease; /* плавный переход */
     max-height: 80vh;
     overflow-y: auto;
-    z-index: 9999;
+    z-index: 105;
 }
-
 .poster:hover .descr {
     visibility: visible;
     opacity: 1;

@@ -187,7 +187,8 @@ function generateTable() {
         totalStartDebt += debitStart;
 
         const row = document.createElement('tr');
-        row.innerHTML = `<td>${ls[accountId].kv}</td><td>${debitStart.toFixedWithComma()}</td>`;
+        row.appendChild(generateLsCell(accountId));
+        row.innerHTML += `<td>${debitStart.toFixedWithComma()}</td>`;
 
         if (displayMode === 'summarized') {
             const chargesByService = {};
@@ -293,7 +294,191 @@ setParam('start',document.getElementById('start-date').value);
 setParam('end',document.getElementById('end-date').value);
 setParam('displayMode',displayMode);
 setParam('preset',document.getElementById('preset-select').value);
+/*    // Проверяем, что режим детализированный и месяцев больше 2
+    if (displayMode !== 'detailed' || (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth()) <= 2) {
+    	createDebetChart();
+    }else{
+    	createSummaryChart(totalCharges, totalPayments, nach, oplat, start, end, displayMode);
 
+    }
+*/
+}
+let chartInstance = null;
+function createDebetChart(){
+  const displayMode = document.getElementById('display-mode').value; // Получаем режим отображения со страницы
+    const rows = document.querySelectorAll('#table-container > .main > tbody > tr');  // Находим все строки таблицы
+
+    const rowDataList = []; // Массив для хранения данных по каждой строке
+
+    rows.forEach(row => {
+
+    const columns = row.querySelectorAll('td:not(.subtable td)');
+
+       if (columns.length>0){
+        const totalPaymentsForMonth = parseFloat(
+            columns[columns.length - 2]
+                .textContent.trim()
+                .replace(/[^0-9,.\-]+/g, "")  // Убираем все символы, кроме цифр, запятой, точки и минуса
+                .replace(",", ".")             // Заменяем запятую на точку
+        );
+
+        let totalChargesForMonth;
+
+        if (displayMode === 'summarized') {
+            // В режиме "summarized" находим сумму по всем услугам за последний месяц
+            totalChargesForMonth = 0;
+            for (let i = 2; i < columns.length - 2; i++) {
+             if (!columns[i].querySelector('table')) {
+                totalChargesForMonth += parseFloat(
+                    columns[i]
+                        .textContent.trim()
+                        .replace(/[^0-9,.\-]+/g, "")  // Убираем все символы, кроме цифр, запятой, точки и минуса
+                        .replace(",", ".")             // Заменяем запятую на точку
+                );
+             } 
+            }
+        } else {
+            // В режиме "detailed" просто берём значение из соответствующего столбца
+            totalChargesForMonth = parseFloat(
+                columns[columns.length - 3]
+                    .textContent.trim()
+                    .replace(/[^0-9,.\-]+/g, "")  // Убираем все символы, кроме цифр, запятой, точки и минуса
+                    .replace(",", ".")             // Заменяем запятую на точку
+            );
+        }
+
+        const rowData = {
+            apartmentNumber: columns[0].textContent.trim(),  // Номер квартиры
+            totalCharges: totalChargesForMonth,              // Суммарное начисление за последний месяц
+            totalPayments: totalPaymentsForMonth,            // Оплата за последний месяц
+            totalDebt: columns[columns.length - 1].textContent.trim()  // Итоговый долг по квартире (самый правый столбец)
+        };
+
+        rowDataList.push(rowData);  // Добавляем данные строки в общий список
+       }
+    });
+
+    console.log(rowDataList);  // Пример вывода всех данных}
+
+
+console.log(rowData); // Выводим данные для проверки
+
+}
+function createSummaryChart(totalCharges, totalPayments, nach, oplat, start, end, displayMode) {
+  
+    // Если график уже существует, уничтожаем его
+    if (chartInstance) {
+        chartInstance.destroy();
+    }
+
+    // Массивы для хранения данных по месяцам
+    const months = [];
+    const chargesData = [];
+    const paymentsData = [];
+    const paymentPercentages = [];
+
+    let currentDate = new Date(start);
+    
+    while (currentDate <= end) {
+        const month = currentDate.getMonth() + 1;
+        const year = currentDate.getFullYear();
+        const monthKey = `${year}-${month}`;
+
+        const chargeTotal = totalCharges[monthKey] || 0;
+        const paymentTotal = totalPayments[monthKey] || 0;
+
+        months.push(`${month}/${year}`);
+        chargesData.push(chargeTotal);
+        paymentsData.push(paymentTotal);
+
+        // Рассчитываем процент оплаты для текущего месяца
+        const paymentPercentage = chargeTotal ? (paymentTotal / chargeTotal) * 100 : 0;
+        paymentPercentages.push(paymentPercentage);
+
+        currentDate.setMonth(currentDate.getMonth() + 1);
+    }
+
+    // Создание графика
+    const ctx = document.getElementById('summaryChart').getContext('2d');
+    chartInstance = new Chart(ctx, {
+        type: 'line', // Тип графика: линия
+        data: {
+            labels: months,
+            datasets: [
+                {
+                    label: 'Начисления',
+                    borderColor: 'rgba(255, 99, 132, 1)', 
+                    backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                    data: chargesData,
+                    fill: false,
+                    yAxisID: 'y1',
+                },
+                {
+                    label: 'Платежи',
+                    data: paymentsData,
+                    borderColor: 'rgba(75, 192, 192, 1)', 
+                    backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                    fill: true,
+                    yAxisID: 'y1',
+                },
+                {
+                    label: 'Процент оплаты',
+                    data: paymentPercentages,
+                    borderColor: 'rgba(54, 162, 235, 1)', // Цвет линии процента
+                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                    fill: false,
+                    yAxisID: 'y2',
+                    borderDash: [5, 5],
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y1: {
+                    type: 'linear',
+                    position: 'left',
+                    ticks: {
+                        beginAtZero: true
+                    },
+                    title: {
+                        display: true,
+                        text: 'Сумма (грн.)'
+                    }
+                },
+                y2: {
+                    type: 'linear',
+                    position: 'right',
+                    ticks: {
+                        beginAtZero: true,
+                        max: 100,
+                        stepSize: 10
+                    },
+                    title: {
+                        display: true,
+                        text: 'Процент оплаты (%)'
+                    },
+                    grid: {
+                        drawOnChartArea: false
+                    }
+                }
+            },
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const datasetLabel = context.dataset.label || '';
+                            const value = context.raw;
+                            if (datasetLabel === 'Процент оплаты') {
+                                return `${datasetLabel}: ${value.toFixed(2)}%`;
+                            }
+                            return `${datasetLabel}: ${value.toFixedWithComma()}`;
+                        }
+                    }
+                }
+            }
+        }
+    });
 }
 
 
@@ -338,7 +523,33 @@ function sortTable(header) {
 	  });
 
 }
+function generateLsCell(accountId) {
+    const curLS=ls[accountId]
+    const lsCell = document.createElement('td');
+    lsCell.classList.add('poster');
 
+    // Формируем контент для ячейки
+    lsCell.innerHTML = `
+        ${curLS.kv} <!-- Номер квартиры -->
+        <div class="descr">
+            <div>
+                ЛС: ${curLS.ls}<br>  <!-- Лицевой счет -->
+                ФИО: ${curLS.fio}<br>  <!-- ФИО -->
+                ${curLS.pl ? `Площадь: ${curLS.pl} м²<br>` : ''}  <!-- Площадь -->
+                ${curLS.pers ? `Жильцов: ${curLS.pers}<br>` : ''}  <!-- Количество жильцов -->
+                ${curLS.komn ? `Комнат: ${curLS.komn}<br>` : ''}  <!-- Количество комнат -->
+                ${curLS.et ? `Этаж: ${curLS.et}<br>` : ''}  <!-- Этаж -->
+                ${curLS.pod ? `Под'їзд: ${curLS.pod}<br>` : ''}  <!-- Подъезд -->
+                ${curLS.lgota ? `Льготник: ${curLS.lgota}<br>` : ''}  <!-- Льготник -->
+                ${curLS.tel ? `Телефон: ${curLS.tel}<br>` : ''}  <!-- Телефон -->
+                ${curLS.note ? `Примечание: ${curLS.note}<br>` : ''}  <!-- Примечание -->
+                ${curLS.email ? `Email: ${curLS.email}<br>` : ''}  <!-- Email -->
+            </div>
+        </div>
+    `;
+
+    return lsCell;
+}
 function generatePaymentCell(payments) {
     const totalPayment = payments.reduce((sum, payment) => sum + payment.sum, 0);
     const paymentCell = document.createElement('td');
@@ -503,3 +714,4 @@ for (const row of table.rows) {
     }
 }
 }
+

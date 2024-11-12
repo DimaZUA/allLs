@@ -10,6 +10,7 @@ const actions = [
 
 
 // Генерация меню
+homes.sort((a, b) => a.name.localeCompare(b.name));
 const menu = document.getElementById('menu');
 homes.forEach(home => {
     const homeItem = document.createElement('li');
@@ -71,7 +72,7 @@ function handleMenuClick(homeCode, actionCode, actionLink) {
                 initTable();
             });
         }else if (actionCode === 'payments'){
-        document.getElementById('maincontainer').innerHTML=`<DIV id='maincontainer'><H2>${actionCode} в разработке....</H2></DIV>`;
+        	document.getElementById('maincontainer').innerHTML=`<DIV id='maincontainer'><H2>${actionCode} в разработке....</H2></DIV>`;
         }else if (actionCode === 'info'){
         document.getElementById('maincontainer').innerHTML=`<DIV id='maincontainer'><H2>${actionCode} в разработке....</H2></DIV>`;
         } 
@@ -164,3 +165,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 });
+function toggleSidebarBasedOnScreenSize() {
+    const sidebar = document.querySelector('.sidebar');
+    if ((window.innerWidth > 768 && !sidebar.classList.contains('open')) || (window.innerWidth <= 768 && sidebar.classList.contains('open')))
+        toggleMenu();
+
+}
+window.addEventListener('resize', toggleSidebarBasedOnScreenSize);
