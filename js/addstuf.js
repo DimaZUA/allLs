@@ -170,11 +170,11 @@ document.getElementById('datetime').innerHTML = `
                 ${curLS.pers ? `Жильцов: ${curLS.pers}<br>` : ''}  <!-- Количество жильцов -->
                 ${curLS.komn ? `Комнат: ${curLS.komn}<br>` : ''}  <!-- Количество комнат -->
                 ${curLS.et ? `Этаж: ${curLS.et}<br>` : ''}  <!-- Этаж -->
-                ${curLS.pod ? `Под'їзд: ${curLS.pod}<br>` : ''}  <!-- Подъезд -->
+                ${curLS.pod ? `Подезд: ${curLS.pod}<br>` : ''}  <!-- Подъезд -->
                 ${curLS.lgota ? `Льготник: ${curLS.lgota}<br>` : ''}  <!-- Льготник -->
                 ${curLS.tel ? `Телефон: ${curLS.tel}<br>` : ''}  <!-- Телефон -->
                 ${curLS.note ? `Примечание: ${curLS.note}<br>` : ''}  <!-- Примечание -->
-                ${curLS.email ? `Email: ${curLS.email}<br>` : ''}  <!-- Email -->
+                ${curLS.email ? `e-mail: ${curLS.email}<br>` : ''}  <!-- Email -->
             </div>
  
     <br>Данные указаны по состоянию на <br>${dt} (${timeAgo(dt)}назад.)
