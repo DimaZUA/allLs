@@ -13,7 +13,7 @@
     let currentMonth = new Date().getMonth(); // Текущий месяц
     let currentYear = new Date().getFullYear();
     let lastYearToggle; // Переменная для хранения чекбокса последнего года
-
+    let lastRow;
     for (const year in accountData) {
         const yearDiv = document.createElement('div');
         const balanceDiv = document.createElement('div');
@@ -99,7 +99,6 @@
         let totalPaymentsByService = {};
         let totalChargeForYear = 0;
         let totalPaymentsForYear = 0;
-        let lastRow;
         // Заполнение таблицы данными по месяцам
         for (const month in accountData[year]) {
         
@@ -251,6 +250,9 @@ if (services.size > 1) {
                 ${curLS.email ? `e-mail: ${curLS.email}<br>` : ''}  <!-- Email -->
             <br>Данные указаны по состоянию на <br>${dt} (${timeAgo(dt)}назад.)
         </div>`;
+        lastRow.scrollIntoView({ behavior: 'smooth', block: 'end' });
+        initPosters();
+        setParam('kv', ls[accountId].kv);
 }
 
 

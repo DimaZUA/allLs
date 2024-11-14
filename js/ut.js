@@ -17,6 +17,7 @@ function initPosters() {
 
         cell.addEventListener('mousemove', function(event) {
             if (!isCursorOverSidebar(event, sidebar)) {
+            	tooltip.style.display = 'block'; 
                 positionTooltip(event, tooltip);
             } else {
                 tooltip.style.display = 'none'; // Прячем подсказку, если над панелью
@@ -36,38 +37,42 @@ function isCursorOverSidebar(event, sidebar) {
     return event.clientX >= left && event.clientX <= right && event.clientY >= top && event.clientY <= bottom;
 }
 
+
+
 function positionTooltip(event, tooltip) {
     const { clientX: mouseX, clientY: mouseY } = event;
     const { offsetWidth: tooltipWidth, offsetHeight: tooltipHeight } = tooltip;
     const { innerWidth: windowWidth, innerHeight: windowHeight } = window;
 
-    let tooltipX = mouseX + 10;
-    let tooltipY = mouseY + 10;
+    let tooltipX = mouseX + 10; // Отступ справа от курсора
+    let tooltipY = mouseY + 10; // Отступ снизу от курсора
 
+    // Проверка, чтобы подсказка не выходила за правый край окна
     if (tooltipX + tooltipWidth > windowWidth) {
-        tooltipX = mouseX - tooltipWidth - 10;
-    }
-    if (tooltipX < 0) {
-        tooltipX = 10;
-    }
-    if (tooltipY + tooltipHeight > windowHeight) {
-        tooltipY = mouseY - tooltipHeight - 10;
-    }
-    if (tooltipY < 0) {
-        tooltipY = 10;
+        tooltipX = mouseX - tooltipWidth - 10; // Перемещаем подсказку влево
     }
 
+    // Проверка, чтобы подсказка не выходила за левый край окна
+    if (tooltipX < 0) {
+        tooltipX = 10; // Ограничиваем минимальным отступом
+    }
+
+    // Проверка, чтобы подсказка не выходила за нижний край окна
+    if (tooltipY + tooltipHeight > windowHeight) {
+        tooltipY = mouseY - tooltipHeight - 10; // Перемещаем подсказку вверх
+    }
+
+    // Проверка, чтобы подсказка не выходила за верхний край окна
+    if (tooltipY < 0) {
+        tooltipY = 10; // Ограничиваем минимальным отступом
+    }
+
+    // Устанавливаем позицию подсказки
     tooltip.style.left = `${tooltipX}px`;
     tooltip.style.top = `${tooltipY}px`;
 }
 
 
-// Функция для проверки, находится ли курсор над боковой панелью
-function isCursorOverSidebar(event, sidebar) {
-    if (!sidebar) return false;
-    const { left, top, right, bottom } = sidebar.getBoundingClientRect();
-    return event.clientX >= left && event.clientX <= right && event.clientY >= top && event.clientY <= bottom;
-}
 
 
 Number.prototype.toFixedWithComma = function (decimals = 2) {
