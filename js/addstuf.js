@@ -191,7 +191,7 @@ if (services.size > 1) {
     const chargesSummaryRow = document.createElement('tr');
     chargesSummaryRow.classList.add('itog'); 
     const totalChargeForAllServices = Object.values(totalChargesByService).reduce((sum, value) => sum + value, 0);
-    chargesSummaryRow.innerHTML = `<td colspan="${services.size}" v="${totalChargeForAllServices.toFixed(2)}"></td>`;
+    chargesSummaryRow.innerHTML = `<td colspan="${services.size}" ALIGN="center" v="${totalChargeForAllServices.toFixed(2)}">Всего начисленно: </td>`;
     tbody.appendChild(chargesSummaryRow);
 
 } else {
