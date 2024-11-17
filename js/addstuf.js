@@ -63,7 +63,7 @@
 
         const table = document.createElement('table');
         table.id = 'main';
-
+        const thead = document.createElement('thead');
         const tbody = document.createElement('tbody');
 
         // Определение уникальных услуг для текущего года
@@ -81,7 +81,7 @@
              <td colspan="${services.size}" align="CENTER">Начислено за месяц</td>
              <td rowspan="2" align="CENTER">Оплачено в месяце</td>
              <td rowspan="2" align="CENTER">Долг(+) Переплата(-) на конец месяца</td>`;
-        tbody.appendChild(headerRow);
+        thead.appendChild(headerRow);
 
         // Второй ряд заголовка с названиями услуг
         const servicesRow = document.createElement('tr');
@@ -92,7 +92,7 @@
             serviceHeader.textContent = serviceName;
             servicesRow.appendChild(serviceHeader);
         });
-        tbody.appendChild(servicesRow);
+        thead.appendChild(servicesRow);
 
         // Переменные для итоговых сумм по году
         let totalChargesByService = {};
@@ -221,7 +221,7 @@ if (services.size > 1) {
     tbody.appendChild(totalRow);
 }
  if (lastRow) tbody.appendChild(lastRow);
-
+        table.appendChild(thead);
         table.appendChild(tbody);
         yearContent.appendChild(table);
         yearDiv.appendChild(yearToggle);

@@ -50,9 +50,10 @@ html {
 }
 
 
-.box table#main tr:hover td {
-	background: #e8edff;
+.box table#main tbody tr:hover:not(.itog) td {
+    background: #e8edff;
 }
+
 
 .toggle-box {
 	display: none;
@@ -161,12 +162,8 @@ td[v='0.00']:after {
 
 .toggle-box + label + div th, 
 .toggle-box + label + div td {
-    padding: 2px; /* Отступы внутри ячеек */
     border: 1px solid #CCC; /* Граница ячеек */
-
 }
-
-
 
 /* Общие стили для блока с информацией о балансе */
 .balance-info {
