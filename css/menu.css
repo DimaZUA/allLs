@@ -192,3 +192,7 @@ body {
         width: 100%; /* Контент занимает всю ширину */
     }
 }
+.box table {
+    font-family: Arial, sans-serif;
+    font-size: 1.5rem; /* 1 rem = размер шрифта корневого элемента */
+}
