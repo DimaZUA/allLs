@@ -41,7 +41,7 @@
 
             // Создаем span для числа
             let balanceValue = document.createElement('span');
-            balanceValue.textContent = `${cumulativeBalance.toFixed(2)}`;
+            balanceValue.textContent = `${cumulativeBalance.toFixedWithComma()}`;
 
             // Если число положительное, делаем его красным
             if (cumulativeBalance > 0) {
@@ -119,9 +119,9 @@
 
             // Добавляем начисления по каждой услуге в строку
             services.forEach(serviceId => {
-                const charge = rowCharges[serviceId].toFixed(2);
+                const charge = rowCharges[serviceId];
                 const cell = document.createElement('td');
-                cell.setAttribute('v', charge);
+                cell.textContent= charge!=0?charge.toFixedWithComma():'';
                 row.appendChild(cell);
             });
             const cur=(month == currentMonth+1 && year==currentYear);
@@ -139,11 +139,11 @@
             // Добавляем ячейку с долгом/переплатой
             const balanceCell = document.createElement('td');
             if (cur){
-            	balanceCell.setAttribute('v', (cumulativeBalance+monthlyChargesTotal - totalPayments).toFixed(2));
+            	balanceCell.textContent= (cumulativeBalance+monthlyChargesTotal - totalPayments).toFixedWithComma();
             	if (cumulativeBalance+monthlyChargesTotal - totalPayments>0) balanceCell.classList.add("red"); else balanceCell.classList.add("green");
 
             }else{
-            	balanceCell.setAttribute('v', cumulativeBalance.toFixed(2));
+            	balanceCell.textContent= cumulativeBalance.toFixedWithComma();
             	if (cumulativeBalance>0) balanceCell.classList.add("red"); else balanceCell.classList.add("green");
             }
             row.appendChild(balanceCell);
@@ -169,21 +169,21 @@ if (services.size > 1) {
     services.forEach(serviceId => {
         const chargeTotal = totalChargesByService[serviceId] || 0;
         const totalCell = document.createElement('td');
-        totalCell.setAttribute('v', chargeTotal.toFixed(2));  
+        totalCell.textContent=chargeTotal.toFixedWithComma();  
         totalRow.appendChild(totalCell);
     });
 
     // Общая сумма оплаченных денег
     const totalPaymentsCell = document.createElement('td');
     totalPaymentsCell.rowSpan = 2;
-    totalPaymentsCell.setAttribute('v', totalPaymentsForYear.toFixed(2));
+    totalPaymentsCell.textContent=totalPaymentsForYear.toFixedWithComma();
     totalRow.appendChild(totalPaymentsCell);
 
     // Общий долг/переплата на конец года
     const finalBalanceCell = document.createElement('td');
     finalBalanceCell.rowSpan = 2;
     if (cumulativeBalance>0) finalBalanceCell.classList.add("red"); else finalBalanceCell.classList.add("green");
-    finalBalanceCell.setAttribute('v', cumulativeBalance.toFixed(2));
+    finalBalanceCell.textContent= cumulativeBalance.toFixedWithComma();
     totalRow.appendChild(finalBalanceCell);
     tbody.appendChild(totalRow);
 
@@ -191,7 +191,7 @@ if (services.size > 1) {
     const chargesSummaryRow = document.createElement('tr');
     chargesSummaryRow.classList.add('itog'); 
     const totalChargeForAllServices = Object.values(totalChargesByService).reduce((sum, value) => sum + value, 0);
-    chargesSummaryRow.innerHTML = `<td colspan="${services.size}" ALIGN="center" v="${totalChargeForAllServices.toFixed(2)}">Всего начисленно: </td>`;
+    chargesSummaryRow.innerHTML = `<td colspan="${services.size}" ALIGN="center">Всего начисленно: ${totalChargeForAllServices.toFixedWithComma()}</td>`;
     tbody.appendChild(chargesSummaryRow);
 
 } else {
@@ -202,7 +202,7 @@ if (services.size > 1) {
 
     // Итог начислений по единственной услуге
     const totalChargeForOneService = Object.values(totalChargesByService)[0] || 0; // Получаем сумму для единственной услуги
-    totalRow.innerHTML += `<td v="${totalChargeForOneService.toFixed(2)}"></td>`;
+    totalRow.innerHTML += `<td>${totalChargeForOneService.toFixedWithComma()}</td>`;
 
     // Итог по оплатам
     let totalPaymentsForOneService = 0;
@@ -212,10 +212,10 @@ if (services.size > 1) {
         totalPaymentsForOneService += monthPaymentsSum;
     }
 
-    totalRow.innerHTML += `<td v="${totalPaymentsForOneService.toFixed(2)}"></td>`;
+    totalRow.innerHTML += `<td>${totalPaymentsForOneService.toFixedWithComma()}</td>`;
 
     // Общий долг/переплата на конец года
-    totalRow.innerHTML += `<td class="${cumulativeBalance > 0 ? 'red' : 'green'}" v="${cumulativeBalance.toFixed(2)}"></td>`;
+    totalRow.innerHTML += `<td class="${cumulativeBalance > 0 ? 'red' : 'green'}">${cumulativeBalance.toFixedWithComma()}</td>`;
 
 
     tbody.appendChild(totalRow);
@@ -263,8 +263,7 @@ function createPaymentCell(row, monthlyPayments) {
         paymentCell.className = 'poster'; // Добавляем класс оформления
         // Одна оплата — отображаем простую строку
         const payment = monthlyPayments[0];
-        paymentCell.setAttribute('v', totalPayments.toFixed(2));
-        paymentCell.innerHTML = `
+        paymentCell.innerHTML = `${totalPayments.toFixedWithComma()}
             <div class="descr">
                 <div class="big">Оплачено ${payment.date} через ${b[payment.yur]}${payment.kvit ? `<br>Квітанція: ${payment.kvit}` : ''} ${payment.nazn ? `<br>Призначення: ${payment.nazn}` : ''} </div>
             </div>
@@ -293,14 +292,14 @@ const tableRows = monthlyPayments.map(payment => `
         <td class="big">${payment.date}</td>
         <td>${b[payment.yur]}</td>
         ${hasKvit ? `<td>${payment.kvit || ''}</td>` : ''}
-        <td class="big">${payment.sum.toFixed(2)}</td>
+        <td class="big">${payment.sum.toFixedWithComma()}</td>
         ${hasNazn ? `<td>${payment.nazn || ''}</td>` : ''}
     </tr>
 `).join('');
 
 // Устанавливаем содержимое ячейки оплаты
-paymentCell.setAttribute('v', totalPayments.toFixed(2));
-paymentCell.innerHTML = `
+
+paymentCell.innerHTML = `${totalPayments.toFixedWithComma()}
     <div class="descr">
         <table class="subtable">
             <tbody>

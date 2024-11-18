@@ -62,7 +62,6 @@ function handleMenuClick(homeCode, actionCode, actionLink) {
     actionLink.classList.add('active-action');
 
         if (actionCode === 'accounts') {
-        document.getElementById('maincontainer').style.maxWidth = '1000px'; 
             loadScriptFromHtml(homeCode+'.js', function() {
                 initLS();
             });
