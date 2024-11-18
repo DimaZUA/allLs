@@ -140,7 +140,7 @@ table#main {
 
 
 #maincontainer {
-	max-width: 960;
+	max-width: 100%;
 	margin-left: auto;
 	margin-right: auto;
 }
@@ -321,7 +321,7 @@ tr.grey {
 #header {
     position: sticky;
     top: 0;  /* Закрепить к верхней части страницы */
-    z-index: 1000;  /* Убедитесь, что элемент поверх других */
+    z-index: 99;  /* Убедитесь, что элемент поверх других */
     background-color: #fff;  /* Фон, чтобы текст не скрывался */
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);  /* Легкая тень для отделения */
     padding: 10px 0;  /* Отступы */
