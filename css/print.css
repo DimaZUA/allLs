@@ -58,4 +58,8 @@
     @page {
         margin: 0;
     }
+    .box {
+        page-break-inside: avoid; /* Запрещает разрыв таблицы на странице */
+        -webkit-column-break-inside: avoid; /* Для старых браузеров */
+    }
 }
