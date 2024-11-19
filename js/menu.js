@@ -166,8 +166,10 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 function toggleSidebarBasedOnScreenSize() {
     const sidebar = document.querySelector('.sidebar');
-    if ((window.innerWidth > 768 && !sidebar.classList.contains('open')) || (window.innerWidth <= 768 && sidebar.classList.contains('open')))
+//    if ((window.innerWidth > 768 && !sidebar.classList.contains('open')) || (window.innerWidth <= 768 && sidebar.classList.contains('open')))
+      if (window.innerWidth <= 768 && sidebar.classList.contains('open'))
         toggleMenu();
 
 }
 window.addEventListener('resize', toggleSidebarBasedOnScreenSize);
+

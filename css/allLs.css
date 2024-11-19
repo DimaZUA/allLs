@@ -9,7 +9,7 @@ html {
 }
 
 .descr {
-    visibility: hidden; /* изначально скрыто */
+    display: none;
     opacity: 0; /* начальная непрозрачность */
     padding: 10px;
     background: #f3f3f3;
@@ -23,7 +23,6 @@ html {
     z-index: 105;
 }
 .poster:hover .descr {
-    visibility: visible;
     opacity: 1;
 }
 
@@ -97,7 +96,7 @@ html {
 	vertical-align: middle;
 	padding: 5px;
 	text-align: center;
-	font-size: xx-large;
+	font-size: 1.5rem;
 		
 }
 .red{color: red;}
@@ -123,7 +122,7 @@ td[v^='-']:not(.green) {
 
 .big {
 	font-weight: bold;
-	font-size: x-large
+	font-size: 1.5rem
 }
 
 table#main td {
@@ -133,7 +132,6 @@ table#main td {
 
 table#main {
 	border-collapse: collapse;
-	page-break-after: always;
 	text-align: right !important;
 	width: 100%;
 }
@@ -149,15 +147,6 @@ td:after {
 }
 
 
-td[v]:after {
-	font-size: xx-large;
-}
-#table-container td[v]:after {
-    font-size: initial; /* Сбрасываем стиль для td[v] внутри #table-container */
-}
-td[v='0.00']:after {
-	content: '';
-}
 
 .toggle-box + label + div th, 
 .toggle-box + label + div td {
@@ -231,13 +220,13 @@ td[v='0.00']:after {
 }
 
 #filter-container label {
-    font-size: 14px;
+    font-size: 1rem;
     margin-right: 10px;
 }
 
 #filter-container select, #filter-container input, #filter-container button {
     padding: 8px 12px;
-    font-size: 14px;
+    font-size: 1rem;
     border-radius: 4px;
     border: 1px solid #ccc;
 }

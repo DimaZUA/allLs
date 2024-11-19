@@ -1,0 +1,44 @@
+﻿@media print {
+    /* Скрыть ненужные элементы */
+    body * {
+        visibility: hidden;
+        font-size: 11px !important;
+    }
+    #number{
+    border: none;
+    }
+    /* Отобразить контейнер с таблицами и необходимой информацией */
+    #maincontainer, #maincontainer *, #header, #header * {
+        visibility: visible;
+    }
+
+
+    .box[style*="block"] {
+        display: block !important; /* Отображать только раскрытые таблицы */
+    }
+
+    /* Оптимизация таблиц */
+    table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    th, td {
+        padding: 3px; /* Минимальные отступы */
+        text-align: center;
+    }
+
+    /* Убедиться, что адрес и ФИО видны */
+    #header {
+        display: block;
+        margin-bottom: 10px;
+    }
+
+    /* Скрытие ненужных блоков */
+    .sidebar, .hamburger, .preloader, input, .descr, #datetime {
+        display: none;
+    }
+.toggle-box:not(:checked) + label {
+  display: none;
+}
+}
