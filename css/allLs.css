@@ -1,6 +1,7 @@
 html {   
 	font-family: Calibri, Arial, Helvetica, sans-serif;
 	    background-color: #f4f4f9;
+	    font-size:16px;
 }
 
 .poster {
@@ -30,7 +31,7 @@ html {
 .subtable {
     border-collapse: collapse;
     text-align: center;
-    font-size: 12pt;
+    font-size: 1rem;
     width: 100%; /* Таблица занимает всю ширину контейнера */
 }
 
@@ -297,12 +298,21 @@ tr.grey {
     opacity: 0.3; /* Полупрозрачность */
 //    color: #ccc;  /* Цвет текста для строк, которые считаются неактивными */
 }
-
+@media (max-width: 1024px) {
+html {   
+	    font-size:12px;
+}
+}
 @media (max-width: 768px) {
     #filter-container {
         min-width: auto; /* Убираем ограничение по минимальной ширине */
         width: 100%; /* Элементы будут растягиваться по ширине на мобильных устройствах */
+
     }
+html {   
+	    font-size:10px;
+}
+
 }
 
 #header {
@@ -313,6 +323,5 @@ tr.grey {
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);  /* Легкая тень для отделения */
     padding: 10px 0;  /* Отступы */
 }
-
 
 

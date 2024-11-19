@@ -1,4 +1,4 @@
-﻿@media print {
+﻿﻿@media print {
     /* Скрыть ненужные элементы */
     body * {
         visibility: hidden;
@@ -50,6 +50,10 @@
         transform: none !important; /* Убираем сдвиг через transform */
         position: relative !important; /* Используем position для печати */
         left: 0 !important; /* Устанавливаем сдвиг на 0 */
+    width: 100%;
+    max-width: 100%
+
+
     }
 
     /* Дополнительная настройка для страницы печати */

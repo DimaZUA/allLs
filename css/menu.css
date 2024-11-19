@@ -1,4 +1,4 @@
-﻿/* Основной стиль страницы */
+﻿﻿/* Основной стиль страницы */
 body {
     font-family: Arial, sans-serif;
     margin: 0;
@@ -196,11 +196,16 @@ body {
     font-family: Arial, sans-serif;
     font-size: 1.5rem; /* 1 rem = размер шрифта корневого элемента */
 }
-.content.open {
-    margin-left: 250px;
-}
-
 /* Если класс 'open' отсутствует, устанавливаем margin-left: 0px */
 .content {
     margin-left: 0px;
+    width: 95% ;
+    max-width: 100% ;
+
 }
+.content.open {
+    margin-left: 250px;
+    width: calc(95% - 250px); /* Пробелы вокруг знака минус */
+    max-width: calc(95% - 250px); /* Пробелы также здесь */
+}
+
