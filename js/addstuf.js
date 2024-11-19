@@ -1,43 +1,49 @@
-﻿function addStuff(accountId) {
-  const accountData = nach[accountId]; // Данные для указанного accountId
-  const paymentData = oplat[accountId] || {}; // Данные оплат для указанного accountId
-  const container = document.getElementById('din'); // Контейнер для таблицы
+﻿function _slicedToArray(r, e) { return _arrayWithHoles(r) || _iterableToArrayLimit(r, e) || _unsupportedIterableToArray(r, e) || _nonIterableRest(); }
+function _nonIterableRest() { throw new TypeError("Invalid attempt to destructure non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."); }
+function _unsupportedIterableToArray(r, a) { if (r) { if ("string" == typeof r) return _arrayLikeToArray(r, a); var t = {}.toString.call(r).slice(8, -1); return "Object" === t && r.constructor && (t = r.constructor.name), "Map" === t || "Set" === t ? Array.from(r) : "Arguments" === t || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(t) ? _arrayLikeToArray(r, a) : void 0; } }
+function _arrayLikeToArray(r, a) { (null == a || a > r.length) && (a = r.length); for (var e = 0, n = Array(a); e < a; e++) n[e] = r[e]; return n; }
+function _iterableToArrayLimit(r, l) { var t = null == r ? null : "undefined" != typeof Symbol && r[Symbol.iterator] || r["@@iterator"]; if (null != t) { var e, n, i, u, a = [], f = !0, o = !1; try { if (i = (t = t.call(r)).next, 0 === l) { if (Object(t) !== t) return; f = !1; } else for (; !(f = (e = i.call(t)).done) && (a.push(e.value), a.length !== l); f = !0); } catch (r) { o = !0, n = r; } finally { try { if (!f && null != t.return && (u = t.return(), Object(u) !== u)) return; } finally { if (o) throw n; } } return a; } }
+function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
+function addStuff(accountId) {
+  var accountData = nach[accountId]; // Данные для указанного accountId
+  var paymentData = oplat[accountId] || {}; // Данные оплат для указанного accountId
+  var container = document.getElementById('din'); // Контейнер для таблицы
   container.innerHTML = ''; // Очищаем контейнер перед добавлением новой таблицы
   document.getElementById('fio').textContent = ls[accountId].fio;
   if (!accountData) {
-    container.innerHTML = `<p>Данные для ID ${accountId} не найдены.</p>`;
+    container.innerHTML = "<p>\u0414\u0430\u043D\u043D\u044B\u0435 \u0434\u043B\u044F ID ".concat(accountId, " \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D\u044B.</p>");
     return;
   }
-  let cumulativeBalance = 0;
-  let currentMonth = new Date().getMonth(); // Текущий месяц
-  let currentYear = new Date().getFullYear();
-  let lastYearToggle; // Переменная для хранения чекбокса последнего года
-  let lastRow;
-  for (const year in accountData) {
-    const yearDiv = document.createElement('div');
-    const balanceDiv = document.createElement('div');
-    const yearToggle = document.createElement('input');
-    const yearLabel = document.createElement('label');
-    const yearContent = document.createElement('div');
+  var cumulativeBalance = 0;
+  var currentMonth = new Date().getMonth(); // Текущий месяц
+  var currentYear = new Date().getFullYear();
+  var lastYearToggle; // Переменная для хранения чекбокса последнего года
+  var lastRow;
+  var _loop = function _loop() {
+    var yearDiv = document.createElement('div');
+    var balanceDiv = document.createElement('div');
+    var yearToggle = document.createElement('input');
+    var yearLabel = document.createElement('label');
+    var yearContent = document.createElement('div');
 
     // Настройка чекбокса для разворачивания/сворачивания
     yearToggle.className = 'toggle-box';
-    yearToggle.id = `block-${year}`;
+    yearToggle.id = "block-".concat(year);
     yearToggle.type = 'checkbox';
-    yearLabel.setAttribute('for', `block-${year}`);
-    yearLabel.innerHTML = `<div>${year}</div>`;
+    yearLabel.setAttribute('for', "block-".concat(year));
+    yearLabel.innerHTML = "<div>".concat(year, "</div>");
     yearContent.className = 'box';
     if (cumulativeBalance !== 0) {
       // Текст в зависимости от значения cumulativeBalance
-      const balanceText = cumulativeBalance > 0 ? '⚠️ Вхідний борг на початок року' : '✅ Вхідна переплата на початок року';
+      var balanceText = cumulativeBalance > 0 ? '⚠️ Вхідний борг на початок року' : '✅ Вхідна переплата на початок року';
 
       // Создаем элемент для блока с информацией
-      const balanceDiv = document.createElement('div');
-      balanceDiv.className = 'balance-info';
+      var _balanceDiv = document.createElement('div');
+      _balanceDiv.className = 'balance-info';
 
       // Создаем span для числа
-      let balanceValue = document.createElement('span');
-      balanceValue.textContent = `${cumulativeBalance.toFixedWithComma()}`;
+      var balanceValue = document.createElement('span');
+      balanceValue.textContent = "".concat(cumulativeBalance.toFixedWithComma());
 
       // Если число положительное, делаем его красным
       if (cumulativeBalance > 0) {
@@ -47,41 +53,38 @@
       }
 
       // Добавляем текст и число в блок
-      balanceDiv.textContent = `${balanceText}: `;
-      balanceDiv.appendChild(balanceValue);
+      _balanceDiv.textContent = "".concat(balanceText, ": ");
+      _balanceDiv.appendChild(balanceValue);
       balanceValue = document.createElement('span');
       balanceValue.textContent = ' грн.';
-      balanceDiv.appendChild(balanceValue);
+      _balanceDiv.appendChild(balanceValue);
 
       // Вставляем блок с информацией перед таблицей
-      yearContent.appendChild(balanceDiv);
+      yearContent.appendChild(_balanceDiv);
     }
-    const table = document.createElement('table');
+    var table = document.createElement('table');
     table.id = 'main';
-    const thead = document.createElement('thead');
-    const tbody = document.createElement('tbody');
+    var thead = document.createElement('thead');
+    var tbody = document.createElement('tbody');
 
     // Определение уникальных услуг для текущего года
-    const services = new Set();
-    for (const month in accountData[year]) {
-      for (const serviceId in accountData[year][month]) {
+    var services = new Set();
+    for (var month in accountData[year]) {
+      for (var serviceId in accountData[year][month]) {
         services.add(serviceId);
       }
     }
 
     // Заголовок таблицы
-    const headerRow = document.createElement('tr');
-    headerRow.innerHTML = `<td rowspan="2" align="CENTER">Месяц</td>
-             <td colspan="${services.size}" align="CENTER">Начислено за месяц</td>
-             <td rowspan="2" align="CENTER">Оплачено в месяце</td>
-             <td rowspan="2" align="CENTER">Долг(+) Переплата(-) на конец месяца</td>`;
+    var headerRow = document.createElement('tr');
+    headerRow.innerHTML = "<td rowspan=\"2\" align=\"CENTER\">\u041C\u0435\u0441\u044F\u0446</td>\n             <td colspan=\"".concat(services.size, "\" align=\"CENTER\">\u041D\u0430\u0447\u0438\u0441\u043B\u0435\u043D\u043E \u0437\u0430 \u043C\u0435\u0441\u044F\u0446</td>\n             <td rowspan=\"2\" align=\"CENTER\">\u041E\u043F\u043B\u0430\u0447\u0435\u043D\u043E \u0432 \u043C\u0435\u0441\u044F\u0446\u0435</td>\n             <td rowspan=\"2\" align=\"CENTER\">\u0414\u043E\u043B\u0433(+) \u041F\u0435\u0440\u0435\u043F\u043B\u0430\u0442\u0430(-) \u043D\u0430 \u043A\u043E\u043D\u0435\u0446 \u043C\u0435\u0441\u044F\u0446\u0430</td>");
     thead.appendChild(headerRow);
 
     // Второй ряд заголовка с названиями услуг
-    const servicesRow = document.createElement('tr');
-    services.forEach(serviceId => {
-      const serviceName = us[serviceId] || `Услуга ${serviceId}`;
-      const serviceHeader = document.createElement('td');
+    var servicesRow = document.createElement('tr');
+    services.forEach(function (serviceId) {
+      var serviceName = us[serviceId] || "\u0423\u0441\u043B\u0443\u0433\u0430 ".concat(serviceId);
+      var serviceHeader = document.createElement('td');
       serviceHeader.setAttribute('align', 'CENTER');
       serviceHeader.textContent = serviceName;
       servicesRow.appendChild(serviceHeader);
@@ -89,46 +92,47 @@
     thead.appendChild(servicesRow);
 
     // Переменные для итоговых сумм по году
-    let totalChargesByService = {};
-    let totalPaymentsByService = {};
-    let totalChargeForYear = 0;
-    let totalPaymentsForYear = 0;
+    var totalChargesByService = {};
+    var totalPaymentsByService = {};
+    var totalChargeForYear = 0;
+    var totalPaymentsForYear = 0;
     // Заполнение таблицы данными по месяцам
-    for (const month in accountData[year]) {
+    var _loop2 = function _loop2() {
+      var _paymentData$year;
       // Пропускаем текущий месяц
 
-      const transactions = accountData[year][month];
-      const row = document.createElement('tr');
-      row.innerHTML = `<td align="LEFT">${getMonthName(month)} ${year}</td>`;
-      let rowCharges = {};
-      let monthlyChargesTotal = 0;
-      services.forEach(serviceId => {
-        const charge = transactions[serviceId] || 0;
+      var transactions = accountData[year][_month];
+      var row = document.createElement('tr');
+      row.innerHTML = "<td align=\"LEFT\">".concat(getMonthName(_month), " ").concat(year, "</td>");
+      var rowCharges = {};
+      var monthlyChargesTotal = 0;
+      services.forEach(function (serviceId) {
+        var charge = transactions[serviceId] || 0;
         rowCharges[serviceId] = charge;
         monthlyChargesTotal += charge;
       });
 
       // Добавляем начисления по каждой услуге в строку
-      services.forEach(serviceId => {
-        const charge = rowCharges[serviceId];
-        const cell = document.createElement('td');
+      services.forEach(function (serviceId) {
+        var charge = rowCharges[serviceId];
+        var cell = document.createElement('td');
         cell.textContent = charge != 0 ? charge.toFixedWithComma() : '';
         row.appendChild(cell);
       });
-      const cur = month == currentMonth + 1 && year == currentYear;
+      var cur = _month == currentMonth + 1 && year == currentYear;
       // Получаем данные оплат за текущий месяц
-      const monthlyPayments = paymentData[year]?.[month] || [];
-      const totalPayments = createPaymentCell(row, monthlyPayments);
+      var monthlyPayments = ((_paymentData$year = paymentData[year]) === null || _paymentData$year === void 0 ? void 0 : _paymentData$year[_month]) || [];
+      var totalPayments = createPaymentCell(row, monthlyPayments);
       if (!cur) {
         cumulativeBalance += monthlyChargesTotal - totalPayments;
         // Сохраняем суммы для итогов
-        services.forEach(serviceId => {
+        services.forEach(function (serviceId) {
           totalChargesByService[serviceId] = (totalChargesByService[serviceId] || 0) + rowCharges[serviceId];
         });
         totalPaymentsForYear += totalPayments;
       }
       // Добавляем ячейку с долгом/переплатой
-      const balanceCell = document.createElement('td');
+      var balanceCell = document.createElement('td');
       if (cur) {
         balanceCell.textContent = (cumulativeBalance + monthlyChargesTotal - totalPayments).toFixedWithComma();
         if (cumulativeBalance + monthlyChargesTotal - totalPayments > 0) balanceCell.classList.add("red");else balanceCell.classList.add("green");
@@ -143,31 +147,34 @@
       } else {
         tbody.appendChild(row);
       }
+    };
+    for (var _month in accountData[year]) {
+      _loop2();
     }
 
     // Итоги по году
     if (services.size > 1) {
       // Если несколько услуг
-      const totalRow = document.createElement('tr');
+      var totalRow = document.createElement('tr');
       totalRow.classList.add('itog');
-      totalRow.innerHTML = `<td rowspan="2" align="CENTER">Итого за ${year} год</td>`;
+      totalRow.innerHTML = "<td rowspan=\"2\" align=\"CENTER\">\u0418\u0442\u043E\u0433\u043E \u0437\u0430 ".concat(year, " \u0433\u043E\u0434</td>");
 
       // Итог по каждой услуге
-      services.forEach(serviceId => {
-        const chargeTotal = totalChargesByService[serviceId] || 0;
-        const totalCell = document.createElement('td');
+      services.forEach(function (serviceId) {
+        var chargeTotal = totalChargesByService[serviceId] || 0;
+        var totalCell = document.createElement('td');
         totalCell.textContent = chargeTotal.toFixedWithComma();
         totalRow.appendChild(totalCell);
       });
 
       // Общая сумма оплаченных денег
-      const totalPaymentsCell = document.createElement('td');
+      var totalPaymentsCell = document.createElement('td');
       totalPaymentsCell.rowSpan = 2;
       totalPaymentsCell.textContent = totalPaymentsForYear.toFixedWithComma();
       totalRow.appendChild(totalPaymentsCell);
 
       // Общий долг/переплата на конец года
-      const finalBalanceCell = document.createElement('td');
+      var finalBalanceCell = document.createElement('td');
       finalBalanceCell.rowSpan = 2;
       if (cumulativeBalance > 0) finalBalanceCell.classList.add("red");else finalBalanceCell.classList.add("green");
       finalBalanceCell.textContent = cumulativeBalance.toFixedWithComma();
@@ -175,33 +182,37 @@
       tbody.appendChild(totalRow);
 
       // Ряд с итогами по всем услугам
-      const chargesSummaryRow = document.createElement('tr');
+      var chargesSummaryRow = document.createElement('tr');
       chargesSummaryRow.classList.add('itog');
-      const totalChargeForAllServices = Object.values(totalChargesByService).reduce((sum, value) => sum + value, 0);
-      chargesSummaryRow.innerHTML = `<td colspan="${services.size}" ALIGN="center">Всего начисленно: ${totalChargeForAllServices.toFixedWithComma()}</td>`;
+      var totalChargeForAllServices = Object.values(totalChargesByService).reduce(function (sum, value) {
+        return sum + value;
+      }, 0);
+      chargesSummaryRow.innerHTML = "<td colspan=\"".concat(services.size, "\" ALIGN=\"center\">\u0412\u0441\u0435\u0433\u043E \u043D\u0430\u0447\u0438\u0441\u043B\u0435\u043D\u043D\u043E: ").concat(totalChargeForAllServices.toFixedWithComma(), "</td>");
       tbody.appendChild(chargesSummaryRow);
     } else {
       // Если одна услуга
-      const totalRow = document.createElement('tr');
-      totalRow.classList.add('itog');
-      totalRow.innerHTML = `<td align="LEFT">Итого за ${year} год</td>`;
+      var _totalRow = document.createElement('tr');
+      _totalRow.classList.add('itog');
+      _totalRow.innerHTML = "<td align=\"LEFT\">\u0418\u0442\u043E\u0433\u043E \u0437\u0430 ".concat(year, " \u0433\u043E\u0434</td>");
 
       // Итог начислений по единственной услуге
-      const totalChargeForOneService = Object.values(totalChargesByService)[0] || 0; // Получаем сумму для единственной услуги
-      totalRow.innerHTML += `<td>${totalChargeForOneService.toFixedWithComma()}</td>`;
+      var totalChargeForOneService = Object.values(totalChargesByService)[0] || 0; // Получаем сумму для единственной услуги
+      _totalRow.innerHTML += "<td>".concat(totalChargeForOneService.toFixedWithComma(), "</td>");
 
       // Итог по оплатам
-      let totalPaymentsForOneService = 0;
-      for (const month in paymentData[year]) {
-        const monthlyPayments = paymentData[year][month] || [];
-        const monthPaymentsSum = monthlyPayments.reduce((sum, payment) => sum + payment.sum, 0);
+      var totalPaymentsForOneService = 0;
+      for (var _month2 in paymentData[year]) {
+        var monthlyPayments = paymentData[year][_month2] || [];
+        var monthPaymentsSum = monthlyPayments.reduce(function (sum, payment) {
+          return sum + payment.sum;
+        }, 0);
         totalPaymentsForOneService += monthPaymentsSum;
       }
-      totalRow.innerHTML += `<td>${totalPaymentsForOneService.toFixedWithComma()}</td>`;
+      _totalRow.innerHTML += "<td>".concat(totalPaymentsForOneService.toFixedWithComma(), "</td>");
 
       // Общий долг/переплата на конец года
-      totalRow.innerHTML += `<td class="${cumulativeBalance > 0 ? 'red' : 'green'}">${cumulativeBalance.toFixedWithComma()}</td>`;
-      tbody.appendChild(totalRow);
+      _totalRow.innerHTML += "<td class=\"".concat(cumulativeBalance > 0 ? 'red' : 'green', "\">").concat(cumulativeBalance.toFixedWithComma(), "</td>");
+      tbody.appendChild(_totalRow);
     }
     if (lastRow) tbody.appendChild(lastRow);
     table.appendChild(thead);
@@ -212,25 +223,15 @@
     yearDiv.appendChild(yearContent);
     container.appendChild(yearDiv);
     lastYearToggle = yearToggle; // Сохраняем чекбокс последнего года
+  };
+  for (var year in accountData) {
+    _loop();
   }
   if (lastYearToggle) {
     lastYearToggle.checked = true;
   }
-  const curLS = ls[accountId];
-  document.getElementById('datetime').innerHTML = `<br><div>
-                ЛС: ${curLS.ls}<br>  <!-- Лицевой счет -->
-                ФИО: ${curLS.fio}<br>  <!-- ФИО -->
-                ${curLS.pl ? `Площадь: ${curLS.pl} м²<br>` : ''}  <!-- Площадь -->
-                ${curLS.pers ? `Жильцов: ${curLS.pers}<br>` : ''}  <!-- Количество жильцов -->
-                ${curLS.komn ? `Комнат: ${curLS.komn}<br>` : ''}  <!-- Количество комнат -->
-                ${curLS.et ? `Этаж: ${curLS.et}<br>` : ''}  <!-- Этаж -->
-                ${curLS.pod ? `Подезд: ${curLS.pod}<br>` : ''}  <!-- Подъезд -->
-                ${curLS.lgota ? `Льготник: ${curLS.lgota}<br>` : ''}  <!-- Льготник -->
-                ${curLS.tel ? `Телефон: ${curLS.tel}<br>` : ''}  <!-- Телефон -->
-                ${curLS.note ? `Примечание: ${curLS.note}<br>` : ''}  <!-- Примечание -->
-                ${curLS.email ? `e-mail: ${curLS.email}<br>` : ''}  <!-- Email -->
-            <br>Данные указаны по состоянию на <br>${dt} (${timeAgo(dt)}назад.)
-        </div>`;
+  var curLS = ls[accountId];
+  document.getElementById('datetime').innerHTML = "<br><div>\n                \u041B\u0421: ".concat(curLS.ls, "<br>  <!-- \u041B\u0438\u0446\u0435\u0432\u043E\u0439 \u0441\u0447\u0435\u0442 -->\n                \u0424\u0418\u041E: ").concat(curLS.fio, "<br>  <!-- \u0424\u0418\u041E -->\n                ").concat(curLS.pl ? "\u041F\u043B\u043E\u0449\u0430\u0434\u044C: ".concat(curLS.pl, " \u043C\xB2<br>") : '', "  <!-- \u041F\u043B\u043E\u0449\u0430\u0434\u044C -->\n                ").concat(curLS.pers ? "\u0416\u0438\u043B\u044C\u0446\u043E\u0432: ".concat(curLS.pers, "<br>") : '', "  <!-- \u041A\u043E\u043B\u0438\u0447\u0435\u0441\u0442\u0432\u043E \u0436\u0438\u043B\u044C\u0446\u043E\u0432 -->\n                ").concat(curLS.komn ? "\u041A\u043E\u043C\u043D\u0430\u0442: ".concat(curLS.komn, "<br>") : '', "  <!-- \u041A\u043E\u043B\u0438\u0447\u0435\u0441\u0442\u0432\u043E \u043A\u043E\u043C\u043D\u0430\u0442 -->\n                ").concat(curLS.et ? "\u042D\u0442\u0430\u0436: ".concat(curLS.et, "<br>") : '', "  <!-- \u042D\u0442\u0430\u0436 -->\n                ").concat(curLS.pod ? "\u041F\u043E\u0434\u0435\u0437\u0434: ".concat(curLS.pod, "<br>") : '', "  <!-- \u041F\u043E\u0434\u044A\u0435\u0437\u0434 -->\n                ").concat(curLS.lgota ? "\u041B\u044C\u0433\u043E\u0442\u043D\u0438\u043A: ".concat(curLS.lgota, "<br>") : '', "  <!-- \u041B\u044C\u0433\u043E\u0442\u043D\u0438\u043A -->\n                ").concat(curLS.tel ? "\u0422\u0435\u043B\u0435\u0444\u043E\u043D: ".concat(curLS.tel, "<br>") : '', "  <!-- \u0422\u0435\u043B\u0435\u0444\u043E\u043D -->\n                ").concat(curLS.note ? "\u041F\u0440\u0438\u043C\u0435\u0447\u0430\u043D\u0438\u0435: ".concat(curLS.note, "<br>") : '', "  <!-- \u041F\u0440\u0438\u043C\u0435\u0447\u0430\u043D\u0438\u0435 -->\n                ").concat(curLS.email ? "e-mail: ".concat(curLS.email, "<br>") : '', "  <!-- Email -->\n            <br>\u0414\u0430\u043D\u043D\u044B\u0435 \u0443\u043A\u0430\u0437\u0430\u043D\u044B \u043F\u043E \u0441\u043E\u0441\u0442\u043E\u044F\u043D\u0438\u044E \u043D\u0430 <br>").concat(dt, " (").concat(timeAgo(dt), "\u043D\u0430\u0437\u0430\u0434.)\n        </div>");
   lastRow.scrollIntoView({
     behavior: 'smooth',
     block: 'end'
@@ -239,85 +240,65 @@
   setParam('kv', ls[accountId].kv);
 }
 function createPaymentCell(row, monthlyPayments) {
-  const totalPayments = monthlyPayments.reduce((sum, payment) => sum + payment.sum, 0);
-  const paymentCell = document.createElement('td');
+  var totalPayments = monthlyPayments.reduce(function (sum, payment) {
+    return sum + payment.sum;
+  }, 0);
+  var paymentCell = document.createElement('td');
   if (monthlyPayments.length === 1) {
     paymentCell.className = 'poster'; // Добавляем класс оформления
     // Одна оплата — отображаем простую строку
-    const payment = monthlyPayments[0];
-    paymentCell.innerHTML = `${totalPayments.toFixedWithComma()}
-            <div class="descr">
-                <div class="big">Оплачено ${payment.date} через ${b[payment.yur]}${payment.kvit ? `<br>Квітанція: ${payment.kvit}` : ''} ${payment.nazn ? `<br>Призначення: ${payment.nazn}` : ''} </div>
-            </div>
-        `;
+    var payment = monthlyPayments[0];
+    paymentCell.innerHTML = "".concat(totalPayments.toFixedWithComma(), "\n            <div class=\"descr\">\n                <div class=\"big\">\u041E\u043F\u043B\u0430\u0447\u0435\u043D\u043E ").concat(payment.date, " \u0447\u0435\u0440\u0435\u0437 ").concat(b[payment.yur]).concat(payment.kvit ? "<br>\u041A\u0432\u0456\u0442\u0430\u043D\u0446\u0456\u044F: ".concat(payment.kvit) : '', " ").concat(payment.nazn ? "<br>\u041F\u0440\u0438\u0437\u043D\u0430\u0447\u0435\u043D\u043D\u044F: ".concat(payment.nazn) : '', " </div>\n            </div>\n        ");
   } else if (monthlyPayments.length > 1) {
     paymentCell.className = 'poster'; // Добавляем класс оформления
     // Несколько оплат — отображаем таблицу с деталями
     // Определяем, есть ли хотя бы одна запись для квитанции или назначения
-    const hasKvit = monthlyPayments.some(payment => payment.kvit);
-    const hasNazn = monthlyPayments.some(payment => payment.nazn);
+    var hasKvit = monthlyPayments.some(function (payment) {
+      return payment.kvit;
+    });
+    var hasNazn = monthlyPayments.some(function (payment) {
+      return payment.nazn;
+    });
 
     // Настраиваем строку заголовка таблицы
-    let headerRow = `
-    <tr>
-        <th>Дата</th>
-        <th>Оплачено через</th>
-        ${hasKvit ? '<th>Квитанция</th>' : ''}
-        <th>Сумма</th>
-        ${hasNazn ? '<th>Призначення</th>' : ''}
-    </tr>
-`;
+    var headerRow = "\n    <tr>\n        <th>\u0414\u0430\u0442\u0430</th>\n        <th>\u041E\u043F\u043B\u0430\u0447\u0435\u043D\u043E \u0447\u0435\u0440\u0435\u0437</th>\n        ".concat(hasKvit ? '<th>Квитанция</th>' : '', "\n        <th>\u0421\u0443\u043C\u043C\u0430</th>\n        ").concat(hasNazn ? '<th>Призначення</th>' : '', "\n    </tr>\n");
 
     // Формируем строки с данными платежей
-    const tableRows = monthlyPayments.map(payment => `
-    <tr>
-        <td class="big">${payment.date}</td>
-        <td>${b[payment.yur]}</td>
-        ${hasKvit ? `<td>${payment.kvit || ''}</td>` : ''}
-        <td class="big">${payment.sum.toFixedWithComma()}</td>
-        ${hasNazn ? `<td>${payment.nazn || ''}</td>` : ''}
-    </tr>
-`).join('');
+    var tableRows = monthlyPayments.map(function (payment) {
+      return "\n    <tr>\n        <td class=\"big\">".concat(payment.date, "</td>\n        <td>").concat(b[payment.yur], "</td>\n        ").concat(hasKvit ? "<td>".concat(payment.kvit || '', "</td>") : '', "\n        <td class=\"big\">").concat(payment.sum.toFixedWithComma(), "</td>\n        ").concat(hasNazn ? "<td>".concat(payment.nazn || '', "</td>") : '', "\n    </tr>\n");
+    }).join('');
 
     // Устанавливаем содержимое ячейки оплаты
 
-    paymentCell.innerHTML = `${totalPayments.toFixedWithComma()}
-    <div class="descr">
-        <table class="subtable">
-            <tbody>
-                ${headerRow}
-                ${tableRows}
-            </tbody>
-        </table>
-    </div>
-        `;
+    paymentCell.innerHTML = "".concat(totalPayments.toFixedWithComma(), "\n    <div class=\"descr\">\n        <table class=\"subtable\">\n            <tbody>\n                ").concat(headerRow, "\n                ").concat(tableRows, "\n            </tbody>\n        </table>\n    </div>\n        ");
   }
   row.appendChild(paymentCell);
   return totalPayments;
 }
 function initLS() {
-  document.getElementById('maincontainer').innerHTML = `
-    <div id=header><TABLE WIDTH=100%><TR><TD ALIGN=RIGHT><B>Адрес:</B></TD><TD class='big' ALIGN=LEFT><U><I><a id='adr'>adr</a><select class='big' id='number'></select></TD>
-    <td rowsplan=2><DIV id='org' ALIGN=RIGHT><td>
-    </TR><TR><TD ALIGN=RIGHT><B>Ф.И.О.:</B></TD><TD ALIGN=LEFT><U><I><div class='big' id='fio'></U></I></TD></div></TR></TABLE></DIV><DIV id='din'></div><DIV id='datetime'></div>
-    `;
+  document.getElementById('maincontainer').innerHTML = "\n    <div id=header><TABLE WIDTH=100%><TR><TD ALIGN=RIGHT><B>\u0410\u0434\u0440\u0435\u0441:</B></TD><TD class='big' ALIGN=LEFT><U><I><a id='adr'>adr</a><select class='big' id='number'></select></TD>\n    <td rowsplan=2><DIV id='org' ALIGN=RIGHT><td>\n    </TR><TR><TD ALIGN=RIGHT><B>\u0424.\u0418.\u041E.:</B></TD><TD ALIGN=LEFT><U><I><div class='big' id='fio'></U></I></TD></div></TR></TABLE></DIV><DIV id='din'></div><DIV id='datetime'></div>\n    ";
   document.getElementById('number').addEventListener('change', function () {
     addStuff(this.value);
   });
   document.getElementById('adr').textContent = adr + ' / ';
   document.getElementById('org').textContent = org;
   document.title = org + ' ' + adr;
-  Object.entries(ls).forEach(([index, value]) => {
-    const option = document.createElement('option');
+  Object.entries(ls).forEach(function (_ref) {
+    var _ref2 = _slicedToArray(_ref, 2),
+      index = _ref2[0],
+      value = _ref2[1];
+    var option = document.createElement('option');
     option.value = index;
     option.textContent = value.kv;
     document.getElementById('number').appendChild(option);
   });
-  let ind = getParam('kv');
+  var ind = getParam('kv');
   if (!ind) {
     ind = Object.keys(ls)[1];
   } else {
-    ind = Object.keys(ls).find(key => ls[key].kv === ind || ls[key].ls === ind);
+    ind = Object.keys(ls).find(function (key) {
+      return ls[key].kv === ind || ls[key].ls === ind;
+    });
     if (ind === undefined) {
       ind = Object.keys(ls)[1];
     }

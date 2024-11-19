@@ -4,14 +4,15 @@
         visibility: hidden;
         font-size: 11px !important;
     }
-    #number{
-    border: none;
+
+    #number {
+        border: none;
     }
+
     /* Отобразить контейнер с таблицами и необходимой информацией */
     #maincontainer, #maincontainer *, #header, #header * {
         visibility: visible;
     }
-
 
     .box[style*="block"] {
         display: block !important; /* Отображать только раскрытые таблицы */
@@ -38,7 +39,23 @@
     .sidebar, .hamburger, .preloader, input, .descr, #datetime {
         display: none;
     }
-.toggle-box:not(:checked) + label {
-  display: none;
-}
+
+    .toggle-box:not(:checked) + label {
+        display: none;
+    }
+
+    /* Убрать отступ для контента при печати */
+   .content {
+        margin-left: 0 !important; /* Убираем сдвиг для печати */
+        transform: none !important; /* Убираем сдвиг через transform */
+        position: relative !important; /* Используем position для печати */
+        left: 0 !important; /* Устанавливаем сдвиг на 0 */
+    }
+
+    /* Дополнительная настройка для страницы печати */
+
+    /* Можно установить размеры для страниц */
+    @page {
+        margin: 0;
+    }
 }
