@@ -163,6 +163,7 @@ td:after {
     text-align: right;
     margin-left: auto;
     margin-right: auto;
+    font-size: 1.5rem;
 }
 
 
@@ -325,3 +326,6 @@ html {
 }
 
 
+#datetime{
+font-size: 1rem;
+}
