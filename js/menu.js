@@ -120,9 +120,11 @@ function checkMenu() {
   } else {
     // Для мобильных устройств
     if (sidebar.classList.contains('open')) {
-      content.style.marginLeft = '0'; // На мобильных устройствах контент занимает весь экран
+//      content.style.marginLeft = '0'; // На мобильных устройствах контент занимает весь экран
+content.classList.remove('open');
     } else {
-      content.style.marginLeft = '0'; // На мобильных устройствах контент также не сдвигается
+//      content.style.marginLeft = '0'; // На мобильных устройствах контент также не сдвигается
+content.classList.remove('open');
     }
   }
 }
