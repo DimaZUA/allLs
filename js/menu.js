@@ -79,7 +79,9 @@ function handleMenuClick(homeCode, actionCode, actionLink) {
       initTable();
     });
   } else if (actionCode === 'payments') {
-    document.getElementById('maincontainer').innerHTML = "<DIV id='maincontainer'><H2>".concat(actionCode, " \u0432 \u0440\u0430\u0437\u0440\u0430\u0431\u043E\u0442\u043A\u0435....</H2></DIV>");
+    loadScriptFromHtml(homeCode + '.js', function () {
+      initPayTable();
+    });
   } else if (actionCode === 'info') {
     document.getElementById('maincontainer').innerHTML = "<DIV id='maincontainer'><H2>".concat(actionCode, " \u0432 \u0440\u0430\u0437\u0440\u0430\u0431\u043E\u0442\u043A\u0435....</H2></DIV>");
   }
