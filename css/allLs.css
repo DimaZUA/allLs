@@ -329,3 +329,43 @@ html {
 #datetime{
 font-size: 1rem;
 }
+
+#paytable {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0;
+    text-align: left; /* Базовое выравнивание для всех */
+}
+
+#paytable th {
+    text-align: center; /* Заголовки таблицы выравнены по центру */
+    background-color: #f4f4f4;
+    padding: 10px;
+    border: 1px solid #ddd;
+}
+
+#paytable td {
+    padding: 10px;
+    border: 1px solid #ddd;
+}
+
+/* Настройка столбцов */
+#paytable td:nth-child(1),
+#paytable td:nth-child(2),
+#paytable td:nth-child(4) {
+    text-align: center !important; /* 1-й, 2-й и 4-й столбцы выравнены по центру */
+}
+
+#paytable td:nth-child(3) {
+    text-align: right !important; /* 3-й столбец выравнен по правому краю */
+}
+
+#paytable td:nth-child(5) {
+    text-align: left !important; /* 5-й столбец выравнен по левому краю */
+}
+#paytable td:nth-child(1),
+#paytable td:nth-child(2),
+#paytable td:nth-child(3),
+#paytable td:nth-child(4) {
+    fonx-size: 1.5rem !important; /* 1-й, 2-й и 4-й столбцы выравнены по центру */
+}
