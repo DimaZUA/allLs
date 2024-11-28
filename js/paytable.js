@@ -101,7 +101,7 @@
                     <td>${payment.kv}</td>
                     <td>${payment.sum.toFixedWithComma()}</td>
                     <td>${payment.kvit}</td>
-                    <td>${payment.nazn}</td>
+
                 `;
                 tbody.appendChild(row);
             });
@@ -132,7 +132,6 @@ document.getElementById('maincontainer').innerHTML = `
                 <th>Номер квартиры</th>
                 <th>Сумма</th>
                 <th>Номер квитанции</th>
-                <th>Назначение платежа</th>
             </tr>
         </thead>
         <tbody></tbody>
