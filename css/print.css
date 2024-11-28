@@ -1,4 +1,4 @@
-﻿﻿@media print {
+﻿@media print {
     /* Скрыть ненужные элементы */
     body * {
         visibility: hidden;
@@ -25,8 +25,8 @@
     }
 
     th, td {
-        padding: 3px; /* Минимальные отступы */
-        text-align: center;
+        padding: 3px; /* Минимальные отступы 
+        text-align: center;*/
     }
 
     /* Убедиться, что адрес и ФИО видны */
@@ -36,7 +36,7 @@
     }
 
     /* Скрытие ненужных блоков */
-    .sidebar, .hamburger, .preloader, input, .descr, #datetime {
+    .sidebar, .hamburger, .preloader, input, .descr, #datetime, #filter-container {
         display: none;
     }
 
@@ -66,4 +66,9 @@
         page-break-inside: avoid; /* Запрещает разрыв таблицы на странице */
         -webkit-column-break-inside: avoid; /* Для старых браузеров */
     }
+.content {
+    margin-left: 0px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+}
 }

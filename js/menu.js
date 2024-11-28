@@ -74,7 +74,7 @@ function handleMenuClick(homeCode, actionCode, actionLink) {
       initLS();
     });
   } else if (actionCode === 'list') {
-    document.getElementById('maincontainer').style.maxWidth = '1000px';
+    document.getElementById('maincontainer');
     loadScriptFromHtml(homeCode + '.js', function () {
       initTable();
     });
