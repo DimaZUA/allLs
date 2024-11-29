@@ -208,22 +208,43 @@ td:after {
 }
 
 #filter-container {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 15px;
-    align-items: center;
-    justify-content: space-between;
+
+            display: inline-grid; /* Компактное размещение, зависящее от содержимого */
+            grid-template-columns: 350px auto auto auto;
+            gap: 16px; /* Расстояние между колонками */
+            align-items: center; /* Центрирование содержимого колонок */
+            justify-content: center; /* Центрирование контейнера по горизонтали */
+            padding: 16px;
+            border: 1px solid #ccc; /* Граница для визуализации размера контейнера */
+
+    
+    
     padding: 15px;
     background-color: #f9f9f9;
     border: 1px solid #ddd;
     border-radius: 8px;
     max-width: 100%;
     margin-bottom: 20px;
+    width: auto; 
 }
-
+        .column {
+            display: flex;
+            flex-direction: column;
+            gap: 8px; /* Расстояние между элементами внутри колонки */
+        }
+ #filter-container .full-span {
+            grid-column: 1 / -1; /* Растянуть на все три колонки */
+            text-align: center; /* Выравнивание текста по левому краю */
+            margin-bottom: 8px; /* Отступ от следующей строки */
+        }
 #filter-container label {
     font-size: 1rem;
     margin-right: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end; /* Текст слева, элемент справа */
+            gap: 8px;
+
 }
 
 #filter-container select, #filter-container input, #filter-container button {
@@ -262,9 +283,6 @@ td:after {
     border-color: #ccc; /* Обычная рамка */
 }
 
-#filter-container input[type="month"] {
-    width: 150px;
-}
 
 #filter-container select {
     width: 200px;
@@ -369,3 +387,4 @@ font-size: 1rem;
 #paytable td:nth-child(4) {
     fonx-size: 1.5rem !important; /* 1-й, 2-й и 4-й столбцы выравнены по центру */
 }
+

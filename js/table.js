@@ -569,7 +569,48 @@ function handlePeriodChange() {
   }
 }
 function initTable() {
-  document.getElementById('maincontainer').innerHTML = "\n    <DIV id='org' ALIGN=RIGHT>\n    <div id=\"filter-container\">\n        <DIV><DIV><label>\u0412\u044B\u0431\u0435\u0440\u0438\u0442\u0435 \u043F\u0435\u0440\u0438\u043E\u0434:</label>\n        <select id=\"preset-select\" onchange=\"applyPreset()\">\n            <!-- \u042D\u0442\u0438 \u043E\u043F\u0446\u0438\u0438 \u043E\u0431\u043D\u043E\u0432\u043B\u044F\u044E\u0442\u0441\u044F \u0432 setDefaultDates() -->\n        </select></DIV>\n        <DIV><label>\u041E\u0442\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u0435:</label>\n        <select id=\"display-mode\">\n            <option value=\"summarized\">\u041F\u043E \u0443\u0441\u043B\u0443\u0433\u0430\u043C</option>\n            <option value=\"detailed\">\u041F\u043E \u043C\u0435\u0441\u044F\u0446\u0430\u043C</option>\n        </select></DIV></DIV>\n\n        <DIV><DIV><label>\u0421:</label>\n        <input type=\"month\" id=\"start-date\"></DIV>\n        <DIV><label>\u041F\u043E:</label>\n        <input type=\"month\" id=\"end-date\"></DIV></DIV>\n\n\n        <button id=\"show\" onclick=\"generateTable()\">\u041F\u043E\u043A\u0430\u0437\u0430\u0442\u044C \u0434\u0430\u043D\u043D\u044B\u0435</button>\n    </div>\n\n    <div id=\"table-container\">\n        <!-- \u0422\u0430\u0431\u043B\u0438\u0446\u0430 \u0441 \u043E\u0442\u0447\u0451\u0442\u043E\u043C \u0431\u0443\u0434\u0435\u0442 \u0434\u043E\u0431\u0430\u0432\u043B\u0435\u043D\u0430 \u0437\u0434\u0435\u0441\u044C -->\n    </div>\n</div><DIV id='datetime'></div>\n    ";
+document.getElementById('maincontainer').innerHTML = 
+    '<div id="org" align="right"></div>' +
+    '<div id="filter-container">' +
+        '<!-- Первая колонка: выбор периода и отображения -->' +
+        '<div class="column">' +
+            '<label>' +
+                'Выберите период:' +
+                '<select id="preset-select" onchange="applyPreset()">' +
+                    '<!-- Эти опции обновляются в setDefaultDates() -->' +
+                '</select>' +
+            '</label>' +
+            '<label>' +
+                'Отображение:' +
+                '<select id="display-mode">' +
+                    '<option value="summarized">По услугам</option>' +
+                    '<option value="detailed">По месяцам</option>' +
+                '</select>' +
+            '</label>' +
+        '</div>' +
+        
+        '<!-- Вторая колонка: даты -->' +
+        '<div class="column">' +
+            '<label>' +
+                'С:' +
+                '<input type="month" id="start-date">' +
+            '</label>' +
+            '<label>' +
+                'По:' +
+                '<input type="month" id="end-date">' +
+            '</label>' +
+        '</div>' +
+        
+        '<!-- Третья колонка: кнопка -->' +
+        '<div class="column button-column">' +
+            '<button id="show" onclick="generateTable()">Показать данные</button>' +
+        '</div>' +
+    '</div>' +
+    '<div id="table-container">' +
+        '<!-- Таблица с отчётом будет добавлена здесь -->' +
+    '</div>' +
+    '<div id="datetime"></div>';
+
   document.getElementById('datetime').innerHTML = "\n    <br>\u0414\u0430\u043D\u043D\u044B\u0435 \u0443\u043A\u0430\u0437\u0430\u043D\u044B \u043F\u043E \u0441\u043E\u0441\u0442\u043E\u044F\u043D\u0438\u044E \u043D\u0430 <br>".concat(dt, " (").concat(timeAgo(dt), "\u043D\u0430\u0437\u0430\u0434.)");
   setDefaultDates();
   handlePeriodChange();
