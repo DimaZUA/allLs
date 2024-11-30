@@ -178,4 +178,39 @@ function toggleSidebarBasedOnScreenSize() {
   //    if ((window.innerWidth > 768 && !sidebar.classList.contains('open')) || (window.innerWidth <= 768 && sidebar.classList.contains('open')))
   if (window.innerWidth <= 768 && sidebar.classList.contains('open')) toggleMenu();
 }
+
 window.addEventListener('resize', toggleSidebarBasedOnScreenSize);
+
+function checkFullscreenMode() {
+    const fullscreenApi =
+        document.fullscreenElement ||
+        document.webkitFullscreenElement ||
+        document.mozFullScreenElement ||
+        document.msFullscreenElement;
+
+    const scaleFactor = window.devicePixelRatio || 1;
+    const fullscreenWidth = Math.round(screen.width / scaleFactor);
+    const fullscreenHeight = Math.round(screen.height / scaleFactor);
+
+    const isF11Fullscreen =
+        Math.abs(window.innerWidth - fullscreenWidth) < 1 &&
+        Math.abs(window.innerHeight - fullscreenHeight) < 1;
+
+    if (fullscreenApi || isF11Fullscreen) {
+        document.body.classList.add('fullscreen');
+        console.log('Полноэкранный режим активирован');
+    } else {
+        document.body.classList.remove('fullscreen');
+        console.log('Полноэкранный режим выключен');
+    }
+}
+
+// Обработчики событий
+document.addEventListener('fullscreenchange', checkFullscreenMode);
+document.addEventListener('webkitfullscreenchange', checkFullscreenMode);
+document.addEventListener('mozfullscreenchange', checkFullscreenMode);
+document.addEventListener('MSFullscreenChange', checkFullscreenMode);
+window.addEventListener('resize', checkFullscreenMode);
+
+// Инициализация
+checkFullscreenMode();

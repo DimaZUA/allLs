@@ -1,5 +1,5 @@
-﻿@media print {
-    /* Скрыть ненужные элементы */
+﻿/* Стили для печати */
+@media print {
     body * {
         visibility: hidden;
         font-size: 11px !important;
@@ -9,33 +9,30 @@
         border: none;
     }
 
-    /* Отобразить контейнер с таблицами и необходимой информацией */
     #maincontainer, #maincontainer *, #header, #header * {
         visibility: visible;
     }
 
     .box[style*="block"] {
-        display: block !important; /* Отображать только раскрытые таблицы */
+        display: block !important;
     }
 
-    /* Оптимизация таблиц */
     table {
-        width: 100%;
+        width: 95%;
         border-collapse: collapse;
+        padding: 0px !important;
     }
 
     th, td {
-        padding: 3px; /* Минимальные отступы 
-        text-align: center;*/
+        padding: 0px !important;
+        text-align: center;
     }
 
-    /* Убедиться, что адрес и ФИО видны */
     #header {
         display: block;
         margin-bottom: 10px;
     }
 
-    /* Скрытие ненужных блоков */
     .sidebar, .hamburger, .preloader, input, .descr, #datetime, #filter-container {
         display: none;
     }
@@ -44,31 +41,83 @@
         display: none;
     }
 
-    /* Убрать отступ для контента при печати */
-   .content {
-        margin-left: 0 !important; /* Убираем сдвиг для печати */
-        transform: none !important; /* Убираем сдвиг через transform */
-        position: relative !important; /* Используем position для печати */
-        left: 0 !important; /* Устанавливаем сдвиг на 0 */
-    width: 100%;
-    max-width: 100%
-
-
+    .content {
+        margin-left: 0 !important;
+        transform: none !important;
+        position: relative !important;
+        left: 0 !important;
+        width: 95% !important;
+        max-width: 95% !important;
     }
 
-    /* Дополнительная настройка для страницы печати */
-
-    /* Можно установить размеры для страниц */
     @page {
-        margin: 0;
+        margin: 10;
     }
+
     .box {
-        page-break-inside: avoid; /* Запрещает разрыв таблицы на странице */
-        -webkit-column-break-inside: avoid; /* Для старых браузеров */
+        page-break-inside: avoid;
+        -webkit-column-break-inside: avoid;
     }
-.content {
-    margin-left: 0px !important;
-    width: 100% !important;
-    max-width: 100% !important;
 }
+
+/* Стили для полноэкранного режима */
+@media screen and (min-width: 1024px) {
+    body.fullscreen * {
+        visibility: hidden;
+    }
+
+    body.fullscreen #number {
+        border: none;
+    }
+
+    body.fullscreen #maincontainer, 
+    body.fullscreen #maincontainer *, 
+    body.fullscreen #header, 
+    body.fullscreen #header * {
+        visibility: visible;
+    }
+
+    body.fullscreen .box[style*="block"] {
+        display: block !important;
+    }
+
+    body.fullscreen table {
+        width: 95%;
+        border-collapse: collapse;
+        padding: 0px !important;
+    }
+
+    body.fullscreen th, 
+    body.fullscreen td {
+        padding: 0px !important;
+        text-align: center;
+    }
+
+    body.fullscreen #header {
+        display: block;
+        margin-bottom: 10px;
+    }
+
+    body.fullscreen .sidebar, 
+    body.fullscreen .hamburger, 
+    body.fullscreen .preloader, 
+    body.fullscreen input, 
+    body.fullscreen .descr, 
+    body.fullscreen #datetime, 
+    body.fullscreen #filter-container {
+        display: none;
+    }
+
+    body.fullscreen .toggle-box:not(:checked) + label {
+        display: none;
+    }
+
+    body.fullscreen .content {
+        margin-left: 0 !important;
+        transform: none !important;
+        position: relative !important;
+        left: 0 !important;
+        width: 95%;
+        max-width: 95%;
+    }
 }
