@@ -61,7 +61,7 @@
 }
 
 /* Стили для полноэкранного режима */
-@media screen and (min-width: 1024px) {
+@media screen {
     body.fullscreen * {
         visibility: hidden;
     }

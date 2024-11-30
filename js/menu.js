@@ -195,7 +195,11 @@ function checkFullscreenMode() {
     const isF11Fullscreen =
         Math.abs(window.innerWidth - fullscreenWidth) < 1 &&
         Math.abs(window.innerHeight - fullscreenHeight) < 1;
-
+        console.log(`
+        window.innerWidth: ${window.innerWidth}
+        window.innerHeight:  ${window.innerHeight}
+        fullscreenWidth:  ${fullscreenWidth}
+        fullscreenHeight:  ${fullscreenHeight}`)
     if (fullscreenApi || isF11Fullscreen) {
         document.body.classList.add('fullscreen');
         console.log('Полноэкранный режим активирован');
