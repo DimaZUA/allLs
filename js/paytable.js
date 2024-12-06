@@ -3,12 +3,12 @@
 function calculateDefaultDays() {
     var defaultDay = finalDate.getDate();
     var fromDay, toDay;
-    if (defaultDay < 5) {
+    if (defaultDay < 7) {
         fromDay = 1;
         toDay = defaultDay;
     } else {
-        toDay = Math.floor((defaultDay - 1) / 5) * 5;
-        fromDay = toDay - 4;
+        toDay = Math.floor((defaultDay - 1) / 7) * 7;
+        fromDay = toDay - 6;
     }
     document.getElementById('fromDay').value = fromDay;
     document.getElementById('toDay').value = toDay;
@@ -45,18 +45,30 @@ function populateMonthSelector() {
         var dateB = new Date(b.split('-').join('-'));
         return dateA.getTime() - dateB.getTime();
     });
+    var currentYear = finalDate.getFullYear();
+    var currentMonth = finalDate.getMonth() + 1; // Месяцы в JavaScript начинаются с 0
+
+    var latestValidMonth = ''; // Переменная для хранения самого позднего доступного месяца
 
     for (var i = 0; i < monthsArray.length; i++) {
         var item = monthsArray[i];
         var year = item.split('-')[0];
         var month = item.split('-')[1];
+        // Определяем, если месяц еще не превышает текущий
+        if (year < currentYear || (year == currentYear && month <= currentMonth)) {
+            latestValidMonth = item;
+            console.log(year+'  '+ month);
+        }
         var option = document.createElement('option');
         option.value = item;
         option.textContent = new Date(0, month - 1).toLocaleString('ru', { month: 'long' }) + ' ' + year;
-        if (parseInt(year) === finalDate.getFullYear() && parseInt(month) === finalDate.getMonth() + 1) {
+
+        monthSelect.appendChild(option);        
+        // Выбираем последний допустимый месяц
+        if (item === latestValidMonth) {
             option.selected = true;
         }
-        monthSelect.appendChild(option);
+
     }
 }
 

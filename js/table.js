@@ -129,6 +129,7 @@ function generateTable() {
   table.appendChild(thead);
   table.appendChild(tbody);
   var servicesWithCharges = new Set();
+  var filterValue = document.getElementById('record-filter').value;
 
   // Собираем список услуг с начислениями в заданный период
   for (var accountId in nach) {
@@ -248,8 +249,80 @@ function generateTable() {
     tbody.appendChild(row);
   };
   for (var _accountId in nach) {
+    var debitStart = calculateInitialDebit(_accountId, start);
+    var payments = calculatePayments(_accountId, start, end);
+  // Все начисления за период
+  var totalCharges = calculateCharges(_accountId, start, end, false);
+
+  // Только начисления за последний месяц
+  var lastMonthCharges = calculateCharges(_accountId, start, end, true);
+    var debitEnd = debitStart + totalCharges - payments;
+
+    // Фильтрация записей
+    if (filterValue === 'paid-or-low-debt' && !(payments > 0 || debitEnd < lastMonthCharges * 3)) continue;
+    if (filterValue === 'paid' && payments === 0) continue;
+    if (filterValue === 'overpaid' && debitEnd > 0) continue;
+    if (filterValue === 'debtors' && (payments > 0 || debitEnd <= lastMonthCharges * 3)) continue;
+
+     console.log(
+  (ls[_accountId]?.kv || "Неизвестно")+": ",
+  debitStart.toFixed(2)+"  ",
+  totalCharges.toFixed(2)+"  ",
+  payments.toFixed(2)+"  ",
+  debitEnd.toFixed(2)+"  ",
+  lastMonthCharges.toFixed(2)
+);
     _loop();
   }
+function calculatePayments(accountId, start, end) {
+  var totalPayments = 0;
+
+  if (oplat[accountId]) {
+    for (var year in oplat[accountId]) {
+      for (var month in oplat[accountId][year]) {
+        var date = new Date(year, month - 1);
+        if (date >= start && date <= end) {
+          oplat[accountId][year][month].forEach(function (payment) {
+            totalPayments += payment.sum;
+          });
+        }
+      }
+    }
+  }
+
+  return totalPayments;
+}
+
+function calculateCharges(accountId, start, end, lastMonthOnly) {
+  var totalCharges = 0;
+  var lastMonthCharges = 0;
+  var lastMonthKey = null;
+
+  if (nach[accountId]) {
+    for (var year in nach[accountId]) {
+      for (var month in nach[accountId][year]) {
+        var date = new Date(year, month - 1);
+        if (date >= start && date <= end) {
+          for (var serviceId in nach[accountId][year][month]) {
+            totalCharges += nach[accountId][year][month][serviceId];
+          }
+          // Запоминаем начисления последнего месяца
+          if (!lastMonthKey || date > lastMonthKey) {
+            lastMonthKey = date;
+            lastMonthCharges = 0; // Сбрасываем для нового последнего месяца
+            for (var _serviceId in nach[accountId][year][month]) {
+              lastMonthCharges += nach[accountId][year][month][_serviceId];
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return lastMonthOnly ? lastMonthCharges : totalCharges;
+}
+
+ 
   var footerRow = document.createElement('tr');
   footerRow.classList.add('itog');
   footerRow.innerHTML = "<td>\u0418\u0442\u043E\u0433\u043E</td><td>".concat(totalStartDebt.toFixedWithComma(), "</td>");
@@ -569,7 +642,7 @@ function handlePeriodChange() {
   }
 }
 function initTable() {
-document.getElementById('maincontainer').innerHTML = 
+  document.getElementById('maincontainer').innerHTML = 
     '<div id="org" align="right"></div>' +
     '<div id="filter-container">' +
         '<!-- Первая колонка: выбор периода и отображения -->' +
@@ -600,26 +673,37 @@ document.getElementById('maincontainer').innerHTML =
                 '<input type="month" id="end-date">' +
             '</label>' +
         '</div>' +
-        
-        '<!-- Третья колонка: кнопка -->' +
-        '<div class="column button-column">' +
+
+        '<!-- Третья колонка: фильтр -->' +
+        '<div class="column">' +
+            '<label>' +
+                'Фильтр:' +
+                '<select id="record-filter">' +
+                    '<option value="all">Показать всё</option>' +
+                    '<option value="paid-or-low-debt">Оплативших или без долгов</option>' +
+                    '<option value="paid">Оплативших</option>' +
+                    '<option value="overpaid">С переплатой</option>' +
+                    '<option value="debtors">Должники</option>' +
+                '</select>' +
+            '</label>' +
             '<button id="show" onclick="generateTable()">Показать данные</button>' +
         '</div>' +
+
     '</div>' +
-    '<div id="table-container">' +
-        '<!-- Таблица с отчётом будет добавлена здесь -->' +
-    '</div>' +
+    '<div id="table-container"></div>' +
     '<div id="datetime"></div>';
 
-  document.getElementById('datetime').innerHTML = "\n    <br>\u0414\u0430\u043D\u043D\u044B\u0435 \u0443\u043A\u0430\u0437\u0430\u043D\u044B \u043F\u043E \u0441\u043E\u0441\u0442\u043E\u044F\u043D\u0438\u044E \u043D\u0430 <br>".concat(dt, " (").concat(timeAgo(dt), "\u043D\u0430\u0437\u0430\u0434.)");
   setDefaultDates();
   handlePeriodChange();
   document.getElementById('preset-select').addEventListener('change', handlePeriodChange);
   document.getElementById('start-date').addEventListener('input', handlePeriodChange);
   document.getElementById('end-date').addEventListener('input', handlePeriodChange);
+  document.getElementById('record-filter').addEventListener('change', generateTable);
   if (getParam('displayMode')) document.getElementById('display-mode').value = getParam('displayMode');
   generateTable();
 }
+
+
 function doRed() {
   var table = document.querySelector('.main');
   var _iterator = _createForOfIteratorHelper(table.rows),
