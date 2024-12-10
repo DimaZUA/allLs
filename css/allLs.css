@@ -171,6 +171,7 @@ td:after {
     width: 100%;
     border-collapse: collapse;
     margin-top: 10px;
+
 }
 #table-container table.main tr:hover td {
 	background: #e8edff;
@@ -206,6 +207,9 @@ td:after {
 #table-container table.main th.sorted-desc::after {
     content: " ▼";
 }
+#table-container{
+           background-color: #f4f4f9;
+}
 
 #filter-container {
 
@@ -221,6 +225,7 @@ td:after {
     
     padding: 15px;
     background-color: #f9f9f9;
+
     border: 1px solid #ddd;
     border-radius: 8px;
     max-width: 100%;
@@ -349,9 +354,9 @@ font-size: 1rem;
 }
 
 #paytable {
-    width: 100%;
+
     border-collapse: collapse;
-    margin: 20px 0;
+    margin: 0px;
     text-align: left; /* Базовое выравнивание для всех */
 }
 
@@ -368,23 +373,22 @@ font-size: 1rem;
 }
 
 /* Настройка столбцов */
-#paytable td:nth-child(1),
-#paytable td:nth-child(2),
-#paytable td:nth-child(4) {
+#paytable td:nth-child(1){
     text-align: center !important; /* 1-й, 2-й и 4-й столбцы выравнены по центру */
+    font-size: 1.5rem !important; /* 1-й, 2-й и 4-й столбцы выравнены по центру */
 }
 
+#paytable td:nth-child(2),
 #paytable td:nth-child(3) {
     text-align: right !important; /* 3-й столбец выравнен по правому краю */
+   font-size: 2rem !important; /* 1-й, 2-й и 4-й столбцы выравнены по центру */
+   font-weight: bold;
 }
 
-#paytable td:nth-child(5) {
-    text-align: left !important; /* 5-й столбец выравнен по левому краю */
-}
-#paytable td:nth-child(1),
-#paytable td:nth-child(2),
-#paytable td:nth-child(3),
-#paytable td:nth-child(4) {
-    fonx-size: 1.5rem !important; /* 1-й, 2-й и 4-й столбцы выравнены по центру */
-}
+#paytable td:nth-child(1){
 
+}
+#paytable {
+    margin: auto;
+    display: table;
+}

@@ -24,7 +24,7 @@
     }
 
     th, td {
-        padding: 0px !important;
+        padding: 0px 10px 0px 10px !important;
         text-align: center;
     }
 
@@ -82,14 +82,13 @@
     }
 
     body.fullscreen table {
-        width: 95%;
         border-collapse: collapse;
         padding: 0px !important;
     }
 
     body.fullscreen th, 
     body.fullscreen td {
-        padding: 0px !important;
+        padding: 0px 10px 0px 10px !important;
         text-align: center;
     }
 

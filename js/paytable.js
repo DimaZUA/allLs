@@ -1,5 +1,4 @@
 ﻿var finalDate;
-
 function calculateDefaultDays() {
     var defaultDay = finalDate.getDate();
     var fromDay, toDay;
@@ -125,14 +124,13 @@ function generatePayTable() {
 
 
     // Генерация таблицы
-    var isLastColumnHidden = document.querySelector('#paytable th:nth-child(5)').style.display === 'none';
+    var isLastColumnHidden = document.querySelector('#paytable th:nth-child(4)').style.display === 'none';
     for (var i = 0; i < paymentsArray.length; i++) {
         var payment = paymentsArray[i];
         var row = document.createElement('tr');
         row.innerHTML = '<td>' + payment.date + '</td>' +
             '<td>' + payment.kv + '</td>' +
             '<td>' + payment.sum.toFixed(2) + '</td>' +
-            '<td>' + (payment.kvit?payment.kvit:'') + '</td>' +
             '<td' + (isLastColumnHidden?' style="display: none;"':'') + '>' + highlightApartmentNumber(payment.nazn, payment.kv) + '</td>';
         tbody.appendChild(row);
     }
@@ -165,13 +163,12 @@ function initPayTable() {
         '</div>' +
         '</div>' +
         '<div id="table-container">' +
-        '<table id="paytable" class="main">' +
+        '<table id="paytable" class="paytable">' +
         '<thead>' +
         '<tr>' +
         '<th>Дата</th>' +
-        '<th>Номер квартиры</th>' +
+        '<th>Кв.</th>' +
         '<th>Сумма</th>' +
-        '<th>Номер квитанции</th>' +
         '<th>Назначение платежа</th>' +
         '</tr>' +
         '</thead>' +
@@ -196,18 +193,6 @@ function initPayTable() {
     }
 }
 
-function toggleNaznColumn() {
-    var columnIndex = 4; // Индекс столбца "Назначение платежа" (начиная с 0)
-    var table = document.getElementById('paytable');
-    var rows = table.querySelectorAll('tr');
-    
-    for (var i = 0; i < rows.length; i++) {
-        var cell = rows[i].cells[columnIndex];
-        if (cell) {
-            cell.style.display = cell.style.display === 'none' ? '' : 'none';
-        }
-    }
-}
 
 function highlightApartmentNumber(paymentNazn, apartmentNumber) {
     // Ручная проверка, чтобы убедиться, что номер квартиры не является частью другого числа
@@ -217,3 +202,71 @@ function highlightApartmentNumber(paymentNazn, apartmentNumber) {
     return paymentNazn.replace(regex, '<strong style="color: #ff0000;">' + apartmentNumber + '</strong>');
 }
 
+function toggleNaznColumn() {
+    var columnIndex = 3; // Индекс столбца "Назначение платежа" (начиная с 0)
+    var table = document.getElementById('paytable');
+    var rows = table.querySelectorAll('tr');
+    var filterContainer = document.getElementById('filter-container');
+    var tableContainer = document.getElementById('table-container');
+    var fullscreenTextId = "fullscreen-text";
+
+    // Проверяем, находится ли таблица уже в полноэкранном режиме
+    var isFullscreen = !!document.fullscreenElement;
+// Получаем данные для заголовка
+var fromDay = document.getElementById('fromDay').value;
+var toDay = document.getElementById('toDay').value;
+var selectedMonth = document.getElementById('monthSelect').value.split('-');
+var year = selectedMonth[0];
+var month = selectedMonth[1];
+var monthName = new Date(year, month - 1).toLocaleString('uk', { month: 'long' });
+
+// Формируем текст
+var headerText = `${org}<br>Платежі співвласників<br>з ${fromDay} по ${toDay} ${monthName} ${year}`;
+    // Переключаем видимость третьего столбца
+    for (var i = 0; i < rows.length; i++) {
+        var cell = rows[i].cells[columnIndex];
+        if (cell) {
+        	if (cell.style.display === 'none'){
+        		cell.style.display='';
+        	}else{
+        		cell.style.display='none';
+        	}
+        }
+    }
+
+    if (!isFullscreen) {
+        // Включаем полноэкранный режим
+        tableContainer.requestFullscreen().catch(err => {
+            console.error(`Ошибка при включении полноэкранного режима: ${err.message}`);
+        });
+
+        // Скрываем filter-container
+        filterContainer.style.display = "none";
+
+        // Добавляем текст над таблицей
+        var fullscreenText = document.createElement('div');
+        fullscreenText.id = fullscreenTextId;
+        fullscreenText.style.textAlign = "center";
+        tableContainer.style.textAlign = "center";
+        fullscreenText.style.fontSize = "18px";
+        fullscreenText.style.fontWeight = "bold";
+        fullscreenText.innerHTML = headerText;
+        tableContainer.prepend(fullscreenText);
+        tableContainer.style.overflow = "auto";
+    } else {
+        // Выходим из полноэкранного режима
+        document.exitFullscreen().catch(err => {
+            console.error(`Ошибка при выходе из полноэкранного режима: ${err.message}`);
+        });
+
+        // Отображаем filter-container
+        filterContainer.style.display = "";
+
+        // Удаляем текст над таблицей
+        var fullscreenText = document.getElementById(fullscreenTextId);
+        if (fullscreenText) {
+            fullscreenText.remove();
+        }
+    tableContainer.style.overflow = "";
+    }
+}
