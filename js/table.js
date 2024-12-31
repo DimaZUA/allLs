@@ -370,6 +370,8 @@ function calculateCharges(accountId, start, end, lastMonthOnly) {
   
       }
   */
+
+
 }
 var chartInstance = null;
 function createDebetChart() {
