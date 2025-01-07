@@ -221,7 +221,8 @@ var month = selectedMonth[1];
 var monthName = new Date(year, month - 1).toLocaleString('uk', { month: 'long' });
 
 // Формируем текст
-var headerText = `${org}<br>Платежі співвласників<br>з ${fromDay} по ${toDay} ${monthName} ${year}`;
+var headerText = org + "<br>Платежі співвласників<br>з " + fromDay + " по " + toDay + " " + monthName + " " + year;
+
     // Переключаем видимость третьего столбца
     for (var i = 0; i < rows.length; i++) {
         var cell = rows[i].cells[columnIndex];
@@ -236,9 +237,19 @@ var headerText = `${org}<br>Платежі співвласників<br>з ${fr
 
     if (!isFullscreen) {
         // Включаем полноэкранный режим
-        tableContainer.requestFullscreen().catch(err => {
-            console.error(`Ошибка при включении полноэкранного режима: ${err.message}`);
-        });
+if (tableContainer.requestFullscreen) {
+    tableContainer.requestFullscreen().catch(function(err) {
+        console.error("Ошибка при включении полноэкранного режима: " + err.message);
+    });
+} else if (tableContainer.mozRequestFullScreen) { // Для Firefox
+    tableContainer.mozRequestFullScreen();
+} else if (tableContainer.webkitRequestFullscreen) { // Для Chrome, Safari, Opera
+    tableContainer.webkitRequestFullscreen();
+} else if (tableContainer.msRequestFullscreen) { // Для IE/Edge
+    tableContainer.msRequestFullscreen();
+} else {
+    console.warn("Полноэкранный режим не поддерживается этим браузером.");
+}
 
         // Скрываем filter-container
         filterContainer.style.display = "none";
@@ -255,9 +266,19 @@ var headerText = `${org}<br>Платежі співвласників<br>з ${fr
         tableContainer.style.overflow = "auto";
     } else {
         // Выходим из полноэкранного режима
-        document.exitFullscreen().catch(err => {
-            console.error(`Ошибка при выходе из полноэкранного режима: ${err.message}`);
-        });
+if (document.exitFullscreen) {
+    document.exitFullscreen().catch(function(err) {
+        console.error("Ошибка при выходе из полноэкранного режима: " + err.message);
+    });
+} else if (document.mozCancelFullScreen) { // Для Firefox
+    document.mozCancelFullScreen();
+} else if (document.webkitExitFullscreen) { // Для Chrome, Safari, Opera
+    document.webkitExitFullscreen();
+} else if (document.msExitFullscreen) { // Для IE/Edge
+    document.msExitFullscreen();
+} else {
+    console.warn("Выход из полноэкранного режима не поддерживается этим браузером.");
+}
 
         // Отображаем filter-container
         filterContainer.style.display = "";

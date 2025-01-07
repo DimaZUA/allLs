@@ -1,4 +1,4 @@
-﻿//const host='https://dimazua.github.io/allLs/data/';
+﻿//var host='https://dimazua.github.io/allLs/data/';
 host = 'data/';
 function initPosters() {
   var sidebar = document.querySelector('.sidebar'); // Предположим, что у панели есть класс 'sidebar'
@@ -227,25 +227,40 @@ function getMonthName(month) {
 function formatDate(date) {
   return "".concat(date.getFullYear(), "-").concat(String(date.getMonth() + 1).padStart(2, '0'));
 }
+
+
 function fillMissingDates(nach) {
-  for (let id in nach) {
-    const years = Object.keys(nach[id]).map(Number).sort((a, b) => a - b);
-    const minYear = years[0];
-    const maxYear = years[years.length - 1];
+  for (var id in nach) {
+    var years = [];
+    for (var key in nach[id]) {
+      if (nach[id].hasOwnProperty(key)) {
+        years.push(Number(key));
+      }
+    }
+    years.sort(function(a, b) {
+      return a - b;
+    });
+    var minYear = years[0];
+    var maxYear = years[years.length - 1];
     
     // Найти последний заполненный месяц в последнем году
-    const lastYearMonths = Object.keys(nach[id][maxYear]).map(Number);
-    const lastMonth = Math.max(...lastYearMonths);
+    var lastYearMonths = [];
+    for (var monthKey in nach[id][maxYear]) {
+      if (nach[id][maxYear].hasOwnProperty(monthKey)) {
+        lastYearMonths.push(Number(monthKey));
+      }
+    }
+    var lastMonth = Math.max.apply(null, lastYearMonths);
 
     // Пройтись по всем годам от минимального до последнего года
-    for (let year = minYear; year <= maxYear; year++) {
+    for (var year = minYear; year <= maxYear; year++) {
       if (!nach[id][year]) {
         nach[id][year] = {};
       }
 
       // Пройтись по всем месяцам от 1 до 12
-      const maxMonth = (year === maxYear) ? lastMonth : 12;
-      for (let month = 1; month <= maxMonth; month++) {
+      var maxMonth = (year === maxYear) ? lastMonth : 12;
+      for (var month = 1; month <= maxMonth; month++) {
         if (!nach[id][year][month]) {
           nach[id][year][month] = { 1: 0 };
         }
@@ -253,20 +268,23 @@ function fillMissingDates(nach) {
     }
 
     // Убедиться, что ключи отсортированы
-    nach[id] = Object.keys(nach[id])
-      .sort((a, b) => a - b)
-      .reduce((acc, year) => {
-        acc[year] = Object.keys(nach[id][year])
-          .sort((a, b) => a - b)
-          .reduce((monthAcc, month) => {
-            monthAcc[month] = nach[id][year][month];
-            return monthAcc;
-          }, {});
-        return acc;
-      }, {});
+    var sortedNach = {};
+    var sortedYears = Object.keys(nach[id]).sort(function(a, b) {
+      return a - b;
+    });
+    for (var i = 0; i < sortedYears.length; i++) {
+      var year = sortedYears[i];
+      sortedNach[year] = {};
+      var sortedMonths = Object.keys(nach[id][year]).sort(function(a, b) {
+        return a - b;
+      });
+      for (var j = 0; j < sortedMonths.length; j++) {
+        var month = sortedMonths[j];
+        sortedNach[year][month] = nach[id][year][month];
+      }
+    }
+    nach[id] = sortedNach;
   }
 }
 
-// Пример вызова
-fillMissingDates(nach);
 

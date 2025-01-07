@@ -264,14 +264,15 @@ function generateTable() {
     if (filterValue === 'overpaid' && debitEnd > 0) continue;
     if (filterValue === 'debtors' && (payments > 0 || debitEnd <= lastMonthCharges * 3)) continue;
 
-     console.log(
-  (ls[_accountId]?.kv || "Неизвестно")+": ",
-  debitStart.toFixed(2)+"  ",
-  totalCharges.toFixed(2)+"  ",
-  payments.toFixed(2)+"  ",
-  debitEnd.toFixed(2)+"  ",
-  lastMonthCharges.toFixed(2)
+console.log(
+    (ls[_accountId] && ls[_accountId].kv || "Неизвестно") + ": ",
+    debitStart.toFixed(2) + "  ",
+    totalCharges.toFixed(2) + "  ",
+    payments.toFixed(2) + "  ",
+    debitEnd.toFixed(2) + "  ",
+    lastMonthCharges.toFixed(2)
 );
+
     _loop();
   }
 function calculatePayments(accountId, start, end) {
