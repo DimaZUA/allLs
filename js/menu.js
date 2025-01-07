@@ -71,15 +71,18 @@ function handleMenuClick(homeCode, actionCode, actionLink) {
   actionLink.classList.add('active-action');
   if (actionCode === 'accounts') {
     loadScriptFromHtml(homeCode + '.js', function () {
+    fillMissingDates(nach);
       initLS();
     });
   } else if (actionCode === 'list') {
     document.getElementById('maincontainer');
     loadScriptFromHtml(homeCode + '.js', function () {
+    fillMissingDates(nach);
       initTable();
     });
   } else if (actionCode === 'payments') {
     loadScriptFromHtml(homeCode + '.js', function () {
+    fillMissingDates(nach);
       initPayTable();
     });
   } else if (actionCode === 'info') {

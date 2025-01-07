@@ -227,3 +227,46 @@ function getMonthName(month) {
 function formatDate(date) {
   return "".concat(date.getFullYear(), "-").concat(String(date.getMonth() + 1).padStart(2, '0'));
 }
+function fillMissingDates(nach) {
+  for (let id in nach) {
+    const years = Object.keys(nach[id]).map(Number).sort((a, b) => a - b);
+    const minYear = years[0];
+    const maxYear = years[years.length - 1];
+    
+    // Найти последний заполненный месяц в последнем году
+    const lastYearMonths = Object.keys(nach[id][maxYear]).map(Number);
+    const lastMonth = Math.max(...lastYearMonths);
+
+    // Пройтись по всем годам от минимального до последнего года
+    for (let year = minYear; year <= maxYear; year++) {
+      if (!nach[id][year]) {
+        nach[id][year] = {};
+      }
+
+      // Пройтись по всем месяцам от 1 до 12
+      const maxMonth = (year === maxYear) ? lastMonth : 12;
+      for (let month = 1; month <= maxMonth; month++) {
+        if (!nach[id][year][month]) {
+          nach[id][year][month] = { 1: 0 };
+        }
+      }
+    }
+
+    // Убедиться, что ключи отсортированы
+    nach[id] = Object.keys(nach[id])
+      .sort((a, b) => a - b)
+      .reduce((acc, year) => {
+        acc[year] = Object.keys(nach[id][year])
+          .sort((a, b) => a - b)
+          .reduce((monthAcc, month) => {
+            monthAcc[month] = nach[id][year][month];
+            return monthAcc;
+          }, {});
+        return acc;
+      }, {});
+  }
+}
+
+// Пример вызова
+fillMissingDates(nach);
+
