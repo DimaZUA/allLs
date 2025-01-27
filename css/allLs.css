@@ -3,6 +3,17 @@ html {
 	    background-color: #f4f4f9;
 	    font-size:20px;
 }
+tr.grey {
+    color: #aaa; /* Полупрозрачность */
+}
+
+tr.grey .red{
+    color: #faa; /* Полупрозрачность */
+}
+
+tr.grey .descr {
+    color: #000 !important; /* Сбрасываем полупрозрачность для .descr */
+}
 
 .poster {
     position: relative;
@@ -24,7 +35,8 @@ html {
     z-index: 105;
 }
 .poster:hover .descr {
-    opacity: 1;
+    opacity: 1 !important;
+    z-index: 105 !important;
 }
 
 /* Основной стиль для таблицы */
@@ -317,10 +329,6 @@ td:after {
 .subtable td:nth-child(5) {
     text-align: left !important;
     width: 50% !important; /* Принудительно устанавливаем ширину для последнего столбца */
-}
-tr.grey {
-    opacity: 0.3; /* Полупрозрачность */
-//    color: #ccc;  /* Цвет текста для строк, которые считаются неактивными */
 }
 @media (max-width: 1024px) {
 html {   
