@@ -36,7 +36,6 @@ tr.grey .descr {
 }
 .poster:hover .descr {
     opacity: 1 !important;
-    z-index: 105 !important;
 }
 
 /* Основной стиль для таблицы */
