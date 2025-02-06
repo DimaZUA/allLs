@@ -11,7 +11,8 @@ function addStuff(accountId) {
   container.innerHTML = ''; // Очищаем контейнер перед добавлением новой таблицы
   document.getElementById('fio').textContent = ls[accountId].fio;
   if (!accountData) {
-    container.innerHTML = "<p>\u0414\u0430\u043D\u043D\u044B\u0435 \u0434\u043B\u044F ID ".concat(accountId, " \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D\u044B.</p>");
+  container.innerHTML = "<p>Дані для ID " + accountId + " не знайдено.</p>";
+  
     return;
   }
   var cumulativeBalance = 0;
@@ -77,7 +78,7 @@ function addStuff(accountId) {
 
     // Заголовок таблицы
     var headerRow = document.createElement('tr');
-    headerRow.innerHTML = "<td rowspan=\"2\" align=\"CENTER\">\u041C\u0435\u0441\u044F\u0446</td>\n             <td colspan=\"".concat(services.size, "\" align=\"CENTER\">\u041D\u0430\u0447\u0438\u0441\u043B\u0435\u043D\u043E \u0437\u0430 \u043C\u0435\u0441\u044F\u0446</td>\n             <td rowspan=\"2\" align=\"CENTER\">\u041E\u043F\u043B\u0430\u0447\u0435\u043D\u043E \u0432 \u043C\u0435\u0441\u044F\u0446\u0435</td>\n             <td rowspan=\"2\" align=\"CENTER\">\u0414\u043E\u043B\u0433(+) \u041F\u0435\u0440\u0435\u043F\u043B\u0430\u0442\u0430(-) \u043D\u0430 \u043A\u043E\u043D\u0435\u0446 \u043C\u0435\u0441\u044F\u0446\u0430</td>");
+    headerRow.innerHTML = "<td rowspan=\"2\" align=\"CENTER\">\u041C\u0456\u0441\u044F\u0446\u044C</td>\n             <td colspan=\"".concat(services.size, "\" align=\"CENTER\">\u041D\u0430\u0440\u0430\u0445\u043E\u0432\u0430\u043D\u043E \u0437\u0430 \u043C\u0456\u0441\u044F\u0446\u044C</td>\n             <td rowspan=\"2\" align=\"CENTER\">\u041E\u043F\u043B\u0430\u0447\u0435\u043D\u043E \u0432 \u043C\u0456\u0441\u044F\u0446\u0456</td>\n             <td rowspan=\"2\" align=\"CENTER\">\u0411\u043E\u0440\u0433(+) \u041F\u0435\u0440\u0435\u043F\u043B\u0430\u0442\u0430(-) \u043D\u0430 \u043A\u0456\u043D\u0435\u0446\u044C \u043C\u0456\u0441\u044F\u0446\u044F</td>");
     thead.appendChild(headerRow);
 
     // Второй ряд заголовка с названиями услуг
@@ -122,7 +123,7 @@ function addStuff(accountId) {
       var cur = _month == currentMonth + 1 && year == currentYear;
       // Получаем данные оплат за текущий месяц
       var monthlyPayments = ((_paymentData$year = paymentData[year]) === null || _paymentData$year === void 0 ? void 0 : _paymentData$year[_month]) || [];
-      var totalPayments = createPaymentCell(row, monthlyPayments);
+      var totalPayments = createPaymentCell(row, monthlyPayments, accountId);
       if (!cur) {
         cumulativeBalance += monthlyChargesTotal - totalPayments;
         // Сохраняем суммы для итогов
@@ -157,7 +158,7 @@ function addStuff(accountId) {
       // Если несколько услуг
       var totalRow = document.createElement('tr');
       totalRow.classList.add('itog');
-      totalRow.innerHTML = "<td rowspan=\"2\" align=\"CENTER\">\u0418\u0442\u043E\u0433\u043E \u0437\u0430 ".concat(year, " \u0433\u043E\u0434</td>");
+      totalRow.innerHTML = "<td rowspan=\"2\" align=\"CENTER\">\u041F\u0456\u0434\u0441\u0443\u043C\u043E\u043A \u0437\u0430 ".concat(year, " \u0440\u0456\u043A</td>");
 
       // Итог по каждой услуге
       services.forEach(function (serviceId) {
@@ -187,13 +188,13 @@ function addStuff(accountId) {
       var totalChargeForAllServices = Object.values(totalChargesByService).reduce(function (sum, value) {
         return sum + value;
       }, 0);
-      chargesSummaryRow.innerHTML = "<td colspan=\"".concat(services.size, "\" ALIGN=\"center\">\u0412\u0441\u0435\u0433\u043E \u043D\u0430\u0447\u0438\u0441\u043B\u0435\u043D\u043D\u043E: ").concat(totalChargeForAllServices.toFixedWithComma(), "</td>");
+      chargesSummaryRow.innerHTML = "<td colspan=\"".concat(services.size, "\" ALIGN=\"center\">\u0423\u0441\u044C\u043E\u0433\u043E \u043D\u0430\u0440\u0430\u0445\u043E\u0432\u0430\u043D\u043E: ").concat(totalChargeForAllServices.toFixedWithComma(), "</td>");
       tbody.appendChild(chargesSummaryRow);
     } else {
       // Если одна услуга
       var _totalRow = document.createElement('tr');
       _totalRow.classList.add('itog');
-      _totalRow.innerHTML = "<td align=\"LEFT\">\u0418\u0442\u043E\u0433\u043E \u0437\u0430 ".concat(year, " \u0433\u043E\u0434</td>");
+      _totalRow.innerHTML = "<td align=\"LEFT\">\u041F\u0456\u0434\u0441\u0443\u043C\u043E\u043A \u0437\u0430 ".concat(year, " \u0440\u0456\u043A</td>");
 
       // Итог начислений по единственной услуге
       var totalChargeForOneService = Object.values(totalChargesByService)[0] || 0; // Получаем сумму для единственной услуги
@@ -231,7 +232,7 @@ function addStuff(accountId) {
     lastYearToggle.checked = true;
   }
   var curLS = ls[accountId];
-  document.getElementById('datetime').innerHTML = "<br><div>\n                \u041B\u0421: ".concat(curLS.ls, "<br>  <!-- \u041B\u0438\u0446\u0435\u0432\u043E\u0439 \u0441\u0447\u0435\u0442 -->\n                \u0424\u0418\u041E: ").concat(curLS.fio, "<br>  <!-- \u0424\u0418\u041E -->\n                ").concat(curLS.pl ? "\u041F\u043B\u043E\u0449\u0430\u0434\u044C: ".concat(curLS.pl, " \u043C\xB2<br>") : '', "  <!-- \u041F\u043B\u043E\u0449\u0430\u0434\u044C -->\n                ").concat(curLS.pers ? "\u0416\u0438\u043B\u044C\u0446\u043E\u0432: ".concat(curLS.pers, "<br>") : '', "  <!-- \u041A\u043E\u043B\u0438\u0447\u0435\u0441\u0442\u0432\u043E \u0436\u0438\u043B\u044C\u0446\u043E\u0432 -->\n                ").concat(curLS.komn ? "\u041A\u043E\u043C\u043D\u0430\u0442: ".concat(curLS.komn, "<br>") : '', "  <!-- \u041A\u043E\u043B\u0438\u0447\u0435\u0441\u0442\u0432\u043E \u043A\u043E\u043C\u043D\u0430\u0442 -->\n                ").concat(curLS.et ? "\u042D\u0442\u0430\u0436: ".concat(curLS.et, "<br>") : '', "  <!-- \u042D\u0442\u0430\u0436 -->\n                ").concat(curLS.pod ? "\u041F\u043E\u0434\u0435\u0437\u0434: ".concat(curLS.pod, "<br>") : '', "  <!-- \u041F\u043E\u0434\u044A\u0435\u0437\u0434 -->\n                ").concat(curLS.lgota ? "\u041B\u044C\u0433\u043E\u0442\u043D\u0438\u043A: ".concat(curLS.lgota, "<br>") : '', "  <!-- \u041B\u044C\u0433\u043E\u0442\u043D\u0438\u043A -->\n                ").concat(curLS.tel ? "\u0422\u0435\u043B\u0435\u0444\u043E\u043D: ".concat(curLS.tel, "<br>") : '', "  <!-- \u0422\u0435\u043B\u0435\u0444\u043E\u043D -->\n                ").concat(curLS.note ? "\u041F\u0440\u0438\u043C\u0435\u0447\u0430\u043D\u0438\u0435: ".concat(curLS.note, "<br>") : '', "  <!-- \u041F\u0440\u0438\u043C\u0435\u0447\u0430\u043D\u0438\u0435 -->\n                ").concat(curLS.email ? "e-mail: ".concat(curLS.email, "<br>") : '', "  <!-- Email -->\n            <br>\u0414\u0430\u043D\u043D\u044B\u0435 \u0443\u043A\u0430\u0437\u0430\u043D\u044B \u043F\u043E \u0441\u043E\u0441\u0442\u043E\u044F\u043D\u0438\u044E \u043D\u0430 <br>").concat(dt, " (").concat(timeAgo(dt), "\u043D\u0430\u0437\u0430\u0434.)\n        </div>");
+  document.getElementById('datetime').innerHTML = "<br><div>\n                \u041E\u0420: ".concat(curLS.ls, "<br>  <!-- \u041E\u0441\u043E\u0431\u043E\u0432\u0438\u0439 \u0440\u0430\u0445\u0443\u043D\u043E\u043A -->\n                \u041F.\u0406.\u0411.: ").concat(curLS.fio, "<br>  <!-- \u041F\u0440\u0456\u0437\u0432\u0438\u0449\u0435, \u0456\u043C'\u044F, \u0431\u0430\u0442\u044C\u043A\u043E\u0432\u0456 -->\n                ").concat(curLS.pl ? "\u041F\u043B\u043E\u0449\u0430: ".concat(curLS.pl, " \u043C\xB2<br>") : '', "  <!-- \u041F\u043B\u043E\u0449\u0430 -->\n                ").concat(curLS.pers ? "\u0416\u0438\u0442\u0435\u043B\u0456\u0432: ".concat(curLS.pers, "<br>") : '', "  <!-- \u041A\u0456\u043B\u044C\u043A\u0456\u0441\u0442\u044C \u0436\u0438\u0442\u0435\u043B\u0456\u0432 -->\n                ").concat(curLS.komn ? "\u041A\u0456\u043C\u043D\u0430\u0442: ".concat(curLS.komn, "<br>") : '', "  <!-- \u041A\u0456\u043B\u044C\u043A\u0456\u0441\u0442\u044C \u043A\u0456\u043C\u043D\u0430\u0442 -->\n                ").concat(curLS.et ? "\u041F\u043E\u0432\u0435\u0440\u0445: ".concat(curLS.et, "<br>") : '', "  <!-- \u041F\u043E\u0432\u0435\u0440\u0445 -->\n                ").concat(curLS.pod ? "\u041F\u0456\u0434'\u0457\u0437\u0434: ".concat(curLS.pod, "<br>") : '', "  <!-- \u041F\u0456\u0434'\u0457\u0437\u0434 -->\n                ").concat(curLS.lgota ? "\u041F\u0456\u043B\u044C\u0433\u043E\u0432\u0438\u043A: ".concat(curLS.lgota, "<br>") : '', "  <!-- \u041F\u0456\u043B\u044C\u0433\u043E\u0432\u0438\u043A -->\n                ").concat(curLS.tel ? "\u0422\u0435\u043B\u0435\u0444\u043E\u043D: ".concat(curLS.tel, "<br>") : '', "  <!-- \u0422\u0435\u043B\u0435\u0444\u043E\u043D -->\n                ").concat(curLS.note ? "\u041F\u0440\u0438\u043C\u0456\u0442\u043A\u0430: ".concat(curLS.note, "<br>") : '', "  <!-- \u041F\u0440\u0438\u043C\u0456\u0442\u043A\u0430 -->\n                ").concat(curLS.email ? "e-mail: ".concat(curLS.email, "<br>") : '', "  <!-- Email -->\n            <br>\u0414\u0430\u043D\u0456 \u0432\u043A\u0430\u0437\u0430\u043D\u0456 \u0441\u0442\u0430\u043D\u043E\u043C \u043D\u0430 <br>").concat(dt, " (").concat(timeAgo(dt), "\u0442\u043e\u043c\u0443.)\n        </div>");
   lastRow.scrollIntoView({
     behavior: 'smooth',
     block: 'end'
@@ -239,7 +240,131 @@ function addStuff(accountId) {
   initPosters();
   setParam('kv', ls[accountId].kv);
 }
-function createPaymentCell(row, monthlyPayments) {
+
+
+function createPaymentCell(row, monthlyPayments, accountId) {
+  var paymentCell = document.createElement('td');
+  var totalPayments = monthlyPayments.reduce(function (sum, payment) {
+    return sum + payment.sum;
+  }, 0);
+
+  var charges = nach[accountId] || {};
+  var payments = oplat[accountId] || {};
+
+function getMonthsForPayment(paymentSum, paymentDate, accountId) {
+var paymentDateParts = paymentDate.split('.');
+var day = Number(paymentDateParts[0]);
+var month = Number(paymentDateParts[1]);
+var year = Number(paymentDateParts[2]);
+    if (!nach[accountId]) return "";
+    
+    var paidMonths = [];
+    var remainingSum = 0;
+    var years = [];
+for (var key in nach[accountId]) {
+  if (nach[accountId].hasOwnProperty(key)) {
+    years.push(key);
+  }
+}
+years.sort(function(a, b) {
+  return a - b;
+});
+
+    
+    // Подсчет уже оплаченных начислений до paymentDate
+    if (oplat[accountId]) {
+        for (var y in oplat[accountId]) {
+            for (var m in oplat[accountId][y]) {
+var payments = oplat[accountId][y][m];
+for (var i = 0; i < payments.length; i++) {
+  var payment = payments[i];
+                    var paymentDateParts = payment.date.split('.');
+var pDay = Number(paymentDateParts[0]);
+var pMonth = Number(paymentDateParts[1]);
+var pYear = Number(paymentDateParts[2]);
+
+                    if (pYear < year || (pYear === year && pMonth < month) || (pYear === year && pMonth === month && pDay < day)) {
+                        remainingSum += payment.sum;
+                    }
+                };
+            }
+        }
+    }
+    
+    var start = null;
+    var end = null;
+    var totalCharge    =0;
+    for (var y of years) {
+        var shortYear = y.slice(-2);
+        var months = [];
+for (var key in nach[accountId][y]) {
+  if (nach[accountId][y].hasOwnProperty(key)) {
+    months.push(key);
+  }
+}
+months.sort(function(a, b) {
+  return a - b;
+});
+
+        for (var m of months) {
+            var charges = Object.values(nach[accountId][y][m]);
+            var monthCharge = 0;
+for (var i = 0; i < charges.length; i++) {
+  monthCharge += charges[i];
+}
+
+            remainingSum -= monthCharge;
+            totalCharge+=monthCharge;
+if (remainingSum < -0.01 && !start) {
+  start = m.padStart(2, '0') + '.' + shortYear;
+}
+if (monthCharge > 0 && remainingSum + paymentSum < 0.01) {
+  end = m.padStart(2, '0') + '.' + shortYear;
+  return start === end ? start : start + '-' + end;
+}
+
+        }
+    }
+    end = '...';
+  return start === end ? start : start + '-' + end;
+
+}
+
+
+
+
+
+
+  // Формируем строки с данными платежей
+var tableRows = monthlyPayments.map(function(payment) {
+  var formattedDate = payment.date.split('.')[0]; // Преобразуем дату в формат D
+  var formattedSum = payment.sum.toFixed(2).replace('.', ','); // Преобразуем сумму в формат 0.00
+  var paymentMonths = getMonthsForPayment(payment.sum, payment.date, accountId);
+
+  return '<tr>' +
+           '<td class="big">' + formattedDate + '</td>' +
+           '<td class="big">' + formattedSum + '</td>' +
+           '<td>' + paymentMonths + '</td>' +
+         '</tr>';
+}).join('');
+
+
+  // Устанавливаем содержимое ячейки оплаты
+paymentCell.innerHTML = '<div>' +
+  '<table class="paysubtable">' +
+    '<tbody>' +
+      tableRows +
+    '</tbody>' +
+  '</table>' +
+'</div>';
+
+
+  row.appendChild(paymentCell);
+  return totalPayments;
+}
+
+
+function createPaymentCell_old(row, monthlyPayments) {
   var totalPayments = monthlyPayments.reduce(function (sum, payment) {
     return sum + payment.sum;
   }, 0);
@@ -261,8 +386,7 @@ function createPaymentCell(row, monthlyPayments) {
     });
 
     // Настраиваем строку заголовка таблицы
-    var headerRow = "\n    <tr>\n        <th>\u0414\u0430\u0442\u0430</th>\n        <th>\u041E\u043F\u043B\u0430\u0447\u0435\u043D\u043E \u0447\u0435\u0440\u0435\u0437</th>\n        ".concat(hasKvit ? '<th>Квитанция</th>' : '', "\n        <th>\u0421\u0443\u043C\u043C\u0430</th>\n        ").concat(hasNazn ? '<th>Призначення</th>' : '', "\n    </tr>\n");
-
+    var headerRow = "\n    <tr>\n        <th>\u0414\u0430\u0442\u0430</th>\n        <th>\u041E\u043F\u043B\u0430\u0447\u0435\u043D\u043E \u0447\u0435\u0440\u0435\u0437</th>\n        ".concat(hasKvit ? '<th>\u041A\u0432\u0456\u0442\u0430\u043D\u0446\u0456\u044F</th>' : '', "\n        <th>\u0421\u0443\u043C\u0430</th>\n        ").concat(hasNazn ? '<th>\u041F\u0440\u0438\u0437\u043D\u0430\u0447\u0435\u043D\u043D\u044F</th>' : '', "\n    </tr>\n");
     // Формируем строки с данными платежей
     var tableRows = monthlyPayments.map(function (payment) {
       return "\n    <tr>\n        <td class=\"big\">".concat(payment.date, "</td>\n        <td>").concat(b[payment.yur], "</td>\n        ").concat(hasKvit ? "<td>".concat(payment.kvit || '', "</td>") : '', "\n        <td class=\"big\">").concat(payment.sum.toFixedWithComma(), "</td>\n        ").concat(hasNazn ? "<td>".concat(payment.nazn || '', "</td>") : '', "\n    </tr>\n");
@@ -276,7 +400,7 @@ function createPaymentCell(row, monthlyPayments) {
   return totalPayments;
 }
 function initLS() {
-  document.getElementById('maincontainer').innerHTML = "\n    <div id=header><TABLE WIDTH=100%><TR><TD ALIGN=RIGHT><B>\u0410\u0434\u0440\u0435\u0441:</B></TD><TD class='big' ALIGN=LEFT><U><I><a id='adr'>adr</a><select class='big' id='number'></select></TD>\n    <td rowsplan=2><DIV id='org' ALIGN=RIGHT><td>\n    </TR><TR><TD ALIGN=RIGHT><B>\u0424.\u0418.\u041E.:</B></TD><TD ALIGN=LEFT><U><I><div class='big' id='fio'></U></I></TD></div></TR></TABLE></DIV><DIV id='din'></div><DIV id='datetime'></div>\n    ";
+  document.getElementById('maincontainer').innerHTML = "\n    <div id=header><TABLE WIDTH=100%><TR><TD ALIGN=RIGHT><B>\u0410\u0434\u0440\u0435\u0441\u0430:</B></TD><TD class='big' ALIGN=LEFT><U><I><a id='adr'>adr</a><select class='big' id='number'></select></TD>\n    <td rowspan=2><DIV id='org' ALIGN=RIGHT><td>\n    </TR><TR><TD ALIGN=RIGHT><B>\u041F.\u0406.\u0411.:</B></TD><TD ALIGN=LEFT><U><I><div class='big' id='fio'></U></I></TD></div></TR></TABLE></DIV><DIV id='din'></div><DIV id='datetime'></div>\n    ";
   document.getElementById('number').addEventListener('change', function () {
     addStuff(this.value);
   });

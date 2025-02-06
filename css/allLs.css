@@ -392,10 +392,31 @@ font-size: 1rem;
    font-weight: bold;
 }
 
-#paytable td:nth-child(1){
-
-}
 #paytable {
     margin: auto;
     display: table;
+}
+
+
+.paysubtable {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.paysubtable td {
+  padding: 0;
+  margin: 0;
+  border: none !important;
+}
+.paysubtable td:nth-child(1),
+.paysubtable td:nth-child(3){
+  vertical-align: bottom;
+  font-size: small;
+}
+.paysubtable td:first-child {
+  text-align: left;
+}
+.paysubtable td:nth-child(2) {
+  padding-left: 10px;  /* Отступ слева */
+  padding-right: 10px; /* Отступ справа */
 }

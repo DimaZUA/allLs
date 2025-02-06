@@ -1,5 +1,4 @@
 ﻿// Список доступных действий (например, для каждого дома)
-//const host='https://rk.clan.su/js/';
 var actions = [{
   name: 'Лицевые счета',
   actionCode: 'accounts'

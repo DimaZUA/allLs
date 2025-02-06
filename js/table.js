@@ -252,11 +252,11 @@ function generateTable() {
     var debitStart = calculateInitialDebit(_accountId, start);
     var payments = calculatePayments(_accountId, start, end);
   // Все начисления за период
-  var totalCharges = calculateCharges(_accountId, start, end, false);
+  var totalCharge = calculateCharges(_accountId, start, end, false);
 
   // Только начисления за последний месяц
   var lastMonthCharges = calculateCharges(_accountId, start, end, true);
-    var debitEnd = debitStart + totalCharges - payments;
+    var debitEnd = debitStart + totalCharge - payments;
 
     // Фильтрация записей
     if (filterValue === 'paid-or-low-debt' && !(payments > 0 || debitEnd < lastMonthCharges * 3)) continue;
@@ -264,14 +264,14 @@ function generateTable() {
     if (filterValue === 'overpaid' && debitEnd > 0) continue;
     if (filterValue === 'debtors' && (payments > 0 || debitEnd <= lastMonthCharges * 3)) continue;
 
-console.log(
-    (ls[_accountId] && ls[_accountId].kv || "Неизвестно") + ": ",
-    debitStart.toFixed(2) + "  ",
-    totalCharges.toFixed(2) + "  ",
-    payments.toFixed(2) + "  ",
-    debitEnd.toFixed(2) + "  ",
-    lastMonthCharges.toFixed(2)
-);
+//console.log(
+//    (ls[_accountId] && ls[_accountId].kv || "Неизвестно") + ": ",
+//    debitStart.toFixed(2) + "  ",
+//    totalCharges.toFixed(2) + "  ",
+//    payments.toFixed(2) + "  ",
+//    debitEnd.toFixed(2) + "  ",
+//    lastMonthCharges.toFixed(2)
+//);
 
     _loop();
   }
@@ -326,6 +326,9 @@ function calculateCharges(accountId, start, end, lastMonthOnly) {
  
   var footerRow = document.createElement('tr');
   footerRow.classList.add('itog');
+
+
+
   footerRow.innerHTML = "<td>\u0418\u0442\u043E\u0433\u043E</td><td>".concat(totalStartDebt.toFixedWithComma(), "</td>");
   if (displayMode === 'summarized') {
     Array.from(servicesWithCharges).forEach(function (serviceId) {
@@ -610,70 +613,68 @@ function generatePaymentCell(payments) {
   }
   return paymentCell;
 }
-function handlePeriodChange() {
+function handlePeriodChange(event) {
   var presetSelect = document.getElementById('preset-select');
+  var startLabel = document.getElementById('start-label');
+  var endLabel = document.getElementById('end-label');
+  var presetLabel=document.getElementById('preset-label');
   var startDateInput = document.getElementById('start-date');
   var endDateInput = document.getElementById('end-date');
-  var displayModeSelect = document.getElementById('display-mode');
-  var showDataButton = document.querySelector('button');
+  var startDate = new Date(startDateInput.value + "-01");
+  var endDate = new Date(endDateInput.value + "-01");
+  if (event=="start"||event=="end"){
+	  if (isMonth(startDate) && isMonth(endDate)) presetSelect.value="current-month"
+	  if (isMonth(startDate,-1) && isMonth(endDate,-1)) presetSelect.value="previous-month"
+	  if (isMonth(startDate,-2) && isMonth(endDate,-2)) presetSelect.value="two-months-ago"
+  }
 
-  // Скрыть или показать поля "С" и "По"
+  // Показать или скрыть поля "С" и "По"
   if (presetSelect.value === 'custom') {
-    startDateInput.disabled = false;
-    endDateInput.disabled = false;
+    startLabel.style.display = 'flex';
+    endLabel.style.display = 'flex';
+    presetLabel.style.display ='none';
+  if (startDate <= endDate) generateTable();
   } else {
-    startDateInput.disabled = true;
-    endDateInput.disabled = true;
+    startLabel.style.display = 'none';
+    endLabel.style.display = 'none';
+    presetLabel.style.display ='flex';
+    generateTable();
   }
 
-  // Скрыть или показать "Отображение" в зависимости от того, равны ли "С" и "По"
-  /*    if (startDateInput.value !== "" && endDateInput.value !== "" && startDateInput.value !== endDateInput.value) {
-          displayModeSelect.disabled = false;
-      } else {
-          displayModeSelect.disabled = true;
-      }
-  */
-  // Включить или выключить кнопку "Показать данные" в зависимости от значений "С" и "По"
-  // Преобразуем даты в объект Date для правильного сравнения
-  var startDate = new Date(startDateInput.value + "-01"); // Преобразуем в дату
-  var endDate = new Date(endDateInput.value + "-01"); // Преобразуем в дату
-
-  if (startDate <= endDate) {
-    showDataButton.disabled = false;
-  } else {
-    showDataButton.disabled = true;
-  }
 }
+
+
 function initTable() {
   document.getElementById('maincontainer').innerHTML = 
     '<div id="org" align="right"></div>' +
     '<div id="filter-container">' +
         '<!-- Первая колонка: выбор периода и отображения -->' +
         '<div class="column">' +
-            '<label>' +
+            '<label id="preset-label">' +
                 'Выберите период:' +
                 '<select id="preset-select" onchange="applyPreset()">' +
                     '<!-- Эти опции обновляются в setDefaultDates() -->' +
                 '</select>' +
             '</label>' +
+'<label id="start-label" style="display: none;">' +
+    'С:' +
+    '<input type="month" id="start-date" >' +
+'</label>' +
+'<label id="end-label" style="display: none;">' +
+    'По:' +
+    '<input type="month" id="end-date">' +
+'</label>'+
+
+        '</div>' +
+        
+        '<!-- Вторая колонка: даты -->' +
+        '<div class="column">' +
             '<label>' +
                 'Отображение:' +
                 '<select id="display-mode">' +
                     '<option value="summarized">По услугам</option>' +
                     '<option value="detailed">По месяцам</option>' +
                 '</select>' +
-            '</label>' +
-        '</div>' +
-        
-        '<!-- Вторая колонка: даты -->' +
-        '<div class="column">' +
-            '<label>' +
-                'С:' +
-                '<input type="month" id="start-date">' +
-            '</label>' +
-            '<label>' +
-                'По:' +
-                '<input type="month" id="end-date">' +
             '</label>' +
         '</div>' +
 
@@ -689,7 +690,6 @@ function initTable() {
                     '<option value="debtors">Должники</option>' +
                 '</select>' +
             '</label>' +
-            '<button id="show" onclick="generateTable()">Показать данные</button>' +
         '</div>' +
 
     '</div>' +
@@ -699,9 +699,15 @@ function initTable() {
   setDefaultDates();
   handlePeriodChange();
   document.getElementById('preset-select').addEventListener('change', handlePeriodChange);
-  document.getElementById('start-date').addEventListener('input', handlePeriodChange);
-  document.getElementById('end-date').addEventListener('input', handlePeriodChange);
+  document.getElementById('start-date').addEventListener('change', function() {
+    handlePeriodChange('start');
+});
+  document.getElementById('end-date').addEventListener('change', function() {
+    handlePeriodChange('end');
+});
+
   document.getElementById('record-filter').addEventListener('change', generateTable);
+  document.getElementById('display-mode').addEventListener('change', generateTable);
   if (getParam('displayMode')) document.getElementById('display-mode').value = getParam('displayMode');
   generateTable();
 }

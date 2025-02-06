@@ -221,7 +221,7 @@ function getParam(paramName) {
 
 // Функция для преобразования номера месяца в название
 function getMonthName(month) {
-  var monthNames = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"];
+ var monthNames = ["Січень", "Лютий", "Березень", "Квітень", "Травень", "Червень", "Липень", "Серпень", "Вересень", "Жовтень", "Листопад", "Грудень"];
   return monthNames[month - 1];
 }
 function formatDate(date) {
@@ -288,3 +288,19 @@ function fillMissingDates(nach) {
 }
 
 
+function isMonth(sdat, monthOffset) {
+  monthOffset = (typeof monthOffset === 'undefined') ? 0 : monthOffset;
+    var currentDate = new Date();
+
+    // Получаем первый день текущего месяца
+    var currentMonthStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+
+    // Если monthOffset не равен 0, сдвигаем текущий месяц на нужное количество месяцев
+    var targetMonthStart = new Date(currentDate.getFullYear(), currentDate.getMonth() + monthOffset, 1);
+
+    // Преобразуем sdat в первый день месяца той же даты
+    var sdatStartOfMonth = new Date(sdat.getFullYear(), sdat.getMonth(), 1);
+
+    // Проверяем, совпадает ли месяц и год с учетом сдвига
+    return sdatStartOfMonth.getTime() === targetMonthStart.getTime();
+}

@@ -128,6 +128,9 @@ function generatePayTable() {
     for (var i = 0; i < paymentsArray.length; i++) {
         var payment = paymentsArray[i];
         var row = document.createElement('tr');
+  if (payment.kv == 0) {
+        row.style.backgroundColor = 'lightpink';
+    }
         row.innerHTML = '<td>' + payment.date + '</td>' +
             '<td>' + payment.kv + '</td>' +
             '<td>' + payment.sum.toFixed(2) + '</td>' +
@@ -154,9 +157,6 @@ function initPayTable() {
         '<label>По:' +
         '<input type="number" id="toDay" min="1" max="31">' +
         '</label>' +
-        '</div>' +
-        '<div class="column button-column">' +
-        '<button onclick="generatePayTable()">Показать данные</button>' +
         '</div>' +
         '<div class="full-span">' +
         'Щелчок по заголовку таблицы - отображение/скрытие назначений платежей' +
@@ -191,15 +191,28 @@ function initPayTable() {
     for (var i = 0; i < ths.length; i++) {
         ths[i].addEventListener('click', toggleNaznColumn);
     }
+document.querySelector("#monthSelect").addEventListener("change", generatePayTable);
+document.querySelector("#fromDay").addEventListener("change", generatePayTable);
+document.querySelector("#toDay").addEventListener("change", generatePayTable);
+document.querySelector("#fromDay").addEventListener("input", generatePayTable);
+document.querySelector("#toDay").addEventListener("input", generatePayTable);
+
 }
 
 
 function highlightApartmentNumber(paymentNazn, apartmentNumber) {
-    // Ручная проверка, чтобы убедиться, что номер квартиры не является частью другого числа
     if (!paymentNazn) return '';
+
     var pattern = '\\b' + apartmentNumber + '\\b';
     var regex = new RegExp(pattern, 'g');
-    return paymentNazn.replace(regex, '<strong style="color: #ff0000;">' + apartmentNumber + '</strong>');
+    var highlightedText = paymentNazn.replace(regex, '<strong style="color: #ff0000;">' + apartmentNumber + '</strong>');
+
+    // Если номер квартиры не 0 и не найден в тексте, добавить предупреждение
+    if (apartmentNumber != 0 && !regex.test(paymentNazn)) {
+        highlightedText += ' <strong style="color: #ff0000;">Квартира не вказана</strong>';
+    }
+
+    return highlightedText;
 }
 
 function toggleNaznColumn() {
