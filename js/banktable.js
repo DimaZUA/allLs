@@ -14,9 +14,14 @@
         '</label>' +
         '<label>Тип:' +
         '<select id="typeSelect">' +
-        '<option value="all">Все</option>' +
-        '<option value="income">Поступления</option>' +
-        '<option value="expense">Расходы</option>' +
+        '<option value="all">Всё</option>' +
+        '<option value="allNoSobst">Всё без собственников</option>' +
+        '<option value="income">Поступления все</option>' +
+        '<option value="incomeNoSobst">Поступления без собственников</option>' +
+        '<option value="expense">Расходы все</option>' +
+        '<option value="expenseZP">Зарплата, налоги, подотчет</option>' +
+        '<option value="expenseCom">Платежи поставщикам</option>' +
+        '<option value="expensenoZPnoCom">Прочие расходы</option>' +
         '</select>' +  // Выпадающий список для выбора типа (поступления, расходы, все)
         '</label></div>' +
         '<div class="full-span">' + // Изменили div на full-span для фильтра по тексту
@@ -40,17 +45,17 @@
         '</div>';
 
     // Добавление обработчиков событий для фильтров
-    document.querySelector("#fromDate").addEventListener("input", generateBankPayTable);
-    document.querySelector("#toDate").addEventListener("input", generateBankPayTable);
-    document.querySelector("#fromDate").addEventListener("input", populateMonthSelector);
-    document.querySelector("#toDate").addEventListener("input", populateMonthSelector);
-    document.querySelector("#monthSelect").addEventListener("change", generateBankPayTable);
-    document.querySelector("#typeSelect").addEventListener("change", generateBankPayTable);
-    document.querySelector("#textFilter").addEventListener("input", generateBankPayTable);
+    document.querySelector("#fromDate").addEventListener("change", generateBankTable);
+    document.querySelector("#toDate").addEventListener("change", generateBankTable);
+    document.querySelector("#fromDate").addEventListener("change", payedMonthSelector);
+    document.querySelector("#toDate").addEventListener("change", payedMonthSelector);
+    document.querySelector("#monthSelect").addEventListener("change", generateBankTable);
+    document.querySelector("#typeSelect").addEventListener("change", generateBankTable);
+    document.querySelector("#textFilter").addEventListener("input", generateBankTable);
     setInitialDates();
     // Инициализация месяца и отображение данных
-    populateMonthSelector();
-    //generateBankPayTable();
+    payedMonthSelector();
+   generateBankTable();
 }
 
 function setInitialDates () {
@@ -69,87 +74,52 @@ function setInitialDates () {
         // Если сегодня 10-е число или меньше, то начальная дата - 1-е число предыдущего месяца
         startDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);  // 1-е число предыдущего месяца
     }
-function formatDate(date) {
-    var day = ("0" + date.getDate()).slice(-2);
-    var month = ("0" + (date.getMonth() + 1)).slice(-2);  // Месяцы начинаются с 0, поэтому добавляем 1
-    var year = date.getFullYear();
-    return year + '-' + month + '-' + day;
-}
     // Устанавливаем начальную и конечную дату в элементы управления
-    document.getElementById('fromDate').value = formatDate(startDate);
-    document.getElementById('toDate').value = formatDate(endDate);
+    document.getElementById('fromDate').value = formatDate(startDate,"yyyy-mm-dd");
+    document.getElementById('toDate').value = formatDate(endDate,"yyyy-mm-dd");
+    document.getElementById('typeSelect').value = 'allNoSobst'
 }
 
 
-function generateBankPayTable() {
-return;
-    const fromDate = document.getElementById("fromDate").value;
-    const toDate = document.getElementById("toDate").value;
-    const selectedMonth = document.getElementById("monthSelect").value;
-    const selectedType = document.getElementById("typeSelect").value;
-    const textFilter = document.getElementById("textFilter").value.toLowerCase();
-
-    // Пример данных (вы можете получить их из вашего источника)
-    const payments = [
-        { date: '2022-01-15', sum: 1000, purpose: 'Плата за услуги', recipient: 'Киевстар', for_what: 'Телефон', payment_purpose: 'Платеж по счету', type: 'expense' },
-        { date: '2022-01-20', sum: 2000, purpose: 'Зарплата', recipient: 'Виплата зарплати', for_what: 'Зарплата', payment_purpose: 'Оплата труда', type: 'income' },
-        // Другие записи...
-    ];
-
-    // Фильтрация по дате
-    const filteredPayments = payments.filter(payment => {
-        const paymentDate = new Date(payment.date);
-        const from = new Date(fromDate);
-        const to = new Date(toDate);
-        
-        const dateFilter = (!fromDate || paymentDate >= from) && (!toDate || paymentDate <= to);
-
-        // Фильтрация по типу (поступления/расходы)
-        const typeFilter = selectedType === 'all' || payment.type === selectedType;
-
-        // Фильтрация по тексту
-        const textFilterApplied = payment.purpose.toLowerCase().includes(textFilter) || 
-                                  payment.recipient.toLowerCase().includes(textFilter) ||
-                                  payment.for_what.toLowerCase().includes(textFilter) ||
-                                  payment.payment_purpose.toLowerCase().includes(textFilter);
-
-        return dateFilter && typeFilter && textFilterApplied;
-    });
-
-    // Заполнение таблицы
-    const tbody = document.querySelector("#paytable tbody");
-    tbody.innerHTML = filteredPayments.map(payment => 
-        `<tr>
-            <td>${payment.date}</td>
-            <td>${payment.sum}</td>
-            <td>${payment.purpose}</td>
-            <td>${payment.recipient}</td>
-            <td>${payment.for_what}</td>
-            <td>${payment.payment_purpose}</td>
-        </tr>`
-    ).join('');
-}
-
-function populateMonthSelector() {
+// Функция для заполнения селектора месяцев
+function payedMonthSelector() {
     // Получаем начальную и конечную дату из выбранных значений
     var fromDate = new Date(document.getElementById('fromDate').value);
     var toDate = new Date(document.getElementById('toDate').value);
+
+        // Конвертируем начальную и конечную даты в год и месяц для сравнения
+    var fromYear = fromDate.getFullYear();
+    var toYear = toDate.getFullYear();
+    var fromMonth = fromDate.getMonth(); // Месяц от 0 до 11
+    var toMonth = toDate.getMonth(); // Месяц от 0 до 11
     
     // Собираем все месяцы из данных plat
     var months = new Set();
 
     // Перебираем все записи в plat
     for (var year in plat) {
+var yearInt = parseInt(year);
+
+        // Если год вне диапазона, пропускаем его
+        if (yearInt < fromYear || yearInt > toYear) {
+            continue;
+        }
+
         for (var month in plat[year]) {
+            var monthInt = parseInt(month) - 1; // Преобразуем месяц к 0-индексации
+
+            // Если месяц вне диапазона, пропускаем его
+            if (yearInt === fromYear && monthInt < fromMonth || yearInt === toYear && monthInt > toMonth) {
+                continue;
+            }
             // Перебираем все записи для месяца
             for (var i = 0; i < plat[year][month].length; i++) {
                 var payment = plat[year][month][i];
 
                 // Проверяем, если "ЗаКакойМесяцЭтотПлатеж" существует и находится в выбранном диапазоне
                 var paymentMonth = payment[8]; // За какой месяц этот платеж
-                if (paymentMonth ) 
-                var s=1;
-                if (paymentMonth && isWithinRange(paymentMonth, fromDate, toDate)) {
+
+                if (paymentMonth) {
                     // Добавляем в Set (он автоматически исключает дубли)
                     months.add(paymentMonth);
                 }
@@ -163,21 +133,163 @@ function populateMonthSelector() {
     // Заполняем выпадающий список месяцами
     var monthSelect = document.getElementById('monthSelect');
     monthSelect.innerHTML = ''; // Очищаем предыдущие значения
+        var option = document.createElement('option');
+        option.value = 0;
+        option.textContent = "(Любой месяц)";
+        monthSelect.appendChild(option);
 
     // Добавляем опции в select
     months.forEach(function(month) {
         var option = document.createElement('option');
         option.value = month;
-        option.textContent = 'Месяц ' + month;
+        option.textContent = formatDate(convertToDate(month),'mmmm yyyy');
         monthSelect.appendChild(option);
     });
 }
 
-// Функция для проверки, находится ли месяц в выбранном диапазоне
-function isWithinRange(month, fromDate, toDate) {
-    var startMonth = fromDate.getMonth() + 1; // Месяц в fromDate (1-12)
-    var endMonth = toDate.getMonth() + 1; // Месяц в toDate (1-12)
+function generateBankTable() {
+    // Получаем значения из элементов управления
+    var fromDate = new Date(document.getElementById('fromDate').value);
+    var toDate = new Date(document.getElementById('toDate').value);
+    var selectedMonth = document.getElementById('monthSelect').value;
+    var filterText = document.getElementById('textFilter').value.toLowerCase(); // Текст для фильтрации
+    var selectedType = document.getElementById('typeSelect').value; // Получаем выбранный тип из выпадающего списка
 
-    // Проверяем, если месяц находится в пределах от startMonth до endMonth
-    return month >= startMonth && month <= endMonth;
+        // Конвертируем начальную и конечную даты в год и месяц для сравнения
+    var fromYear = fromDate.getFullYear();
+    var toYear = toDate.getFullYear();
+    var fromMonth = fromDate.getMonth(); // Месяц от 0 до 11
+    var toMonth = toDate.getMonth(); // Месяц от 0 до 11
+
+
+    // Очищаем таблицу перед заполнением
+    var tableBody = document.getElementById('banktable').querySelector('tbody');
+    tableBody.innerHTML = '';
+
+    // Перебираем все записи в платах
+    for (var year in plat) {
+var yearInt = parseInt(year);
+
+        // Если год вне диапазона, пропускаем его
+        if (yearInt < fromYear || yearInt > toYear) {
+            continue;
+        }
+        for (var month in plat[year]) {
+            var monthInt = parseInt(month) - 1; // Преобразуем месяц к 0-индексации
+
+            // Если месяц вне диапазона, пропускаем его
+            if (yearInt === fromYear && monthInt < fromMonth || yearInt === toYear && monthInt > toMonth) {
+                continue;
+            }
+            // Перебираем все записи для месяца
+            for (var i = 0; i < plat[year][month].length; i++) {
+                var payment = plat[year][month][i];
+                var kt=payment[6];
+                var dt=payment[7];
+                var paymentMonth = payment[8]; // За какой месяц этот платеж
+                if (selectedMonth>1&&paymentMonth != selectedMonth) continue;
+                if (filterText){
+                   // Получаем данные для фильтрации
+                   var paymentText = payment[5] ? payment[5].toLowerCase() : ''; // Назначение платежа
+                   var contargent = kto[payment[2]]; // Назначение (по кодам)
+                   var paymentType = what[payment[3]]; // "За что"
+                   var regex = new RegExp(filterText.replace(/[\*\s]+/g, '.*'), 'i'); 
+                   if (!regex.test(paymentText) && !regex.test(contargent) && !regex.test(paymentType)) {
+		    continue;
+		   }
+
+                }
+
+                // Фильтрация по типу
+                var shouldInclude = false;
+                switch (selectedType) {
+                    case "all":
+                        shouldInclude = true;
+                        break;
+                    case "allNoSobst":
+                        if (kt!=377) shouldInclude = true;
+                        break;
+                    case "income":
+                        if (/^31\d+/.test(dt)) shouldInclude = true; // Поступления
+                        break;
+                    case "incomeNoSobst":
+                        if (/^31\d+/.test(dt) && kt!=377) shouldInclude = true; // Поступления без собственников
+                        break;
+                    case "expense":
+                        if (/^31\d+/.test(kt)) shouldInclude = true; // Расходы
+                        break;
+                    case "expenseZP":
+                        if (/^31\d+/.test(kt) && (/^6[456]\d+/.test(dt)||dt==372||/^3[01]\d+/.test(dt))) shouldInclude = true; // Зарплата, налоги, подотчет
+                        break;
+                    case "expenseCom":
+                        if (/^31\d+/.test(kt) && /^63\d+/.test(dt)) shouldInclude = true; // Зарплата, налоги, подотчет
+                        break;
+                    case "expensenoZPnoCom":
+                        if (/^31\d+/.test(kt) && !/^63\d+/.test(dt) && !(/^6[456]\d+/.test(dt)||dt==372||/^3[01]\d+/.test(dt))) shouldInclude = true; // Прочие расходы
+                        break;
+                }
+                    if (!shouldInclude) continue;
+                    var date = new Date(year, month - 1, payment[0]); // Создаем дату по году, месяцу и дню
+                    if (date >= fromDate && date <= toDate) {
+                        // Проверяем, попадает ли дата в выбранный диапазон
+                        
+                        // Преобразуем данные для строки таблицы
+                        var row = document.createElement('tr');
+
+                        // Дата
+                        var dateCell = document.createElement('td');
+                        dateCell.textContent = formatDate(date,"d.mm.yy");
+                        row.appendChild(dateCell);
+
+                        // Сумма
+                        var amountCell = document.createElement('td');
+                        if (/^31\d+/.test(kt)) {
+                        	amountCell.classList.add('red');
+                        }else{
+                        	amountCell.classList.add('green');
+                        }
+                        amountCell.textContent = payment[1].toFixedWithComma();
+                        row.appendChild(amountCell);
+
+                        // За
+                        var forMonthCell = document.createElement('td');
+                        if (paymentMonth) forMonthCell.textContent = formatDate(convertToDate(paymentMonth),'mmm yy');
+                        row.appendChild(forMonthCell);
+
+                        // Контрагент
+                        var counterpartyCell = document.createElement('td');
+                        counterpartyCell.textContent = getCounterpartyName(payment[2]);
+                        row.appendChild(counterpartyCell);
+
+                        // За что
+                        var purposeCell = document.createElement('td');
+                        purposeCell.textContent = getPurpose(payment[3]);
+                        row.appendChild(purposeCell);
+
+                        // Назначение платежа
+                        var paymentPurposeCell = document.createElement('td');
+                        paymentPurposeCell.textContent = payment[5] || '-'; // Если назначение пустое, показываем '-'
+                        row.appendChild(paymentPurposeCell);
+
+                        // Добавляем строку в таблицу
+                        tableBody.appendChild(row);
+                    }
+                
+            }
+        }
+    }
+}
+
+
+
+// Функция для получения контрагента по коду
+function getCounterpartyName(counterpartyCode) {
+    // Здесь предполагается, что у вас есть объект 'kto' с соответствующими значениями
+    return kto[counterpartyCode] || 'Неизвестно';
+}
+
+// Функция для получения назначения платежа по коду
+function getPurpose(purposeCode) {
+    // Здесь предполагается, что у вас есть объект 'what' с соответствующими значениями
+    return what[purposeCode] || 'Неизвестно';
 }

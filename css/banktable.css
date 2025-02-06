@@ -1,0 +1,75 @@
+﻿/* Стиль для таблицы banktable */
+#banktable {
+    width: 100%;
+    border-collapse: collapse; /* Убирает промежутки между ячейками */
+    margin-top: 20px;
+    font-family: Arial, sans-serif; /* Общий шрифт */
+}
+
+/* Стиль для заголовков таблицы */
+#banktable th {
+    background-color: #f2f2f2;
+    padding: 10px;
+    text-align: left; /* Заголовки по левому краю */
+    font-weight: bold;
+    border: 1px solid #ddd;
+}
+
+/* Стиль для ячеек таблицы */
+#banktable td {
+    padding: 8px;
+    border: 1px solid #ddd;
+    text-align: left; /* По умолчанию выравнивание по левому краю */
+}
+
+/* Шрифт для первого столбца (дата) */
+#banktable td:nth-child(1) {
+    font-size: 0.9em; /* Мельче шрифт */
+}
+
+/* Выравнивание для второго и третьего столбцов (сумма и за) */
+#banktable td:nth-child(2){
+	font-size: 1.2rem;
+}
+#banktable td:nth-child(2),
+#banktable td:nth-child(3) {
+    text-align: right; /* Выравнивание по правому краю */
+    padding-top: 2px; /* Уменьшаем отступ сверху */
+}
+
+/* Выравнивание для остальных столбцов по умолчанию (по левому краю) */
+#banktable td:nth-child(4),
+#banktable td:nth-child(5),
+#banktable td:nth-child(6) {
+    text-align: left; /* Выравнивание по левому краю */
+}
+
+/* Стиль для строк при наведении */
+#banktable tr:hover {
+    background-color: #f5f5f5; /* Светлый фон при наведении */
+}
+
+/* Стиль для четных строк */
+#banktable tr:nth-child(even) {
+    background-color: #f9f9f9; /* Легкий серый фон для четных строк */
+}
+
+/* Стиль для нечетных строк */
+#banktable tr:nth-child(odd) {
+    background-color: #ffffff; /* Белый фон для нечетных строк */
+}
+
+/* Стиль для последнего столбца (назначение платежа) */
+#banktable td:nth-child(6) {
+    font-style: italic; /* Курсив для назначения платежа */
+    color: #555; /* Темный серый цвет */
+    font-size: 0.7rem; /* Мельче шрифт по умолчанию */
+    padding-top: 2px; /* Уменьшаем отступ сверху */
+    padding-bottom: 2px; /* Уменьшаем отступ снизу */
+    width:30%;
+}
+
+/* Стиль для последнего столбца при наведении на ячейку */
+#banktable td:nth-child(6):hover {
+    font-size: 1rem; /* Восстанавливаем нормальный размер шрифта при наведении */
+}

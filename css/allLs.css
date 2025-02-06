@@ -111,8 +111,8 @@ tr.grey .descr {
 	font-size: 1.5rem;
 		
 }
-.red{color: red;}
-.green{color: #3f5947;}
+.red{color: #A00000;}
+.green{color: #007050;}
 td[v^='-']:not(.green) {
     color: red;
 }

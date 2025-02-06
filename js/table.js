@@ -37,7 +37,6 @@ function setDefaultDates() {
   document.getElementById('end-date').max = formatDate(maxDate);
   var currentDate = new Date();
   var presets = document.getElementById('preset-select');
-  var monthNames = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"];
   var currentMonthIndex = currentDate.getMonth();
   var currentMonthName = "".concat(monthNames[currentMonthIndex], " ").concat(currentDate.getFullYear());
   var previousMonthDate = new Date(currentDate.getFullYear(), currentMonthIndex - 1, 1);

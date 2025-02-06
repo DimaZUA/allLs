@@ -1,5 +1,6 @@
 ﻿//var host='https://dimazua.github.io/allLs/data/';
 host = 'data/';
+var monthNames = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь","янв", "фев", "мар", "апр", "май", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"];
 function initPosters() {
   var sidebar = document.querySelector('.sidebar'); // Предположим, что у панели есть класс 'sidebar'
 
@@ -224,10 +225,35 @@ function getMonthName(month) {
  var monthNames = ["Січень", "Лютий", "Березень", "Квітень", "Травень", "Червень", "Липень", "Серпень", "Вересень", "Жовтень", "Листопад", "Грудень"];
   return monthNames[month - 1];
 }
-function formatDate(date) {
-  return "".concat(date.getFullYear(), "-").concat(String(date.getMonth() + 1).padStart(2, '0'));
-}
 
+function formatDate(date, format) {
+    if (!format) format="YYYY-MM-DD"
+    var day = String(date.getDate());
+    var month = String(date.getMonth() + 1);
+    var year = date.getFullYear();
+    var yearShort = String(year).slice(-2);  // Последние две цифры года
+
+    // Заменяем в строке формата соответствующие компоненты
+    return format
+        .replace('dd', day.padStart(2, '0'))  // Двузначный день
+        .replace('d', day)  // Одиночный день
+        .replace('mmmm', monthNames[month-1])
+        .replace('mmm', monthNames[month*1+11])
+        .replace('mm', month.padStart(2, '0'))
+        .replace('m', month)
+        .replace('yyyy', year)
+        .replace('yy', yearShort)
+        .replace('y', yearShort)
+        .replace('DD', day.padStart(2, '0'))  // Двузначный день
+        .replace('D', day)  // Одиночный день
+        .replace('MMMM', monthNames[month-1])
+        .replace('MMM', monthNames[month*1+11])
+        .replace('MM', month.padStart(2, '0'))
+        .replace('M', month)
+        .replace('YYYY', year)
+        .replace('YY', yearShort)
+        .replace('Y', yearShort)
+}
 
 function fillMissingDates(nach) {
   for (var id in nach) {
@@ -303,4 +329,17 @@ function isMonth(sdat, monthOffset) {
 
     // Проверяем, совпадает ли месяц и год с учетом сдвига
     return sdatStartOfMonth.getTime() === targetMonthStart.getTime();
+}
+
+
+// Функция для преобразования числа Год*12 + Месяц в дату (1-е число месяца)
+function convertToDate(monthNumber) {
+    if (!monthNumber) return 0;
+    var year = Math.floor(monthNumber / 12); // Получаем год
+    var month = monthNumber % 12; // Получаем месяц (от 0 до 11, поэтому добавим 1 для правильной даты)
+    if (month === 0) {
+        year -= 1;
+        month = 12; // Январь следующего года
+    }
+    return new Date(year, month-1, 1); // Возвращаем 1-е число месяца
 }
