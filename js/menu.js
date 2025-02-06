@@ -9,6 +9,9 @@ var actions = [{
   name: 'Платежи',
   actionCode: 'payments'
 }, {
+  name: 'Банк',
+  actionCode: 'bank'
+}, {
   name: 'Информация по дому',
   actionCode: 'info'
 }];
@@ -81,8 +84,11 @@ function handleMenuClick(homeCode, actionCode, actionLink) {
     });
   } else if (actionCode === 'payments') {
     loadScriptFromHtml(homeCode + '.js', function () {
-    fillMissingDates(nach);
       initPayTable();
+    });
+  } else if (actionCode === 'bank') {
+    loadScriptFromHtml(homeCode + '.js', function () {
+      initBankTable();
     });
   } else if (actionCode === 'info') {
     document.getElementById('maincontainer').innerHTML = "<DIV id='maincontainer'><H2>".concat(actionCode, " \u0432 \u0440\u0430\u0437\u0440\u0430\u0431\u043E\u0442\u043A\u0435....</H2></DIV>");

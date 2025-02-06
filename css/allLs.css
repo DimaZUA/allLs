@@ -300,7 +300,7 @@ td:after {
 }
 
 
-#filter-container select {
+#filter-container select, input {
     width: 200px;
 }
 
