@@ -166,6 +166,11 @@ function generateBankTable() {
     var tableBody = document.getElementById('banktable').querySelector('tbody');
     tableBody.innerHTML = '';
 
+ // Инициализируем переменные для подсчета
+    var totalReceivedAmount = 0;
+    var totalPaidAmount = 0;
+    var totalReceivedCount = 0;
+    var totalPaidCount = 0;
     // Перебираем все записи в платах
     for (var year in plat) {
 var yearInt = parseInt(year);
@@ -245,8 +250,12 @@ var yearInt = parseInt(year);
                         var amountCell = document.createElement('td');
                         if (/^31\d+/.test(kt)) {
                         	amountCell.classList.add('red');
+                        totalPaidAmount += payment[1];  // Добавляем к сумме оплаченных
+                        totalPaidCount++;  
                         }else{
                         	amountCell.classList.add('green');
+                       totalReceivedAmount += payment[1];  // Добавляем к сумме полученных
+                        totalReceivedCount++;  
                         }
                         amountCell.textContent = payment[1].toFixedWithComma();
                         row.appendChild(amountCell);
@@ -277,6 +286,48 @@ var yearInt = parseInt(year);
                 
             }
         }
+    }
+
+// Добавляем строку с итогами
+var totalsRow = document.createElement('tr');
+var totalsLabelCell = document.createElement('td');
+totalsLabelCell.colSpan = 6;
+
+// Создаем строку с итогами
+var totalsText = document.createElement('span');
+totalsText.textContent = `Разом`;
+
+if(totalPaidAmount||totalReceivedAmount){
+if (totalReceivedAmount){
+// Создаем элемент для суммы полученных платежей
+totalsText.appendChild(document.createTextNode(` Отримано: ${totalReceivedCount} платежей на сумму `));
+var receivedAmount = document.createElement('span');
+receivedAmount.textContent = `${totalReceivedAmount.toFixed(2)} грн.`;
+receivedAmount.style.fontWeight = 'bold';  // Жирный шрифт
+receivedAmount.style.fontSize = '1.2em';  // Увеличенный размер шрифта
+receivedAmount.classList.add('green');
+totalsText.appendChild(receivedAmount);
+}
+
+if(totalPaidAmount){
+// Добавляем разделитель
+totalsText.appendChild(document.createTextNode(`  Сплачено: ${totalPaidCount} платежей на сумму `));
+// Создаем элемент для суммы оплаченных платежей
+var paidAmount = document.createElement('span');
+paidAmount.textContent = `${totalPaidAmount.toFixed(2)} грн.`;
+paidAmount.style.fontWeight = 'bold';  // Жирный шрифт
+paidAmount.style.fontSize = '1.2em';  // Увеличенный размер шрифта
+paidAmount.classList.add('red');
+totalsText.appendChild(paidAmount);
+}
+
+// Добавляем финальный текст в ячейку
+totalsLabelCell.appendChild(totalsText);
+
+totalsRow.appendChild(totalsLabelCell);
+
+
+    tableBody.appendChild(totalsRow);
     }
 }
 
