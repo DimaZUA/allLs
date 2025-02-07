@@ -252,12 +252,14 @@ var yearInt = parseInt(year);
                         	amountCell.classList.add('red');
                         totalPaidAmount += payment[1];  // Добавляем к сумме оплаченных
                         totalPaidCount++;  
+                        amountCell.textContent = (-payment[1]).toFixedWithComma();
                         }else{
                         	amountCell.classList.add('green');
                        totalReceivedAmount += payment[1];  // Добавляем к сумме полученных
                         totalReceivedCount++;  
-                        }
                         amountCell.textContent = payment[1].toFixedWithComma();
+                        }
+
                         row.appendChild(amountCell);
 
                         // За
