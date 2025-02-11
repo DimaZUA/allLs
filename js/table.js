@@ -31,10 +31,10 @@ function setDefaultDates() {
   var _getMinMaxDate = getMinMaxDate(),
     minDate = _getMinMaxDate.minDate,
     maxDate = _getMinMaxDate.maxDate;
-  document.getElementById('start-date').min = formatDate(minDate);
-  document.getElementById('start-date').max = formatDate(maxDate);
-  document.getElementById('end-date').min = formatDate(minDate);
-  document.getElementById('end-date').max = formatDate(maxDate);
+  document.getElementById('start-date').min = formatDate(minDate,'yyyy-mm');
+  document.getElementById('start-date').max = formatDate(maxDate,'yyyy-mm');
+  document.getElementById('end-date').min = formatDate(minDate,'yyyy-mm');
+  document.getElementById('end-date').max = formatDate(maxDate,'yyyy-mm');
   var currentDate = new Date();
   var presets = document.getElementById('preset-select');
   var currentMonthIndex = currentDate.getMonth();
@@ -55,24 +55,24 @@ function applyPreset() {
   var startDate = document.getElementById('start-date');
   var endDate = document.getElementById('end-date');
   if (preset === 'current-month') {
-    startDate.value = endDate.value = formatDate(currentDate);
+    startDate.value = endDate.value = formatDate(currentDate,'yyyy-mm');
   } else if (preset === 'previous-month') {
     var previousMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1);
-    startDate.value = endDate.value = formatDate(previousMonth);
+    startDate.value = endDate.value = formatDate(previousMonth,'yyyy-mm');
   } else if (preset === 'two-months-ago') {
     var twoMonthsAgo = new Date(currentDate.getFullYear(), currentDate.getMonth() - 2, 1);
-    startDate.value = endDate.value = formatDate(twoMonthsAgo);
+    startDate.value = endDate.value = formatDate(twoMonthsAgo,'yyyy-mm');
   } else if (preset === 'current-quarter') {
     var startMonth = Math.floor(currentDate.getMonth() / 3) * 3;
-    startDate.value = formatDate(new Date(currentDate.getFullYear(), startMonth, 1));
-    endDate.value = formatDate(currentDate);
+    startDate.value = formatDate(new Date(currentDate.getFullYear(), startMonth, 1),'yyyy-mm');
+    endDate.value = formatDate(currentDate,'yyyy-mm');
   } else if (preset === 'previous-quarter') {
     var _startMonth = Math.floor((currentDate.getMonth() - 3) / 3) * 3;
-    startDate.value = formatDate(new Date(currentDate.getFullYear(), _startMonth, 1));
-    endDate.value = formatDate(new Date(currentDate.getFullYear(), _startMonth + 2, 1));
+    startDate.value = formatDate(new Date(currentDate.getFullYear(), _startMonth, 1),'yyyy-mm');
+    endDate.value = formatDate(new Date(currentDate.getFullYear(), _startMonth + 2, 1),'yyyy-mm');
   } else if (preset === 'current-year') {
     startDate.value = "".concat(currentDate.getFullYear(), "-01");
-    endDate.value = formatDate(currentDate);
+    endDate.value = formatDate(currentDate,'yyyy-mm');
   } else if (preset === 'previous-year') {
     startDate.value = "".concat(currentDate.getFullYear() - 1, "-01");
     endDate.value = "".concat(currentDate.getFullYear() - 1, "-12");
@@ -422,114 +422,7 @@ function createDebetChart() {
 
   console.log(rowData); // Выводим данные для проверки
 }
-function createSummaryChart(totalCharges, totalPayments, nach, oplat, start, end, displayMode) {
-  // Если график уже существует, уничтожаем его
-  if (chartInstance) {
-    chartInstance.destroy();
-  }
 
-  // Массивы для хранения данных по месяцам
-  var months = [];
-  var chargesData = [];
-  var paymentsData = [];
-  var paymentPercentages = [];
-  var currentDate = new Date(start);
-  while (currentDate <= end) {
-    var month = currentDate.getMonth() + 1;
-    var year = currentDate.getFullYear();
-    var monthKey = "".concat(year, "-").concat(month);
-    var chargeTotal = totalCharges[monthKey] || 0;
-    var paymentTotal = totalPayments[monthKey] || 0;
-    months.push("".concat(month, "/").concat(year));
-    chargesData.push(chargeTotal);
-    paymentsData.push(paymentTotal);
-
-    // Рассчитываем процент оплаты для текущего месяца
-    var paymentPercentage = chargeTotal ? paymentTotal / chargeTotal * 100 : 0;
-    paymentPercentages.push(paymentPercentage);
-    currentDate.setMonth(currentDate.getMonth() + 1);
-  }
-
-  // Создание графика
-  var ctx = document.getElementById('summaryChart').getContext('2d');
-  chartInstance = new Chart(ctx, {
-    type: 'line',
-    // Тип графика: линия
-    data: {
-      labels: months,
-      datasets: [{
-        label: 'Начисления',
-        borderColor: 'rgba(255, 99, 132, 1)',
-        backgroundColor: 'rgba(255, 99, 132, 0.2)',
-        data: chargesData,
-        fill: false,
-        yAxisID: 'y1'
-      }, {
-        label: 'Платежи',
-        data: paymentsData,
-        borderColor: 'rgba(75, 192, 192, 1)',
-        backgroundColor: 'rgba(75, 192, 192, 0.2)',
-        fill: true,
-        yAxisID: 'y1'
-      }, {
-        label: 'Процент оплаты',
-        data: paymentPercentages,
-        borderColor: 'rgba(54, 162, 235, 1)',
-        // Цвет линии процента
-        backgroundColor: 'rgba(54, 162, 235, 0.2)',
-        fill: false,
-        yAxisID: 'y2',
-        borderDash: [5, 5]
-      }]
-    },
-    options: {
-      responsive: true,
-      scales: {
-        y1: {
-          type: 'linear',
-          position: 'left',
-          ticks: {
-            beginAtZero: true
-          },
-          title: {
-            display: true,
-            text: 'Сумма (грн.)'
-          }
-        },
-        y2: {
-          type: 'linear',
-          position: 'right',
-          ticks: {
-            beginAtZero: true,
-            max: 100,
-            stepSize: 10
-          },
-          title: {
-            display: true,
-            text: 'Процент оплаты (%)'
-          },
-          grid: {
-            drawOnChartArea: false
-          }
-        }
-      },
-      plugins: {
-        tooltip: {
-          callbacks: {
-            label: function label(context) {
-              var datasetLabel = context.dataset.label || '';
-              var value = context.raw;
-              if (datasetLabel === 'Процент оплаты') {
-                return "".concat(datasetLabel, ": ").concat(value.toFixed(2), "%");
-              }
-              return "".concat(datasetLabel, ": ").concat(value.toFixedWithComma());
-            }
-          }
-        }
-      }
-    }
-  });
-}
 function sortTable(header) {
   var table = header.closest('table');
   var tbody = table.querySelector('tbody');
