@@ -1,4 +1,6 @@
-﻿function initBankTable() {
+﻿let bankTableAbortController = new AbortController();
+
+function initBankTable() {
     // Вставка контейнера с фильтрами и таблицей
     document.getElementById('maincontainer').innerHTML =
         '<div id="filter-container">' +
@@ -45,13 +47,13 @@
         '</div>';
 
     // Добавление обработчиков событий для фильтров
-    document.querySelector("#fromDate").addEventListener("change", generateBankTable);
-    document.querySelector("#toDate").addEventListener("change", generateBankTable);
+    document.querySelector("#fromDate").addEventListener("change", debouncedGenerateBankTable);
+    document.querySelector("#toDate").addEventListener("change", debouncedGenerateBankTable);
     document.querySelector("#fromDate").addEventListener("change", payedMonthSelector);
     document.querySelector("#toDate").addEventListener("change", payedMonthSelector);
     document.querySelector("#monthSelect").addEventListener("change", generateBankTable);
     document.querySelector("#typeSelect").addEventListener("change", generateBankTable);
-    document.querySelector("#textFilter").addEventListener("input", generateBankTable);
+    document.querySelector("#textFilter").addEventListener("input", debouncedGenerateBankTable);
     setInitialDates();
     // Инициализация месяца и отображение данных
     payedMonthSelector();
@@ -147,7 +149,14 @@ var yearInt = parseInt(year);
     });
 }
 
-function generateBankTable() {
+// Асинхронная версия generateBankTable с отменой предыдущего вызова
+async function generateBankTable() {
+    bankTableAbortController.abort(); // Отменяем предыдущий вызов
+    bankTableAbortController = new AbortController();
+    const signal = bankTableAbortController.signal;
+
+    try {
+        console.log("Выполняем generateBankTable...");
     // Получаем значения из элементов управления
     var fromDate = new Date(document.getElementById('fromDate').value);
     var toDate = new Date(document.getElementById('toDate').value);
@@ -331,8 +340,18 @@ totalsRow.appendChild(totalsLabelCell);
 
     tableBody.appendChild(totalsRow);
     }
-}
 
+} catch (error) {
+        if (error.name === "AbortError") {
+            console.log("Обновление таблицы отменено");
+        } else {
+            console.error("Ошибка:", error);
+        }
+    }
+
+}
+// Дебаунс-версия для input (фильтр по тексту)
+const debouncedGenerateBankTable = debounce(generateBankTable, 100);
 
 
 // Функция для получения контрагента по коду

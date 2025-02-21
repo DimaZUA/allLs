@@ -191,6 +191,7 @@ function initPayTable() {
     for (var i = 0; i < ths.length; i++) {
         ths[i].addEventListener('click', toggleNaznColumn);
     }
+
 document.querySelector("#monthSelect").addEventListener("change", generatePayTable);
 document.querySelector("#fromDay").addEventListener("change", generatePayTable);
 document.querySelector("#toDay").addEventListener("change", generatePayTable);
@@ -198,7 +199,6 @@ document.querySelector("#fromDay").addEventListener("input", generatePayTable);
 document.querySelector("#toDay").addEventListener("input", generatePayTable);
 
 }
-
 
 function highlightApartmentNumber(paymentNazn, apartmentNumber) {
     if (!paymentNazn) return '';

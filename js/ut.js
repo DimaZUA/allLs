@@ -343,3 +343,12 @@ function convertToDate(monthNumber) {
     }
     return new Date(year, month-1, 1); // Возвращаем 1-е число месяца
 }
+
+// Дебаунс-функция для уменьшения количества вызовов
+function debounce(func, delay) {
+    let timeoutId;
+    return function (...args) {
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => func.apply(this, args), delay);
+    };
+}
