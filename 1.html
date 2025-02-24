@@ -1,0 +1,44 @@
+﻿<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Редактирование DOCX</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pizzip/3.1.5/pizzip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/docxtemplater/3.41.0/docxtemplater.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+</head>
+<body>
+    <h1>Редактирование DOCX в браузере</h1>
+    <input type="file" id="uploadFile">
+    <script>
+        document.getElementById("uploadFile").addEventListener("change", function (event) {
+            const file = event.target.files[0];
+            if (!file) return alert("Выберите файл!");
+
+            const reader = new FileReader();
+            reader.readAsArrayBuffer(file);
+
+            reader.onload = function (e) {
+                const content = e.target.result;
+                processWordFile(content);
+            };
+        });
+
+        function processWordFile(content) {
+            const zip = new PizZip(content);
+            const doc = new window.docxtemplater(zip, { paragraphLoop: true, linebreaks: true });
+
+            // Данные для подстановки
+            const data = { "[okpo]": "12345678", "[company_name]": "ООО 'Пример'" };
+            doc.render(data);
+
+            // Генерируем новый DOCX
+            const blob = doc.getZip().generate({ type: "blob" });
+
+            // Сохраняем файл
+            saveAs(blob, "modified.docx");
+        }
+    </script>
+</body>
+</html>
