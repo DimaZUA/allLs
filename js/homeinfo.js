@@ -33,6 +33,7 @@ for (let targetField in fieldMapping) {
         tel: "Телефон",
         гб: "Бухгалтер",
         Bank: "Банк",
+        'ЖК/ОСББ': "ЖК/ОСББ",
         Iban: "IBAN"
     };
 
