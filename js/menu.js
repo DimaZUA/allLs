@@ -224,6 +224,13 @@ document.addEventListener('webkitfullscreenchange', checkFullscreenMode);
 document.addEventListener('mozfullscreenchange', checkFullscreenMode);
 document.addEventListener('MSFullscreenChange', checkFullscreenMode);
 window.addEventListener('resize', checkFullscreenMode);
+document.getElementById('searchHomes').addEventListener('input', function () {
+    let filter = this.value.toLowerCase();
+    document.querySelectorAll('.menu-item').forEach(function (item) {
+        let homeName = item.querySelector('span').textContent.toLowerCase();
+        item.style.display = homeName.includes(filter) ? '' : 'none';
+    });
+});
 
 // Инициализация
 checkFullscreenMode();
