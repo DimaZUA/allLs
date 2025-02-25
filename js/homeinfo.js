@@ -26,7 +26,7 @@ for (let targetField in fieldMapping) {
         code: "Код ЄДРПОУ",
         adr: "Адрес",
         головаfull: "Председатель",
-        Podpis: "Подпись",
+        Дир: "Руководитель",
         Руководителя: "В лице",
         Исп: "Исполнитель",
         email: "Электронная почта",
@@ -40,12 +40,11 @@ for (let targetField in fieldMapping) {
     <input type="file" id="uploadFile" multiple style="display: none;">
 <h2>Информация о доме: ${home.name}</h2><ul>`;
 for (let key in home) {
-    if (home.hasOwnProperty(key)) {
-        let displayKey = keyMap[key] || key;  // Если нет замены, оставляем ключ как есть
+    if (home.hasOwnProperty(key) && keyMap[key] && home[key]) {
         infoHtml += `<li 
                         title="[${key}]"
                         onclick="copyToClipboard('[${key}]')">
-                        <strong>${displayKey}:</strong> ${home[key]}
+                        <strong>${keyMap[key]}:</strong> ${home[key]}
                      </li>`;
     }
 }
@@ -53,12 +52,19 @@ for (let key in home) {
     infoHtml += `</ul>`;
 
     // Добавляем секцию для реквизитов
-    infoHtml += `<h3>Реквизиты:</h3>`;
-    if (home.name) infoHtml += `<p><strong>Наименование:</strong> ${home.name}</p>`;
-    if (home.adr) infoHtml += `<p><strong>Адрес:</strong> ${home.adr}</p>`;
+    infoHtml += `<style>
+                    p {
+                        margin: 0;
+                        padding: 0;
+                        line-height: 1.2;
+                    }
+                </style><h3>Реквізити:</h3>`;
+    if (home.name) infoHtml += `<p>${home.name} в особі ${home.Руководителя}, що діє на підставі Статуту,</p><br>`;
+    if (home.name) infoHtml += `<p><strong>Найменування:</strong> ${home.name}</p>`;
+    if (home.adr) infoHtml += `<p><strong>Адреса:</strong> ${home.adr}</p>`;
     if (home.code) infoHtml += `<p><strong>Код ЄДРПОУ:</strong> ${home.code}</p>`;
-    if (home.Iban) infoHtml += `<p><strong>IBAN:</strong> ${home.Iban}</p>`;
-    if (home.email) infoHtml += `<p><strong>Электронная почта:</strong> ${home.email}</p>`;
+    if (home.Iban) infoHtml += `<p><strong>IBAN:</strong> ${home.Iban}${home.Bank ? ' в ' + home.Bank : ''}</p>`;
+    if (home.email) infoHtml += `<p><strong>Електронна пошта:</strong> ${home.email}</p>`;
     if (home.tel) infoHtml += `<p><strong>Телефон:</strong> ${home.tel}</p>`;
     if (home.Podpis) infoHtml += `<p>${home.Podpis}</p>`;
 
