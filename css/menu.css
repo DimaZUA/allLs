@@ -215,3 +215,16 @@ body {
     transition: margin-left 0.3s ease, width 0.3s ease, max-width 0.3s ease;
 
 }
+        #dropArea {
+            width: 100%;
+            height: 200px;
+            border: 2px dashed #ccc;
+            text-align: center;
+            line-height: 200px;
+            color: #888;
+            margin-bottom: 20px;
+        }
+        #dropArea.hover {
+            border-color: #2d87f0;
+            background-color: #e9f1fe;
+        }

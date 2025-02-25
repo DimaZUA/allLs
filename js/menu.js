@@ -78,7 +78,7 @@ function handleMenuClick(homeCode, actionCode, actionLink) {
       initLS();
     });
   } else if (actionCode === 'list') {
-    document.getElementById('maincontainer');
+    //document.getElementById('maincontainer');
     loadScriptFromHtml(homeCode + '.js', function () {
     fillMissingDates(nach);
       initTable();
@@ -92,7 +92,8 @@ function handleMenuClick(homeCode, actionCode, actionLink) {
       initBankTable();
     });
   } else if (actionCode === 'info') {
-    document.getElementById('maincontainer').innerHTML = "<DIV id='maincontainer'><H2>".concat(actionCode, " \u0432 \u0440\u0430\u0437\u0440\u0430\u0431\u043E\u0442\u043A\u0435....</H2></DIV>");
+          displayHomeInfo(homeCode);
+      
   }
   if (homeCode && actionCode) {
     setParam('homeCode', homeCode);

@@ -352,3 +352,23 @@ function debounce(func, delay) {
         timeoutId = setTimeout(() => func.apply(this, args), delay);
     };
 }
+
+function showMessage(messageText) {
+    let messageElement = document.getElementById('message');
+    messageElement.textContent = messageText; // Устанавливаем текст сообщения
+    messageElement.style.display = 'block';   // Показываем сообщение
+    
+    // Через 3 секунды скрываем сообщение
+    setTimeout(() => {
+        messageElement.style.display = 'none';
+    }, 3000);
+}
+
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(() => {
+        // Показываем сообщение "Ключ скопирован"
+        showMessage('Ключ скопирован в буфер обмена!');
+    }).catch(err => {
+        console.error('Ошибка при копировании: ', err);
+    });
+}
