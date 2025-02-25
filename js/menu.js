@@ -23,6 +23,7 @@ homes.sort(function (a, b) {
 var menu = document.getElementById('menu');
 homes.forEach(function (home) {
   var homeItem = document.createElement('li');
+  homeItem.setAttribute('data-code', home.code);
   homeItem.classList.add('menu-item');
   var homeLink = document.createElement('span');
   homeLink.textContent = home.name;
@@ -224,13 +225,42 @@ document.addEventListener('webkitfullscreenchange', checkFullscreenMode);
 document.addEventListener('mozfullscreenchange', checkFullscreenMode);
 document.addEventListener('MSFullscreenChange', checkFullscreenMode);
 window.addEventListener('resize', checkFullscreenMode);
-document.getElementById('searchHomes').addEventListener('input', function () {
-    let filter = this.value.toLowerCase();
-    document.querySelectorAll('.menu-item').forEach(function (item) {
-        let homeName = item.querySelector('span').textContent.toLowerCase();
-        item.style.display = homeName.includes(filter) ? '' : 'none';
+document.addEventListener('DOMContentLoaded', function () {
+    let searchInput = document.getElementById('searchHomes');
+
+    // Восстанавливаем значение из localStorage
+    if (localStorage.getItem('searchHomes')) {
+        searchInput.value = localStorage.getItem('searchHomes');
+        filterHomes(searchInput.value);
+    }
+
+    searchInput.addEventListener('input', function () {
+        let filter = this.value.trim();
+        localStorage.setItem('searchHomes', filter); // Сохраняем в localStorage
+        filterHomes(filter);
     });
 });
+
+function filterHomes(filter) {
+    let regexPattern = filter
+        .replace(/\s+/g, '.*')  // Пробелы заменяем на .*
+        .replace(/\*/g, '.*')    // '*' заменяем на .*
+        .replace(/\?/g, '.');    // '?' заменяем на .
+
+    let regex = new RegExp(regexPattern, 'i'); // Создаем регистронезависимый RegExp
+
+    document.querySelectorAll('.menu-item').forEach(function (item) {
+        let homeCode = item.getAttribute('data-code'); // Получаем код дома
+        let home = homes.find(h => h.code === homeCode); // Находим объект дома
+
+        if (home) {
+            let matches = Object.values(home).some(value =>
+                typeof value === 'string' && regex.test(value)
+            );
+            item.style.display = matches ? '' : 'none';
+        }
+    });
+}
 
 // Инициализация
 checkFullscreenMode();
