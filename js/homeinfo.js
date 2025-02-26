@@ -178,13 +178,18 @@ const doc = new window.docxtemplater(zip, {
                 const normalizedData = normalizeData(data);
                 worksheet.eachRow((row) => {
                     row.eachCell((cell) => {
-                        let cellValue = cell.value ? cell.value.toString() : "";
-                        Object.keys(normalizedData).forEach(key => {
-                            const regex = new RegExp(`\\[${key}\\]`, 'gi');
-                            cellValue = cellValue.replace(regex, normalizedData[key]);
-                        });
-                        cell.value = cellValue;
-                    });
+let cellValue = cell.value?.formula || cell.value?.toString() || "";
+
+Object.keys(normalizedData).forEach(key => {
+    const regex = new RegExp(`\\[${key}\\]`, 'gi');
+    cellValue = cellValue.replace(regex, normalizedData[key]);
+});
+
+if (cell.value?.formula) {
+    cell.value.formula = cellValue;
+} else {
+    cell.value = cellValue;
+}                    });
                 });
 
                 const buffer = await workbook.xlsx.writeBuffer();
