@@ -328,6 +328,15 @@ const createItemsForFloor = (pod, et, floorItemsContainer) => {
       root.appendChild(createEntrancesAndFloors()); // Добавляем этажи и подъезды
       root.appendChild(createTotal()); // Добавляем общий итог
 
+
+const mainContainer = document.getElementById("maincontainer");
+
+// Вставляем <div id="root"></div> внутрь <div id="maincontainer"></div>
+mainContainer.innerHTML = "";
+
+mainContainer.appendChild(root);    
+    
+    
   // Обновляем всплывающие подсказки для fio
   const fioItems = document.querySelectorAll(".floor-item.fio-text");
 
@@ -358,14 +367,10 @@ const createItemsForFloor = (pod, et, floorItemsContainer) => {
     });
   });
 
-
-const mainContainer = document.getElementById("maincontainer");
-
-// Вставляем <div id="root"></div> внутрь <div id="maincontainer"></div>
-mainContainer.innerHTML = "";
-
-mainContainer.appendChild(root);    
+    
+    
     };
 
 renderSchema();
+
 }
