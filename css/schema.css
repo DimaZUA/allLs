@@ -71,11 +71,16 @@ body {
   border-radius: 6px;
   font-size: 18px;
   font-weight: bold;
-  white-space: nowrap;
+  white-space: normal; /* Разрешаем перенос текста */
+  word-wrap: break-word; /* Перенос слов, если они не помещаются */
+  word-break: break-word; /* Еще одно свойство для предотвращения переполнения */
+  max-width: 80vw; /* Ограничение максимальной ширины 80% от ширины окна */
+  overflow: hidden; /* Скроем переполнение */
   z-index: 9999;
   display: none;
   pointer-events: none;
 }
+
 
 .fio-text {
   justify-content: flex-start;

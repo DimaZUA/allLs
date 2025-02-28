@@ -244,6 +244,9 @@ var yearInt = parseInt(year);
                 }
                     if (!shouldInclude) continue;
                     var date = new Date(year, month - 1, payment[0]); // Создаем дату по году, месяцу и дню
+                    fromDate.setHours(0, 0, 0, 0);
+                    date.setHours(0, 0, 0, 0);
+                    toDate.setHours(0, 0, 0, 0);
                     if (date >= fromDate && date <= toDate) {
                         // Проверяем, попадает ли дата в выбранный диапазон
                         

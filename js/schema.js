@@ -308,6 +308,8 @@ itemDiv.setAttribute(
       // Пропускаем значения, если они пустые
       if (value === "") return "";
       if (key==display)  return "";
+      // Пропускаем 0-й этаж
+      if (item.et === 0) return "";
       // Если name пустое, то не добавляем двоеточие
       return name ? `${name}: ${value}` : value;
     })
@@ -378,10 +380,39 @@ mainContainer.appendChild(root);
       }
     });
 
-    item.addEventListener("mousemove", (e) => {
-      tooltip.style.top = e.pageY + 10 + "px";
-      tooltip.style.left = e.pageX + 10 + "px";
-    });
+item.addEventListener("mousemove", (e) => {
+  const tooltipWidth = tooltip.offsetWidth;
+  const tooltipHeight = tooltip.offsetHeight;
+
+  // Получаем координаты мыши относительно окна
+  let tooltipX = e.clientX + 10; // Отступ от мыши
+  let tooltipY = e.clientY + 10; // Отступ от мыши
+
+  // Устанавливаем максимальную ширину tooltip на 80% от ширины окна
+  tooltip.style.maxWidth = window.innerWidth * 0.8 + "px";
+  
+  // Проверка на правую границу экрана, если tooltip выходит за пределы
+  if (tooltipX + tooltipWidth > window.innerWidth) {
+    tooltipX = e.clientX - tooltipWidth - 10; // Если выходит, отображаем слева от курсора
+  }
+
+  // Проверка на нижнюю границу экрана, если tooltip выходит за пределы
+  if (tooltipY + tooltipHeight > window.innerHeight) {
+    tooltipY = e.clientY - tooltipHeight - 10; // Если выходит, отображаем сверху от курсора
+  }
+
+  // Проверка на левую границу экрана (если tooltip слишком широкий)
+  if (tooltipX < 0) {
+    tooltipX = 10; // Если выходит за левую границу, устанавливаем его отступ слева
+  }
+
+  // Устанавливаем новые позиции для tooltip
+  tooltip.style.top = tooltipY + "px";
+  tooltip.style.left = tooltipX + "px";
+});
+
+
+
 
     item.addEventListener("mouseleave", () => {
       tooltip.style.display = "none";
