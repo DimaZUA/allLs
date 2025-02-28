@@ -374,6 +374,5 @@ function copyToClipboard(text) {
 }
     // Функция для форматирования чисел (с двумя знаками после запятой)
     const formatNumber = (num) => {
-    	console.log(num);
       return num.toFixed(2).replace(/\.00$/, "")*1;
     };

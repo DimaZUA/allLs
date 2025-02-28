@@ -14,6 +14,9 @@ var actions = [{
 }, {
   name: 'Информация по дому',
   actionCode: 'info'
+}, {
+  name: 'Схема дома',
+  actionCode: 'schema'
 }];
 
 // Генерация меню
@@ -93,6 +96,11 @@ function handleMenuClick(homeCode, actionCode, actionLink) {
     });
   } else if (actionCode === 'info') {
           displayHomeInfo(homeCode);
+      
+  } else if (actionCode === 'schema') {
+      loadScriptFromHtml(homeCode + '.js', function () {
+          initSchema();
+          });
       
   }
   if (homeCode && actionCode) {

@@ -1,21 +1,4 @@
-﻿<!DOCTYPE html>
-<html lang="ru">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Схема дома</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="js/ut.js"></script>
-  <script src="data/45405619.js"></script>
-    <link rel="stylesheet" href="css\schema.css">
-    <link rel="stylesheet" href="css\menu.css">
-    <link rel="stylesheet" href="css\allLs.css">
-    <link rel="stylesheet" href="css\banktable.css">
-    <link rel="stylesheet" href="css\print.css">
-</head>
-<body>
-  <div id="root"></div>
-  <script>
+﻿function initSchema(){
     const displayKeys = ["pl", "ls", "pers", "kv", "dolg", "opl", "nach", "fio"];
     const displayKeysName = {"pl":"Площадь", "ls":"Лицевые счета", "pers":"Прописоно чел.", "kv":"Номера квартир", "dolg":"Долги", "opl":"Платежи", "nach":"Начисления", "fio":"ФИО"};
     let display = "opl";
@@ -77,10 +60,12 @@ const getTotalForAllTimeOplat = (oplatData, lsId) => {
 };
 
 // Теперь мы можем безопасно обновлять данные в lsWithZeroFloor
-const lsWithZeroFloor = Object.entries(ls).map(([key, item]) => ({
-  ...item,
-  id: key // Добавляем ключ 'key' как 'id'
-}));
+const lsWithZeroFloor = Object.entries(ls)
+  .map(([key, item]) => ({
+    ...item,
+    id: key // Добавляем ключ 'key' как 'id'
+  }))
+  .filter(item => item.et !== 0 && item.et !== undefined && item.pod !== 0 && item.pod !== undefined);
 
 // Обновляем lsWithZeroFloor с начислениями, платежами и долгом
 lsWithZeroFloor.forEach(item => {
@@ -194,7 +179,7 @@ const getTotal = (filterFn, data) => {
       button.textContent = displayKeysName[key];
       button.addEventListener("click", () => {
         display = key;
-        render();
+        renderSchema();
       });
       return button;
     };
@@ -326,8 +311,9 @@ const createItemsForFloor = (pod, et, floorItemsContainer) => {
     };
 
     // Основная функция для рендеринга всей страницы
-    const render = () => {
-      const root = document.getElementById("root");
+    const renderSchema = () => {
+      const root = document.createElement("div");
+      root.id = "root";
       root.innerHTML = ""; // Очищаем предыдущий контент
 
       const buttonContainer = document.createElement("div");
@@ -372,11 +358,14 @@ const createItemsForFloor = (pod, et, floorItemsContainer) => {
     });
   });
 
+
+const mainContainer = document.getElementById("maincontainer");
+
+// Вставляем <div id="root"></div> внутрь <div id="maincontainer"></div>
+mainContainer.innerHTML = "";
+
+mainContainer.appendChild(root);    
     };
 
-    render();
-
-
-  </script>
-</body>
-</html>
+renderSchema();
+}

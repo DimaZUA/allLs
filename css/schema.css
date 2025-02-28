@@ -38,6 +38,7 @@ body {
   gap: 15px;
   justify-content: space-between;
   flex-wrap: wrap;
+  flex-grow: 1; /* Заставит контейнер расти и заполнять доступное пространство */
 }
 
 /* Стиль для квадратов */
@@ -72,13 +73,36 @@ body {
   display: none;
   pointer-events: none;
 }
+
 .fio-text {
   justify-content: flex-start;
   text-align: left;
-    padding-left: 2px; /* Немного отступа слева, если нужно */
+  padding-left: 2px; /* Немного отступа слева, если нужно */
 }
+
 .fio-text {
   text-align: left; /* Выравнивание текста влево */
-
 }
 
+/* Новый стиль для выравнивания .floor-total по правому краю */
+.floor-row {
+  display: flex;
+  justify-content: flex-start; /* Выровнять элементы по левому краю */
+  align-items: center;
+}
+
+.floor-item-container {
+  display: flex;
+  gap: 10px;
+  flex-grow: 1; /* Дает возможность контейнеру расти и заполнять пространство */
+}
+
+.floor-item {
+  flex-shrink: 0; /* Не уменьшать размер элементов */
+}
+
+.floor-total {
+  margin-left: auto; /* Сдвигает .floor-total вправо */
+  text-align: right; /* Выравнивание текста по правому краю */
+  flex-grow: 1; /* Заставит .floor-total заполнять оставшееся пространство */
+}

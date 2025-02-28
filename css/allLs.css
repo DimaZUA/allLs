@@ -111,8 +111,7 @@ tr.grey .descr {
 	font-size: 1.5rem;
 		
 }
-.red{color: #A00000;}
-.green{color: #007050;}
+
 td[v^='-']:not(.green) {
     color: red;
 }
@@ -420,3 +419,5 @@ font-size: 1rem;
   padding-left: 10px;  /* Отступ слева */
   padding-right: 10px; /* Отступ справа */
 }
+.red{color: #A00000;}
+.green{color: #007050;}
