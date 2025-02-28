@@ -372,3 +372,8 @@ function copyToClipboard(text) {
         console.error('Ошибка при копировании: ', err);
     });
 }
+    // Функция для форматирования чисел (с двумя знаками после запятой)
+    const formatNumber = (num) => {
+    	console.log(num);
+      return num.toFixed(2).replace(/\.00$/, "")*1;
+    };

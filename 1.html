@@ -1,44 +1,266 @@
 ﻿<!DOCTYPE html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Редактирование DOCX</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pizzip/3.1.5/pizzip.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/docxtemplater/3.41.0/docxtemplater.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Схема дома</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="js/ut.js"></script>
+  <script src="data/45405619.js"></script>
+  <link rel="stylesheet" href="css/schema.css">
 </head>
-<body>
-    <h1>Редактирование DOCX в браузере</h1>
-    <input type="file" id="uploadFile">
-    <script>
-        document.getElementById("uploadFile").addEventListener("change", function (event) {
-            const file = event.target.files[0];
-            if (!file) return alert("Выберите файл!");
+<body class="p-4">
+  <div id="root"></div>
+  <script>
+    const displayKeys = ["pl", "ls", "pers", "kv", "dolg", "opl", "nach", "fio"];
+    let display = "pl";
 
-            const reader = new FileReader();
-            reader.readAsArrayBuffer(file);
+    // Создаем новую переменную с данными для работы
+    const lsWithZeroFloor = Object.values(ls).map(item => ({ ...item }));
 
-            reader.onload = function (e) {
-                const content = e.target.result;
-                processWordFile(content);
-            };
-        });
+    // Получаем уникальные подъезды
+    const entrances = [...new Set(lsWithZeroFloor.map(item => item.pod))].sort();
 
-        function processWordFile(content) {
-            const zip = new PizZip(content);
-            const doc = new window.docxtemplater(zip, { paragraphLoop: true, linebreaks: true });
+    const calculateZeroFloor = () => {
+      const zeroFloorData = {};
 
-            // Данные для подстановки
-            const data = { "[okpo]": "12345678", "[company_name]": "ООО 'Пример'" };
-            doc.render(data);
+      entrances.forEach((pod) => {
+        const stacks = [];
+        const maxFloor = Math.max(...lsWithZeroFloor.filter(item => item.pod === pod).map(item => item.et)); // Определяем максимальный этаж для текущего подъезда
 
-            // Генерируем новый DOCX
-            const blob = doc.getZip().generate({ type: "blob" });
+        // Проходим по всем этажам
+        for (let i = 1; i <= maxFloor; i++) {
+          const itemsOnFloor = lsWithZeroFloor.filter(item => item.pod === pod && item.et === i);
 
-            // Сохраняем файл
-            saveAs(blob, "modified.docx");
+          // Для каждого этажа суммируем по стоякам
+          itemsOnFloor.forEach((item, index) => {
+            if (!stacks[index]) stacks[index] = { pers: 0, dolg: 0, opl: 0, nach: 0, pl: 0, ls: 0, kv: 0 }; // Инициализируем стояк
+
+            // Суммируем по каждому ключу
+            displayKeys.forEach((key) => {
+              if (key === 'fio' || key === 'ls' || key === 'kv') {
+                stacks[index][key] = 1 + stacks[index][key]; // Для этих полей +1
+              } else {
+                stacks[index][key] += item[key] || 0; // Для других  суммируем
+              }
+            });
+          });
         }
-    </script>
+
+        // Добавляем данные 0-го этажа
+        const zeroFloorStacks = stacks.map((stack, index) => ({
+          ...stack,
+          et: 0, // Нулевой этаж
+          pod, // Подъезд
+          kv: stack.kv, // Сумма по квартирам
+          ls: stack.ls, // Сумма по ЛС
+          fio: "", // Для 0-го этажа пустое поле fio
+        }));
+
+        zeroFloorData[pod] = zeroFloorStacks; // Сохраняем итог для подъезда
+      });
+
+      Object.entries(zeroFloorData).forEach(([pod, stacks]) => {
+        stacks.forEach((stack, index) => {
+          lsWithZeroFloor.push({
+            et: 0,
+            pod: parseInt(pod),
+            kv: stack.kv,
+            ls: stack.ls,
+            fio: stack.fio,
+            pl: formatNumber(stack.pl),
+            pers: stack.pers,
+            dolg: stack.dolg,
+            opl: stack.opl,
+            nach: stack.nach,
+          });
+        });
+      });
+
+      return lsWithZeroFloor; // Возвращаем обновленные данные
+    };
+
+    // Вызываем функцию для расчета и обновления данных
+    const updatedLs = calculateZeroFloor();
+    console.log(updatedLs);
+
+    // Получаем уникальные этажи и подъезды с учетом 0-го этажа
+    const floors = [...new Set([...lsWithZeroFloor.map((item) => item.et), 0])].sort((a, b) => b - a);
+
+    // Функция для расчета общего значения
+    const getTotal = (filterFn, data) => {
+      const items = data.filter(filterFn);
+      return ["ls", "kv", "fio"].includes(display) ? items.length : items.reduce((sum, item) => sum + (item[display] || 0), 0);
+    };
+
+    // Функция для создания кнопки переключения отображения
+    const createButton = (key) => {
+      const button = document.createElement("button");
+      button.classList.add("p-2", "border");
+      if (display === key) {
+        button.classList.add("bg-blue-500", "text-white");
+      }
+      button.textContent = key.toUpperCase();
+      button.addEventListener("click", () => {
+        display = key;
+        render();
+      });
+      return button;
+    };
+
+    // Функция для создания строки этажей для каждого подъезда
+    const createEntrancesAndFloors = () => {
+      const gridContainer = document.createElement("div");
+      gridContainer.classList.add("entrances-grid"); // Применяем новый класс для адаптивности
+
+      entrances.forEach((pod) => {
+        const podDiv = document.createElement("div");
+        podDiv.classList.add("border", "p-2");
+
+        const podTitle = document.createElement("div");
+        podTitle.classList.add("font-bold");
+        podTitle.textContent = `Подъезд ${pod}`;
+        podDiv.appendChild(podTitle);
+
+        createFloorsForPod(pod, podDiv); // Вставляем этажи для текущего подъезда
+
+        createPodTotal(pod, podDiv); // Вставляем итог для подъезда
+
+        gridContainer.appendChild(podDiv);
+      });
+
+      return gridContainer;
+    };
+
+// Функция для создания этажей в подъезде
+const createFloorsForPod = (pod, podDiv) => {
+  floors.forEach((et) => {
+    const floorDiv = document.createElement("div");
+    floorDiv.classList.add("floor-row"); // Новый класс для горизонтального расположения
+
+    // Номер этажа
+    const floorNumber = document.createElement("div");
+    floorNumber.classList.add("floor-number");
+    floorNumber.textContent = et === 0 ? 'Итог' : et;
+
+    // Контейнер для элементов этажа
+    const floorItemsContainer = document.createElement("div");
+    floorItemsContainer.classList.add("floor-item-container"); // Контейнер для квадратов на этаже
+
+    createItemsForFloor(pod, et, floorItemsContainer); // Вставляем элементы для текущего этажа
+
+     // Добавляем итог по этажу
+    const floorTotalDiv = document.createElement("div");
+    const floorTotal = getTotal(item => item.et === et && item.pod === pod, lsWithZeroFloor);
+    floorTotalDiv.textContent = formatNumber(floorTotal);
+    
+    // Вставляем номер этажа, элементы и итог в один контейнер
+    floorDiv.appendChild(floorNumber);
+    floorDiv.appendChild(floorItemsContainer);
+//    floorDiv.appendChild(floorTotalDiv);
+
+    // Вставляем номер этажа и элементы в один ряд
+    floorDiv.appendChild(floorNumber);
+    floorDiv.appendChild(floorItemsContainer);
+
+    podDiv.appendChild(floorDiv);
+  });
+};
+
+
+// Функция для создания элементов на этаже
+const createItemsForFloor = (pod, et, floorItemsContainer) => {
+  const items = lsWithZeroFloor.filter(item => item.et === et && item.pod === pod);
+  
+  items.forEach((item) => {
+    const itemDiv = document.createElement("div");
+    itemDiv.classList.add("floor-item"); // Применяем новый класс для одинаковых размеров квадратов
+
+    // Добавляем класс для fio, если отображение нужно по ФИО
+    if (display === 'fio') {
+      itemDiv.classList.add("fio-text"); // Добавляем класс для fio
+    }
+
+    // Устанавливаем текст содержимого, если есть значение для отображения, иначе дефис
+    itemDiv.textContent = item[display] || "-";
+    
+    // Используем data-атрибут для хранения полного ФИО
+    if (display === 'fio') {
+      itemDiv.setAttribute('data-fio', item[display]);
+    }
+
+    // Добавляем элемент в контейнер
+    floorItemsContainer.appendChild(itemDiv);
+  });
+};
+
+    // Функция для создания итогового значения по подъезду
+    const createPodTotal = (pod, podDiv) => {
+      const podTotalDiv = document.createElement("div");
+      podTotalDiv.classList.add("text-center", "font-bold", "mt-2");
+      podTotalDiv.textContent = `Итого по подъезду: ${formatNumber(getTotal(item => item.pod === pod, lsWithZeroFloor))}`;
+      podDiv.appendChild(podTotalDiv);
+    };
+
+    // Функция для создания общего итога
+    const createTotal = () => {
+      const totalDiv = document.createElement("div");
+      totalDiv.classList.add("text-center", "font-bold", "mt-4");
+      totalDiv.textContent = `Общий итог: ${formatNumber(getTotal(() => true, lsWithZeroFloor))}`;
+      return totalDiv;
+    };
+
+    // Основная функция для рендеринга всей страницы
+    const render = () => {
+      const root = document.getElementById("root");
+      root.innerHTML = ""; // Очищаем предыдущий контент
+
+      const buttonContainer = document.createElement("div");
+      buttonContainer.classList.add("mb-2", "flex", "gap-2");
+
+      // Добавляем кнопки для переключения отображаемых данных
+      displayKeys.forEach((key) => {
+        buttonContainer.appendChild(createButton(key));
+      });
+
+      root.appendChild(buttonContainer);
+      root.appendChild(createEntrancesAndFloors()); // Добавляем этажи и подъезды
+      root.appendChild(createTotal()); // Добавляем общий итог
+
+  // Обновляем всплывающие подсказки для fio
+  const fioItems = document.querySelectorAll(".floor-item.fio-text");
+
+  // Создаем (если нет) или переиспользуем всплывающий элемент
+  let tooltip = document.querySelector(".fio-tooltip");
+  if (!tooltip) {
+    tooltip = document.createElement("div");
+    tooltip.classList.add("fio-tooltip");
+    document.body.appendChild(tooltip);
+  }
+
+  fioItems.forEach((item) => {
+    item.addEventListener("mouseenter", (e) => {
+      const fio = item.getAttribute("data-fio");
+      if (fio) {
+        tooltip.textContent = fio;
+        tooltip.style.display = "block";
+      }
+    });
+
+    item.addEventListener("mousemove", (e) => {
+      tooltip.style.top = e.pageY + 10 + "px";
+      tooltip.style.left = e.pageX + 10 + "px";
+    });
+
+    item.addEventListener("mouseleave", () => {
+      tooltip.style.display = "none";
+    });
+  });
+
+    };
+
+    render();
+
+  </script>
 </body>
 </html>
