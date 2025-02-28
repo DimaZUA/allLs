@@ -1,5 +1,5 @@
 ﻿function initSchema(){
-    const displayKeys = ["pl", "ls", "pers", "kv", "dolg", "opl", "nach", "fio"];
+    const displayKeys = ["pl", "ls", "pers", "kv", "dolg", "opl", "nach"];
     const displayKeysName = {"pl":"Площадь", "ls":"Лицевые счета", "pers":"Прописоно чел.", "kv":"Номера квартир", "dolg":"Долги", "opl":"Платежи", "nach":"Начисления", "fio":"ФИО"};
     let display = "opl";
 
@@ -292,9 +292,24 @@ const createItemsForFloor = (pod, et, floorItemsContainer) => {
     }
 
     // Используем data-атрибут для хранения полного ФИО
-    if (display === 'fio') {
-      itemDiv.setAttribute('data-fio', item[display]);
-    }
+//    if (display === 'fio') {
+//      itemDiv.setAttribute('data-fio', item[display]);
+//    }
+//if (display === 'fio') {
+itemDiv.setAttribute(
+  "data-fio",
+  Object.entries(displayKeysName)
+    .map(([key, name]) => {
+      let value = item[key] ?? "-";
+      if (typeof value === "number") {
+        value = formatNumber(value);
+      }
+      return `${name}: ${value}`;
+    })
+    .join("\n") // Используем \n для удобного разбора
+);
+
+//}
 
     // Добавляем элемент в контейнер
     floorItemsContainer.appendChild(itemDiv);
@@ -338,7 +353,7 @@ mainContainer.appendChild(root);
     
     
   // Обновляем всплывающие подсказки для fio
-  const fioItems = document.querySelectorAll(".floor-item.fio-text");
+  const fioItems = document.querySelectorAll(".floor-item");
 
   // Создаем (если нет) или переиспользуем всплывающий элемент
   let tooltip = document.querySelector(".fio-tooltip");
@@ -352,7 +367,7 @@ mainContainer.appendChild(root);
     item.addEventListener("mouseenter", (e) => {
       const fio = item.getAttribute("data-fio");
       if (fio) {
-        tooltip.textContent = fio;
+        tooltip.innerHTML = fio.replace(/\n/g, "<br>"); 
         tooltip.style.display = "block";
       }
     });

@@ -59,6 +59,9 @@ body {
   cursor: pointer;
 }
 
+.p-2{
+  font-size: 14px;
+}
 /* Всплывающий увеличенный текст */
 .fio-tooltip {
   position: fixed;
@@ -105,4 +108,12 @@ body {
   margin-left: auto; /* Сдвигает .floor-total вправо */
   text-align: right; /* Выравнивание текста по правому краю */
   flex-grow: 1; /* Заставит .floor-total заполнять оставшееся пространство */
+}
+.font-bold {
+  font-weight: bold;
+}
+.border {
+  border: 1px solid #ccc;
+  padding: 10px; /* Внутренние отступы */
+  margin: 10px;  /* Внешние отступы */
 }
