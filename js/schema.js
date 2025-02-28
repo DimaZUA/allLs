@@ -1,6 +1,6 @@
 ﻿function initSchema(){
     const displayKeys = ["pl", "ls", "pers", "kv", "dolg", "opl", "nach"];
-    const displayKeysName = {"pl":"Площадь", "ls":"Лицевые счета", "pers":"Прописоно чел.", "kv":"Номера квартир", "dolg":"Долги", "opl":"Платежи", "nach":"Начисления", "fio":"ФИО"};
+    const displayKeysName = {"pl":"Площадь", "ls":"Лицевые счета", "pers":"Прописано чел.", "kv":"Номера квартир", "dolg":"Долги", "opl":"Платежи", "nach":"Начисления", "fio":"ФИО","note":""};
     let display = "opl";
 
     // Создаем новую переменную с данными для работы
@@ -300,12 +300,18 @@ itemDiv.setAttribute(
   "data-fio",
   Object.entries(displayKeysName)
     .map(([key, name]) => {
-      let value = item[key] ?? "-";
+      let value = item[key] ?? "";
       if (typeof value === "number") {
         value = formatNumber(value);
       }
-      return `${name}: ${value}`;
+
+      // Пропускаем значения, если они пустые
+      if (value === "") return "";
+      if (key==display)  return "";
+      // Если name пустое, то не добавляем двоеточие
+      return name ? `${name}: ${value}` : value;
     })
+    .filter((entry) => entry !== "")  // Убираем пустые строки
     .join("\n") // Используем \n для удобного разбора
 );
 
