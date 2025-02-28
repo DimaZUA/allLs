@@ -96,7 +96,8 @@ console.log(lsWithZeroFloor);
 
 
     // Получаем уникальные подъезды
-    const entrances = [...new Set(lsWithZeroFloor.map(item => item.pod))].sort();
+    const entrances = [...new Set(lsWithZeroFloor.map(item => +item.pod))].sort((a, b) => a - b);
+
 
     const calculateZeroFloor = () => {
       const zeroFloorData = {};
