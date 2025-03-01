@@ -131,13 +131,14 @@ style.textContent = `
     .custom-sidebar { width: 250px; background: #f8f9fa; padding: 10px; position: absolute; top: 0; bottom: 0; overflow-y: auto; }
     .file-tree { list-style: none; padding: 0; }
     .sidebar-item { padding: 10px; background: #ffffff; cursor: pointer; border-bottom: 1px solid #ddd; position: relative; }
-    .folder { font-weight: bold; background: #ffeb3b; }
+    .folder { font-weight: bold; background: #ebdb4f; }
     .excel { background: #d4f8c4; }
     .image { background: #c4e3f8; }
     .pdf { background: #ffffff; }
     .other { background: #e0e0e0; }
-    .sidebar-item:hover, .selected { background: #007bff; color: white; }
-    .viewed { text-decoration: line-through; }
+    .selected { background: #007bff; color: white; }
+    .sidebar-item:hover{ background: #00abff; color: white; }
+    .viewed { opacity: 0.5 }
     .file-icon { position: absolute; right: 10px; bottom: 10px; font-size: 12px; opacity: 0.7; }
     #preview { margin-left: 260px; padding: 20px; }
 `;
