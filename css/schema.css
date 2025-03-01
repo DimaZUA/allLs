@@ -122,3 +122,10 @@ body {
   padding: 10px; /* Внутренние отступы */
   margin: 10px;  /* Внешние отступы */
 }
+.bg-blue-500 {
+  background-color: #3b82f6; /* Цвет соответствует Tailwind */
+}
+
+.text-white {
+  color: #ffffff;
+}
