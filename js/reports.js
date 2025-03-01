@@ -80,8 +80,9 @@
             liElement.classList.add("viewed");
         }
 
-        const { tree: fileTree, latestYear, latestMonth } = buildTree(files);
+        
         function reportsInit(){
+        var { tree: fileTree, latestYear, latestMonth } = buildTree(files);
         document.getElementById('maincontainer').innerHTML ='<div id="fileTree"></div> <div id="preview"></div>'
         renderTree(document.getElementById("fileTree"), fileTree, ["Отчеты", latestYear, latestMonth]);
         }

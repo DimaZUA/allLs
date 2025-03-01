@@ -97,7 +97,7 @@ function handleMenuClick(homeCode, actionCode, actionLink) {
     loadScriptFromHtml(homeCode + '.js', function () {
       initBankTable();
     });  
-  } else if (actionCode === 'report') {
+  } else if (actionCode === 'reports') {
     loadScriptFromHtml(homeCode + '.js', function () {
       reportsInit();
     });

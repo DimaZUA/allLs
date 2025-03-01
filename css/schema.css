@@ -129,3 +129,51 @@ body {
 .text-white {
   color: #ffffff;
 }
+
+
+
+
+    /* Стили для контейнера с деревом файлов */
+    #fileTree {
+        font-family: Arial, sans-serif;
+    }
+
+    #fileTree ul {
+        list-style-type: none;
+        padding-left: 20px;
+    }
+
+    #fileTree .folder {
+        cursor: pointer;
+        font-weight: bold;
+    }
+
+    #fileTree .file {
+        cursor: pointer;
+        color: blue;
+        text-decoration: underline;
+    }
+
+    /* Стили для просмотренных файлов */
+    #fileTree .file.viewed {
+        color: gray;  /* Цвет для просмотренных файлов */
+        text-decoration: line-through;  /* Перечеркнутый стиль */
+    }
+
+    /* Стили для контейнера с предпросмотром */
+    #preview {
+        margin-top: 20px;
+        padding: 20px;
+        border: 1px solid #ddd;
+        background-color: #f9f9f9;
+    }
+
+    #preview iframe {
+        width: 100%;
+        height: 800px; /* Увеличено, чтобы вместить A4 отчет */
+    }
+
+    #preview img {
+        max-width: 100%;
+        height: auto;
+    }
