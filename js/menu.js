@@ -12,6 +12,9 @@ var actions = [{
   name: 'Банк',
   actionCode: 'bank'
 }, {
+  name: 'Отчеты',
+  actionCode: 'reports'
+}, {
   name: 'Информация по дому',
   actionCode: 'info'
 }, {
@@ -93,6 +96,10 @@ function handleMenuClick(homeCode, actionCode, actionLink) {
   } else if (actionCode === 'bank') {
     loadScriptFromHtml(homeCode + '.js', function () {
       initBankTable();
+    });  
+  } else if (actionCode === 'report') {
+    loadScriptFromHtml(homeCode + '.js', function () {
+      reportsInit();
     });
   } else if (actionCode === 'info') {
           displayHomeInfo(homeCode);
