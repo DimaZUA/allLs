@@ -8,6 +8,7 @@
 // Функция для вычисления начислений за текущий месяц
 const getTotalForCurrentMonth = (nachData, lsId) => {
   const currentDate = new Date();
+  currentDate.setDate(currentDate.getDate() - 5);
   const currentYear = currentDate.getFullYear();
   const currentMonth = currentDate.getMonth() + 1; // Месяцы от 1 до 12
   
@@ -22,6 +23,7 @@ const getTotalForCurrentMonth = (nachData, lsId) => {
 // Функция для вычисления платежей за текущий месяц
 const getTotalForCurrentMonthOplat = (oplatData, lsId) => {
   const currentDate = new Date();
+  currentDate.setDate(currentDate.getDate() - 5);
   const currentYear = currentDate.getFullYear();
   const currentMonth = currentDate.getMonth() + 1; // Месяцы от 1 до 12
   
