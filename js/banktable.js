@@ -175,6 +175,75 @@ async function generateBankTable() {
     var tableBody = document.getElementById('banktable').querySelector('tbody');
     tableBody.innerHTML = '';
 
+
+
+// Создаем контейнер для итогов, если его нет
+var summaryContainer = document.getElementById('summary-container');
+if (!summaryContainer) {
+    summaryContainer = document.createElement('div');
+    summaryContainer.id = 'summary-container';
+    summaryContainer.style.fontWeight = 'bold';
+    summaryContainer.style.marginBottom = '10px';
+    document.getElementById('table-container').prepend(summaryContainer);
+}
+
+// Вычисляем остаток на начало, остаток на конец, всего получено и всего оплачено
+var balanceStart = 0;
+var balanceEnd = 0;
+var totalReceivedAmount = 0;
+var totalPaidAmount = 0;
+            fromDate.setHours(0, 0, 0, 0);
+            toDate.setHours(0, 0, 0, 0);
+for (var year in plat) {
+    var yearInt = parseInt(year);
+    for (var month in plat[year]) {
+        var monthInt = parseInt(month) - 1;
+        for (var i = 0; i < plat[year][month].length; i++) {
+            var payment = plat[year][month][i];
+            var date = new Date(year, month - 1, payment[0]);
+            date.setHours(0, 0, 0, 0);
+            var amount = payment[1];
+            var isExpense = /^31\d*/.test(payment[6]);
+            if (/^31\d*/.test(payment[7]) && isExpense) continue;
+            if (date < fromDate) {
+                balanceStart += isExpense ? -amount : amount;
+            }
+            if (date <= toDate && date >= fromDate) {  // Убедимся, что дата в пределах периода
+                balanceEnd += isExpense ? -amount : amount;
+                if (isExpense) {
+                    totalPaidAmount += amount;
+                } else {
+                    totalReceivedAmount += amount;
+                }
+            }
+        }
+    }
+}
+balanceEnd+=balanceStart;
+
+// Обновляем контейнер с итогами
+// Преобразуем fromDate и toDate в формат, например, "ДД.ММ.ГГГГ"
+var fromDateFormatted = fromDate.toLocaleDateString('ru-RU');
+var toDatePlusOne = new Date(toDate);
+toDatePlusOne.setDate(toDatePlusOne.getDate() + 1);
+
+// Форматируем новую дату
+var toDateFormatted = toDatePlusOne.toLocaleDateString('ru-RU');
+
+summaryContainer.innerHTML = `
+    <div style="display: flex; gap: 20px;">
+        <div>
+            Остаток на (${fromDateFormatted}): <span>${balanceStart.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span> грн<br>
+            Остаток на (${toDateFormatted}): <span>${balanceEnd.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span> грн
+        </div>
+        <div>
+            Всего получено: <span class="green">${totalReceivedAmount.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span> грн<br>
+            Всего оплачено: <span class="red">${totalPaidAmount.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span> грн
+        </div>
+    </div>
+`;
+
+
  // Инициализируем переменные для подсчета
     var totalReceivedAmount = 0;
     var totalPaidAmount = 0;
@@ -224,22 +293,22 @@ var yearInt = parseInt(year);
                         if (kt!=377) shouldInclude = true;
                         break;
                     case "income":
-                        if (/^31\d+/.test(dt)) shouldInclude = true; // Поступления
+                        if (/^311\d*/.test(dt)) shouldInclude = true; // Поступления
                         break;
                     case "incomeNoSobst":
-                        if (/^31\d+/.test(dt) && kt!=377) shouldInclude = true; // Поступления без собственников
+                        if (/^311\d*/.test(dt) && kt!=377) shouldInclude = true; // Поступления без собственников
                         break;
                     case "expense":
-                        if (/^31\d+/.test(kt)) shouldInclude = true; // Расходы
+                        if (/^311\d*/.test(kt)) shouldInclude = true; // Расходы
                         break;
                     case "expenseZP":
-                        if (/^31\d+/.test(kt) && (/^6[456]\d+/.test(dt)||dt==372||/^3[01]\d+/.test(dt))) shouldInclude = true; // Зарплата, налоги, подотчет
+                        if (/^311\d*/.test(kt) && (/^6[456]\d+/.test(dt)||dt==372||/^3[01]\d+/.test(dt))) shouldInclude = true; // Зарплата, налоги, подотчет
                         break;
                     case "expenseCom":
-                        if (/^31\d+/.test(kt) && /^63\d+/.test(dt)) shouldInclude = true; // Зарплата, налоги, подотчет
+                        if (/^311\d*/.test(kt) && /^63\d+/.test(dt)) shouldInclude = true; // Зарплата, налоги, подотчет
                         break;
                     case "expensenoZPnoCom":
-                        if (/^31\d+/.test(kt) && !/^63\d+/.test(dt) && !(/^6[456]\d+/.test(dt)||dt==372||/^3[01]\d+/.test(dt))) shouldInclude = true; // Прочие расходы
+                        if (/^311\d*/.test(kt) && !/^63\d+/.test(dt) && !(/^6[456]\d+/.test(dt)||dt==372||/^311\d*/.test(dt))) shouldInclude = true; // Прочие расходы
                         break;
                 }
                     if (!shouldInclude) continue;
@@ -265,7 +334,8 @@ var yearInt = parseInt(year);
                         totalPaidAmount += payment[1];  // Добавляем к сумме оплаченных
                         totalPaidCount++;  
                         amountCell.textContent = (-payment[1]).toFixedWithComma();
-                        }else{
+                        }
+                        if (/^31\d+/.test(dt)) {
                         	amountCell.classList.add('green');
                        totalReceivedAmount += payment[1];  // Добавляем к сумме полученных
                         totalReceivedCount++;  
@@ -301,6 +371,9 @@ var yearInt = parseInt(year);
             }
         }
     }
+
+
+
 
 // Добавляем строку с итогами
 var totalsRow = document.createElement('tr');
