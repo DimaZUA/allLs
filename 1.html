@@ -1,0 +1,133 @@
+﻿<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Дерево файлов</title>
+    <style>
+        body { font-family: Arial, sans-serif; }
+        ul { list-style-type: none; padding-left: 20px; }
+        .folder { cursor: pointer; font-weight: bold; }
+        .file { cursor: pointer; color: blue; text-decoration: underline; }
+        .file.viewed { color: gray; text-decoration: line-through; } /* Для просмотренных файлов */
+        #preview { margin-top: 20px; }
+        iframe { 
+            width: 100%; 
+            height: 900px; /* Увеличиваем высоту контейнера, чтобы вмещался A4 отчет */
+            border: none;
+        }
+        img { 
+            max-width: 100%; 
+            max-height: 900px; 
+            object-fit: contain;
+        }
+    </style>
+</head>
+<body>
+    <div id="fileTree"></div>
+    <div id="preview"></div>
+
+    <script>
+        const files = {"files":[
+            "files/12.-Урал/2025/02/Skanyrovat10031.pdf",
+            "files/12.-Урал/2025/02/Skanyrovat10032.pdf",
+            "files/12.-Урал/2025/02/Skanyrovat10033.pdf",
+            "files/12.-Урал/2025/02/Skanyrovat10034.pdf",
+            "files/12.-Урал/2025/02/Анализ.pdf",
+            "files/12.-Урал/2025/02/Б-Рух коштів.pdf",
+            "files/12.-Урал/2025/02/Квітанц-всі.pdf",
+            "files/12.-Урал/2025/02/Компенсації.pdf",
+            "files/12.-Урал/2025/02/Оплата співвласників.pdf",
+            "files/12.-Урал/2025/02/ОР макс борг.pdf",
+            "files/12.-Урал/2025/02/ОР передоплата.pdf",
+            "files/12.-Урал/2025/02/ОР по боргу.pdf",
+            "files/12.-Урал/2025/02/ОР по квартирам.pdf"
+        ]};
+
+        function buildTree(fileList) {
+            const tree = { "Отчеты": {} };
+            let latestYear = "", latestMonth = "";
+            fileList.files.forEach(path => {
+                const parts = path.split("/").slice(2);
+                if (parts.length < 2) return;
+                let year = parts[0];
+                let month = parts[1];
+                
+                if (!latestYear || year > latestYear) {
+                    latestYear = year;
+                    latestMonth = month;
+                } else if (year === latestYear && month > latestMonth) {
+                    latestMonth = month;
+                }
+                
+                let current = tree["Отчеты"];
+                parts.forEach((part, index) => {
+                    if (!current[part]) {
+                        current[part] = index === parts.length - 1 ? path : {};
+                    }
+                    current = current[part];
+                });
+            });
+            return { tree, latestYear, latestMonth };
+        }
+
+        function renderTree(container, tree, expandPath = []) {
+            const ul = document.createElement("ul");
+            Object.entries(tree).forEach(([name, value]) => {
+                const li = document.createElement("li");
+                if (typeof value === "string") {
+                    li.textContent = name;
+                    li.classList.add("file");
+                    li.onclick = (e) => handleFileClick(value, e, li);
+                } else {
+                    li.textContent = name;
+                    li.classList.add("folder");
+                    const subContainer = document.createElement("div");
+                    if (expandPath.includes(name)) {
+                        subContainer.style.display = "block";
+                    } else {
+                        subContainer.style.display = "none";
+                    }
+
+                    li.onclick = (e) => {
+                        e.stopPropagation(); // Останавливаем всплытие события
+                        // Изменяем видимость вложенных элементов только для папок
+                        if (subContainer.style.display === "none") {
+                            subContainer.style.display = "block";
+                        } else {
+                            subContainer.style.display = "none";
+                        }
+                    };
+                    renderTree(subContainer, value, expandPath);
+                    li.appendChild(subContainer);
+                }
+                ul.appendChild(li);
+            });
+            container.appendChild(ul);
+        }
+
+        function handleFileClick(filePath, event, liElement) {
+            event.stopPropagation(); // Останавливаем всплытие события на файле
+            const preview = document.getElementById("preview");
+            preview.innerHTML = "";
+            const ext = filePath.split(".").pop().toLowerCase();
+            if (ext === "pdf") {
+                preview.innerHTML = `<iframe src="${filePath}" width="100%" height="900px"></iframe>`;
+            } else if (["jpg", "png"].includes(ext)) {
+                preview.innerHTML = `<img src="${filePath}" width="500px">`;
+            } else {
+                const link = document.createElement("a");
+                link.href = filePath;
+                link.download = filePath.split("/").pop();
+                link.click();
+            }
+
+            // Помечаем файл как просмотренный
+            liElement.classList.add("viewed");
+        }
+
+        const { tree: fileTree, latestYear, latestMonth } = buildTree(files);
+        renderTree(document.getElementById("fileTree"), fileTree, ["Отчеты", latestYear, latestMonth]);
+    </script>
+</body>
+</html>
