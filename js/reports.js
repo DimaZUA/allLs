@@ -96,16 +96,35 @@ function getFileType(name) {
 
 function handleFileClick(filePath, event, fileElement) {
     event.stopPropagation();
+
+    // Убираем класс "selected" у всех элементов в боковой панели
     document.querySelectorAll(".sidebar-item").forEach(el => el.classList.remove("selected"));
+
+    // Добавляем классы "selected" и "viewed" для нажатого элемента
     fileElement.classList.add("selected");
     fileElement.classList.add("viewed");
+
+    // Получаем элемент для превью
     const preview = document.getElementById("preview");
+
+    // Проверяем, если это изображение
     if (fileElement.classList.contains("image")) {
-        preview.innerHTML = `<img src="${filePath}" style="max-width: 100%; height: auto;">`;
-    } else {
-        preview.innerHTML = `<iframe src="${filePath}" width="100%" height="600px"></iframe>`;
+        preview.innerHTML = `<img src="${filePath}" alt="Превью изображения" style="max-width: 100%; height: auto;">`;
+    } 
+    // Проверяем, если это PDF
+    else if (fileElement.classList.contains("pdf")) {
+        preview.innerHTML = `<iframe src="${filePath}" width="100%" height="600px" frameborder="0"></iframe>`;
+    } 
+    // Для всех остальных файлов (Excel, Word и другие) - скачивание
+    else {
+        const link = document.createElement("a");
+        link.href = filePath;
+        link.download = filePath.split("/").pop();  // Заголовок для скачивания файла (использует имя файла)
+        link.click();  // Имитируем клик по ссылке для скачивания
     }
 }
+
+
 
 function handleKeyboardNavigation(e) {
     const items = document.querySelectorAll(".sidebar-item");
