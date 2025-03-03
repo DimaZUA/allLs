@@ -54,22 +54,37 @@ homes.forEach(function (home) {
 
 // Переключение подменю и установка активного дома
 function toggleSubMenu(homeItem, homeCode) {
-  // Убираем класс 'active' и скрываем все подменю
+  let previousActionCode = getParam('actionCode');
   document.querySelectorAll('.menu-item').forEach(function (item) {
-    item.classList.remove('active'); // Убираем активный класс
-    var actionList = item.querySelector('ul');
+    item.classList.remove('active');
+    let actionList = item.querySelector('ul');
     if (actionList) {
-      actionList.style.display = 'none'; // Скрываем все подменю
+      actionList.style.display = 'none';
     }
   });
 
-  // Добавляем класс 'active' и показываем подменю для выбранного элемента
   homeItem.classList.add('active');
-  var actionList = homeItem.querySelector('ul');
+  let actionList = homeItem.querySelector('ul');
   if (actionList) {
-    actionList.style.display = actionList.style.display === 'block' ? 'none' : 'block'; // Переключаем отображение подменю
+    actionList.style.display = 'block';
+  }
+
+  let actionItem = Array.from(actionList.querySelectorAll('li')).find(function (item) {
+    let actionLink = item.querySelector('span');
+    return actions.some(action => action.actionCode === previousActionCode && action.name === actionLink.textContent);
+  });
+  
+  if (!actionItem) {
+    actionItem = actionList.querySelector('li'); // Берем первый пункт меню
+  }
+
+  if (actionItem) {
+    let actionLink = actionItem.querySelector('span');
+    actionLink.classList.add('active-action');
+    handleMenuClick(homeCode, actions.find(a => a.name === actionLink.textContent).actionCode, actionLink);
   }
 }
+
 
 // Обработчик клика на пункт подменю
 function handleMenuClick(homeCode, actionCode, actionLink) {

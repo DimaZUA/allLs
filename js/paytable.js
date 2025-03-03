@@ -1,14 +1,30 @@
 ﻿var finalDate;
 function calculateDefaultDays() {
     var defaultDay = finalDate.getDate();
+    var selectedMonth = document.getElementById('monthSelect').value.split('-');
+    var selectedYear = parseInt(selectedMonth[0], 10);
+    var selectedMonthNum = parseInt(selectedMonth[1], 10);
+
+    var currentYear = finalDate.getFullYear();
+    var currentMonth = finalDate.getMonth() + 1; // JS месяцы с 0
+
     var fromDay, toDay;
-    if (defaultDay < 7) {
+
+    if (selectedYear < currentYear || (selectedYear === currentYear && selectedMonthNum < currentMonth)) {
+        // Если выбранный месяц меньше текущего -> берем 1 и последний день
         fromDay = 1;
-        toDay = defaultDay;
+        toDay = 31;
     } else {
-        toDay = Math.floor((defaultDay - 1) / 7) * 7;
-        fromDay = toDay - 6;
+        // Обычное вычисление (если месяц совпадает с текущим)
+        if (defaultDay < 7) {
+            fromDay = 1;
+            toDay = defaultDay;
+        } else {
+            toDay = Math.floor((defaultDay - 1) / 7) * 7;
+            fromDay = toDay - 6;
+        }
     }
+
     document.getElementById('fromDay').value = fromDay;
     document.getElementById('toDay').value = toDay;
 }
