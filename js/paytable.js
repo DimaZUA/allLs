@@ -156,43 +156,52 @@ function generatePayTable() {
 }
 
 function initPayTable() {
-    document.getElementById('maincontainer').innerHTML =
-        '<div id="org" align="right"></div>' +
-        '<div id="filter-container">' +
+document.getElementById('maincontainer').innerHTML =
+    '<div id="org" align="right"></div>' +
+    '<div id="filter-container">' +
         '<div class="column">' +
-        '<label>Месяц:' +
-        '<select id="monthSelect"></select>' +
-        '</label>' +
-        '</div>' +
-        '<div class="column">' +
-        '<label>С:' +
-        '<input type="number" id="fromDay" min="1" max="31">' +
-        '</label>' +
+            '<label>Месяц:' +
+                '<select id="monthSelect"></select>' +
+            '</label>' +
         '</div>' +
         '<div class="column">' +
-        '<label>По:' +
-        '<input type="number" id="toDay" min="1" max="31">' +
-        '</label>' +
+            '<label>С:' +
+                '<input type="number" id="fromDay" min="1" max="31">' +
+            '</label>' +
         '</div>' +
-        '<div class="full-span">' +
-        'Щелчок по заголовку таблицы - отображение/скрытие назначений платежей' +
+        '<div class="column">' +
+            '<label>По:' +
+                '<input type="number" id="toDay" min="1" max="31">' +
+            '</label>' +
         '</div>' +
+        
+        '<!-- Обертка для текста и кнопки -->' +
+        '<div class="full-span" style="display: flex; justify-content: space-between; align-items: center;">' +
+            '<span>Щелчок по заголовку таблицы - отображение/скрытие назначений платежей</span>' +
+            '<button id="xls" onclick="exportTableToExcel()" ' +
+                'style="background-color: #4CAF50; color: white; padding: 10px 20px; font-size: 16px; border: none; cursor: pointer; display: flex; align-items: center;">' +
+                '<img src="https://upload.wikimedia.org/wikipedia/commons/8/8d/Microsoft_Excel_Logo_%282013-2019%29.svg" ' +
+                'alt="Excel Icon" style="width: 20px; height: 20px; margin-right: 10px;">' +
+                'Скачать в Excel' +
+            '</button>' +
         '</div>' +
-        '<div id="table-container">' +
+
+    '</div>' +
+    '<div id="table-container">' +
         '<table id="paytable" class="paytable">' +
-        '<thead>' +
-        '<tr>' +
-        '<th>Дата</th>' +
-        '<th>Кв.</th>' +
-        '<th>Сумма</th>' +
-        '<th>Назначение платежа</th>' +
-        '</tr>' +
-        '</thead>' +
-        '<tbody></tbody>' +
+            '<thead>' +
+                '<tr>' +
+                    '<th>Дата</th>' +
+                    '<th>Кв.</th>' +
+                    '<th>Сумма</th>' +
+                    '<th>Назначение платежа</th>' +
+                '</tr>' +
+            '</thead>' +
+            '<tbody></tbody>' +
         '</table>' +
-        '</div>' +
-        '</div>' +
-        '<div id="datetime"></div>';
+    '</div>' +
+    '<div id="datetime"></div>';
+
 
     document.getElementById('datetime').innerHTML =
         '<br>Данные указаны по состоянию на <br>' + dt + ' (' + timeAgo(dt) + ' назад.)';
@@ -231,6 +240,42 @@ function highlightApartmentNumber(paymentNazn, apartmentNumber) {
     return highlightedText;
 }
 
+// Функция для переключения полноэкранного режима
+function toggleFullscreen(element, isFullscreen) {
+    if (!isFullscreen) {
+        // Включаем полноэкранный режим
+        if (element.requestFullscreen) {
+            element.requestFullscreen().catch(function(err) {
+                console.error("Ошибка при включении полноэкранного режима: " + err.message);
+            });
+        } else if (element.mozRequestFullScreen) { // Для Firefox
+            element.mozRequestFullScreen();
+        } else if (element.webkitRequestFullscreen) { // Для Chrome, Safari, Opera
+            element.webkitRequestFullscreen();
+        } else if (element.msRequestFullscreen) { // Для IE/Edge
+            element.msRequestFullscreen();
+        } else {
+            console.warn("Полноэкранный режим не поддерживается этим браузером.");
+        }
+    } else {
+        // Выходим из полноэкранного режима
+        if (document.exitFullscreen) {
+            document.exitFullscreen().catch(function(err) {
+                console.error("Ошибка при выходе из полноэкранного режима: " + err.message);
+            });
+        } else if (document.mozCancelFullScreen) { // Для Firefox
+            document.mozCancelFullScreen();
+        } else if (document.webkitExitFullscreen) { // Для Chrome, Safari, Opera
+            document.webkitExitFullscreen();
+        } else if (document.msExitFullscreen) { // Для IE/Edge
+            document.msExitFullscreen();
+        } else {
+            console.warn("Выход из полноэкранного режима не поддерживается этим браузером.");
+        }
+    }
+}
+
+// Функция для переключения видимости столбца и полноэкранного режима
 function toggleNaznColumn() {
     var columnIndex = 3; // Индекс столбца "Назначение платежа" (начиная с 0)
     var table = document.getElementById('paytable');
@@ -241,48 +286,36 @@ function toggleNaznColumn() {
 
     // Проверяем, находится ли таблица уже в полноэкранном режиме
     var isFullscreen = !!document.fullscreenElement;
-// Получаем данные для заголовка
-var fromDay = document.getElementById('fromDay').value;
-var toDay = document.getElementById('toDay').value;
-var selectedMonth = document.getElementById('monthSelect').value.split('-');
-var year = selectedMonth[0];
-var month = selectedMonth[1];
-var monthName = new Date(year, month - 1).toLocaleString('uk', { month: 'long' });
 
-// Формируем текст
-var headerText = org + "<br>Платежі співвласників<br>з " + fromDay + " по " + toDay + " " + monthName + " " + year;
+    // Получаем данные для заголовка
+    var fromDay = document.getElementById('fromDay').value;
+    var toDay = document.getElementById('toDay').value;
+    var selectedMonth = document.getElementById('monthSelect').value.split('-');
+    var year = selectedMonth[0];
+    var month = selectedMonth[1];
+    var monthName = new Date(year, month - 1).toLocaleString('uk', { month: 'long' });
+
+    // Формируем текст
+    var headerText = org + "<br>Платежі співвласників<br>з " + fromDay + " по " + toDay + " " + monthName + " " + year;
 
     // Переключаем видимость третьего столбца
     for (var i = 0; i < rows.length; i++) {
         var cell = rows[i].cells[columnIndex];
         if (cell) {
-        	if (cell.style.display === 'none'){
-        		cell.style.display='';
-        	}else{
-        		cell.style.display='none';
-        	}
+            if (cell.style.display === 'none') {
+                cell.style.display = '';
+            } else {
+                cell.style.display = 'none';
+            }
         }
     }
 
-    if (!isFullscreen) {
-        // Включаем полноэкранный режим
-if (tableContainer.requestFullscreen) {
-    tableContainer.requestFullscreen().catch(function(err) {
-        console.error("Ошибка при включении полноэкранного режима: " + err.message);
-    });
-} else if (tableContainer.mozRequestFullScreen) { // Для Firefox
-    tableContainer.mozRequestFullScreen();
-} else if (tableContainer.webkitRequestFullscreen) { // Для Chrome, Safari, Opera
-    tableContainer.webkitRequestFullscreen();
-} else if (tableContainer.msRequestFullscreen) { // Для IE/Edge
-    tableContainer.msRequestFullscreen();
-} else {
-    console.warn("Полноэкранный режим не поддерживается этим браузером.");
-}
+    // Проверяем, существует ли уже элемент с заголовком
+    var existingFullscreenText = document.getElementById(fullscreenTextId);
 
+    if (!isFullscreen) {
         // Скрываем filter-container
         filterContainer.style.display = "none";
-
         // Добавляем текст над таблицей
         var fullscreenText = document.createElement('div');
         fullscreenText.id = fullscreenTextId;
@@ -291,32 +324,15 @@ if (tableContainer.requestFullscreen) {
         fullscreenText.style.fontSize = "18px";
         fullscreenText.style.fontWeight = "bold";
         fullscreenText.innerHTML = headerText;
-        tableContainer.prepend(fullscreenText);
+        if (!existingFullscreenText) tableContainer.prepend(fullscreenText);
         tableContainer.style.overflow = "auto";
     } else {
-        // Выходим из полноэкранного режима
-if (document.exitFullscreen) {
-    document.exitFullscreen().catch(function(err) {
-        console.error("Ошибка при выходе из полноэкранного режима: " + err.message);
-    });
-} else if (document.mozCancelFullScreen) { // Для Firefox
-    document.mozCancelFullScreen();
-} else if (document.webkitExitFullscreen) { // Для Chrome, Safari, Opera
-    document.webkitExitFullscreen();
-} else if (document.msExitFullscreen) { // Для IE/Edge
-    document.msExitFullscreen();
-} else {
-    console.warn("Выход из полноэкранного режима не поддерживается этим браузером.");
-}
-
         // Отображаем filter-container
         filterContainer.style.display = "";
 
-        // Удаляем текст над таблицей
-        var fullscreenText = document.getElementById(fullscreenTextId);
-        if (fullscreenText) {
-            fullscreenText.remove();
-        }
-    tableContainer.style.overflow = "";
+        tableContainer.style.overflow = "";
     }
+
+    // Переключаем полноэкранный режим
+    toggleFullscreen(tableContainer, isFullscreen);
 }

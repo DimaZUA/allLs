@@ -4,6 +4,85 @@ function _unsupportedIterableToArray(r, a) { if (r) { if ("string" == typeof r) 
 function _arrayLikeToArray(r, a) { (null == a || a > r.length) && (a = r.length); for (var e = 0, n = Array(a); e < a; e++) n[e] = r[e]; return n; }
 function _iterableToArrayLimit(r, l) { var t = null == r ? null : "undefined" != typeof Symbol && r[Symbol.iterator] || r["@@iterator"]; if (null != t) { var e, n, i, u, a = [], f = !0, o = !1; try { if (i = (t = t.call(r)).next, 0 === l) { if (Object(t) !== t) return; f = !1; } else for (; !(f = (e = i.call(t)).done) && (a.push(e.value), a.length !== l); f = !0); } catch (r) { o = !0, n = r; } finally { try { if (!f && null != t.return && (u = t.return(), Object(u) !== u)) return; } finally { if (o) throw n; } } return a; } }
 function _arrayWithHoles(r) { if (Array.isArray(r)) return r; }
+
+let isTableFocused = false; // Флаг состояния таблицы
+let originalParentTable = null; // Оригинальный родитель для таблицы
+let originalParentBalanceInfo = null; // Оригинальный родитель для элемента с классом "balance-info"
+let originalParentHeader = null; // Оригинальный родитель для элемента с id="header"
+let originalSiblings = []; // Сохраняем другие элементы страницы
+
+function handleHeaderClick(event) {
+    const table = event.target.closest('table'); // Находим ближайшую таблицу
+    if (!table) return;
+
+    const body = document.body;
+    
+    if (!isTableFocused) {
+        // Сохраняем оригинальные родительские элементы и соседние элементы
+        originalParentTable = table.parentElement;
+        originalParentBalanceInfo = document.querySelector('.balance-info')?.parentElement;
+        originalParentHeader = document.getElementById('header')?.parentElement;
+        originalSiblings = [...body.children];
+
+        // Получаем элементы с классом "balance-info" и с id="header"
+        const balanceInfo = document.querySelector('.balance-info');
+        const header = document.getElementById('header');
+
+        // Скрываем всё, кроме таблицы, элементов с классом "balance-info" и с id="header"
+        originalSiblings.forEach(el => {
+            if (el !== table && el !== balanceInfo && el !== header) {
+                el.style.display = 'none';
+            }
+        });
+
+        // Создаём обёртку для центрирования
+        const wrapper = document.createElement('div');
+        wrapper.id = 'tableWrapper';
+
+        // Применяем стили обёртки
+        Object.assign(wrapper.style, {
+            position: 'fixed',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            background: 'white',
+            boxShadow: '0px 0px 10px rgba(0,0,0,0.2)',
+            padding: '20px',
+            borderRadius: '10px',
+            maxWidth: `80vw`, // Устанавливаем максимальную ширину
+            maxHeight: '100vh',
+            overflow: 'auto'
+        });
+
+        // Вставляем таблицу в обёртку
+        if (header) wrapper.appendChild(header); // Добавляем элемент с id="header"
+        if (balanceInfo) wrapper.appendChild(balanceInfo); // Добавляем элемент с классом "balance-info"
+        wrapper.appendChild(table);
+        
+        body.appendChild(wrapper);
+
+        isTableFocused = true;
+        showMessage("Для возврата щелкните мышью по заголовку таблицы");
+    } else {
+        // Восстанавливаем элементы
+        originalSiblings.forEach(el => el.style.display = '');
+
+        // Возвращаем таблицу и элементы обратно в их исходные родительские элементы
+        if (originalParentTable) originalParentTable.appendChild(table);
+        if (originalParentBalanceInfo) originalParentBalanceInfo.appendChild(document.querySelector('.balance-info'));
+        if (originalParentHeader) originalParentHeader.insertBefore(document.getElementById('header'), originalParentHeader.firstChild);
+
+
+        // Удаляем обёртку
+        document.getElementById('tableWrapper')?.remove();
+
+        isTableFocused = false;
+    }
+}
+
+
+
+
 function addStuff(accountId) {
   var accountData = nach[accountId]; // Данные для указанного accountId
   var paymentData = oplat[accountId] || {}; // Данные оплат для указанного accountId
@@ -76,21 +155,46 @@ function addStuff(accountId) {
       }
     }
 
-    // Заголовок таблицы
-    var headerRow = document.createElement('tr');
-    headerRow.innerHTML = "<td rowspan=\"2\" align=\"CENTER\">\u041C\u0456\u0441\u044F\u0446\u044C</td>\n             <td colspan=\"".concat(services.size, "\" align=\"CENTER\">\u041D\u0430\u0440\u0430\u0445\u043E\u0432\u0430\u043D\u043E \u0437\u0430 \u043C\u0456\u0441\u044F\u0446\u044C</td>\n             <td rowspan=\"2\" align=\"CENTER\">\u041E\u043F\u043B\u0430\u0447\u0435\u043D\u043E \u0432 \u043C\u0456\u0441\u044F\u0446\u0456</td>\n             <td rowspan=\"2\" align=\"CENTER\">\u0411\u043E\u0440\u0433(+) \u041F\u0435\u0440\u0435\u043F\u043B\u0430\u0442\u0430(-) \u043D\u0430 \u043A\u0456\u043D\u0435\u0446\u044C \u043C\u0456\u0441\u044F\u0446\u044F</td>");
-    thead.appendChild(headerRow);
+// Заголовок таблицы
+var headerRow = document.createElement('tr');
+headerRow.innerHTML = `
+    <td rowspan="2" align="CENTER" class="clickable">Місяць</td>
+    <td colspan="${[...services].filter(n => n !== '7').length}" align="CENTER" class="clickable">Нараховано за місяць</td>
+    <td rowspan="2" align="CENTER" class="clickable">Оплачено в місяці</td>
+    <td rowspan="2" align="CENTER" class="clickable">Борг(+) Переплата(-) на кінець місяця</td>
+`;
 
-    // Второй ряд заголовка с названиями услуг
-    var servicesRow = document.createElement('tr');
-    services.forEach(function (serviceId) {
-      var serviceName = us[serviceId] || "\u0423\u0441\u043B\u0443\u0433\u0430 ".concat(serviceId);
-      var serviceHeader = document.createElement('td');
-      serviceHeader.setAttribute('align', 'CENTER');
-      serviceHeader.textContent = serviceName;
-      servicesRow.appendChild(serviceHeader);
-    });
-    thead.appendChild(servicesRow);
+// Добавляем обработчик кликов к заголовкам
+Array.from(headerRow.children).forEach((header, index) => {
+    header.addEventListener('click', handleHeaderClick);
+});
+
+thead.appendChild(headerRow);
+
+// Второй ряд заголовка с названиями услуг
+var servicesRow = document.createElement('tr');
+services.forEach(function (serviceId) {
+    if (serviceId != 7) {
+        var serviceName = us[serviceId] || `Услуга ${serviceId}`;
+        var serviceHeader = document.createElement('td');
+        serviceHeader.setAttribute('align', 'CENTER');
+        serviceHeader.textContent = serviceName;
+        serviceHeader.classList.add('clickable'); // Добавляем класс
+
+        // Навешиваем обработчик клика
+        serviceHeader.addEventListener('click', handleHeaderClick);
+
+        servicesRow.appendChild(serviceHeader);
+    }
+});
+
+thead.appendChild(servicesRow); // Добавляем строку с услугами в заголовок
+
+
+
+
+
+
 
     // Переменные для итоговых сумм по году
     var totalChargesByService = {};
@@ -117,8 +221,16 @@ function addStuff(accountId) {
       services.forEach(function (serviceId) {
         var charge = rowCharges[serviceId];
         var cell = document.createElement('td');
+        if (serviceId==1 && rowCharges[7]) charge+=rowCharges[7];
         cell.textContent = charge != 0 ? charge.toFixedWithComma() : '';
-        row.appendChild(cell);
+
+        if (serviceId==1 && rowCharges[7]){
+	    cell.className = 'poster'; // Добавляем класс оформления
+	    cell.innerHTML = "".concat(charge.toFixedWithComma(), '<div class=\"descr\">Утримання будинку:'+rowCharges[1].toFixedWithComma()+' грн.<br>Вивіз ТПВ:'+rowCharges[7].toFixedWithComma()+' грн.</div>');
+	 }
+
+
+        if (serviceId != 7) row.appendChild(cell);
       });
       var cur = _month == currentMonth + 1 && year == currentYear;
       // Получаем данные оплат за текущий месяц
@@ -152,9 +264,8 @@ function addStuff(accountId) {
     for (var _month in accountData[year]) {
       _loop2();
     }
-
     // Итоги по году
-    if (services.size > 1) {
+    if ([...services].filter(n => n !== '7').length > 1) {
       // Если несколько услуг
       var totalRow = document.createElement('tr');
       totalRow.classList.add('itog');
@@ -163,9 +274,10 @@ function addStuff(accountId) {
       // Итог по каждой услуге
       services.forEach(function (serviceId) {
         var chargeTotal = totalChargesByService[serviceId] || 0;
+        if (serviceId==1) chargeTotal += totalChargesByService[7] || 0;
         var totalCell = document.createElement('td');
         totalCell.textContent = chargeTotal.toFixedWithComma();
-        totalRow.appendChild(totalCell);
+        if (serviceId!=7) totalRow.appendChild(totalCell);
       });
 
       // Общая сумма оплаченных денег
@@ -188,7 +300,7 @@ function addStuff(accountId) {
       var totalChargeForAllServices = Object.values(totalChargesByService).reduce(function (sum, value) {
         return sum + value;
       }, 0);
-      chargesSummaryRow.innerHTML = "<td colspan=\"".concat(services.size, "\" ALIGN=\"center\">\u0423\u0441\u044C\u043E\u0433\u043E \u043D\u0430\u0440\u0430\u0445\u043E\u0432\u0430\u043D\u043E: ").concat(totalChargeForAllServices.toFixedWithComma(), "</td>");
+      chargesSummaryRow.innerHTML = "<td colspan=\"".concat([...services].filter(n => n !== '7').length, "\" ALIGN=\"center\">\u0423\u0441\u044C\u043E\u0433\u043E \u043D\u0430\u0440\u0430\u0445\u043E\u0432\u0430\u043D\u043E: ").concat(totalChargeForAllServices.toFixedWithComma(), "</td>");
       tbody.appendChild(chargesSummaryRow);
     } else {
       // Если одна услуга
@@ -400,7 +512,26 @@ function createPaymentCell_old(row, monthlyPayments) {
   return totalPayments;
 }
 function initLS() {
-  document.getElementById('maincontainer').innerHTML = "\n    <div id=header><TABLE WIDTH=100%><TR><TD ALIGN=RIGHT><B>\u0410\u0434\u0440\u0435\u0441\u0430:</B></TD><TD class='big' ALIGN=LEFT><U><I><a id='adr'>adr</a><select class='big' id='number'></select></TD>\n    <td rowspan=2><DIV id='org' ALIGN=RIGHT><td>\n    </TR><TR><TD ALIGN=RIGHT><B>\u041F.\u0406.\u0411.:</B></TD><TD ALIGN=LEFT><U><I><div class='big' id='fio'></U></I></TD></div></TR></TABLE></DIV><DIV id='din'></div><DIV id='datetime'></div>\n    ";
+document.getElementById('maincontainer').innerHTML = `
+    <div id="header">
+        <table width="100%">
+            <tr>
+                <td align="right"><b>Адреса:</b></td>
+                <td class="big" align="left"><u><i><a id="adr">adr</a></i></u><select class="big" id="number"></select></td>
+                <td rowspan="2"><div id="org" align="right"></div></td>
+
+
+            </tr>
+            <tr>
+                <td align="right"><b>П.І.Б.:</b></td>
+                <td align="left"><u><i><div class="big" id="fio"></div></i></u></td>
+            </tr>
+        </table>
+    </div>
+    <div id="din"></div>
+    <div id="datetime"></div>
+`;
+
   document.getElementById('number').addEventListener('change', function () {
     addStuff(this.value);
   });

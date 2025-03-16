@@ -2,49 +2,64 @@
 
 function initBankTable() {
     // Вставка контейнера с фильтрами и таблицей
-    document.getElementById('maincontainer').innerHTML =
-        '<div id="filter-container">' +
+document.getElementById('maincontainer').innerHTML =
+    '<div id="filter-container">' +
         '<div class="column">' +
-        '<label>С:' +
-        '<input type="date" id="fromDate">' +  // Для выбора даты "с"
-        '</label><label>По:' +
-        '<input type="date" id="toDate">' +  // Для выбора даты "по"
-        '</label></div>' +
+            '<label>С:' +
+                '<input type="date" id="fromDate">' +
+            '</label>' +
+            '<label>По:' +
+                '<input type="date" id="toDate">' +
+            '</label>' +
+        '</div>' +
+        
         '<div class="column">' +
-        '<label>За:' +
-        '<select id="monthSelect"></select>' +  // Выпадающий список для выбора месяца
-        '</label>' +
-        '<label>Тип:' +
-        '<select id="typeSelect">' +
-        '<option value="all">Всё</option>' +
-        '<option value="allNoSobst">Всё без собственников</option>' +
-        '<option value="income">Поступления все</option>' +
-        '<option value="incomeNoSobst">Поступления без собственников</option>' +
-        '<option value="expense">Расходы все</option>' +
-        '<option value="expenseZP">Зарплата, налоги, подотчет</option>' +
-        '<option value="expenseCom">Платежи поставщикам</option>' +
-        '<option value="expensenoZPnoCom">Прочие расходы</option>' +
-        '</select>' +  // Выпадающий список для выбора типа (поступления, расходы, все)
-        '</label></div>' +
-        '<div class="full-span">' + // Изменили div на full-span для фильтра по тексту
-        '<input type="text" id="textFilter" placeholder="Введите текст для фильтрации" style="width:90%;">' + // Поле для фильтрации по тексту на всю ширину
+            '<label>За:' +
+                '<select id="monthSelect"></select>' +
+            '</label>' +
+            '<label>Тип:' +
+                '<select id="typeSelect">' +
+                    '<option value="all">Всё</option>' +
+                    '<option value="allNoSobst">Всё без собственников</option>' +
+                    '<option value="income">Поступления все</option>' +
+                    '<option value="incomeNoSobst">Поступления без собственников</option>' +
+                    '<option value="expense">Расходы все</option>' +
+                    '<option value="expenseZP">Зарплата, налоги, подотчет</option>' +
+                    '<option value="expenseCom">Платежи поставщикам</option>' +
+                    '<option value="expensenoZPnoCom">Прочие расходы</option>' +
+                '</select>' +
+            '</label>' +
         '</div>' +
+
+        '<!-- Обертка для текстового фильтра и кнопки -->' +
+        '<div class="full-span" style="display: flex; align-items: center; gap: 10px;">' +
+            '<input type="text" id="textFilter" placeholder="Введите текст для фильтрации" style="flex: 1; min-width: 200px;">' +
+            '<button id="xls" onclick="exportTableToExcel1()" ' +
+                'style="background-color: #4CAF50; color: white; padding: 10px 20px; font-size: 16px; border: none; cursor: pointer; display: flex; align-items: center;">' +
+                '<img src="https://upload.wikimedia.org/wikipedia/commons/8/8d/Microsoft_Excel_Logo_%282013-2019%29.svg" ' +
+                'alt="Excel Icon" style="width: 20px; height: 20px; margin-right: 10px;">' +
+                'Скачать в Excel' +
+            '</button>' +
         '</div>' +
-        '<div id="table-container">' +
+
+    '</div>' +
+
+    '<div id="table-container">' +
         '<table id="banktable" class="banktable">' +
-        '<thead>' +
-        '<tr>' +
-        '<th>Дата</th>' +
-        '<th>Сумма</th>' +
-        '<th>За</th>' +
-        '<th>Контрагент</th>' +
-        '<th>За что</th>' +
-        '<th>Назначение платежа</th>' +
-        '</tr>' +
-        '</thead>' +
-        '<tbody></tbody>' +
+            '<thead>' +
+                '<tr>' +
+                    '<th>Дата</th>' +
+                    '<th>Сумма</th>' +
+                    '<th>За</th>' +
+                    '<th>Контрагент</th>' +
+                    '<th>За что</th>' +
+                    '<th>Назначение платежа</th>' +
+                '</tr>' +
+            '</thead>' +
+            '<tbody></tbody>' +
         '</table>' +
-        '</div>';
+    '</div>';
+
 
     // Добавление обработчиков событий для фильтров
     document.querySelector("#fromDate").addEventListener("change", debouncedGenerateBankTable);

@@ -376,3 +376,108 @@ function copyToClipboard(text) {
     const formatNumber = (num) => {
       return num.toFixed(2).replace(/\.00$/, "")*1;
     };
+
+async function exportTableToExcel(fileName) {
+    const mainContainer = document.getElementById("maincontainer");
+
+    if (!mainContainer) {
+        showMessage("Контейнер с id='maincontainer' не найден");
+        return;
+    }
+
+    // Ищем таблицу с id "banktable", "paytable" или "main"
+const tables = Array.from(mainContainer.querySelectorAll("#banktable, #paytable, .main, #main"))
+    .filter(table => window.getComputedStyle(table).display !== 'none');
+
+const table = tables.length > 0 ? tables[0] : null;
+
+    if (!table) {
+        showMessage("Таблица не найдена");
+        return;
+    }
+
+    function filterRows(rows) {
+        return rows.filter(row => {
+            const rowClasses = row.className.split(' ');
+            return !rowClasses.includes('clone') && !rowClasses.includes('itog');
+        });
+    }
+
+    let rowsData = [];
+    const thead = table.querySelector('thead');
+    const tbody = table.querySelector('tbody');
+
+    if (thead) {
+        const headers = Array.from(thead.querySelectorAll('th')).map(th => th.innerText.trim());
+        rowsData.push(headers);
+    }
+
+    if (tbody) {
+        const rows = Array.from(tbody.querySelectorAll('tr'));
+        const filteredRows = filterRows(rows);
+        filteredRows.forEach(row => {
+            const cells = Array.from(row.querySelectorAll('td')).map(td => td.innerText);
+            rowsData.push(cells);
+        });
+    }
+
+    if (rowsData.length <= 1) {
+        showMessage("Нет данных");
+        return;
+    }
+
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet("Sheet1");
+
+    // Функция для определения типа данных
+    function parseCellValue(value) {
+        let trimmedValue = value.replace(/\u00A0/g, ' ').trim(); // Заменяем &nbsp; на обычный пробел
+
+        // Если значение "0,00" или "0.00", делаем ячейку пустой
+        if (trimmedValue === "0,00" || trimmedValue === "0.00") {
+            return null;
+        }
+
+        // Регулярное выражение для чисел (учитывает пробелы, запятые, точки)
+        const numberPattern = /^[+-]?\d{1,3}([ \u00A0\d]*)?([.,]\d+)?$/;
+
+        if (numberPattern.test(trimmedValue) && !trimmedValue.startsWith('0') && trimmedValue !== "0") {
+            // Убираем все пробелы (включая неразрывные) и заменяем запятую на точку
+            let normalizedNumber = trimmedValue.replace(/[\s\u00A0]+/g, '').replace(',', '.');
+
+            let parsedNumber = parseFloat(normalizedNumber);
+
+            if (!isNaN(parsedNumber)) {
+                return parsedNumber;
+            }
+        }
+
+        // Проверяем, является ли значение датой
+        const date = new Date(trimmedValue);
+        if (!isNaN(date.getTime())) {
+            return date;
+        }
+
+        return value;
+    }
+
+    rowsData.forEach(row => {
+        const excelRow = row.map(cell => parseCellValue(cell));
+        ws.addRow(excelRow);
+    });
+
+    const buffer = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    if (!fileName) fileName="table_data.xlsx";
+    link.download = fileName;
+    link.click();
+
+    showMessage(`Файл ${fileName} сохранен в папку Загрузки`);
+}
+
+
+
+
+

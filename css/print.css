@@ -72,7 +72,9 @@
 
     body.fullscreen #maincontainer, 
     body.fullscreen #maincontainer *, 
-    body.fullscreen #header, 
+    body.fullscreen #tableWrapper,
+    body.fullscreen #tableWrapper *,
+    body.fullscreen #header,
     body.fullscreen #header * {
         visibility: visible;
     }

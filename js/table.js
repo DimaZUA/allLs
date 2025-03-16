@@ -537,7 +537,7 @@ function handlePeriodChange(event) {
 
 
 function initTable() {
-  document.getElementById('maincontainer').innerHTML = 
+document.getElementById('maincontainer').innerHTML = 
     '<div id="org" align="right"></div>' +
     '<div id="filter-container">' +
         '<!-- Первая колонка: выбор периода и отображения -->' +
@@ -548,15 +548,14 @@ function initTable() {
                     '<!-- Эти опции обновляются в setDefaultDates() -->' +
                 '</select>' +
             '</label>' +
-'<label id="start-label" style="display: none;">' +
-    'С:' +
-    '<input type="month" id="start-date" >' +
-'</label>' +
-'<label id="end-label" style="display: none;">' +
-    'По:' +
-    '<input type="month" id="end-date">' +
-'</label>'+
-
+            '<label id="start-label" style="display: none;">' +
+                'С:' +
+                '<input type="month" id="start-date" >' +
+            '</label>' +
+            '<label id="end-label" style="display: none;">' +
+                'По:' +
+                '<input type="month" id="end-date">' +
+            '</label>' +
         '</div>' +
         
         '<!-- Вторая колонка: даты -->' +
@@ -582,11 +581,17 @@ function initTable() {
                     '<option value="debtors">Должники</option>' +
                 '</select>' +
             '</label>' +
+            
+            <!-- Кнопка для скачивания таблицы в Excel с иконкой Excel -->
+            '<button id="xls" onclick="exportTableToExcel1()" style="background-color: #4CAF50; color: white; padding: 10px 20px; font-size: 16px; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center;">' +
+                '<img src="https://upload.wikimedia.org/wikipedia/commons/8/8d/Microsoft_Excel_Logo_%282013-2019%29.svg" alt="Excel Icon" style="width: 20px; height: 20px; margin-right: 10px;">' +
+                'Скачать в Excel' +
+            '</button>' +
         '</div>' +
-
     '</div>' +
     '<div id="table-container"></div>' +
     '<div id="datetime"></div>';
+
 
   setDefaultDates();
   handlePeriodChange();
@@ -604,6 +609,9 @@ function initTable() {
   generateTable();
 }
 
+function exportTableToExcel1(){
+exportTableToExcel()
+}
 
 function doRed() {
   var table = document.querySelector('.main');
