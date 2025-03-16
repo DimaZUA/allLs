@@ -377,7 +377,7 @@ function copyToClipboard(text) {
       return num.toFixed(2).replace(/\.00$/, "")*1;
     };
 
-async function exportTableToExcel(fileName) {
+async function exportTableToExcel() {
     const mainContainer = document.getElementById("maincontainer");
 
     if (!mainContainer) {
@@ -470,14 +470,82 @@ const table = tables.length > 0 ? tables[0] : null;
     const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    if (!fileName) fileName="table_data.xlsx";
+
+// Получаем код дома и код действия
+const homeCode = getParam("homeCode"); // возвращает код дома
+const actionCode = getParam("actionCode"); // возвращает код действия
+
+// Находим дом с нужным кодом
+const home = homes.find(home => home.code === homeCode);
+    
+    
+    const fileName = generateFileName(home, actionCode);
     link.download = fileName;
     link.click();
 
     showMessage(`Файл ${fileName} сохранен в папку Загрузки`);
+
+
+
+function getMonthYear(actionCode) {
+    let monthYear = "";
+
+    if (actionCode === 'list') {
+        const monthInput = document.getElementById("end-date");
+        const dateValue = monthInput.value; // например, "2023-07"
+        if (dateValue) {
+            const [year, month] = dateValue.split("-");
+            monthYear = `${month.padStart(2, '0')}.${year}`;
+        }
+    } else if (actionCode === 'payments') {
+        const selectMonth = document.getElementById("monthSelect");
+        const selectedOption = selectMonth.value; // например, "2021-7"
+        if (selectedOption) {
+            const [year, month] = selectedOption.split("-");
+            monthYear = `${month.padStart(2, '0')}.${year}`;
+        }
+    } else if (actionCode === 'bank') {
+        const dateInput = document.getElementById("toDate");
+        const dateValue = dateInput.value; // например, "2023-07-15"
+        if (dateValue) {
+            const month = dateValue.split("-")[1]; // Получаем только месяц
+            const year = dateValue.split("-")[0];
+            monthYear = `${month.padStart(2, '0')}.${year}`;
+        }
+    }
+
+    return monthYear;
 }
 
+// Функция для генерации имени файла
+function generateFileName(home, actionCode) {
+    let name = home.name;
 
+    // Проверяем наличие текста в кавычках
+    const match = name.match(/"([^"]+)"/); // ищем текст в кавычках
 
+    if (match) {
+        // Если текст в кавычках есть, берем первые три буквы из него
+        name = match[1].substring(0, 3);
+    } else {
+        // Иначе убираем "ЖК" или "ОСББ" и пробелы в начале
+        name = name.replace(/^(ЖК|ОСББ)\s*/i, '').substring(0, 3);
+    }
 
+    // Добавляем код действия в имя файла
+    let actionSuffix = "";
+    if (actionCode === 'list') {
+        actionSuffix = "_ЛС_";
+    } else if (actionCode === 'payments') {
+        actionSuffix = "_оплаты_";
+    } else if (actionCode === 'bank') {
+        actionSuffix = "_банк_";
+    }
 
+    // Получаем месяц и год в нужном формате
+    const monthYear = getMonthYear(actionCode);
+
+    return `${name}${actionSuffix}${monthYear}.xlsx`; // имя файла с расширением .xlsx
+}
+
+}

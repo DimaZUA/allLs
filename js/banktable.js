@@ -34,7 +34,7 @@ document.getElementById('maincontainer').innerHTML =
         '<!-- Обертка для текстового фильтра и кнопки -->' +
         '<div class="full-span" style="display: flex; align-items: center; gap: 10px;">' +
             '<input type="text" id="textFilter" placeholder="Введите текст для фильтрации" style="flex: 1; min-width: 200px;">' +
-            '<button id="xls" onclick="exportTableToExcel1()" ' +
+            '<button id="xls" onclick="exportTableToExcel()" ' +
                 'style="background-color: #4CAF50; color: white; padding: 10px 20px; font-size: 16px; border: none; cursor: pointer; display: flex; align-items: center;">' +
                 '<img src="https://upload.wikimedia.org/wikipedia/commons/8/8d/Microsoft_Excel_Logo_%282013-2019%29.svg" ' +
                 'alt="Excel Icon" style="width: 20px; height: 20px; margin-right: 10px;">' +
