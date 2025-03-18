@@ -97,37 +97,50 @@ function getFileType(name) {
 function handleFileClick(filePath, event, fileElement) {
     event.stopPropagation();
 
-    // Убираем класс "selected" у всех элементов в боковой панели
     document.querySelectorAll(".sidebar-item").forEach(el => el.classList.remove("selected"));
-
-    // Добавляем классы "selected" и "viewed" для нажатого элемента
     fileElement.classList.add("selected");
     fileElement.classList.add("viewed");
 
-    // Получаем элемент для превью
     const preview = document.getElementById("preview");
+    preview.innerHTML = ""; 
 
-    // Проверяем, если это изображение
+    // Создаем контейнер для кнопки скачивания
+    const topBar = document.createElement("div");
+    topBar.style.display = "flex";
+    topBar.style.justifyContent = "flex-end";
+    topBar.style.padding = "10px";
+
+    // Создаем кнопку скачивания
+    const downloadBtn = document.createElement("a");
+    downloadBtn.href = filePath;
+    downloadBtn.download = filePath.split("/").pop();
+    downloadBtn.textContent = "📥 Скачать файл";
+    downloadBtn.style.padding = "5px 10px";
+    downloadBtn.style.background = "#007bff";
+    downloadBtn.style.color = "white";
+    downloadBtn.style.textDecoration = "none";
+    downloadBtn.style.borderRadius = "5px";
+    downloadBtn.style.cursor = "pointer";
+
+    topBar.appendChild(downloadBtn);
+    preview.appendChild(topBar);
+
     if (fileElement.classList.contains("image")) {
-        preview.innerHTML = `<img src="${filePath}" alt="Превью изображения" style="max-width: 100%; height: auto;">`;
+        preview.innerHTML += `<img src="${filePath}" alt="Превью изображения" style="max-width: 100%; height: auto;">`;
     } 
-    // Проверяем, если это PDF
     else if (fileElement.classList.contains("pdf")) {
-        preview.innerHTML = `<iframe src="${filePath}" width="100%" height="600px" frameborder="0"></iframe>`;
+        preview.innerHTML += `<iframe src="${filePath}" width="100%" height="600px" frameborder="0"></iframe>`;
     } 
-    // Проверяем, если это Excel или Word файл (используем Google Docs Viewer)
     else if (fileElement.classList.contains("excel") || fileElement.classList.contains("word")) {
-        const viewerUrl = `https://docs.google.com/gview?url=${encodeURIComponent(filePath)}&embedded=true`;
-        preview.innerHTML = `<iframe src="${viewerUrl}" width="100%" height="600px" frameborder="0"></iframe>`;
+        const viewerUrl = `https://docs.google.com/gview?url=${encodeURIComponent('https://dimazua.github.io/allLs/' + filePath)}&embedded=true`;
+        preview.innerHTML += `<iframe src="${viewerUrl}" width="100%" height="600px" frameborder="0"></iframe>`;
     } 
-    // Для всех остальных файлов (например, текстовых) - скачивание
     else {
-        const link = document.createElement("a");
-        link.href = filePath;
-        link.download = filePath.split("/").pop();  // Заголовок для скачивания файла (использует имя файла)
-        link.click();  // Имитируем клик по ссылке для скачивания
+        downloadBtn.click(); 
     }
 }
+
+
 
 
 
