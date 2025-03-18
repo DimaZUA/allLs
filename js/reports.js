@@ -123,10 +123,10 @@ function handleFileClick(filePath, event, fileElement) {
     downloadBtn.style.cursor = "pointer";
     topBar.appendChild(downloadBtn);
     preview.appendChild(topBar);
+    const baseUrl = window.location.origin + window.location.pathname;
 
     if (fileElement.classList.contains("image")) {
         preview.innerHTML += `<img src="${filePath}" alt="Превью изображения" style="max-width: 100%; height: auto;">`;
-
     } 
     else if (fileElement.classList.contains("pdf")) {
         setTimeout(() => {
@@ -135,7 +135,7 @@ function handleFileClick(filePath, event, fileElement) {
 
     } 
     else if (fileElement.classList.contains("excel") || fileElement.classList.contains("word")) {
-const viewerUrl = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(filePath)}`;
+const viewerUrl = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(baseUrl+filePath)}`;
 preview.innerHTML = `<iframe src="${viewerUrl}" width="100%" height="600px" frameborder="0"></iframe>`;
 ;
 
