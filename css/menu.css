@@ -265,8 +265,8 @@ body {
 }
 
 .xls-icon {
-  width: 40px;  /* Ограничиваем размер иконки */
-  height: 40px;
+  width: 35px;  /* Ограничиваем размер иконки */
+  height: 35px;
 }
 
 /* Стиль для всплывающей подсказки */
@@ -279,7 +279,7 @@ body {
   background-color: rgba(0, 0, 0, 0.7);
   color: white;
   padding: 5px;
-  border-radius: 3px;
+  border-radius: 5px;
   font-size: 16px;
   white-space: nowrap;
   z-index: 10;

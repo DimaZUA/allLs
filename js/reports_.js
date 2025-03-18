@@ -115,12 +115,7 @@ function handleFileClick(filePath, event, fileElement) {
     else if (fileElement.classList.contains("pdf")) {
         preview.innerHTML = `<iframe src="${filePath}" width="100%" height="600px" frameborder="0"></iframe>`;
     } 
-    // Проверяем, если это Excel или Word файл (используем Google Docs Viewer)
-    else if (fileElement.classList.contains("excel") || fileElement.classList.contains("word")) {
-        const viewerUrl = `https://docs.google.com/gview?url=${encodeURIComponent(filePath)}&embedded=true`;
-        preview.innerHTML = `<iframe src="${viewerUrl}" width="100%" height="600px" frameborder="0"></iframe>`;
-    } 
-    // Для всех остальных файлов (например, текстовых) - скачивание
+    // Для всех остальных файлов (Excel, Word и другие) - скачивание
     else {
         const link = document.createElement("a");
         link.href = filePath;

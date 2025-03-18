@@ -29,7 +29,6 @@ tr.grey .descr {
     text-align: left;
     max-width: calc(100vw - 80px)!important;
     position: fixed; /* фиксированное положение */
-    transition: opacity 0.3s ease; /* плавный переход */
     max-height: 80vh;
     overflow-y: auto;
     z-index: 105;
