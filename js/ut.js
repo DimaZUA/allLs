@@ -1,4 +1,17 @@
 ﻿//var host='https://dimazua.github.io/allLs/data/';
+const buttons=`
+<div class="buttons-container">
+  <button onclick="exportTableToExcel('download')" class="xls-button" title="Скачать в Excel">
+    <img src="img/xlsdownload.png" alt="Excel Icon" class="xls-icon">
+  </button>
+  <button onclick="exportTableToExcel('clipboard')" class="xls-button" title="Копировать">
+    <img src="img/copy.svg" alt="Copy Icon" class="xls-icon">
+  </button>
+  <button onclick="captureAndCopy()" class="xls-button" title="Скриншот таблицы">
+    <img src="img/screenshot.png" alt="Screenshot Icon" class="xls-icon">
+  </button>
+</div>
+`;
 host = 'data/';
 var monthNames = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь","янв", "фев", "мар", "апр", "май", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"];
 function initPosters() {
@@ -377,138 +390,55 @@ function copyToClipboard(text) {
       return num.toFixed(2).replace(/\.00$/, "")*1;
     };
 
-async function exportTableToExcel() {
-    const mainContainer = document.getElementById("maincontainer");
 
-    if (!mainContainer) {
-        showMessage("Контейнер с id='maincontainer' не найден");
-        return;
+// Функция для извлечения скрытого текста из <div class="descr">
+function extractHiddenText(td) {
+    const hiddenDiv = td.querySelector('.descr');
+    if (!hiddenDiv) return '';
+
+    let text = '';
+
+    // Если внутри есть просто текст
+    if (hiddenDiv.textContent.trim()) {
+        text += hiddenDiv.textContent.trim();
     }
 
-    // Ищем таблицу с id "banktable", "paytable" или "main"
-const tables = Array.from(mainContainer.querySelectorAll("#banktable, #paytable, .main, #main"))
-    .filter(table => window.getComputedStyle(table).display !== 'none');
-
-const table = tables.length > 0 ? tables[0] : null;
-
-    if (!table) {
-        showMessage("Таблица не найдена");
-        return;
+    // Если внутри есть таблица
+    const subTable = hiddenDiv.querySelector('.subtable');
+    if (subTable) {
+        const rows = Array.from(subTable.querySelectorAll('tr'));
+        text += '\n\n' + rows.map(row => {
+            const cols = Array.from(row.querySelectorAll('th, td')).map(cell => cell.innerText.trim());
+            return cols.join(' | ');
+        }).join('\n');
     }
 
-    function filterRows(rows) {
-        return rows.filter(row => {
-            const rowClasses = row.className.split(' ');
-            return !rowClasses.includes('clone') && !rowClasses.includes('itog');
-        });
-    }
+    return text.trim();
+}
 
-    let rowsData = [];
-    const thead = table.querySelector('thead');
-    const tbody = table.querySelector('tbody');
-
-    if (thead) {
-        const headers = Array.from(thead.querySelectorAll('th')).map(th => th.innerText.trim());
-        rowsData.push(headers);
-    }
-
-    if (tbody) {
-        const rows = Array.from(tbody.querySelectorAll('tr'));
-        const filteredRows = filterRows(rows);
-        filteredRows.forEach(row => {
-            const cells = Array.from(row.querySelectorAll('td')).map(td => td.innerText);
-            rowsData.push(cells);
-        });
-    }
-
-    if (rowsData.length <= 1) {
-        showMessage("Нет данных");
-        return;
-    }
-
-    const wb = new ExcelJS.Workbook();
-    const ws = wb.addWorksheet("Sheet1");
-
-    // Функция для определения типа данных
-    function parseCellValue(value) {
-        let trimmedValue = value.replace(/\u00A0/g, ' ').trim(); // Заменяем &nbsp; на обычный пробел
-
-        // Если значение "0,00" или "0.00", делаем ячейку пустой
-        if (trimmedValue === "0,00" || trimmedValue === "0.00") {
-            return null;
-        }
-
-        // Регулярное выражение для чисел (учитывает пробелы, запятые, точки)
-        const numberPattern = /^[+-]?\d{1,3}([ \u00A0\d]*)?([.,]\d+)?$/;
-
-        if (numberPattern.test(trimmedValue) && !trimmedValue.startsWith('0') && trimmedValue !== "0") {
-            // Убираем все пробелы (включая неразрывные) и заменяем запятую на точку
-            let normalizedNumber = trimmedValue.replace(/[\s\u00A0]+/g, '').replace(',', '.');
-
-            let parsedNumber = parseFloat(normalizedNumber);
-
-            if (!isNaN(parsedNumber)) {
-                return parsedNumber;
-            }
-        }
-
-        // Проверяем, является ли значение датой
-        const date = new Date(trimmedValue);
-        if (!isNaN(date.getTime())) {
-            return date;
-        }
-
-        return value;
-    }
-
-    rowsData.forEach(row => {
-        const excelRow = row.map(cell => parseCellValue(cell));
-        ws.addRow(excelRow);
-    });
-
-    const buffer = await wb.xlsx.writeBuffer();
-    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-
-// Получаем код дома и код действия
-const homeCode = getParam("homeCode"); // возвращает код дома
-const actionCode = getParam("actionCode"); // возвращает код действия
-
-// Находим дом с нужным кодом
-const home = homes.find(home => home.code === homeCode);
-    
-    
-    const fileName = generateFileName(home, actionCode);
-    link.download = fileName;
-    link.click();
-
-    showMessage(`Файл ${fileName} сохранен в папку Загрузки`);
-
-
-
+// Функция для получения месяца и года в формате ММ.ГГГГ
 function getMonthYear(actionCode) {
     let monthYear = "";
 
     if (actionCode === 'list') {
         const monthInput = document.getElementById("end-date");
-        const dateValue = monthInput.value; // например, "2023-07"
+        const dateValue = monthInput.value;
         if (dateValue) {
             const [year, month] = dateValue.split("-");
             monthYear = `${month.padStart(2, '0')}.${year}`;
         }
     } else if (actionCode === 'payments') {
         const selectMonth = document.getElementById("monthSelect");
-        const selectedOption = selectMonth.value; // например, "2021-7"
+        const selectedOption = selectMonth.value;
         if (selectedOption) {
             const [year, month] = selectedOption.split("-");
             monthYear = `${month.padStart(2, '0')}.${year}`;
         }
     } else if (actionCode === 'bank') {
         const dateInput = document.getElementById("toDate");
-        const dateValue = dateInput.value; // например, "2023-07-15"
+        const dateValue = dateInput.value;
         if (dateValue) {
-            const month = dateValue.split("-")[1]; // Получаем только месяц
+            const month = dateValue.split("-")[1];
             const year = dateValue.split("-")[0];
             monthYear = `${month.padStart(2, '0')}.${year}`;
         }
@@ -522,7 +452,7 @@ function generateFileName(home, actionCode) {
     let name = home.name;
 
     // Проверяем наличие текста в кавычках
-    const match = name.match(/"([^"]+)"/); // ищем текст в кавычках
+    const match = name.match(/"([^"]+)"/);
 
     if (match) {
         // Если текст в кавычках есть, берем первые три буквы из него
@@ -545,7 +475,417 @@ function generateFileName(home, actionCode) {
     // Получаем месяц и год в нужном формате
     const monthYear = getMonthYear(actionCode);
 
-    return `${name}${actionSuffix}${monthYear}.xlsx`; // имя файла с расширением .xlsx
+    return `${name}${actionSuffix}${monthYear}.xlsx`;
 }
 
+function isElementVisible(el) {
+    while (el) {
+        const style = window.getComputedStyle(el);
+        if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') {
+            return false;
+        }
+        el = el.parentElement;
+    }
+    return true;
 }
+
+
+
+function parseCellValue(value) {
+    let trimmedValue = value.replace(/\u00A0/g, ' ').trim();
+
+    // Списки месяцев
+    const monthNamesUA = ["Січень", "Лютий", "Березень", "Квітень", "Травень", "Червень",
+                          "Липень", "Серпень", "Вересень", "Жовтень", "Листопад", "Грудень"];
+    
+    const monthNamesRU = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
+                          "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"];
+    
+    const monthShortRU = ["Янв", "Фев", "Мар", "Апр", "Май", "Июн",
+                          "Июл", "Авг", "Сен", "Окт", "Ноя", "Дек"];
+
+    // Проверка на формат "Месяц Год"
+    const monthYearPattern = /^([А-ЯІЇЄа-яієї]+)\s(\d{4})$/iu;
+    let match = trimmedValue.match(monthYearPattern);
+
+    if (match) {
+        let monthName = match[1].toLowerCase(); // Делаем регистр независимым
+        let year = parseInt(match[2], 10);
+
+        // Ищем месяц в списках
+        let monthIndex = monthNamesUA.findIndex(m => m.toLowerCase() === monthName);
+        if (monthIndex === -1) {
+            monthIndex = monthNamesRU.findIndex(m => m.toLowerCase() === monthName);
+        }
+        if (monthIndex === -1) {
+            monthIndex = monthShortRU.findIndex(m => m.toLowerCase() === monthName);
+        }
+
+        if (monthIndex !== -1) {
+            // Создаём дату в UTC
+            return new Date(Date.UTC(year, monthIndex, 1));
+        }
+    }
+
+    // Если это "0,00" или "0.00", возвращаем null
+    if (trimmedValue === "0,00" || trimmedValue === "0.00"  || trimmedValue === "0"  || trimmedValue === "0.0" || trimmedValue === "0,0") {
+        return 0;
+    }
+
+    // Проверка на числа
+    const numberPattern = /^[+-]?\d{1,3}([ \u00A0\d]*)?([.,]\d+)?$/;
+
+    if (numberPattern.test(trimmedValue) && !trimmedValue.startsWith('0') && trimmedValue !== "0") {
+        let normalizedNumber = trimmedValue.replace(/[\s\u00A0]+/g, '').replace(',', '.');
+        let parsedNumber = parseFloat(normalizedNumber);
+        if (!isNaN(parsedNumber)) return parsedNumber;
+    }
+
+    // Проверка на дату в формате DD.MM.YYYY
+const datePattern = /^(\d{1,2})\.(\d{1,2})\.(\d{2,4})$/;
+match = trimmedValue.match(datePattern);
+
+if (match) {
+    let day = parseInt(match[1], 10);
+    let month = parseInt(match[2], 10) - 1;  // Месяцы начинаются с 0 (январь = 0)
+    let year = parseInt(match[3], 10);
+
+    // Если год двухзначный, добавляем 2000
+    if (year < 100) {
+        year += 2000;
+    }
+
+    // Проверяем, что день существует в месяце (например, 31 февраля — это ошибка)
+    let date = new Date(year, month, day);
+
+    // Если дата невалидна (например, 31 февраля), создаём некорректную дату
+    if (date.getDate() === day && date.getMonth() === month && date.getFullYear() === year) {
+        // Преобразуем в UTC
+        return new Date(Date.UTC(year, month, day));
+    }
+}
+    // Проверка на дату с помощью конструктора Date (например, для форматов MM/DD/YYYY)
+    const date = new Date(trimmedValue);
+
+    if (!isNaN(date.getTime())) {
+        // Преобразуем обычную дату в UTC и возвращаем
+        return new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    }
+
+    // Если это не дата и не число, возвращаем исходное значение
+    return value;
+}
+
+
+
+
+
+function handleHeaders(tableCopy, ws) {
+    const thead = tableCopy.querySelector('thead');
+    if (thead) {
+        const headerRows = Array.from(thead.querySelectorAll('tr'));
+
+        // Определяем, с какой строки начинать новый заголовок
+        let startRowIndex = ws.rowCount + 1; 
+
+        // Добавляем пустую строку перед новым заголовком, если это не первая таблица
+        if (ws.rowCount > 0) {
+            ws.addRow([]);
+            startRowIndex++;
+        }
+
+        // Массив для отслеживания занятых ячеек по колонкам
+        const occupiedCells = [];
+
+        headerRows.forEach((row, rowIndex) => {
+            const cells = Array.from(row.querySelectorAll('td, th'));
+
+            let currentColIndex = 0; // Индекс текущей колонки
+
+            cells.forEach((cell) => {
+                // Пропускаем занятые ячейки
+                while (occupiedCells[rowIndex] && occupiedCells[rowIndex][currentColIndex]) {
+                    currentColIndex++;
+                }
+
+                const colspan = parseInt(cell.getAttribute('colspan')) || 1;
+                const rowspan = parseInt(cell.getAttribute('rowspan')) || 1;
+
+                // Записываем значение в Excel
+                const cellValue = cell.innerText.trim();
+                const excelCell = ws.getCell(startRowIndex + rowIndex, currentColIndex + 1);
+                excelCell.value = cellValue;
+
+                // Отмечаем занятые ячейки
+                for (let i = 0; i < colspan; i++) {
+                    if (!occupiedCells[rowIndex]) {
+                        occupiedCells[rowIndex] = [];
+                    }
+                    occupiedCells[rowIndex][currentColIndex + i] = true;
+                }
+
+                if (rowspan > 1) {
+                    for (let i = 1; i < rowspan; i++) {
+                        if (!occupiedCells[rowIndex + i]) {
+                            occupiedCells[rowIndex + i] = [];
+                        }
+                        occupiedCells[rowIndex + i][currentColIndex] = true;
+                    }
+                }
+
+                // Объединяем ячейки, если есть colspan и rowspan
+                if (colspan > 1) {
+                    ws.mergeCells(startRowIndex + rowIndex, currentColIndex + 1, startRowIndex + rowIndex, currentColIndex + colspan);
+                }
+                if (rowspan > 1) {
+                    ws.mergeCells(startRowIndex + rowIndex, currentColIndex + 1, startRowIndex + rowIndex + rowspan - 1, currentColIndex + 1);
+                }
+
+                // Двигаемся к следующей колонке
+                currentColIndex++;
+            });
+        });
+    }
+}
+
+
+async function exportTableToExcel(action = 'download') {
+    const mainContainer = document.getElementById("maincontainer");
+
+    if (!mainContainer) {
+        showMessage("Контейнер с id='maincontainer' не найден");
+        return;
+    }
+
+    // Ищем все видимые таблицы
+    const tables = Array.from(mainContainer.querySelectorAll("#banktable, #paytable, .main, #main"))
+        .filter(el => {
+            while (el) {
+                const style = window.getComputedStyle(el);
+                if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') {
+                    return false;
+                }
+                el = el.parentElement;
+            }
+            return true;
+        });
+
+    if (tables.length === 0) {
+        showMessage("Нет видимых таблиц");
+        return;
+    }
+
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet("Sheet1");
+
+    // Обрабатываем таблицы
+    tables.forEach((table) => {
+        // Создаем копию таблицы, чтобы не модифицировать оригинальную
+        const tableCopy = table.cloneNode(true);
+
+        // Удаляем все элементы .descr из копии
+        const descrElements = tableCopy.querySelectorAll('.descr');
+        descrElements.forEach(el => el.remove());
+
+        // Обработка заголовков таблицы с учетом colspan и rowspan
+        handleHeaders(tableCopy, ws);
+
+        // Извлекаем данные из строк таблицы
+        handleRows(tableCopy, ws);
+    });
+if (action === 'download') {
+    // Генерация и сохранение файла Excel
+    const buffer = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+
+    // Получаем код дома и код действия
+    const homeCode = getParam("homeCode");
+    const actionCode = getParam("actionCode");
+    const home = homes.find(home => home.code === homeCode);
+
+    const fileName = generateFileName(home, actionCode);
+    link.download = fileName;
+    link.click();
+
+    showMessage(`Файл ${fileName} сохранен в папку Загрузки`);
+}else if (action === 'clipboard') {
+    // Копирование данных в буфер обмена
+    let clipboardData = "";
+
+    // Получаем данные из строк рабочего листа (ws)
+    const rows = ws.getRows(1, ws.rowCount); // Получаем все строки из листа
+
+    rows.forEach(row => {
+        const rowData = [];
+        
+        // Проходим по каждой ячейке в строке
+row.eachCell((cell, colNumber) => {
+    // Проверяем, является ли ячейка объединенной
+    if (cell.isMerged) {
+        // Для объединенных ячеек добавляем пустые значения в остальные ячейки объединенной области
+        if (rowData[colNumber - 1] === undefined) {
+            rowData[colNumber - 1] = parseCellValue1(cell.text);
+        }
+    } else {
+        rowData[colNumber - 1] = parseCellValue1(cell.text || ""); // Добавляем обработанное значение ячейки
+    }
+});
+
+        // Формируем строку для буфера обмена
+        clipboardData += rowData.join("\t") + "\n"; // Разделение ячеек табуляцией
+    });
+
+    try {
+        await navigator.clipboard.writeText(clipboardData);
+        showMessage("Данные скопированы в буфер обмена!");
+    } catch (err) {
+        showMessage("Не удалось скопировать данные в буфер обмена.");
+    }
+}
+}
+
+
+function handleRows(tableCopy, ws) {
+    const tbody = tableCopy.querySelector('tbody');
+
+    if (tbody) {
+        const rows = Array.from(tbody.querySelectorAll('tr')); // Массив строк из tbody
+        let colorIndex = 0; // Индекс для смены цветов
+        const colors = ["FFFF99", "99FF99", "99CCFF", "FF9999", "CC99FF", "FFCC99", "CCCCCC"]; // Набор цветов
+        let rowIndex=0;
+        rows.forEach((row) => {
+            let rowData = []; // Данные текущей строки
+            let nextRowDataArray = []; // Данные всех следующих строк .paysubtable
+
+            // Перебираем все ячейки в строке
+            const cells = Array.from(row.querySelectorAll('td'));
+
+            cells.forEach((cell, cellIndex) => {
+                const paysubtable = cell.querySelector('.paysubtable'); // Находим .paysubtable в ячейке
+
+                if (paysubtable) {
+                    const nestedRows = paysubtable.querySelectorAll('tr');
+
+                    if (nestedRows.length > 0) {
+                        // Добавляем первую строку вложенной таблицы в текущую строку
+                        const firstNestedRow = nestedRows[0];
+                        const firstNestedCells = firstNestedRow.querySelectorAll('td');
+                        rowData.push(firstNestedCells[1].innerText.trim());
+
+                        // Запоминаем индекс столбца, куда вставили значение
+                        const paySubtableColumnIndex = rowData.length - 1;
+
+                        // Обрабатываем все строки кроме первой
+                        nestedRows.forEach((nestedRow, nestedRowIndex) => {
+                            if (nestedRowIndex > 0) {
+                                const nestedCells = nestedRow.querySelectorAll('td');
+                                const nextRowData = Array(rowData.length).fill(""); // Заполняем пустыми ячейками
+                                nextRowData[paySubtableColumnIndex] = nestedCells[1].innerText.trim();
+                                nextRowDataArray.push(nextRowData);
+                            }
+                        });
+                    }
+                } else {
+                    if (cell.closest('.paysubtable') == null) {
+                        rowData.push(cell.innerText.trim());
+                    }
+                }
+            });
+
+            if (rowData.length) {
+                // Обрабатываем основную строку
+                const excelRow = rowData.map(cell => parseCellValue(cell));
+                ws.addRow(excelRow);
+                rowIndex++;
+
+                // Обрабатываем все строки из nextRowDataArray
+                nextRowDataArray.forEach(nextRowData => {
+                    const excelNextRowData = nextRowData.map(cell => parseCellValue(cell));
+                    ws.addRow(excelNextRowData);
+                    rowIndex++;
+                });
+
+            }
+        });
+    }
+}
+
+function parseCellValue1(value) {
+    // Если значение является числом и не равно 0, пропускаем дальнейшую обработку
+    if (typeof value === 'number') {
+        return value.toString().replace('.', ','); // Заменяем точку на запятую для чисел
+    }
+
+    // Проверяем, является ли значение числом (и не 0) для строковых значений
+    if (typeof value === 'string' && /^-?\d+(\.\d+)?$/.test(value)) {
+        return value.replace('.', ','); // Заменяем точку на запятую только для чисел
+    }
+
+    // Проверка, является ли значение валидной датой
+    const trimmedValue = value.trim();
+    const date = new Date(trimmedValue);
+
+    // Проверка на валидную дату
+    if (!isNaN(date.getTime()) && isNaN(parseFloat(trimmedValue))) {
+        const currentYear = new Date().getFullYear();
+        const minYear = 2000;
+        const maxYear = currentYear + 10;
+
+        // Проверяем, что год в пределах от 2000 до текущего года + 10
+        if (date.getUTCFullYear() >= minYear && date.getUTCFullYear() <= maxYear) {
+            // Преобразуем в UTC и форматируем в DD.MM.YYYY
+            const day = String(date.getUTCDate()).padStart(2, '0');  // Делаем день двузначным
+            const month = String(date.getUTCMonth() + 1).padStart(2, '0');  // Месяцы начинаются с 0, поэтому +1
+            const year = date.getUTCFullYear();
+
+            // Возвращаем дату в формате DD.MM.YYYY
+            return `${day}.${month}.${year}`;
+        }
+    }
+
+    // Если не дата или дата вне диапазона, возвращаем исходное значение
+    return value;
+}
+
+function captureAndCopy() {
+    const mainContainer = document.getElementById("maincontainer");
+    const tables = Array.from(mainContainer.querySelectorAll("#banktable, #paytable, .main, #main"))
+      .filter(el => {
+        while (el) {
+          const style = window.getComputedStyle(el);
+          if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') {
+            return false;
+          }
+          el = el.parentElement;
+        }
+        return true;
+      });
+
+    tables.forEach(table => {
+      // Находим родительский элемент таблицы
+      const parentElement = table.parentElement;
+
+      // Создаем скриншот родительского элемента
+      html2canvas(parentElement, {
+        onrendered: function(canvas) {
+          canvas.toBlob(blob => {
+            // Проверяем поддержку Clipboard API
+            if (navigator.clipboard && window.createImageBitmap) {
+              navigator.clipboard.write([new ClipboardItem({
+                'image/png': blob
+              })]).then(() => {
+                showMessage('Скриншот родительского элемента таблицы скопирован в буфер обмена');
+              }).catch(err => {
+                console.error('Ошибка при копировании в буфер обмена', err);
+              });
+            } else {
+              showMessage('Ваш браузер не поддерживает эту функцию');
+            }
+          });
+        }
+      });
+    });
+}
+

@@ -244,6 +244,7 @@ thead.appendChild(servicesRow); // Добавляем строку с услуг
         });
         totalPaymentsForYear += totalPayments;
       }
+      
       // Добавляем ячейку с долгом/переплатой
       var balanceCell = document.createElement('td');
       if (cur) {
@@ -310,17 +311,22 @@ thead.appendChild(servicesRow); // Добавляем строку с услуг
 
       // Итог начислений по единственной услуге
       var totalChargeForOneService = Object.values(totalChargesByService)[0] || 0; // Получаем сумму для единственной услуги
+      totalChargeForOneService += Object.values(totalChargesByService)[1] ?? 0;
+	
       _totalRow.innerHTML += "<td>".concat(totalChargeForOneService.toFixedWithComma(), "</td>");
 
-      // Итог по оплатам
-      var totalPaymentsForOneService = 0;
-      for (var _month2 in paymentData[year]) {
-        var monthlyPayments = paymentData[year][_month2] || [];
-        var monthPaymentsSum = monthlyPayments.reduce(function (sum, payment) {
-          return sum + payment.sum;
-        }, 0);
-        totalPaymentsForOneService += monthPaymentsSum;
-      }
+// Итог по оплатам (без учета текущего месяца текущего года)
+var totalPaymentsForOneService = 0;
+for (var _month2 in paymentData[year]) {
+  if (!(year == currentYear && _month2 == currentMonth + 1)) { // Исключаем только текущий месяц текущего года
+    var monthlyPayments = paymentData[year][_month2] || [];
+    var monthPaymentsSum = monthlyPayments.reduce(function (sum, payment) {
+      return sum + payment.sum;
+    }, 0);
+    totalPaymentsForOneService += monthPaymentsSum;
+  }
+}
+
       _totalRow.innerHTML += "<td>".concat(totalPaymentsForOneService.toFixedWithComma(), "</td>");
 
       // Общий долг/переплата на конец года
@@ -518,6 +524,8 @@ document.getElementById('maincontainer').innerHTML = `
             <tr>
                 <td align="right"><b>Адреса:</b></td>
                 <td class="big" align="left"><u><i><a id="adr">adr</a></i></u><select class="big" id="number"></select></td>
+                <td rowspan="2"> ${buttons}
+                </td>
                 <td rowspan="2"><div id="org" align="right"></div></td>
 
 

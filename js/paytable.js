@@ -178,12 +178,7 @@ document.getElementById('maincontainer').innerHTML =
         '<!-- Обертка для текста и кнопки -->' +
         '<div class="full-span" style="display: flex; justify-content: space-between; align-items: center;">' +
             '<span>Щелчок по заголовку таблицы - отображение/скрытие назначений платежей</span>' +
-            '<button id="xls" onclick="exportTableToExcel()" ' +
-                'style="background-color: #4CAF50; color: white; padding: 10px 20px; font-size: 16px; border: none; cursor: pointer; display: flex; align-items: center;">' +
-                '<img src="https://upload.wikimedia.org/wikipedia/commons/8/8d/Microsoft_Excel_Logo_%282013-2019%29.svg" ' +
-                'alt="Excel Icon" style="width: 20px; height: 20px; margin-right: 10px;">' +
-                'Скачать в Excel' +
-            '</button>' +
+            buttons +
         '</div>' +
 
     '</div>' +

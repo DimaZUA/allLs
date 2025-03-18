@@ -269,27 +269,6 @@ td:after {
     border: 1px solid #ccc;
 }
 
-/* Стили для активной кнопки */
-#filter-container button {
-    background-color: #007BFF;
-    color: white;
-    cursor: pointer;
-    transition: background-color 0.3s ease;
-}
-
-/* Изменение фона и курсора при наведении на активную кнопку */
-#filter-container button:hover {
-    background-color: #0056b3;
-}
-
-/* Стили для кнопки в состоянии disabled */
-#filter-container button:disabled {
-    background-color: #c6c6c6; /* Цвет фона для отключенной кнопки */
-    color: #999; /* Более светлый цвет для текста */
-    cursor: not-allowed; /* Указатель в виде "запрещено" */
-    border-color: #ccc; /* Цвет рамки, можно оставить тот же, чтобы не выделялась */
-}
-
 /* Стили для поля ввода и селектора в состоянии disabled */
 #filter-container select:disabled, 
 #filter-container input:disabled {
