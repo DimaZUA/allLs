@@ -106,23 +106,17 @@ function handleFileClick(filePath, event, fileElement) {
 
     // Создаем контейнер для кнопки скачивания
     const topBar = document.createElement("div");
-    topBar.style.display = "flex";
-    topBar.style.justifyContent = "flex-end";
-    topBar.style.padding = "10px";
+    topBar.classList.add("top-bar");
 
     // Создаем кнопку скачивания
     const downloadBtn = document.createElement("a");
     downloadBtn.href = filePath;
     downloadBtn.download = filePath.split("/").pop();
     downloadBtn.textContent = "📥 Скачать файл";
-    downloadBtn.style.padding = "5px 10px";
-    downloadBtn.style.background = "#007bff";
-    downloadBtn.style.color = "white";
-    downloadBtn.style.textDecoration = "none";
-    downloadBtn.style.borderRadius = "5px";
-    downloadBtn.style.cursor = "pointer";
+    downloadBtn.classList.add("download-btn");
     topBar.appendChild(downloadBtn);
     preview.appendChild(topBar);
+
     const baseUrl = window.location.origin + window.location.pathname;
 
     if (fileElement.classList.contains("image")) {
@@ -132,18 +126,16 @@ function handleFileClick(filePath, event, fileElement) {
         setTimeout(() => {
             preview.innerHTML += `<iframe src="${filePath}" width="100%" height="600px" frameborder="0"></iframe>`;
         }, 100);
-
     } 
     else if (fileElement.classList.contains("excel") || fileElement.classList.contains("word")) {
-const viewerUrl = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(baseUrl+filePath)}`;
-preview.innerHTML = `<iframe src="${viewerUrl}" width="100%" height="600px" frameborder="0"></iframe>`;
-;
-
+        const viewerUrl = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(baseUrl + filePath)}`;
+        preview.innerHTML += `<iframe src="${viewerUrl}" width="100%" height="600px" frameborder="0"></iframe>`;
     } 
     else {
         downloadBtn.click(); 
     }
 }
+
 
 
 

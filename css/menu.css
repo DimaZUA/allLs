@@ -286,3 +286,18 @@ body {
 }
 
 
+/* Стиль для контейнера с кнопкой скачивания */
+.top-bar {
+    display: flex;
+    justify-content: flex-end;
+}
+
+/* Стиль для кнопки скачивания */
+.download-btn {
+    padding: 5px 10px;
+    background: #007bff;
+    color: white;
+    text-decoration: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
