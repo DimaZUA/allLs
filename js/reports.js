@@ -121,24 +121,30 @@ function handleFileClick(filePath, event, fileElement) {
     downloadBtn.style.textDecoration = "none";
     downloadBtn.style.borderRadius = "5px";
     downloadBtn.style.cursor = "pointer";
-
     topBar.appendChild(downloadBtn);
     preview.appendChild(topBar);
 
     if (fileElement.classList.contains("image")) {
         preview.innerHTML += `<img src="${filePath}" alt="Превью изображения" style="max-width: 100%; height: auto;">`;
+
     } 
     else if (fileElement.classList.contains("pdf")) {
-        preview.innerHTML += `<iframe src="${filePath}" width="100%" height="600px" frameborder="0"></iframe>`;
+        setTimeout(() => {
+            preview.innerHTML += `<iframe src="${filePath}" width="100%" height="600px" frameborder="0"></iframe>`;
+        }, 100);
+
     } 
     else if (fileElement.classList.contains("excel") || fileElement.classList.contains("word")) {
-        const viewerUrl = `https://docs.google.com/gview?url=${encodeURIComponent('https://dimazua.github.io/allLs/' + filePath)}&embedded=true`;
-        preview.innerHTML += `<iframe src="${viewerUrl}" width="100%" height="600px" frameborder="0"></iframe>`;
+const viewerUrl = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(filePath)}`;
+preview.innerHTML = `<iframe src="${viewerUrl}" width="100%" height="600px" frameborder="0"></iframe>`;
+;
+
     } 
     else {
         downloadBtn.click(); 
     }
 }
+
 
 
 
