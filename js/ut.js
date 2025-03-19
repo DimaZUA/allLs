@@ -1597,6 +1597,8 @@ function parseCellValue1(value) {
   // Если не дата или дата вне диапазона, возвращаем исходное значение
   return value;
 }
+
+
 function captureAndCopy() {
   var mainContainer = document.getElementById("maincontainer");
   var tables = Array.from(
@@ -1615,11 +1617,39 @@ function captureAndCopy() {
     }
     return true;
   });
-  tables.forEach(function (table) {
-    var parentElement = table.parentElement;
+
+  // Проверяем, есть ли таблицы
+  if (tables.length > 0) {
+    var parentElement = tables[0].parentElement; // Используем первую таблицу
+
+    if (getParam("actionCode") == "accounts") {
+      // Получаем адрес
+      var address = document.getElementById("adr").innerText;
+
+      // Получаем выбранный номер квартиры
+      var selectElement = document.getElementById("number");
+      var apartmentNumber = selectElement.options[selectElement.selectedIndex].text;
+
+      // Получаем ФИО
+      var fio = document.getElementById("fio").innerText;
+
+      // Собираем строку с адресом и ФИО
+      var result = address + "" + apartmentNumber + ", " + fio;
+       //parentElement=parentElement.parentElement.parentElement;
+      // Добавляем текст в начало родительского элемента
+      parentElement.insertAdjacentHTML('afterbegin', '<p class="tmp">' + result + '</p>');
+
+      // Скрываем все label элементы
+      var labels = document.querySelectorAll('label');
+      labels.forEach(function(label) {
+        label.style.display = 'none';  // Делает label невидимыми
+      });
+    }
+
+    // Создаем скриншот таблицы
     html2canvas(parentElement, {
-      onrendered: function onrendered(canvas) {
-        canvas.toBlob(function (blob) {
+      onrendered: function(canvas) {
+        canvas.toBlob(function(blob) {
           if (navigator.clipboard && window.ClipboardItem) {
             navigator.clipboard
               .write([
@@ -1627,12 +1657,10 @@ function captureAndCopy() {
                   "image/png": blob
                 })
               ])
-              .then(function () {
-                return showMessage(
-                  "Скриншот таблицы скопирован в буфер обмена"
-                );
+              .then(function() {
+                return showMessage("Скриншот таблицы скопирован в буфер обмена");
               })
-              ["catch"](function (err) {
+              .catch(function(err) {
                 return console.error("Ошибка при копировании в буфер", err);
               });
           } else {
@@ -1659,5 +1687,25 @@ function captureAndCopy() {
         });
       }
     });
-  });
+
+    setTimeout(function() {
+    // Возвращаем все label элементы обратно видимыми
+    var labels = document.querySelectorAll('label');
+    labels.forEach(function(label) {
+      label.style.display = '';
+    });
+
+    // Удаляем временные элементы с классом "tmp" только после создания скриншота
+
+      var tmpElements = document.querySelectorAll('.tmp');
+      tmpElements.forEach(function(element) {
+        element.remove();
+      });
+    }, 500); // Даем немного времени на создание скриншота
+  }
 }
+
+
+
+
+
