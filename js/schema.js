@@ -74,7 +74,7 @@ function _defineProperty(e, r, t) {
           value: t,
           enumerable: !0,
           configurable: !0,
-          writable: !0
+          writable: !0,
         })
       : (e[r] = t),
     e
@@ -177,7 +177,7 @@ function initSchema() {
     opl: "Платежи",
     nach: "Начисления",
     fio: "ФИО",
-    note: ""
+    note: "",
   };
   var display = "opl";
 
@@ -290,7 +290,7 @@ function initSchema() {
         _objectSpread({}, item),
         {},
         {
-          id: key // Добавляем ключ 'key' как 'id'
+          id: key, // Добавляем ключ 'key' как 'id'
         }
       );
     })
@@ -368,7 +368,7 @@ function initSchema() {
               nach: 0,
               pl: 0,
               ls: 0,
-              kv: 0
+              kv: 0,
             }; // Инициализируем стояк
 
           // Суммируем по каждому ключу
@@ -399,7 +399,7 @@ function initSchema() {
             // Сумма по квартирам
             ls: stack.ls,
             // Сумма по ЛС
-            fio: "" // Для 0-го этажа пустое поле fio
+            fio: "", // Для 0-го этажа пустое поле fio
           }
         );
       });
@@ -420,7 +420,7 @@ function initSchema() {
           pers: stack.pers,
           dolg: stack.dolg,
           opl: stack.opl,
-          nach: stack.nach
+          nach: stack.nach,
         });
       });
     });
@@ -538,25 +538,31 @@ function initSchema() {
     items.forEach(function (item) {
       var itemDiv = document.createElement("div");
       itemDiv.classList.add("floor-item"); // Применяем новый класс для одинаковых размеров квадратов
+      // Создаем элемент для номера квартиры на фоне
+      var kvBackground = document.createElement("span");
+      kvBackground.classList.add("kv-background");
+      kvBackground.textContent = item.kv; // Номер квартиры
+      itemDiv.appendChild(kvBackground);
 
-      // Добавляем класс для fio, если отображение нужно по ФИО
-      if (display === "fio") {
-        itemDiv.classList.add("fio-text"); // Добавляем класс для fio
-      }
-      var value = item[display] || 0; // Получаем значение или 0, если оно отсутствует
+      // Создаем элемент для данных (площадь, оплата, долги и т.д.)
+      var valueSpan = document.createElement("span");
+      valueSpan.classList.add("value-span");
+      var value = item[display] || 0;
 
-      // Если display - это один из "opl", "dolg", "nach", то форматируем с двумя знаками после запятой
       if (["opl", "dolg", "nach"].includes(display)) {
-        value = parseFloat(value).toFixed(2); // Преобразуем в число и округляем до двух знаков после запятой
-
-        // Если значение равно 0, выводим прочерк
+        value = parseFloat(value).toFixed(2);
         if (parseFloat(value) === 0) {
           value = "-";
         }
       }
 
-      // Устанавливаем текстовое содержание
-      itemDiv.textContent = value;
+      valueSpan.textContent = value;
+      itemDiv.appendChild(valueSpan);
+
+      // Добавляем класс для fio, если отображение нужно по ФИО
+      if (display === "fio") {
+        itemDiv.classList.add("fio-text"); // Добавляем класс для fio
+      }
 
       // Добавляем класс, если значение отрицательное
       if (display === "opl" || display === "nach") {
@@ -578,10 +584,6 @@ function initSchema() {
       }
 
       // Используем data-атрибут для хранения полного ФИО
-      //    if (display === 'fio') {
-      //      itemDiv.setAttribute('data-fio', item[display]);
-      //    }
-      //if (display === 'fio') {
       itemDiv.setAttribute(
         "data-fio",
         Object.entries(displayKeysName)
@@ -611,9 +613,6 @@ function initSchema() {
           }) // Убираем пустые строки
           .join("\n") // Используем \n для удобного разбора
       );
-
-      //}
-
       // Добавляем элемент в контейнер
       floorItemsContainer.appendChild(itemDiv);
     });
