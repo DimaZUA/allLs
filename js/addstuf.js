@@ -205,8 +205,20 @@ function handleHeaderClick(event) {
   }
 }
 function addStuff(accountId) {
-  var accountData = nach[accountId]; // Данные для указанного accountId
+  var accountData = nach[accountId] || {}; // Данные для указанного accountId
   var paymentData = oplat[accountId] || {}; // Данные оплат для указанного accountId
+
+  for (const paymentYear in paymentData) {
+        if (!accountData[paymentYear]) {
+            accountData[paymentYear] = {};
+        }
+        for (const paymentMonth in paymentData[paymentYear]) {
+            if (!accountData[paymentYear][paymentMonth]) {
+                accountData[paymentYear][paymentMonth] = { 1: 0 };
+            }
+        }
+    }  
+  
   var container = document.getElementById("din"); // Контейнер для таблицы
   container.innerHTML = ""; // Очищаем контейнер перед добавлением новой таблицы
   document.getElementById("fio").textContent = ls[accountId].fio;
@@ -605,12 +617,13 @@ function addStuff(accountId) {
       )
       .concat(dt, " (")
       .concat(timeAgo(dt), "\u0442\u043E\u043C\u0443.)\n        </div>");
+  initPosters();
+  setParam("kv", ls[accountId].kv);
   lastRow.scrollIntoView({
     behavior: "smooth",
     block: "end"
   });
-  initPosters();
-  setParam("kv", ls[accountId].kv);
+
 }
 function createPaymentCell(row, monthlyPayments, accountId) {
   var paymentCell = document.createElement("td");
