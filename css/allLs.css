@@ -202,6 +202,11 @@ td:after {
     text-align: center;
 }
 
+/* Выровнять ячейки второго столбца по левому краю, за исключением строк с классом 'itog' */
+#table-container table.main tr:not(.itog) td:nth-child(2) {
+    text-align: left;
+}
+
 /* Для заголовков оставляем стандартное выравнивание */
 #table-container table.main th {
     background-color: #eee;

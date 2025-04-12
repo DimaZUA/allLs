@@ -284,7 +284,7 @@ function generateTable() {
 
   // Создание заголовка
   var headerRow =
-    '<tr><th onclick="sortTable(this)">Квартира</th><th onclick="sortTable(this)">Дебет на начало</th>';
+    '<tr><th onclick="sortTable(this)">Квартира</th><th onclick="sortTable(this)">ФИО</th><th onclick="sortTable(this)">Дебет на начало</th>';
   if (displayMode === "summarized") {
     Array.from(servicesWithCharges).forEach(function (serviceId) {
       headerRow += '<th onclick="sortTable(this)">'.concat(
@@ -322,6 +322,7 @@ function generateTable() {
     totalStartDebt += debitStart;
     var row = document.createElement("tr");
     row.appendChild(generateLsCell(_accountId));
+    row.innerHTML += "<td>".concat(ls[_accountId].fio, "</td>");
     row.innerHTML += "<td>".concat(debitStart.toFixedWithComma(), "</td>");
     if (displayMode === "summarized") {
       var chargesByService = {};
@@ -505,7 +506,7 @@ function generateTable() {
   }
   var footerRow = document.createElement("tr");
   footerRow.classList.add("itog");
-  footerRow.innerHTML = "<td>\u0418\u0442\u043E\u0433\u043E</td><td>".concat(
+  footerRow.innerHTML = "<td colspan=2>\u0418\u0442\u043E\u0433\u043E</td><td>".concat(
     totalStartDebt.toFixedWithComma(),
     "</td>"
   );
@@ -646,15 +647,24 @@ function sortTable(header) {
   header.classList.add(isAsc ? "sorted-desc" : "sorted-asc");
 
   // Сортируем строки
-  rows.sort(function (rowA, rowB) {
+rows.sort(function (rowA, rowB) {
     var cellA =
       rowA.cells[index].getAttribute("v") || rowA.cells[index].textContent;
     var cellB =
       rowB.cells[index].getAttribute("v") || rowB.cells[index].textContent;
-    var valA = parseFloat(cellA.replace(/\s/g, "").replace(",", ".")) || 0;
-    var valB = parseFloat(cellB.replace(/\s/g, "").replace(",", ".")) || 0;
+
+    // Преобразуем строки в числа, если возможно
+    var valA = parseFloat(cellA.replace(/\s/g, "").replace(",", "."));
+    var valB = parseFloat(cellB.replace(/\s/g, "").replace(",", "."));
+
+    // Если значение не является числом, то оно будет равно NaN
+    // В таком случае, используем сам текст
+    if (isNaN(valA)) valA = cellA;
+    if (isNaN(valB)) valB = cellB;
+
+    // Сортировка с учетом числовых значений или текста
     return isAsc ? (valA < valB ? 1 : -1) : valA > valB ? 1 : -1;
-  });
+});
 
   // Добавляем отсортированные строки обратно в tbody
   rows.forEach(function (row) {
