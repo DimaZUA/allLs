@@ -1629,20 +1629,8 @@ function captureAndCopy() {
 
   console.log("Найдена основная таблица", mainTable);
 
-  // Настройка таблицы
-  mainTable.style.borderCollapse = "collapse";
-  mainTable.style.borderSpacing = "0";
-
-  // Применяем реальные границы
-  mainTable.querySelectorAll("td").forEach((td, index) => {
-    if (!td.querySelector("table")) {
-      td.style.border = "1px solid black";  // Рисуем границу
-      td.style.padding = "4px";  // Для корректного отображения
-      console.log(`TD[${index}]: реальная граница установлена`);
-    } else {
-      console.log(`TD[${index}]: содержит вложенную таблицу, пропущено`);
-    }
-  });
+  // Добавляем стили непосредственно перед рендером
+  applyBorders(mainTable);
 
   if (getParam("actionCode") == "accounts") {
     var address = document.getElementById("adr")?.innerText || "";
@@ -1692,6 +1680,24 @@ function captureAndCopy() {
     }
   });
 
+  function applyBorders(table) {
+    // Устанавливаем стили для таблицы
+    table.style.borderCollapse = "collapse";
+    table.style.borderSpacing = "0";
+
+    // Устанавливаем границы для всех ячеек, включая ячейки с вложенными таблицами
+    table.querySelectorAll("td").forEach((td, index) => {
+      td.style.border = "2px solid black";  // Границы для всех ячеек
+      td.style.padding = "4px";  // Для корректного отображения
+      console.log(`TD[${index}]: граница установлена`);
+
+      // Пропускаем установку границ для вложенных таблиц
+      if (td.querySelector("table")) {
+        console.log(`TD[${index}]: содержит вложенную таблицу, граница не устанавливается для вложенной таблицы`);
+      }
+    });
+  }
+
   function fallbackDownload(canvas) {
     var link = document.createElement("a");
     link.download = "screenshot.png";
@@ -1700,6 +1706,7 @@ function captureAndCopy() {
     showMessage("Скриншот сохранён как файл (буфер обмена недоступен)");
   }
 }
+
 
 
 
