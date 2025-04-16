@@ -1626,6 +1626,28 @@ function captureAndCopy() {
 
   var parentElement = tables[0].parentElement;
 
+  // Добавим жёсткие границы ТОЛЬКО для основной таблицы #main
+  var mainTable = parentElement.querySelector("table#main");
+  if (mainTable) {
+    mainTable.style.border = "1px solid black";
+    mainTable.style.borderCollapse = "collapse";
+
+    mainTable.querySelectorAll("td").forEach(function (td) {
+      if (!td.querySelector("table")) {
+        td.style.border = "1px solid black";
+      }
+    });
+
+    // Удалим границы у вложенных таблиц и их ячеек
+    mainTable.querySelectorAll("table").forEach(function (nestedTable) {
+      nestedTable.style.border = "none";
+      nestedTable.style.borderCollapse = "separate";
+      nestedTable.querySelectorAll("td").forEach(function (td) {
+        td.style.border = "none";
+      });
+    });
+  }
+
   if (getParam("actionCode") == "accounts") {
     var address = document.getElementById("adr")?.innerText || "";
     var selectElement = document.getElementById("number");
@@ -1682,6 +1704,7 @@ function captureAndCopy() {
     showMessage("Скриншот сохранён как файл (буфер обмена недоступен)");
   }
 }
+
 
 
 
