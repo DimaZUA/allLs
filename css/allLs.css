@@ -152,9 +152,6 @@ table#main {
 	margin-right: auto;
 }
 
-td:after {
-	content: attr(v);
-}
 
 
 

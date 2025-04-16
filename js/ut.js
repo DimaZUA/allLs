@@ -1640,43 +1640,13 @@ function captureAndCopy() {
     });
   }
 
-
-
-  // Очистка от атрибутов 'v' и скрытых элементов перед рендерингом
-  document.querySelectorAll('*').forEach(function (element) {
-    if (element.hasAttribute('v')) {
-      element.removeAttribute('v');
-    }
-    // Убираем любые другие скрытые элементы
-    if (element.style.display === 'none' || element.style.visibility === 'hidden') {
-      element.style.display = '';
-      element.style.visibility = '';
-    }
-  });
-
-  // Определяем браузер
-  var isFirefox = navigator.userAgent.toLowerCase().includes("firefox");
-  var supportsClipboard = navigator.clipboard && window.ClipboardItem;
-  console.log("isFirefox:", isFirefox);
-  console.log("Clipboard API доступен:", supportsClipboard);
-
-  // Удаляем стили для старых браузеров
-  if (!supportsClipboard) {
-    console.log("Удаляем стили для старых браузеров");
-    document.querySelectorAll('*').forEach(function (element) {
-      var style = window.getComputedStyle(element);
-      if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') {
-        element.style.display = '';
-        element.style.visibility = '';
-        element.style.opacity = '';
-      }
-    });
-  }
-
-  // Рендеринг скриншота с помощью html2canvas
   html2canvas(parentElement, {
     onrendered: function (canvas) {
       console.log("html2canvas успешно отрендерил элемент");
+      var isFirefox = navigator.userAgent.toLowerCase().includes("firefox");
+      var supportsClipboard = navigator.clipboard && window.ClipboardItem;
+      console.log("isFirefox:", isFirefox);
+      console.log("Clipboard API доступен:", supportsClipboard);
 
       if (supportsClipboard) {
         canvas.toBlob(function (blob) {
@@ -1695,7 +1665,6 @@ function captureAndCopy() {
       }
 
       setTimeout(function () {
-        // Восстанавливаем скрытые элементы и временные элементы
         document.querySelectorAll("label").forEach((label) => {
           label.style.display = "";
         });
@@ -1713,9 +1682,6 @@ function captureAndCopy() {
     showMessage("Скриншот сохранён как файл (буфер обмена недоступен)");
   }
 }
-
-
-
 
 
 
