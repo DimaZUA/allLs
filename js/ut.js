@@ -1601,10 +1601,6 @@ function parseCellValue1(value) {
 
 function captureAndCopy() {
   console.log("Начинаем выполнение captureAndCopy");
-
-  // Лог браузера
-  console.log("User-Agent:", navigator.userAgent);
-
   var mainContainer = document.getElementById("maincontainer");
   var tables = Array.from(
     mainContainer.querySelectorAll("#banktable, #paytable, .main, #main")
@@ -1629,6 +1625,24 @@ function captureAndCopy() {
   }
 
   var parentElement = tables[0].parentElement;
+  var mainTable = tables[0];
+
+  console.log("Найдена основная таблица", mainTable);
+
+  // Настройка таблицы
+  mainTable.style.borderCollapse = "collapse";
+  mainTable.style.borderSpacing = "0";
+
+  // Применяем реальные границы
+  mainTable.querySelectorAll("td").forEach((td, index) => {
+    if (!td.querySelector("table")) {
+      td.style.border = "1px solid black";  // Рисуем границу
+      td.style.padding = "4px";  // Для корректного отображения
+      console.log(`TD[${index}]: реальная граница установлена`);
+    } else {
+      console.log(`TD[${index}]: содержит вложенную таблицу, пропущено`);
+    }
+  });
 
   if (getParam("actionCode") == "accounts") {
     var address = document.getElementById("adr")?.innerText || "";
@@ -1644,89 +1658,39 @@ function captureAndCopy() {
     });
   }
 
-  // === ДОБАВЛЯЕМ ЖЁСТКИЕ РАМКИ С ЛОГАМИ ===
-  var mainTable = parentElement.querySelector("table#main");
-  if (mainTable) {
-    console.log("Найдена основная таблица #main");
+  html2canvas(parentElement, {
+    onrendered: function (canvas) {
+      console.log("html2canvas успешно отрендерил элемент");
+      var isFirefox = navigator.userAgent.toLowerCase().includes("firefox");
+      var supportsClipboard = navigator.clipboard && window.ClipboardItem;
+      console.log("isFirefox:", isFirefox);
+      console.log("Clipboard API доступен:", supportsClipboard);
 
-    mainTable.setAttribute("border", "1");
-    mainTable.style.borderCollapse = "collapse";
-    mainTable.style.border = "1px solid black";
-    console.log("Установлены стили border для #main");
-
-    mainTable.querySelectorAll("td").forEach((td, index) => {
-      if (!td.querySelector("table")) {
-        td.style.border = "1px solid black";
-        td.style.padding = "4px";
-        console.log(`TD[${index}]: граница установлена`);
+      if (supportsClipboard) {
+        canvas.toBlob(function (blob) {
+          navigator.clipboard
+            .write([new ClipboardItem({ "image/png": blob })])
+            .then(function () {
+              showMessage("Скриншот таблицы скопирован в буфер обмена");
+            })
+            .catch(function (err) {
+              console.error("Ошибка при копировании в буфер", err);
+              fallbackDownload(canvas);
+            });
+        });
       } else {
-        console.log(`TD[${index}]: содержит вложенную таблицу, пропущено`);
+        fallbackDownload(canvas);
       }
-    });
-mainTable.style.borderCollapse = "collapse";
-mainTable.style.borderSpacing = "0";
 
-mainTable.querySelectorAll("td").forEach((td, index) => {
-  if (!td.querySelector("table")) {
-    td.style.boxShadow = "inset 0 0 0 1px black";
-    td.style.padding = "4px"; // чтобы граница была видимой
-    console.log(`TD[${index}]: тень-граница установлена`);
-  } else {
-    console.log(`TD[${index}]: содержит вложенную таблицу, пропущено`);
-  }
-});
-
-    mainTable.querySelectorAll("table").forEach((nested, i) => {
-      nested.removeAttribute("border");
-      nested.style.border = "none";
-      nested.style.borderCollapse = "separate";
-      nested.querySelectorAll("td").forEach((td, j) => {
-        td.style.border = "none";
-        console.log(`вложенная таблица [${i}] TD[${j}]: убрана граница`);
-      });
-    });
-  } else {
-    console.warn("Таблица #main не найдена для установки границ");
-  }
-  // ===============================
-
-  // === ЖДЕМ 50мс ДЛЯ ПЕРЕРИСОВКИ ===
-  setTimeout(() => {
-    html2canvas(parentElement, {
-      onrendered: function (canvas) {
-        console.log("html2canvas успешно отрендерил элемент");
-        var isFirefox = navigator.userAgent.toLowerCase().includes("firefox");
-        var supportsClipboard = navigator.clipboard && window.ClipboardItem;
-        console.log("isFirefox:", isFirefox);
-        console.log("Clipboard API доступен:", supportsClipboard);
-
-        if (supportsClipboard) {
-          canvas.toBlob(function (blob) {
-            navigator.clipboard
-              .write([new ClipboardItem({ "image/png": blob })])
-              .then(function () {
-                showMessage("Скриншот таблицы скопирован в буфер обмена");
-              })
-              .catch(function (err) {
-                console.error("Ошибка при копировании в буфер", err);
-                fallbackDownload(canvas);
-              });
-          });
-        } else {
-          fallbackDownload(canvas);
-        }
-
-        setTimeout(function () {
-          document.querySelectorAll("label").forEach((label) => {
-            label.style.display = "";
-          });
-          document.querySelectorAll(".tmp").forEach((el) => el.remove());
-          console.log("Временные элементы и скрытые label восстановлены");
-        }, 500);
-      }
-    });
-  }, 50);
-  // ================================
+      setTimeout(function () {
+        document.querySelectorAll("label").forEach((label) => {
+          label.style.display = "";
+        });
+        document.querySelectorAll(".tmp").forEach((el) => el.remove());
+        console.log("Временные элементы и скрытые label восстановлены");
+      }, 500);
+    }
+  });
 
   function fallbackDownload(canvas) {
     var link = document.createElement("a");
@@ -1736,6 +1700,7 @@ mainTable.querySelectorAll("td").forEach((td, index) => {
     showMessage("Скриншот сохранён как файл (буфер обмена недоступен)");
   }
 }
+
 
 
 
