@@ -1600,6 +1600,7 @@ function parseCellValue1(value) {
 
 
 function captureAndCopy() {
+  console.log("Начинаем выполнение captureAndCopy");
   var mainContainer = document.getElementById("maincontainer");
   var tables = Array.from(
     mainContainer.querySelectorAll("#banktable, #paytable, .main, #main")
@@ -1618,87 +1619,69 @@ function captureAndCopy() {
     return true;
   });
 
-  if (tables.length > 0) {
-    var parentElement = tables[0].parentElement;
+  if (tables.length === 0) {
+    console.warn("Нет таблиц для обработки");
+    return;
+  }
 
-    if (getParam("actionCode") == "accounts") {
-      var address = document.getElementById("adr").innerText;
-      var selectElement = document.getElementById("number");
-      var apartmentNumber = selectElement.options[selectElement.selectedIndex].text;
-      var fio = document.getElementById("fio").innerText;
-      var result = address + "" + apartmentNumber + ", " + fio;
+  var parentElement = tables[0].parentElement;
 
-      parentElement.insertAdjacentHTML('afterbegin', '<p class="tmp">' + result + '</p>');
+  if (getParam("actionCode") == "accounts") {
+    var address = document.getElementById("adr")?.innerText || "";
+    var selectElement = document.getElementById("number");
+    var apartmentNumber = selectElement?.options[selectElement.selectedIndex]?.text || "";
+    var fio = document.getElementById("fio")?.innerText || "";
+    var result = address + " " + apartmentNumber + ", " + fio;
 
-      var labels = document.querySelectorAll('label');
-      labels.forEach(function(label) {
-        label.style.display = 'none';
-      });
-    }
+    parentElement.insertAdjacentHTML("afterbegin", '<p class="tmp">' + result + "</p>");
 
-    html2canvas(parentElement, {
-      onrendered: function(canvas) {
-        var isFirefox = navigator.userAgent.toLowerCase().indexOf('firefox') > -1;
-        var useModernClipboard = navigator.clipboard && window.ClipboardItem && !isFirefox;
-
-        if (useModernClipboard) {
-          canvas.toBlob(function(blob) {
-            if (!blob) {
-              console.error("canvas.toBlob() returned null.");
-              return;
-            }
-            navigator.clipboard.write([
-              new ClipboardItem({ "image/png": blob })
-            ]).then(function() {
-              showMessage("Скриншот таблицы скопирован в буфер обмена");
-            }).catch(function(err) {
-              console.error("Ошибка при копировании в буфер", err);
-            });
-          });
-        } else {
-          var img = new Image();
-          img.src = canvas.toDataURL("image/png");
-          var editableDiv = document.createElement("div");
-          editableDiv.contentEditable = true;
-          editableDiv.style.position = "fixed";
-          editableDiv.style.left = "-9999px";
-          document.body.appendChild(editableDiv);
-          editableDiv.appendChild(img);
-
-          var range = document.createRange();
-          range.selectNodeContents(editableDiv);
-          var selection = window.getSelection();
-          selection.removeAllRanges();
-          selection.addRange(range);
-
-          try {
-            document.execCommand("copy");
-            showMessage("Скриншот таблицы скопирован (устаревший метод)");
-          } catch (err) {
-            console.error("Ошибка копирования через execCommand", err);
-          }
-
-          document.body.removeChild(editableDiv);
-        }
-
-        setTimeout(function() {
-          var labels = document.querySelectorAll('label');
-          labels.forEach(function(label) {
-            label.style.display = '';
-          });
-          var tmpElements = document.querySelectorAll('.tmp');
-          tmpElements.forEach(function(element) {
-            element.remove();
-          });
-        }, 500);
-      }
+    document.querySelectorAll("label").forEach((label) => {
+      label.style.display = "none";
     });
   }
+
+  html2canvas(parentElement, {
+  onrendered: function (canvas) {
+
+    console.log("html2canvas успешно отрендерил элемент");
+    var isFirefox = navigator.userAgent.toLowerCase().includes("firefox");
+    var supportsClipboard = navigator.clipboard && window.ClipboardItem;
+    console.log("isFirefox:", isFirefox);
+    console.log("Clipboard API доступен:", supportsClipboard);
+
+    if (supportsClipboard) {
+      canvas.toBlob(function (blob) {
+        navigator.clipboard
+          .write([new ClipboardItem({ "image/png": blob })])
+          .then(function () {
+            showMessage("Скриншот таблицы скопирован в буфер обмена");
+          })
+          .catch(function (err) {
+            console.error("Ошибка при копировании в буфер", err);
+            fallbackDownload(canvas);
+          });
+      });
+    } else {
+      fallbackDownload(canvas);
+    }
+
+    setTimeout(function () {
+      document.querySelectorAll("label").forEach((label) => {
+        label.style.display = "";
+      });
+      document.querySelectorAll(".tmp").forEach((el) => el.remove());
+      console.log("Временные элементы и скрытые label восстановлены");
+    }, 500);
+  }});
+
+  function fallbackDownload(canvas) {
+    var link = document.createElement("a");
+    link.download = "screenshot.png";
+    link.href = canvas.toDataURL("image/png");
+    link.click();
+    showMessage("Скриншот сохранён как файл (буфер обмена недоступен)");
+  }
 }
-
-
-
-
 
 
 
