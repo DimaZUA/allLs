@@ -299,7 +299,7 @@ function addStuff(accountId) {
         _toConsumableArray(services).filter(function (n) {
           return n !== "7";
         }).length,
-        '" align="CENTER" class="clickable">\u041D\u0430\u0440\u0430\u0445\u043E\u0432\u0430\u043D\u043E \u0437\u0430 \u043C\u0456\u0441\u044F\u0446\u044C</td>\n    <td rowspan="2" align="CENTER" class="clickable">\u041E\u043F\u043B\u0430\u0447\u0435\u043D\u043E \u0432 \u043C\u0456\u0441\u044F\u0446\u0456</td>\n    <td rowspan="2" align="CENTER" class="clickable">\u0411\u043E\u0440\u0433(+) \u041F\u0435\u0440\u0435\u043F\u043B\u0430\u0442\u0430(-) \u043D\u0430 \u043A\u0456\u043D\u0435\u0446\u044C \u043C\u0456\u0441\u044F\u0446\u044F</td>\n'
+        '" align="CENTER" class="clickable">\u041D\u0430\u0440\u0430\u0445\u043E\u0432\u0430\u043D\u043E \u0437\u0430 \u043C\u0456\u0441\u044F\u0446\u044C</td>\n    <td rowspan="2" align="CENTER" class="clickable">\u041E\u043F\u043B\u0430\u0447\u0435\u043D\u043E \u0432 \u043C\u0456\u0441\u044F\u0446\u0456<br>(\u0447\u0438\u0441\u043B\u043E, \u0441\u0443\u043C\u0430, \u043F\u0435\u0440\u0456\u043E\u0434)</td>\n    <td rowspan="2" align="CENTER" class="clickable">\u0411\u043E\u0440\u0433(+) \u041F\u0435\u0440\u0435\u043F\u043B\u0430\u0442\u0430(-) \u043D\u0430 \u043A\u0456\u043D\u0435\u0446\u044C \u043C\u0456\u0441\u044F\u0446\u044F</td>\n'
       );
 
     // Добавляем обработчик кликов к заголовкам
