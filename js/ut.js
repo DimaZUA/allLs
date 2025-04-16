@@ -1601,6 +1601,10 @@ function parseCellValue1(value) {
 
 function captureAndCopy() {
   console.log("Начинаем выполнение captureAndCopy");
+
+  // Лог браузера
+  console.log("User-Agent:", navigator.userAgent);
+
   var mainContainer = document.getElementById("maincontainer");
   var tables = Array.from(
     mainContainer.querySelectorAll("#banktable, #paytable, .main, #main")
@@ -1640,28 +1644,37 @@ function captureAndCopy() {
     });
   }
 
-  // === ДОБАВЛЯЕМ ЖЁСТКИЕ РАМКИ ===
+  // === ДОБАВЛЯЕМ ЖЁСТКИЕ РАМКИ С ЛОГАМИ ===
   var mainTable = parentElement.querySelector("table#main");
   if (mainTable) {
+    console.log("Найдена основная таблица #main");
+
     mainTable.setAttribute("border", "1");
     mainTable.style.borderCollapse = "collapse";
     mainTable.style.border = "1px solid black";
+    console.log("Установлены стили border для #main");
 
-    mainTable.querySelectorAll("td").forEach((td) => {
+    mainTable.querySelectorAll("td").forEach((td, index) => {
       if (!td.querySelector("table")) {
         td.style.border = "1px solid black";
         td.style.padding = "4px";
+        console.log(`TD[${index}]: граница установлена`);
+      } else {
+        console.log(`TD[${index}]: содержит вложенную таблицу, пропущено`);
       }
     });
 
-    mainTable.querySelectorAll("table").forEach((nested) => {
+    mainTable.querySelectorAll("table").forEach((nested, i) => {
       nested.removeAttribute("border");
       nested.style.border = "none";
       nested.style.borderCollapse = "separate";
-      nested.querySelectorAll("td").forEach((td) => {
+      nested.querySelectorAll("td").forEach((td, j) => {
         td.style.border = "none";
+        console.log(`вложенная таблица [${i}] TD[${j}]: убрана граница`);
       });
     });
+  } else {
+    console.warn("Таблица #main не найдена для установки границ");
   }
   // ===============================
 
@@ -1700,7 +1713,7 @@ function captureAndCopy() {
         }, 500);
       }
     });
-  }, 50); // время на перерисовку
+  }, 50);
   // ================================
 
   function fallbackDownload(canvas) {
@@ -1711,6 +1724,7 @@ function captureAndCopy() {
     showMessage("Скриншот сохранён как файл (буфер обмена недоступен)");
   }
 }
+
 
 
 
