@@ -1687,7 +1687,7 @@ function captureAndCopy() {
 
     // Устанавливаем границы для всех ячеек, включая ячейки с вложенными таблицами
     table.querySelectorAll("td").forEach((td, index) => {
-      td.style.border = "1px solid black";  // Границы для всех ячеек
+      td.style.border = "2px solid black";  // Границы для всех ячеек
       td.style.padding = "4px";  // Для корректного отображения
       console.log(`TD[${index}]: граница установлена`);
 
