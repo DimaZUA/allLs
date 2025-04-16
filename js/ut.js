@@ -1640,39 +1640,56 @@ function captureAndCopy() {
     });
   }
 
+  // Определяем браузер
+  var isFirefox = navigator.userAgent.toLowerCase().includes("firefox");
+  var supportsClipboard = navigator.clipboard && window.ClipboardItem;
+  console.log("isFirefox:", isFirefox);
+  console.log("Clipboard API доступен:", supportsClipboard);
+
+  // Удаляем стили для старых браузеров
+  if (!supportsClipboard) {
+    console.log("Удаляем стили для старых браузеров");
+    // Удаляем все стили для элементов, чтобы они не были скрыты на скриншоте
+    document.querySelectorAll('*').forEach(function (element) {
+      var style = window.getComputedStyle(element);
+      if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') {
+        element.style.display = '';
+        element.style.visibility = '';
+        element.style.opacity = '';
+      }
+    });
+  }
+
   html2canvas(parentElement, {
-  onrendered: function (canvas) {
+    onrendered: function (canvas) {
+      console.log("html2canvas успешно отрендерил элемент");
 
-    console.log("html2canvas успешно отрендерил элемент");
-    var isFirefox = navigator.userAgent.toLowerCase().includes("firefox");
-    var supportsClipboard = navigator.clipboard && window.ClipboardItem;
-    console.log("isFirefox:", isFirefox);
-    console.log("Clipboard API доступен:", supportsClipboard);
+      if (supportsClipboard) {
+        canvas.toBlob(function (blob) {
+          navigator.clipboard
+            .write([new ClipboardItem({ "image/png": blob })])
+            .then(function () {
+              showMessage("Скриншот таблицы скопирован в буфер обмена");
+            })
+            .catch(function (err) {
+              console.error("Ошибка при копировании в буфер", err);
+              fallbackDownload(canvas);
+            });
+        });
+      } else {
+        fallbackDownload(canvas);
+      }
 
-    if (supportsClipboard) {
-      canvas.toBlob(function (blob) {
-        navigator.clipboard
-          .write([new ClipboardItem({ "image/png": blob })])
-          .then(function () {
-            showMessage("Скриншот таблицы скопирован в буфер обмена");
-          })
-          .catch(function (err) {
-            console.error("Ошибка при копировании в буфер", err);
-            fallbackDownload(canvas);
-          });
-      });
-    } else {
-      fallbackDownload(canvas);
+      setTimeout(function () {
+        // Восстанавливаем скрытые элементы и временные элементы
+        document.querySelectorAll("label").forEach((label) => {
+          label.style.display = "";
+        });
+        document.querySelectorAll(".tmp").forEach((el) => el.remove());
+        console.log("Временные элементы и скрытые label восстановлены");
+      }, 500);
     }
-
-    setTimeout(function () {
-      document.querySelectorAll("label").forEach((label) => {
-        label.style.display = "";
-      });
-      document.querySelectorAll(".tmp").forEach((el) => el.remove());
-      console.log("Временные элементы и скрытые label восстановлены");
-    }, 500);
-  }});
+  });
 
   function fallbackDownload(canvas) {
     var link = document.createElement("a");
@@ -1682,6 +1699,8 @@ function captureAndCopy() {
     showMessage("Скриншот сохранён как файл (буфер обмена недоступен)");
   }
 }
+
+
 
 
 
