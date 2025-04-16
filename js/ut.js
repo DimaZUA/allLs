@@ -1663,6 +1663,18 @@ function captureAndCopy() {
         console.log(`TD[${index}]: содержит вложенную таблицу, пропущено`);
       }
     });
+mainTable.style.borderCollapse = "collapse";
+mainTable.style.borderSpacing = "0";
+
+mainTable.querySelectorAll("td").forEach((td, index) => {
+  if (!td.querySelector("table")) {
+    td.style.boxShadow = "inset 0 0 0 1px black";
+    td.style.padding = "4px"; // чтобы граница была видимой
+    console.log(`TD[${index}]: тень-граница установлена`);
+  } else {
+    console.log(`TD[${index}]: содержит вложенную таблицу, пропущено`);
+  }
+});
 
     mainTable.querySelectorAll("table").forEach((nested, i) => {
       nested.removeAttribute("border");
