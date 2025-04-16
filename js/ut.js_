@@ -1640,19 +1640,6 @@ function captureAndCopy() {
     });
   }
 
-  // Добавляем границы для таблицы и ячеек в основной таблице
-  var mainTable = parentElement.querySelector("table");
-  if (mainTable) {
-    mainTable.style.border = "1px solid black"; // Граница для основной таблицы
-    mainTable.querySelectorAll('td').forEach(function (td) {
-      td.style.border = "1px solid black"; // Граница для ячеек основной таблицы
-    });
-    // Убираем границы для дочерних таблиц внутри ячеек
-    mainTable.querySelectorAll('td div table').forEach(function (childTable) {
-      childTable.style.border = "none"; // Убираем границу для дочерней таблицы
-    });
-  }
-
   html2canvas(parentElement, {
     onrendered: function (canvas) {
       console.log("html2canvas успешно отрендерил элемент");
@@ -1683,14 +1670,6 @@ function captureAndCopy() {
         });
         document.querySelectorAll(".tmp").forEach((el) => el.remove());
         console.log("Временные элементы и скрытые label восстановлены");
-
-        // Восстановление границ для таблицы и ячеек в основной таблице
-        if (mainTable) {
-          mainTable.style.removeProperty('border');
-          mainTable.querySelectorAll('td').forEach(function (td) {
-            td.style.removeProperty('border');
-          });
-        }
       }, 500);
     }
   });
@@ -1703,7 +1682,6 @@ function captureAndCopy() {
     showMessage("Скриншот сохранён как файл (буфер обмена недоступен)");
   }
 }
-
 
 
 
