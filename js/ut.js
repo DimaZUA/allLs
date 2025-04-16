@@ -1618,92 +1618,85 @@ function captureAndCopy() {
     return true;
   });
 
-  // Проверяем, есть ли таблицы
   if (tables.length > 0) {
-    var parentElement = tables[0].parentElement; // Используем первую таблицу
+    var parentElement = tables[0].parentElement;
 
     if (getParam("actionCode") == "accounts") {
-      // Получаем адрес
       var address = document.getElementById("adr").innerText;
-
-      // Получаем выбранный номер квартиры
       var selectElement = document.getElementById("number");
       var apartmentNumber = selectElement.options[selectElement.selectedIndex].text;
-
-      // Получаем ФИО
       var fio = document.getElementById("fio").innerText;
-
-      // Собираем строку с адресом и ФИО
       var result = address + "" + apartmentNumber + ", " + fio;
-       //parentElement=parentElement.parentElement.parentElement;
-      // Добавляем текст в начало родительского элемента
+
       parentElement.insertAdjacentHTML('afterbegin', '<p class="tmp">' + result + '</p>');
 
-      // Скрываем все label элементы
       var labels = document.querySelectorAll('label');
       labels.forEach(function(label) {
-        label.style.display = 'none';  // Делает label невидимыми
+        label.style.display = 'none';
       });
     }
 
-    // Создаем скриншот таблицы
     html2canvas(parentElement, {
       onrendered: function(canvas) {
-        canvas.toBlob(function(blob) {
-          if (navigator.clipboard && window.ClipboardItem) {
-            navigator.clipboard
-              .write([
-                new ClipboardItem({
-                  "image/png": blob
-                })
-              ])
-              .then(function() {
-                return showMessage("Скриншот таблицы скопирован в буфер обмена");
-              })
-              .catch(function(err) {
-                return console.error("Ошибка при копировании в буфер", err);
-              });
-          } else {
-            // Альтернативный вариант для старых браузеров
-            var img = new Image();
-            img.src = canvas.toDataURL("image/png");
-            var selection = window.getSelection();
-            var range = document.createRange();
-            var editableDiv = document.createElement("div");
-            editableDiv.contentEditable = true;
-            document.body.appendChild(editableDiv);
-            editableDiv.appendChild(img);
-            range.selectNodeContents(editableDiv);
-            selection.removeAllRanges();
-            selection.addRange(range);
-            try {
-              document.execCommand("copy");
-              showMessage("Скриншот таблицы скопирован (устаревший метод)");
-            } catch (err) {
-              console.error("Ошибка копирования через execCommand", err);
+        var isFirefox = navigator.userAgent.toLowerCase().indexOf('firefox') > -1;
+        var useModernClipboard = navigator.clipboard && window.ClipboardItem && !isFirefox;
+
+        if (useModernClipboard) {
+          canvas.toBlob(function(blob) {
+            if (!blob) {
+              console.error("canvas.toBlob() returned null.");
+              return;
             }
-            document.body.removeChild(editableDiv);
+            navigator.clipboard.write([
+              new ClipboardItem({ "image/png": blob })
+            ]).then(function() {
+              showMessage("Скриншот таблицы скопирован в буфер обмена");
+            }).catch(function(err) {
+              console.error("Ошибка при копировании в буфер", err);
+            });
+          });
+        } else {
+          var img = new Image();
+          img.src = canvas.toDataURL("image/png");
+          var editableDiv = document.createElement("div");
+          editableDiv.contentEditable = true;
+          editableDiv.style.position = "fixed";
+          editableDiv.style.left = "-9999px";
+          document.body.appendChild(editableDiv);
+          editableDiv.appendChild(img);
+
+          var range = document.createRange();
+          range.selectNodeContents(editableDiv);
+          var selection = window.getSelection();
+          selection.removeAllRanges();
+          selection.addRange(range);
+
+          try {
+            document.execCommand("copy");
+            showMessage("Скриншот таблицы скопирован (устаревший метод)");
+          } catch (err) {
+            console.error("Ошибка копирования через execCommand", err);
           }
-        });
+
+          document.body.removeChild(editableDiv);
+        }
+
+        setTimeout(function() {
+          var labels = document.querySelectorAll('label');
+          labels.forEach(function(label) {
+            label.style.display = '';
+          });
+          var tmpElements = document.querySelectorAll('.tmp');
+          tmpElements.forEach(function(element) {
+            element.remove();
+          });
+        }, 500);
       }
     });
-
-    setTimeout(function() {
-    // Возвращаем все label элементы обратно видимыми
-    var labels = document.querySelectorAll('label');
-    labels.forEach(function(label) {
-      label.style.display = '';
-    });
-
-    // Удаляем временные элементы с классом "tmp" только после создания скриншота
-
-      var tmpElements = document.querySelectorAll('.tmp');
-      tmpElements.forEach(function(element) {
-        element.remove();
-      });
-    }, 500); // Даем немного времени на создание скриншота
   }
 }
+
+
 
 
 
