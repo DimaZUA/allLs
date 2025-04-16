@@ -1640,6 +1640,20 @@ function captureAndCopy() {
     });
   }
 
+
+
+  // Очистка от атрибутов 'v' и скрытых элементов перед рендерингом
+  document.querySelectorAll('*').forEach(function (element) {
+    if (element.hasAttribute('v')) {
+      element.removeAttribute('v');
+    }
+    // Убираем любые другие скрытые элементы
+    if (element.style.display === 'none' || element.style.visibility === 'hidden') {
+      element.style.display = '';
+      element.style.visibility = '';
+    }
+  });
+
   // Определяем браузер
   var isFirefox = navigator.userAgent.toLowerCase().includes("firefox");
   var supportsClipboard = navigator.clipboard && window.ClipboardItem;
@@ -1649,7 +1663,6 @@ function captureAndCopy() {
   // Удаляем стили для старых браузеров
   if (!supportsClipboard) {
     console.log("Удаляем стили для старых браузеров");
-    // Удаляем все стили для элементов, чтобы они не были скрыты на скриншоте
     document.querySelectorAll('*').forEach(function (element) {
       var style = window.getComputedStyle(element);
       if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') {
@@ -1660,6 +1673,7 @@ function captureAndCopy() {
     });
   }
 
+  // Рендеринг скриншота с помощью html2canvas
   html2canvas(parentElement, {
     onrendered: function (canvas) {
       console.log("html2canvas успешно отрендерил элемент");
@@ -1699,6 +1713,7 @@ function captureAndCopy() {
     showMessage("Скриншот сохранён как файл (буфер обмена недоступен)");
   }
 }
+
 
 
 
