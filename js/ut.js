@@ -1640,18 +1640,31 @@ function captureAndCopy() {
     });
   }
 
-  // Добавляем границы для таблицы и ячеек в основной таблице
-  var mainTable = parentElement.querySelector("table");
+  // ===== ДОБАВЛЯЕМ ЖЁСТКИЕ РАМКИ =====
+  var mainTable = parentElement.querySelector("table#main");
   if (mainTable) {
-    mainTable.style.border = "1px solid black"; // Граница для основной таблицы
-    mainTable.querySelectorAll('td').forEach(function (td) {
-      td.style.border = "1px solid black"; // Граница для ячеек основной таблицы
+    mainTable.setAttribute("border", "1");
+    mainTable.style.borderCollapse = "collapse";
+
+    mainTable.querySelectorAll("td").forEach((td) => {
+      // Пропускаем td, у которых внутри есть вложенная таблица
+      if (!td.querySelector("table")) {
+        td.style.border = "1px solid black";
+        td.style.padding = "4px";
+      }
     });
-    // Убираем границы для дочерних таблиц внутри ячеек
-    mainTable.querySelectorAll('td div table').forEach(function (childTable) {
-      childTable.style.border = "none"; // Убираем границу для дочерней таблицы
+
+    // Удаляем границы у вложенных таблиц
+    mainTable.querySelectorAll("table").forEach((nested) => {
+      nested.removeAttribute("border");
+      nested.style.border = "none";
+      nested.style.borderCollapse = "separate";
+      nested.querySelectorAll("td").forEach((td) => {
+        td.style.border = "none";
+      });
     });
   }
+  // ===================================
 
   html2canvas(parentElement, {
     onrendered: function (canvas) {
@@ -1683,14 +1696,6 @@ function captureAndCopy() {
         });
         document.querySelectorAll(".tmp").forEach((el) => el.remove());
         console.log("Временные элементы и скрытые label восстановлены");
-
-        // Восстановление границ для таблицы и ячеек в основной таблице
-        if (mainTable) {
-          mainTable.style.removeProperty('border');
-          mainTable.querySelectorAll('td').forEach(function (td) {
-            td.style.removeProperty('border');
-          });
-        }
       }, 500);
     }
   });
@@ -1703,6 +1708,7 @@ function captureAndCopy() {
     showMessage("Скриншот сохранён как файл (буфер обмена недоступен)");
   }
 }
+
 
 
 
