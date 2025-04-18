@@ -4,7 +4,7 @@ var oplat={};var nach={};
 var ls=};
 var org='ЖК «Флора-12»'
 var adr='0'
-var dt='15.04.2025 21:02:20'
+var dt='18.04.2025 21:34:56'
 var plat=}
 var what={}
 var kto={}
