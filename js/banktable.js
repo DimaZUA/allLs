@@ -382,7 +382,7 @@ if (paymentPurpose.includes('ЗпInfo:')) {
         if (!amount || !name || !taxId) return ''; // защита от неполных данных
 
         let formattedAmount = parseFloat(amount.replace(',', '.')).toFixed(2).replace('.', ',') + ' грн.';
-        return `${formattedAmount} - ${name} (${taxId})`;
+        return `<b>${formattedAmount}</b> - <i>${name} (${taxId})</i>`;
     }).filter(Boolean); // удаляем пустые строки
 
     paymentPurpose = mainText.trim() + '<br>' + transformedInfo.join('<br>');
