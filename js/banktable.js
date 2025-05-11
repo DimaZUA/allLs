@@ -369,10 +369,30 @@ var yearInt = parseInt(year);
                         purposeCell.textContent = getPurpose(payment[3]);
                         row.appendChild(purposeCell);
 
-                        // Назначение платежа
-                        var paymentPurposeCell = document.createElement('td');
-                        paymentPurposeCell.textContent = payment[5] || '-'; // Если назначение пустое, показываем '-'
-                        row.appendChild(paymentPurposeCell);
+// Назначение платежа
+var paymentPurposeCell = document.createElement('td');
+
+var paymentPurpose = payment[5] || '-';
+
+if (paymentPurpose.includes('ЗпInfo:')) {
+    let [mainText, ...infoParts] = paymentPurpose.split('ЗпInfo:');
+
+    let transformedInfo = infoParts.map(part => {
+        let [amount, name, taxId] = part.split('|');
+        if (!amount || !name || !taxId) return ''; // защита от неполных данных
+
+        let formattedAmount = parseFloat(amount.replace(',', '.')).toFixed(2).replace('.', ',') + ' грн.';
+        return `${formattedAmount} - ${name} (${taxId})`;
+    }).filter(Boolean); // удаляем пустые строки
+
+    paymentPurpose = mainText.trim() + '<br>' + transformedInfo.join('<br>');
+    
+    paymentPurposeCell.innerHTML = paymentPurpose;
+} else {
+    paymentPurposeCell.textContent = paymentPurpose;
+}
+
+row.appendChild(paymentPurposeCell);
 
                         // Добавляем строку в таблицу
                         tableBody.appendChild(row);
