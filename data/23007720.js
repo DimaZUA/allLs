@@ -2,9 +2,9 @@
 var b = {};
 var oplat={};var nach={};
 var ls=};
-var org='ЖК "Стартер"'
+var org='комета'
 var adr='0'
-var dt='13.05.2025 14:11:20'
+var dt='13.05.2025 14:41:26'
 var plat=}
 var what={}
 var kto={}
