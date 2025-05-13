@@ -2,9 +2,9 @@
 var b = {};
 var oplat={};var nach={};
 var ls=};
-var org='ЖК «Флора-12»'
+var org='комета'
 var adr='0'
-var dt='13.05.2025 14:45:31'
+var dt='13.05.2025 14:45:37'
 var plat=}
 var what={}
 var kto={}
