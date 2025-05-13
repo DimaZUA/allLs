@@ -4,7 +4,7 @@ var oplat={};var nach={};
 var ls=};
 var org='комета'
 var adr='0'
-var dt='13.05.2025 14:45:37'
+var dt='13.05.2025 14:52:14'
 var plat=}
 var what={}
 var kto={}
