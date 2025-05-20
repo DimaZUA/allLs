@@ -115,7 +115,7 @@ function _arrayWithHoles(r) {
 }
 var isTableFocused = false; // Флаг состояния таблицы
 var originalParentTable = null; // Оригинальный родитель для таблицы
-var originalParentBalanceInfo = null; // Оригинальный родитель для элемента с классом "balance-info"
+
 var originalParentHeader = null; // Оригинальный родитель для элемента с id="header"
 var originalSiblings = []; // Сохраняем другие элементы страницы
 
@@ -127,11 +127,7 @@ function handleHeaderClick(event) {
     var _document$querySelect, _document$getElementB;
     // Сохраняем оригинальные родительские элементы и соседние элементы
     originalParentTable = table.parentElement;
-    originalParentBalanceInfo =
-      (_document$querySelect = document.querySelector(".balance-info")) ===
-        null || _document$querySelect === void 0
-        ? void 0
-        : _document$querySelect.parentElement;
+
     originalParentHeader =
       (_document$getElementB = document.getElementById("header")) === null ||
       _document$getElementB === void 0
@@ -140,16 +136,19 @@ function handleHeaderClick(event) {
     originalSiblings = _toConsumableArray(body.children);
 
     // Получаем элементы с классом "balance-info" и с id="header"
-    var balanceInfo = document.querySelector(".balance-info");
+    //var balanceInfo = document.querySelector(".balance-info");
     var header = document.getElementById("header");
 
     // Скрываем всё, кроме таблицы, элементов с классом "balance-info" и с id="header"
     originalSiblings.forEach(function (el) {
-      if (el !== table && el !== balanceInfo && el !== header) {
+      if (el !== table && el !== header) {
         el.style.display = "none";
       }
     });
 
+document.querySelectorAll("button").forEach(function (btn) {
+  btn.style.display = "none";
+});
     // Создаём обёртку для центрирования
     var wrapper = document.createElement("div");
     wrapper.id = "tableWrapper";
@@ -172,7 +171,7 @@ function handleHeaderClick(event) {
 
     // Вставляем таблицу в обёртку
     if (header) wrapper.appendChild(header); // Добавляем элемент с id="header"
-    if (balanceInfo) wrapper.appendChild(balanceInfo); // Добавляем элемент с классом "balance-info"
+    //if (balanceInfo) wrapper.appendChild(balanceInfo); // Добавляем элемент с классом "balance-info"
     wrapper.appendChild(table);
     body.appendChild(wrapper);
     isTableFocused = true;
@@ -183,13 +182,12 @@ function handleHeaderClick(event) {
     originalSiblings.forEach(function (el) {
       return (el.style.display = "");
     });
-
+// Показываем все button внутри таблицы
+document.querySelectorAll("button").forEach(function (btn) {
+  btn.style.display = "";
+});
     // Возвращаем таблицу и элементы обратно в их исходные родительские элементы
     if (originalParentTable) originalParentTable.appendChild(table);
-    if (originalParentBalanceInfo)
-      originalParentBalanceInfo.appendChild(
-        document.querySelector(".balance-info")
-      );
     if (originalParentHeader)
       originalParentHeader.insertBefore(
         document.getElementById("header"),
@@ -245,40 +243,6 @@ function addStuff(accountId) {
     yearLabel.setAttribute("for", "block-".concat(year));
     yearLabel.innerHTML = "<div>".concat(year, "</div>");
     yearContent.className = "box";
-    if (cumulativeBalance !== 0) {
-      // Текст в зависимости от значения cumulativeBalance
-      var balanceText =
-        cumulativeBalance > 0
-          ? "⚠️ Вхідний борг на початок року"
-          : "✅ Вхідна переплата на початок року";
-
-      // Создаем элемент для блока с информацией
-      var _balanceDiv = document.createElement("div");
-      _balanceDiv.className = "balance-info";
-
-      // Создаем span для числа
-      var balanceValue = document.createElement("span");
-      balanceValue.textContent = "".concat(
-        cumulativeBalance.toFixedWithComma()
-      );
-
-      // Если число положительное, делаем его красным
-      if (cumulativeBalance > 0) {
-        balanceValue.classList.add("red"); // Красный цвет для положительного значения
-      } else {
-        balanceValue.classList.add("green"); // Зеленый цвет для отрицательного значения
-      }
-
-      // Добавляем текст и число в блок
-      _balanceDiv.textContent = "".concat(balanceText, ": ");
-      _balanceDiv.appendChild(balanceValue);
-      balanceValue = document.createElement("span");
-      balanceValue.textContent = " грн.";
-      _balanceDiv.appendChild(balanceValue);
-
-      // Вставляем блок с информацией перед таблицей
-      yearContent.appendChild(_balanceDiv);
-    }
     var table = document.createElement("table");
     table.id = "main";
     var thead = document.createElement("thead");
@@ -326,6 +290,36 @@ function addStuff(accountId) {
       }
     });
     thead.appendChild(servicesRow); // Добавляем строку с услугами в заголовок
+
+
+if (cumulativeBalance !== 0) {
+  var balanceRow = document.createElement("tr");
+  var balanceCell = document.createElement("td");
+
+  // colspan зависит от количества колонок: 1 (месяц) + n (услуги) + 1 (оплата) + 1 (баланс)
+  var colSpan = 3 + [...services].filter(n => n !== "7").length;
+  balanceCell.colSpan = colSpan;
+  balanceCell.className = "balance-info";
+
+  var balanceText =
+    cumulativeBalance > 0
+      ? "⚠️ Вхідний борг на початок року"
+      : "✅ Вхідна переплата на початок року";
+
+  var balanceValue = document.createElement("span");
+  balanceValue.textContent = cumulativeBalance.toFixedWithComma();
+  balanceValue.classList.add(cumulativeBalance > 0 ? "red" : "green");
+
+  balanceCell.innerHTML = `${balanceText}: `;
+  balanceCell.appendChild(balanceValue);
+  //balanceCell.append(" грн.");
+  balanceRow.appendChild(balanceCell);
+  //balanceRow.appendChild(balanceValue);
+  tbody.appendChild(balanceRow);
+}
+
+
+
 
     // Переменные для итоговых сумм по году
     var totalChargesByService = {};
