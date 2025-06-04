@@ -1,32 +1,41 @@
-﻿function _typeof(o) {
-  "@babel/helpers - typeof";
-  return (
-    (_typeof =
-      "function" == typeof Symbol && "symbol" == typeof Symbol.iterator
-        ? function (o) {
-            return typeof o;
-          }
-        : function (o) {
-            return o &&
-              "function" == typeof Symbol &&
-              o.constructor === Symbol &&
-              o !== Symbol.prototype
-              ? "symbol"
-              : typeof o;
-          }),
-    _typeof(o)
-  );
-}
-var currentPath = [];
+﻿var currentPath = [];
 var selectedIndex = 0;
+var currentView = "periods";
+
 function buildModernInterface(fileList) {
   var container = document.getElementById("maincontainer");
-  container.innerHTML =
-    '<div id="customSidebar" class="custom-sidebar"><ul id="fileTree" class="file-tree"></ul></div>';
-  container.insertAdjacentHTML("beforeend", '<div id="preview"></div>');
+  container.innerHTML = `
+    <div id="customSidebar" class="custom-sidebar">
+      <div class="view-switcher">
+        <button id="viewPeriods" class="switch-btn selected">Периоды</button>
+        <button id="viewReports" class="switch-btn">Отчёты</button>
+      </div>
+      <ul id="fileTree" class="file-tree"></ul>
+    </div>
+    <div id="preview"></div>`;
+
+  document.getElementById("viewPeriods").onclick = function () {
+    currentView = "periods";
+    selectedIndex = 0;
+    renderSidebarFiles(document.getElementById("fileTree"), fileList.files);
+    toggleSelectedButton(this);
+  };
+  document.getElementById("viewReports").onclick = function () {
+    currentView = "reports";
+    selectedIndex = 0;
+    renderReportsView(document.getElementById("fileTree"), fileList.files);
+    toggleSelectedButton(this);
+  };
+
   renderSidebarFiles(document.getElementById("fileTree"), fileList.files);
   document.addEventListener("keydown", handleKeyboardNavigation);
 }
+
+function toggleSelectedButton(btn) {
+  document.querySelectorAll('.switch-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+}
+
 function getCurrentDir(files) {
   var dir = {};
   files.forEach(function (file) {
@@ -46,7 +55,9 @@ function getCurrentDir(files) {
   });
   return dir;
 }
+
 function renderSidebarFiles(container, files) {
+  if (currentView !== "periods") return;
   container.innerHTML = "";
   var currentDir = getCurrentDir(files);
   var items = [];
@@ -62,25 +73,15 @@ function renderSidebarFiles(container, files) {
   Object.keys(currentDir).forEach(function (name) {
     var displayName = name;
     if (/^\d{4}$/.test(name) && name >= "2024" && name <= "2050") {
-      displayName = "".concat(name, " \u0433\u043E\u0434");
+      displayName = `${name} год`;
     } else if (/^\d{2}$/.test(name) && name >= "01" && name <= "12") {
       var months = [
-        "январь",
-        "февраль",
-        "март",
-        "апрель",
-        "май",
-        "июнь",
-        "июль",
-        "август",
-        "сентябрь",
-        "октябрь",
-        "ноябрь",
-        "декабрь"
+        "январь", "февраль", "март", "апрель", "май", "июнь",
+        "июль", "август", "сентябрь", "октябрь", "ноябрь", "декабрь"
       ];
       displayName = months[parseInt(name, 10) - 1];
     }
-    if (_typeof(currentDir[name]) === "object") {
+    if (typeof currentDir[name] === "object") {
       var folderItem = createSidebarItem(displayName, "folder", function () {
         currentPath.push(name);
         selectedIndex = 0;
@@ -89,30 +90,135 @@ function renderSidebarFiles(container, files) {
       container.appendChild(folderItem);
       items.push(folderItem);
     } else {
-      var fileItem = createSidebarItem(
-        displayName,
-        getFileType(name),
-        function (e) {
-          return handleFileClick(currentDir[name], e, fileItem);
-        }
-      );
+      var fileItem = createSidebarItem(displayName, getFileType(name), function (e) {
+        return handleFileClick(currentDir[name], e, fileItem);
+      });
       container.appendChild(fileItem);
       items.push(fileItem);
     }
   });
   if (items.length > 0) {
-    var _items$selectedIndex, _items$selectedIndex2;
-    (_items$selectedIndex = items[selectedIndex]) === null ||
-      _items$selectedIndex === void 0 ||
-      _items$selectedIndex.classList.add("selected");
-    (_items$selectedIndex2 = items[selectedIndex]) === null ||
-      _items$selectedIndex2 === void 0 ||
-      _items$selectedIndex2.scrollIntoView({
-        block: "nearest",
-        behavior: "smooth"
-      });
+    items[selectedIndex]?.classList.add("selected");
+    items[selectedIndex]?.scrollIntoView({ block: "nearest", behavior: "smooth" });
   }
 }
+
+function renderReportsView(container, files) {
+  container.innerHTML = "";
+  var tree = {};
+
+  files.forEach(function (filePath) {
+    var parts = filePath.split("/");
+    if (parts.length < 4) return;
+    var fileName = parts.at(-1);
+    var year = parts[2];
+    var isMonthly = parts.length > 4;
+    var month = isMonthly ? parts[3] : null;
+    if (!tree[fileName]) tree[fileName] = {};
+    if (!tree[fileName][year]) tree[fileName][year] = { yearOnly: null, months: [] };
+    if (isMonthly) {
+      if (!tree[fileName][year].months.includes(month)) tree[fileName][year].months.push(month);
+    } else {
+      tree[fileName][year].yearOnly = filePath;
+    }
+  });
+
+  function renderFileList() {
+    container.innerHTML = "";
+    Object.keys(tree).sort().forEach(function (fileName) {
+      var fileItem = createSidebarItem(fileName, getFileType(fileName), function () {
+        openLastYearAndMonth(fileName);
+      });
+      container.appendChild(fileItem);
+    });
+  }
+
+  function openLastYearAndMonth(fileName) {
+    var years = Object.keys(tree[fileName]).sort();
+    if (years.length === 0) return;
+    var lastYear = years[years.length - 1];
+    var yearEntry = tree[fileName][lastYear];
+
+    container.innerHTML = "";
+    var backToFiles = createSidebarItem(".. (Назад)", "folder", function () {
+      renderFileList();
+    });
+    container.appendChild(backToFiles);
+
+    years.forEach(function (year) {
+      var yearItem = createSidebarItem(year + " год", "folder", function () {
+        renderMonthList(fileName, year);
+      });
+      if (year === lastYear) yearItem.classList.add("selected");
+      container.appendChild(yearItem);
+    });
+
+    renderMonthList(fileName, lastYear, true);
+  }
+
+  function renderMonthList(fileName, year, autoSelect = false) {
+    var oldMonthContainer = container.querySelector(".month-container");
+    if (oldMonthContainer) oldMonthContainer.remove();
+
+    var yearEntry = tree[fileName][year];
+    if (!yearEntry) return;
+
+    var monthContainer = document.createElement("div");
+    monthContainer.classList.add("month-container");
+    monthContainer.style.display = "grid";
+    monthContainer.style.gridTemplateColumns = "repeat(3, 1fr)";
+    monthContainer.style.gap = "4px";
+    monthContainer.style.paddingLeft = "10px";
+
+    var monthsMap = ["01","02","03","04","05","06","07","08","09","10","11","12"];
+    var monthLabels = ["янв", "фев", "мар", "апр", "май", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"];
+
+    var sortedMonths = yearEntry.months.sort();
+
+    sortedMonths.forEach(function (m) {
+      var mItem = document.createElement("div");
+      mItem.classList.add("sidebar-item", getFileType(fileName));
+      mItem.textContent = monthLabels[monthsMap.indexOf(m)] || m;
+      mItem.onclick = function (e) {
+        var fullPath = files.find(f => f.endsWith(`/${year}/${m}/${fileName}`));
+        handleFileClick(fullPath, e || new MouseEvent("click"), mItem);
+        monthContainer.querySelectorAll(".sidebar-item").forEach(el => el.classList.remove("selected"));
+        mItem.classList.add("selected");
+      };
+      monthContainer.appendChild(mItem);
+    });
+
+    container.appendChild(monthContainer);
+
+if (autoSelect) {
+  if (yearEntry.yearOnly) {
+    let fileType = getFileType(fileName);
+    let dummyEl = document.createElement("div");
+    dummyEl.classList.add("sidebar-item", fileType);
+    handleFileClick(yearEntry.yearOnly, new MouseEvent("click"), dummyEl);
+  } else if (sortedMonths.length > 0) {
+    // как было
+    let lastMonth = sortedMonths[sortedMonths.length - 1];
+    let lastMonthItem = Array.from(monthContainer.children).find(item => item.textContent === (monthLabels[monthsMap.indexOf(lastMonth)] || lastMonth));
+    if (lastMonthItem) lastMonthItem.click();
+  }
+}
+
+// Показать годовой отчёт, если он есть
+if (yearEntry.yearOnly) {
+  let fileType = getFileType(fileName);
+  let dummyEl = document.createElement("div");
+  dummyEl.classList.add("sidebar-item", fileType);
+  handleFileClick(yearEntry.yearOnly, new MouseEvent("click"), dummyEl);
+}
+  
+  
+  
+  }
+
+  renderFileList();
+}
+
 function createSidebarItem(name, type, onclick) {
   var item = document.createElement("li");
   item.classList.add("sidebar-item", type);
@@ -123,28 +229,23 @@ function createSidebarItem(name, type, onclick) {
   item.appendChild(icon);
   return item;
 }
+
 function getFileType(name) {
   if (name.endsWith(".xls") || name.endsWith(".xlsx")) return "excel";
-  if (name.endsWith(".jpg") || name.endsWith(".png") || name.endsWith(".gif"))
-    return "image";
+  if (name.endsWith(".jpg") || name.endsWith(".png") || name.endsWith(".gif")) return "image";
   if (name.endsWith(".pdf")) return "pdf";
   return "other";
 }
+
 function handleFileClick(filePath, event, fileElement) {
-  event.stopPropagation();
-  document.querySelectorAll(".sidebar-item").forEach(function (el) {
-    return el.classList.remove("selected");
-  });
-  fileElement.classList.add("selected");
-  fileElement.classList.add("viewed");
+  console.log('File element classes:', fileElement?.className);
+  event?.stopPropagation?.();
+  document.querySelectorAll(".sidebar-item").forEach(el => el.classList.remove("selected"));
+  fileElement?.classList.add("selected", "viewed");
   var preview = document.getElementById("preview");
   preview.innerHTML = "";
-
-  // Создаем контейнер для кнопки скачивания
   var topBar = document.createElement("div");
   topBar.classList.add("top-bar");
-
-  // Создаем кнопку скачивания
   var downloadBtn = document.createElement("a");
   downloadBtn.href = filePath;
   downloadBtn.download = filePath.split("/").pop();
@@ -152,66 +253,99 @@ function handleFileClick(filePath, event, fileElement) {
   downloadBtn.classList.add("download-btn");
   topBar.appendChild(downloadBtn);
   preview.appendChild(topBar);
+
   var baseUrl = window.location.origin + window.location.pathname;
-  if (fileElement.classList.contains("image")) {
-    preview.innerHTML += '<img src="'.concat(
-      filePath,
-      '" alt="\u041F\u0440\u0435\u0432\u044C\u044E \u0438\u0437\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u044F" style="max-width: 100%; height: auto;">'
-    );
-  } else if (fileElement.classList.contains("pdf")) {
-    setTimeout(function () {
-      preview.innerHTML += '<iframe src="'.concat(
-        filePath,
-        '" width="100%" height="600px" frameborder="0"></iframe>'
-      );
+
+  if (fileElement?.classList.contains("image")) {
+    preview.innerHTML += `<img src="${filePath}" alt="Превью изображения" style="max-width: 100%; height: auto;">`;
+  } else if (fileElement?.classList.contains("pdf")) {
+    setTimeout(() => {
+      preview.innerHTML += `<iframe src="${filePath}" width="100%" height="600px" frameborder="0"></iframe>`;
     }, 100);
-  } else if (
-    fileElement.classList.contains("excel") ||
-    fileElement.classList.contains("word")
-  ) {
-    var viewerUrl = "https://view.officeapps.live.com/op/view.aspx?src=".concat(
-      encodeURIComponent(baseUrl + filePath)
-    );
-    preview.innerHTML += '<iframe src="'.concat(
-      viewerUrl,
-      '" width="100%" height="600px" frameborder="0"></iframe>'
-    );
+  } else if (fileElement?.classList.contains("excel") || fileElement?.classList.contains("word")) {
+    var viewerUrl = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(baseUrl + filePath)}`;
+    preview.innerHTML += `<iframe src="${viewerUrl}" width="100%" height="600px" frameborder="0"></iframe>`;
   } else {
     downloadBtn.click();
   }
 }
+
 function handleKeyboardNavigation(e) {
-  var _items$selectedIndex5, _items$selectedIndex6;
-  var items = document.querySelectorAll(".sidebar-item");
-  if (e.key === "ArrowDown" && selectedIndex < items.length - 1) {
-    var _items$selectedIndex3;
-    (_items$selectedIndex3 = items[selectedIndex]) === null ||
-      _items$selectedIndex3 === void 0 ||
-      _items$selectedIndex3.classList.remove("selected");
-    selectedIndex++;
-  } else if (e.key === "ArrowUp" && selectedIndex > 0) {
-    var _items$selectedIndex4;
-    (_items$selectedIndex4 = items[selectedIndex]) === null ||
-      _items$selectedIndex4 === void 0 ||
-      _items$selectedIndex4.classList.remove("selected");
-    selectedIndex--;
-  } else if (e.key === "Enter" && items[selectedIndex]) {
-    items[selectedIndex].click();
-  }
-  (_items$selectedIndex5 = items[selectedIndex]) === null ||
-    _items$selectedIndex5 === void 0 ||
-    _items$selectedIndex5.classList.add("selected");
-  (_items$selectedIndex6 = items[selectedIndex]) === null ||
-    _items$selectedIndex6 === void 0 ||
-    _items$selectedIndex6.scrollIntoView({
-      block: "nearest",
-      behavior: "smooth"
-    });
+  // навигация по клавиатуре
 }
+
 function reportsInit() {
   buildModernInterface(files);
 }
+
+
 var style = document.createElement("style");
 style.textContent =
-  "\n    .custom-sidebar { width: 250px; background: #f8f9fa; padding: 10px; position: absolute; top: 0; bottom: 0; overflow-y: auto; }\n    .file-tree { list-style: none; padding: 0; }\n    .sidebar-item { padding: 10px; background: #ffffff; cursor: pointer; border-bottom: 1px solid #ddd; position: relative; }\n    .folder { font-weight: bold; background: #ebdb4f; }\n    .excel { background: #d4f8c4; }\n    .image { background: #c4e3f8; }\n    .pdf { background: #ffffff; }\n    .other { background: #e0e0e0; }\n    .selected { background: #007bff; color: white; }\n    .sidebar-item:hover{ background: #00abff; color: white; }\n    .viewed { opacity: 0.5 }\n    .file-icon { position: absolute; right: 10px; bottom: 10px; font-size: 12px; opacity: 0.7; }\n    #preview { margin-left: 260px; padding: 20px; }\n";
+  `
+    .custom-sidebar {
+      width: 250px;
+      background: #f8f9fa;
+      padding: 10px;
+      height: 100vh;
+      overflow-y: auto;
+      float: left;
+      box-sizing: border-box;
+    }
+    .view-switcher {
+      margin-bottom: 10px;
+    }
+    .file-tree {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .sidebar-item {
+      padding: 10px;
+      background: #ffffff;
+      cursor: pointer;
+      border-bottom: 1px solid #ddd;
+      position: relative;
+    }
+    .folder {
+      font-weight: bold;
+      background: #ebdb4f;
+    }
+    .excel {
+      background: #d4f8c4;
+    }
+    .image {
+      background: #c4e3f8;
+    }
+    .pdf {
+      background: #ffffff;
+    }
+    .other {
+      background: #e0e0e0;
+    }
+    .selected {
+      background: #007bff;
+      color: white;
+    }
+    .sidebar-item:hover {
+      background: #00abff;
+      color: white;
+    }
+    .viewed {
+      opacity: 0.5;
+    }
+    .file-icon {
+      position: absolute;
+      right: 10px;
+      bottom: 10px;
+      font-size: 12px;
+      opacity: 0.7;
+    }
+    #preview {
+      margin-left: 260px;
+      padding: 20px;
+    }
+    .top-bar {
+      margin-bottom: 10px;
+    }
+  `;
 document.head.appendChild(style);

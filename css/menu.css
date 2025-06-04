@@ -301,3 +301,21 @@ body {
     border-radius: 5px;
     cursor: pointer;
 }
+
+.view-switcher {
+  display: flex;
+  gap: 10px;
+  padding: 10px;
+}
+.switch-btn {
+  padding: 5px 10px;
+  cursor: pointer;
+  border: 1px solid #007bff;
+  background: #fff;
+  color: #007bff;
+  border-radius: 4px;
+}
+.switch-btn.selected {
+  background: #007bff;
+  color: #fff;
+}
