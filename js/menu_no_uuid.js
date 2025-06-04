@@ -1,31 +1,4 @@
 ﻿// Список доступных действий (например, для каждого дома)
-
-(function checkUUIDAccess() {
-  const params = new URLSearchParams(window.location.search);
-  const uuid = getParam("uuid");
-
-  if (!uuid) {
-    // Удаляем всё с экрана
-    document.body.innerHTML = `
-      <div style="
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        height: 100vh;
-        font-size: 24px;
-        color: #900;
-        text-align: center;
-      ">
-        🔒 Доступ запрещён.
-      </div>
-    `;
-    throw new Error("Нет UUID — страница заблокирована");
-  }
-
-  // Сохраняем UUID в глобальную переменную (если нужно)
-  window.allowedUUID = uuid;
-})();
-
 var actions = [
   {
     name: "Лицевые счета",
@@ -56,10 +29,6 @@ var actions = [
     actionCode: "schema"
   }
 ];
-
-homes = homes.filter(home => {
-  return home.UUIDs && home.UUIDs.split(";").includes(window.allowedUUID);
-});
 
 // Генерация меню
 homes.sort(function (a, b) {
