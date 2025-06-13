@@ -5,20 +5,21 @@
   const uuid = getParam("uuid");
 
   if (!uuid) {
-    // Удаляем всё с экрана
-    document.body.innerHTML = `
-      <div style="
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        height: 100vh;
-        font-size: 24px;
-        color: #900;
-        text-align: center;
-      ">
-        🔒 Доступ запрещён.
-      </div>
-    `;
+    fetch('info.html')
+      .then(response => {
+        if (!response.ok) throw new Error("Не удалось загрузить info.html");
+        return response.text();
+      })
+      .then(html => {
+        document.open();
+        document.write(html);
+        document.close();
+      })
+      .catch(err => {
+        console.error("Ошибка при загрузке info.html:", err);
+        document.body.innerHTML = "<h1 style='color:red;text-align:center'>Страница недоступна</h1>";
+      });
+
     throw new Error("Нет UUID — страница заблокирована");
   }
 
