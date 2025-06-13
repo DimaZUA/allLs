@@ -1,11 +1,33 @@
-﻿
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="uk">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Бухгалтер для ЖК та ОСББ</title>
+  <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
   <style>
+.animated-header {
+  animation: fadeSlideDown 1s ease forwards;
+}
+.hidden-header {
+  opacity: 0;
+  transform: translateY(-30px);
+}
+@keyframes fadeSlideDown {
+  0% {
+    opacity: 0;
+    transform: translateY(-30px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+    html {
+      scroll-behavior: smooth;
+    }
+
     body {
       font-family: 'Segoe UI', sans-serif;
       margin: 0;
@@ -14,35 +36,49 @@
       color: #333;
       line-height: 1.6;
     }
-header {
-  background: url('img/hero-bg.jpg') center/cover no-repeat;
-  color: white;
-  padding: 60px 20px;
-  text-align: center;
-  position: relative;
-}
 
-header::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.5); /* затемнение для читаемости текста */
-  z-index: 0;
-}
+    header {
+      background: url('img/hero-bg.jpg') center/cover no-repeat;
+      color: white;
+      padding: 60px 20px;
+      text-align: center;
+      position: relative;
+      animation: zoomHeader 20s ease-in-out infinite alternate;
+    }
 
-header h1, header p {
-  position: relative;
-  z-index: 1;
-}
+    @keyframes zoomHeader {
+      0% {
+        background-size: 100%;
+      }
+      100% {
+        background-size: 110%;
+      }
+    }
+
+    header::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 0;
+    }
+
+    header h1, header p {
+      position: relative;
+      z-index: 1;
+    }
+
     header h1 {
       margin: 0;
       font-size: 30px;
     }
+
     header p {
       font-size: 18px;
       margin-top: 10px;
       font-style: italic;
     }
+
     nav {
       background-color: #e0e0e0;
       display: flex;
@@ -52,46 +88,58 @@ header h1, header p {
       position: sticky;
       top: 0;
       z-index: 1000;
+      overflow-x: auto;
     }
+
     nav a {
       margin: 5px 12px;
       color: #005b96;
       text-decoration: none;
       font-weight: bold;
+      transition: color 0.3s ease;
+      white-space: nowrap;
     }
+
     nav a:hover {
       text-decoration: underline;
+      color: #003f6f;
     }
+
     .section {
       padding: 40px 20px;
       max-width: 900px;
-      margin: 0 auto;
+      margin: 0 auto 20px;
       background-color: white;
-      margin-bottom: 20px;
       border-radius: 8px;
       box-shadow: 0 1px 4px rgba(0,0,0,0.08);
     }
+
     .section h2 {
       color: #005b96;
       margin-bottom: 15px;
     }
+
     ul {
       padding-left: 20px;
     }
+
     .contacts a {
       color: #005b96;
       text-decoration: none;
     }
+
     footer {
       text-align: center;
       padding: 20px;
       background-color: #005b96;
       color: white;
     }
+
     .download-button {
       text-align: center;
       margin-top: 30px;
     }
+
     .download-button a {
       background-color: #005b96;
       color: white;
@@ -99,23 +147,26 @@ header h1, header p {
       text-decoration: none;
       border-radius: 5px;
       font-weight: bold;
+      transition: all 0.3s ease;
+      display: inline-block;
     }
+
     .download-button a:hover {
       background-color: #003f6f;
+      transform: scale(1.05);
     }
+
     @media (max-width: 600px) {
       nav {
-        flex-direction: column;
+        flex-wrap: nowrap;
+        overflow-x: auto;
       }
     }
-
-
-
   </style>
 </head>
 <body>
 
-<header>
+<header data-aos="fade-in" class="hidden-header">
   <h1>Бухгалтер для ЖК та ОСББ</h1>
   <p>Вигідно. Зручно. Професійно.</p>
 </header>
@@ -129,7 +180,7 @@ header h1, header p {
   <a href="#contacts">Контакти</a>
 </nav>
 
-<div class="section" id="why">
+<div class="section" id="why" data-aos="fade-up">
   <h2>Чому саме я?</h2>
   <p>Я — ФОП з понад 20-річним досвідом ведення бухгалтерського та абонентського обліку у сфері ЖК та ОСББ. Ви отримуєте повноцінного бухгалтера без витрат на ЄСВ, відпустки, лікарняні чи звільнення Це означає суттєву економію для вашого кооперативу чи ОСББ:</p>
   <ul>
@@ -137,56 +188,56 @@ header h1, header p {
   </ul>
 </div>
 
-<div class="section" id="offer">
+<div class="section" id="offer" data-aos="fade-up">
   <h2>Що я пропоную</h2>
   <ul>
     <li>Повне ведення абонентського, бухгалтерського та податкового обліку</li>
     <li>Складання та подання звітності: податкова, фінансова, статистична</li>
-    <li>Розрахунок внесків, нарахувань, платежів по особовим рахункам. <small>Можливі заохочувальні нарахування для передплатників (компенсація комісії банків) та штрафні нарахування для боржників (пеня, 3%, індексування суми боргу відповідно до рівня інфляції)</small></li>
+    <li>Розрахунок внесків, нарахувань, платежів по особовим рахункам...</li>
     <li>Розрахунок заробітної плати, утримань та податків.</li>
     <li>Робота з банками: платежі, контроль надходжень, «Приват24 для бізнесу»</li>
     <li>Досудова робота з боржниками — листування, акти, претензії</li>
-    <li>Обмін даними з провайдерами, сервітутаріями та постачальниками комунальних послуг через системи електронного документообігу: Вчасно, Paperless</li>
+    <li>Обмін даними з провайдерами, сервітутаріями...</li>
     <li>Облік взаєморазрахунків із вашими контрагентами</li>
-    <li>Щоденний обмін з Пенсійним фондом — для призначення субсидій мешканцям</li>
-    <li>Консультації для правління, перевірки, робота з ЦПХ, обробка заяв</li>
+    <li>Щоденний обмін з Пенсійним фондом...</li>
+    <li>Консультації для правління, перевірки, робота з ЦПХ...</li>
     <li>Автоматизовані інформаційні розсилки на електронну пошту співвласників</li>
   </ul>
 </div>
 
-<div class="section" id="tools">
+<div class="section" id="tools" data-aos="fade-up">
   <h2>Сучасні цифрові інструменти</h2>
   <ul>
     <li>Аналітика та автоматизація обліку</li>
     <li>Електронна звітність</li>
-    <li>Робота з системами ЕДО (електронного документообігу)</li>
+    <li>Робота з системами ЕДО</li>
     <li>Цифровий архів, шаблони рішень/протоколів</li>
-    <li>Підключення до сервісів через API, облік лічильників, особових рахунків</li>
+    <li>Підключення до сервісів через API...</li>
   </ul>
 </div>
 
-<div class="section" id="experience">
+<div class="section" id="experience" data-aos="fade-up">
   <h2>Мій досвід</h2>
   <ul>
     <li>Понад 20 років роботи в бухгалтерії</li>
-    <li>Спеціалізація — житлові кооперативи та ОСББ, управляючи компанії, комунальні підприємства з обслуговування житлового фонду, вивозу та захоронення ТПВ, тепло- та водопостачання</li>
+    <li>Спеціалізація — житлові кооперативи, ОСББ...</li>
     <li>Одночасне обслуговування понад 50 ЖК та ОСББ</li>
-    <li>Чітке знання специфіки: статути, ЦПХ, загальні збори, протоколи</li>
+    <li>Чітке знання специфіки: статути, ЦПХ, загальні збори...</li>
     <li>Немає зайвих питань — тільки результат</li>
   </ul>
 </div>
 
-<div class="section" id="forwhom">
+<div class="section" id="forwhom" data-aos="fade-up">
   <h2>Для кого це</h2>
   <ul>
-    <li>Новостворені ОСББ — допомога з нуля, запуск обліку, супровід</li>
-    <li>Житлові кооперативи та ОСББ, які шукають бухгалтера без тягаря податків</li>
-    <li>Будинки з низькою платіжною дисципліною та великими боргами — комплексна робота з боржниками, облік, аналітика, претензійна досудова робота</li>
-    <li>Правління, яке прагне працювати прозоро, зручно та без зайвої бюрократії</li>
+    <li>Новостворені ОСББ — допомога з нуля...</li>
+    <li>Житлові кооперативи та ОСББ, які шукають бухгалтера...</li>
+    <li>Будинки з низькою платіжною дисципліною...</li>
+    <li>Правління, яке прагне працювати прозоро...</li>
   </ul>
 </div>
 
-<div class="section" id="contacts">
+<div class="section" id="contacts" data-aos="fade-up">
   <h2>Контакти</h2>
   <p>ФОП Заіка Дмитро Олександрович</p>
   <p>Телефон: <a href="tel:+380662418785">066 241-87-85</a> |
@@ -195,13 +246,54 @@ header h1, header p {
   <p>Email: <a href="mailto:dimapplk@gmail.com">dimapplk@gmail.com</a></p>
 </div>
 
-<div class="section download-button">
+<div class="section download-button" data-aos="zoom-in">
   <a href="Бухгалтер.pdf" target="_blank">📥 Завантажити або роздрукувати (PDF)</a>
 </div>
 
 <footer>
   ФОП-бухгалтер для ЖК та ОСББ — економія, прозорість та цифровий комфорт.
 </footer>
+
+<script src="https://unpkg.com/aos@2.3.1/dist/aos.js">const header = document.querySelector("header");
+
+const observer = new IntersectionObserver(
+  entries => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        header.classList.remove("hidden-header");
+        header.classList.add("animated-header");
+      } else {
+        header.classList.remove("animated-header");
+        header.classList.add("hidden-header");
+      }
+    });
+  },
+  { threshold: 0.5 }
+);
+
+observer.observe(header);
+</script>
+<script>
+  AOS.init();
+const header = document.querySelector("header");
+
+const observer = new IntersectionObserver(
+  entries => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        header.classList.remove("hidden-header");
+        header.classList.add("animated-header");
+      } else {
+        header.classList.remove("animated-header");
+        header.classList.add("hidden-header");
+      }
+    });
+  },
+  { threshold: 0.5 }
+);
+
+observer.observe(header);
+</script>
 
 </body>
 </html>
