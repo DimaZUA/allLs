@@ -14,12 +14,26 @@
       color: #333;
       line-height: 1.6;
     }
-    header {
-      background-color: #005b96;
-      color: white;
-      padding: 30px 20px;
-      text-align: center;
-    }
+header {
+  background: url('img/hero-bg.jpg') center/cover no-repeat;
+  color: white;
+  padding: 60px 20px;
+  text-align: center;
+  position: relative;
+}
+
+header::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5); /* затемнение для читаемости текста */
+  z-index: 0;
+}
+
+header h1, header p {
+  position: relative;
+  z-index: 1;
+}
     header h1 {
       margin: 0;
       font-size: 30px;
@@ -94,6 +108,9 @@
         flex-direction: column;
       }
     }
+
+
+
   </style>
 </head>
 <body>
