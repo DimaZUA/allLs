@@ -13,16 +13,25 @@
   opacity: 0;
   transform: translateY(-30px);
 }
-@keyframes fadeSlideDown {
+@keyframes scaleDownHeader {
   0% {
     opacity: 0;
-    transform: translateY(-30px);
+    transform: scale(1.15);
   }
   100% {
     opacity: 1;
-    transform: translateY(0);
+    transform: scale(1);
   }
 }
+
+.animated-header {
+  animation: scaleDownHeader 0.9s ease-out forwards;
+}
+.hidden-header {
+  opacity: 0;
+  transform: scale(1.15);
+}
+
 
     html {
       scroll-behavior: smooth;
@@ -274,6 +283,19 @@ const observer = new IntersectionObserver(
 observer.observe(header);
 </script>
 <script>
+  document.querySelectorAll('nav a').forEach(link => {
+    link.addEventListener('click', (e) => {
+      const nav = link.closest('nav');
+      const navRect = nav.getBoundingClientRect();
+      const linkRect = link.getBoundingClientRect();
+      const scrollLeft = nav.scrollLeft;
+      const offset = linkRect.left - navRect.left - (navRect.width / 2) + (linkRect.width / 2);
+      nav.scrollTo({ left: scrollLeft + offset, behavior: 'smooth' });
+    });
+  });
+</script>
+
+<script>
   AOS.init();
 const header = document.querySelector("header");
 
@@ -294,6 +316,19 @@ const observer = new IntersectionObserver(
 
 observer.observe(header);
 </script>
+<script>
+  document.querySelectorAll('nav a').forEach(link => {
+    link.addEventListener('click', (e) => {
+      const nav = link.closest('nav');
+      const navRect = nav.getBoundingClientRect();
+      const linkRect = link.getBoundingClientRect();
+      const scrollLeft = nav.scrollLeft;
+      const offset = linkRect.left - navRect.left - (navRect.width / 2) + (linkRect.width / 2);
+      nav.scrollTo({ left: scrollLeft + offset, behavior: 'smooth' });
+    });
+  });
+</script>
+
 
 </body>
 </html>
