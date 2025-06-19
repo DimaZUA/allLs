@@ -25,8 +25,8 @@ function calculateDefaultDays() {
       fromDay = toDay - 6;
     }
   }
-  document.getElementById("fromDay").value = fromDay;
-  document.getElementById("toDay").value = toDay;
+  document.getElementById("fromDay").value = 1;
+  document.getElementById("toDay").value = 31;
 }
 function populateMonthSelector() {
   var monthSelect = document.getElementById("monthSelect");
@@ -133,7 +133,7 @@ function generatePayTable() {
     var dateA = new Date(a.date.split(".").reverse().join("-"));
     var dateB = new Date(b.date.split(".").reverse().join("-"));
     if (fromDay > toDay) return dateB - dateA; // Обратная сортировка
-    if (dateA - dateB !== 0) return dateA - dateB;
+    //if (dateA - dateB !== 0) return dateA - dateB;
     return parseInt(a.kv, 10) - parseInt(b.kv, 10);
   });
 
@@ -149,10 +149,10 @@ function generatePayTable() {
     }
     row.innerHTML =
       "<td>" +
-      payment.date +
+      payment.kv +
       "</td>" +
       "<td>" +
-      payment.kv +
+      payment.date +
       "</td>" +
       "<td>" +
       payment.sum.toFixed(2) +
@@ -166,44 +166,58 @@ function generatePayTable() {
   }
 }
 function initPayTable() {
-  document.getElementById("maincontainer").innerHTML =
-    '<div id="org" align="right"></div>' +
-    '<div id="filter-container">' +
+document.getElementById("maincontainer").innerHTML =
+  '<div id="org" align="right"></div>' +
+  '<div id="filter-container">' +
     '<div class="column">' +
-    "<label>Месяц:" +
-    '<select id="monthSelect"></select>' +
-    "</label>" +
-    "</div>" +
+      '<label>Месяц:' +
+        '<select id="monthSelect"></select>' +
+      '</label>' +
+    '</div>' +
     '<div class="column">' +
-    "<label>С:" +
-    '<input type="number" id="fromDay" min="1" max="31">' +
-    "</label>" +
-    "</div>" +
+      '<label>С:' +
+        '<input type="number" id="fromDay" min="1" max="31">' +
+      '</label>' +
+    '</div>' +
     '<div class="column">' +
-    "<label>По:" +
-    '<input type="number" id="toDay" min="1" max="31">' +
-    "</label>" +
-    "</div>" +
-    "<!-- Обертка для текста и кнопки -->" +
+      '<label>По:' +
+        '<input type="number" id="toDay" min="1" max="31">' +
+      '</label>' +
+    '</div>' +
     '<div class="full-span" style="display: flex; justify-content: space-between; align-items: center;">' +
-    "<span>Щелчок по заголовку таблицы - отображение/скрытие назначений платежей</span>" +
-    buttons +
-    "</div>" +
-    "</div>" +
-    '<div id="table-container">' +
+      '<span>Щелчок по заголовку таблицы — отображение/скрытие назначений платежей</span>' +
+      buttons +
+    '</div>' +
+  '</div>' +
+  '<div id="table-container">' +
     '<table id="paytable" class="paytable">' +
-    "<thead>" +
-    "<tr>" +
-    "<th>Дата</th>" +
-    "<th>Кв.</th>" +
-    "<th>Сумма</th>" +
-    "<th>Назначение платежа</th>" +
-    "</tr>" +
-    "</thead>" +
-    "<tbody></tbody>" +
-    "</table>" +
-    "</div>" +
-    '<div id="datetime"></div>';
+      '<thead>' +
+        '<tr><td colspan="4">' +
+          '<div style="text-align: center; font-family: Arial, sans-serif; font-size: 1rem;">' +
+            '<strong>🔔 Шановні мешканці!</strong><br><br>' +
+            'При здійсненні оплати за утримання будинку та комунальні послуги ' +
+            '<strong style="color: red;"><br>обов’язково вказуйте номер квартири або особовий рахунок</strong> ' +
+            'у призначенні платежу.<br><br>' +
+            'Це необхідно для своєчасного та правильного зарахування коштів.<br><br>' +
+            '✅ Приклад правильного заповнення призначення платежу (для квартири № 300):<br>' +
+            '<span style="font-family: Courier New, monospace; background-color: #f2f2f2; padding: 4px 6px; border-radius: 4px; display: inline-block;">' +
+             '<span style="font-weight: bold;">ОР: 300. ' + adr + '/300, Іванов Іван Іванович</span>'+
+            '</span><br><br>' +
+            'Дякуємо за розуміння та своєчасну сплату!' +
+          '</div>' +
+        '</td></tr>' +
+        '<tr>' +
+          '<th>Кв.</th>' +
+          '<th>Дата</th>' +
+          '<th>Сумма</th>' +
+          '<th>Призначення платежу</th>' +
+        '</tr>' +
+      '</thead>' +
+      '<tbody></tbody>' +
+    '</table>' +
+  '</div>' +
+  '<div id="datetime"></div>';
+
   document.getElementById("datetime").innerHTML =
     "<br>Данные указаны по состоянию на <br>" +
     dt +
@@ -219,9 +233,12 @@ function initPayTable() {
 
   // Добавляем обработчик клика для заголовков таблицы
   var ths = document.getElementById("paytable").querySelectorAll("th");
-  for (var i = 0; i < ths.length; i++) {
-    ths[i].addEventListener("click", toggleNaznColumn);
-  }
+for (var i = 0; i < ths.length; i++) {
+  ths[i].addEventListener("click", function () {
+    sortTable(this);
+  });
+}
+
   document
     .querySelector("#monthSelect")
     .addEventListener("change", generatePayTable);
@@ -298,73 +315,57 @@ function toggleFullscreen(element, isFullscreen) {
   }
 }
 
-// Функция для переключения видимости столбца и полноэкранного режима
-function toggleNaznColumn() {
-  var columnIndex = 3; // Индекс столбца "Назначение платежа" (начиная с 0)
-  var table = document.getElementById("paytable");
-  var rows = table.querySelectorAll("tr");
-  var filterContainer = document.getElementById("filter-container");
-  var tableContainer = document.getElementById("table-container");
-  var fullscreenTextId = "fullscreen-text";
 
-  // Проверяем, находится ли таблица уже в полноэкранном режиме
-  var isFullscreen = !!document.fullscreenElement;
+function sortTable(header) {
+  var table = header.closest("table");
+  var tbody = table.querySelector("tbody");
 
-  // Получаем данные для заголовка
-  var fromDay = document.getElementById("fromDay").value;
-  var toDay = document.getElementById("toDay").value;
-  var selectedMonth = document.getElementById("monthSelect").value.split("-");
-  var year = selectedMonth[0];
-  var month = selectedMonth[1];
-  var monthName = new Date(year, month - 1).toLocaleString("uk", {
-    month: "long"
+  // Удаляем все строки с классом "header-row-clone"
+  var cloneRows = tbody.querySelectorAll(".header-row-clone");
+  cloneRows.forEach(function (row) {
+    return row.remove();
   });
+  var rows = Array.from(tbody.rows);
+  var isAsc = header.classList.contains("sorted-asc");
+  var index = Array.from(header.parentNode.children).indexOf(header);
 
-  // Формируем текст
-  var headerText =
-    org +
-    "<br>Платежі співвласників<br>з " +
-    fromDay +
-    " по " +
-    toDay +
-    " " +
-    monthName +
-    " " +
-    year;
+  // Убираем классы сортировки с других заголовков
+  header.parentNode.querySelectorAll("th").forEach(function (th) {
+    return th.classList.remove("sorted-asc", "sorted-desc");
+  });
+  header.classList.add(isAsc ? "sorted-desc" : "sorted-asc");
 
-  // Переключаем видимость третьего столбца
-  for (var i = 0; i < rows.length; i++) {
-    var cell = rows[i].cells[columnIndex];
-    if (cell) {
-      if (cell.style.display === "none") {
-        cell.style.display = "";
-      } else {
-        cell.style.display = "none";
-      }
-    }
-  }
+  // Сортируем строки
+rows.sort(function (rowA, rowB) {
+    var cellA =
+      rowA.cells[index].getAttribute("v") || rowA.cells[index].textContent;
+    var cellB =
+      rowB.cells[index].getAttribute("v") || rowB.cells[index].textContent;
 
-  // Проверяем, существует ли уже элемент с заголовком
-  var existingFullscreenText = document.getElementById(fullscreenTextId);
-  if (!isFullscreen) {
-    // Скрываем filter-container
-    filterContainer.style.display = "none";
-    // Добавляем текст над таблицей
-    var fullscreenText = document.createElement("div");
-    fullscreenText.id = fullscreenTextId;
-    fullscreenText.style.textAlign = "center";
-    tableContainer.style.textAlign = "center";
-    fullscreenText.style.fontSize = "18px";
-    fullscreenText.style.fontWeight = "bold";
-    fullscreenText.innerHTML = headerText;
-    if (!existingFullscreenText) tableContainer.prepend(fullscreenText);
-    tableContainer.style.overflow = "auto";
-  } else {
-    // Отображаем filter-container
-    filterContainer.style.display = "";
-    tableContainer.style.overflow = "";
-  }
+    // Преобразуем строки в числа, если возможно
+    var valA = parseFloat(cellA.replace(/\s/g, "").replace(",", "."));
+    var valB = parseFloat(cellB.replace(/\s/g, "").replace(",", "."));
 
-  // Переключаем полноэкранный режим
-  toggleFullscreen(tableContainer, isFullscreen);
+    // Если значение не является числом, то оно будет равно NaN
+    // В таком случае, используем сам текст
+    if (isNaN(valA)) valA = cellA;
+    if (isNaN(valB)) valB = cellB;
+
+    // Сортировка с учетом числовых значений или текста
+    return isAsc ? (valA < valB ? 1 : -1) : valA > valB ? 1 : -1;
+});
+
+  // Добавляем отсортированные строки обратно в tbody
+  rows.forEach(function (row) {
+    return tbody.appendChild(row);
+  });
+  var thead = table.querySelector("thead");
+  var headerRows = thead.querySelectorAll("tr"); // Получаем все строки <tr>
+  var headerRowsClone = Array.from(headerRows).map(function (row) {
+    return row.cloneNode(true);
+  });
+  headerRowsClone.forEach(function (row) {
+    row.classList.add("header-row-clone");
+    tbody.appendChild(row);
+  });
 }

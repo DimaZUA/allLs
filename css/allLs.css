@@ -359,12 +359,12 @@ font-size: 1rem;
 }
 
 /* Настройка столбцов */
-#paytable td:nth-child(1){
+#paytable td:nth-child(2){
     text-align: center !important; /* 1-й, 2-й и 4-й столбцы выравнены по центру */
     font-size: 1.5rem !important; /* 1-й, 2-й и 4-й столбцы выравнены по центру */
 }
 
-#paytable td:nth-child(2),
+#paytable td:nth-child(1),
 #paytable td:nth-child(3) {
     text-align: right !important; /* 3-й столбец выравнен по правому краю */
    font-size: 2rem !important; /* 1-й, 2-й и 4-й столбцы выравнены по центру */
