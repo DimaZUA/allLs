@@ -1,4 +1,32 @@
-﻿// Список доступных действий (например, для каждого дома)
+﻿﻿// Список доступных действий (например, для каждого дома)
+
+(function checkUUIDAccess() {
+  const params = new URLSearchParams(window.location.search);
+  const uuid = getParam("uuid");
+
+  if (!uuid) {
+    fetch('info.html')
+      .then(response => {
+        if (!response.ok) throw new Error("Не удалось загрузить info.html");
+        return response.text();
+      })
+      .then(html => {
+        document.open();
+        document.write(html);
+        document.close();
+      })
+      .catch(err => {
+        console.error("Ошибка при загрузке info.html:", err);
+        document.body.innerHTML = "<h1 style='color:red;text-align:center'>Страница недоступна</h1>";
+      });
+
+    throw new Error("Нет UUID — страница заблокирована");
+  }
+
+  // Сохраняем UUID в глобальную переменную (если нужно)
+  window.allowedUUID = uuid;
+})();
+
 var actions = [
   {
     name: "Лицевые счета",
@@ -29,6 +57,10 @@ var actions = [
     actionCode: "schema"
   }
 ];
+
+homes = homes.filter(home => {
+  return home.UUIDs && home.UUIDs.split(";").includes(window.allowedUUID);
+});
 
 // Генерация меню
 homes.sort(function (a, b) {

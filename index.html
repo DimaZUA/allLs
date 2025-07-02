@@ -1,65 +1,256 @@
 ﻿<!DOCTYPE html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Учет в ОСББ/ЖК</title>
-    <link rel="stylesheet" href="css\schema.css">
-    <link rel="stylesheet" href="css\menu.css">
-    <link rel="stylesheet" href="css\allLs.css">
-    <link rel="stylesheet" href="css\banktable.css">
-    <link rel="stylesheet" href="css\print.css">
-    <link rel="icon" type="image/png" href="favicon.png" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Учет в ОСББ/ЖК</title>
 
+  <!-- Основные стили -->
+  <link rel="stylesheet" href="css/schema.css" />
+  <link rel="stylesheet" href="css/menu.css" />
+  <link rel="stylesheet" href="css/allLs.css" />
+  <link rel="stylesheet" href="css/banktable.css" />
+  <link rel="stylesheet" href="css/print.css" />
+  <link rel="icon" type="image/png" href="favicon.png" />
 
 </head>
 <body>
-    <!-- Иконка "гамбургера" -->
-    <div class="hamburger logo" onclick="toggleMenu()">
-        
-        <img src="img/AllLs.png" alt="Logo">
-        
-    </div>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
 
-    <!-- Боковая панель с меню -->
-    <nav class="sidebar" id="sidebar">
-<input type="text" id="searchHomes" placeholder="Поиск дома...">
-   
-        <ul class="menu" id="menu">
-            <!-- Здесь JavaScript будет генерировать список домов -->
-        </ul>
-        <br><br><br><br>
-    </nav>
+  <div id="auth-section">
+    <!-- Форма входа -->
+    <form id="login-form">
+      <h2>Вход</h2>
+      <input type="email" id="email" placeholder="Email" required />
+      <input type="password" id="password" placeholder="Пароль" required />
+      <button type="submit">Увійти</button>
+      <div id="login-status"></div>
+      <div id="auth-toggle"><span id="show-signup" style="color:#007bff; cursor:pointer;">Нет аккаунта? Зарегистрироваться</span>
+      </div>
+    </form>
 
-    <!-- Основной контент -->
-    <div class="content">
-        <div id="preloader" class="preloader">
-             <div class="spinner"></div>
-        </div>
+    <!-- Форма регистрации -->
+    <form id="signup-form" style="display:none;">
+      <h2>Регистрация</h2>
+      <input type="email" id="signup-email" placeholder="Email" required />
+      <input type="password" id="signup-password" placeholder="Пароль" required minlength="6" />
+      <input
+        type="password"
+        id="signup-password-confirm"
+        placeholder="Подтвердите пароль"
+        required
+        minlength="6"
+      />
+      <button type="submit">Зарегистрироваться</button>
+      <div id="signup-status"></div>
+      <div id="auth-toggle"><span id="show-login" style="color:#007bff; cursor:pointer;">Уже есть аккаунт? Войти</span>
+      </div>
+    </form>
+  </div>
 
-        <div id="maincontainer"></div>
-    </div>
-<div id="message" style="display: none; position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background-color: rgba(0, 128, 0, 0.8); color: white; padding: 10px; border-radius: 5px; font-size: 16px;">
+  <!-- Иконка "гамбургера" -->
+<div id="hamburger-logo" class="hamburger logo" onclick="toggleMenu()" style="display:none;">
+  <img src="img/AllLs.png" alt="Logo" />
 </div>
-    <!-- Подключение скриптов -->
-    <script src="js/ut.js"></script>
-    <script src="data/homes.js"></script>
-    <script src="js/addstuf.js"></script>
-    <script src="js/table.js"></script>
-    <script src="js/paytable.js"></script>
-    <script src="js/banktable.js"></script>
-    <script src="js/menu.js"></script>
-    <script src="js/homeinfo.js"></script>
-    <script src="js/schema.js"></script>
-    <script src="js/reports.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/core-js/3.32.1/minified.js"></script>
 
-    <!-- Подключаем библиотеки -->
-    <script src="https://cdn.jsdelivr.net/npm/exceljs@4.3.0/dist/exceljs.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/0.4.1/html2canvas.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
-    <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/docxtemplater/3.57.1/docxtemplater.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.2/xlsx.full.min.js"></script> <!-- Подключаем библиотеку SheetJS -->
+  <!-- Боковая панель с меню -->
+  <nav class="sidebar" id="sidebar" style="display:none;">
+    <input type="text" id="searchHomes" placeholder="Поиск дома..." />
+    <ul class="menu" id="menu"></ul>
+    <br /><br /><br /><br />
+  </nav>
+
+  <!-- Основной контент -->
+  <div class="content" style="display:none;">
+    <div id="preloader" class="preloader">
+      <div class="spinner"></div>
+    </div>
+
+    <div id="maincontainer"></div>
+  </div>
+
+  <div
+    id="message"
+    style="
+      display: none;
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: rgba(0, 128, 0, 0.8);
+      color: white;
+      padding: 10px;
+      border-radius: 5px;
+      font-size: 16px;
+    "
+  ></div>
+
+  <script>
+    const client = window.supabase.createClient(
+      "https://bollarpnewbhziwldzjn.supabase.co",
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJvbGxhcnBuZXdiaHppd2xkempuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTEzNjY4MjYsImV4cCI6MjA2Njk0MjgyNn0.KhmT9U5wKm0irQbidZjZXCSOfzfr1gYYmo_21VL1JPw"
+    );
+
+    // Инициализация: проверяем сессию
+    (async () => {
+      let {
+        data: { session },
+      } = await client.auth.getSession();
+      if (!session){
+      let {
+        data: { session },
+      } = await client.auth.refreshSession();      
+      }
+      client.auth.refreshSession() 
+      if (session) {
+        // Пользователь авторизован — показываем меню и контент, скрываем форму
+        document.getElementById("auth-section").style.display = "none";
+        document.querySelector(".sidebar").style.display = "block";
+        document.querySelector(".content").style.display = "block";
+        document.getElementById("hamburger-logo").style.display = "flex";
+
+        await loadHomesAndBuildMenu();
+      } else {
+        // Пользователь не авторизован — показываем форму, скрываем меню и контент
+        document.getElementById("auth-section").style.display = "block";
+        document.querySelector(".sidebar").style.display = "none";
+        document.querySelector(".content").style.display = "none";
+        document.getElementById("hamburger-logo").style.display = "none";
+      }
+    })();
+
+    // Переключение форм
+    document.getElementById("show-signup").addEventListener("click", () => {
+      document.getElementById("login-form").style.display = "none";
+      document.getElementById("signup-form").style.display = "block";
+      clearStatuses();
+    });
+    document.getElementById("show-login").addEventListener("click", () => {
+      document.getElementById("signup-form").style.display = "none";
+      document.getElementById("login-form").style.display = "block";
+      clearStatuses();
+    });
+
+    function clearStatuses() {
+      document.getElementById("login-status").textContent = "";
+      document.getElementById("signup-status").textContent = "";
+    }
+
+    // Вход
+    document.getElementById("login-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+
+      const { data, error } = await client.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        document.getElementById("login-status").textContent =
+          "❌ Помилка входу: " + error.message;
+      } else {
+        document.getElementById("login-status").textContent = "✅ Успішний вхід";
+        console.log("Logged in as:", data.user);
+        await loadHomesAndBuildMenu();
+
+        // Скрываем форму и показываем меню/контент:
+        document.getElementById("auth-section").style.display = "none";
+        document.querySelector(".sidebar").style.display = "block";
+        document.querySelector(".content").style.display = "block";
+      }
+    });
+
+    // Регистрация
+    document
+      .getElementById("signup-form")
+      .addEventListener("submit", async (e) => {
+        e.preventDefault();
+
+        const email = document.getElementById("signup-email").value;
+        const password = document.getElementById("signup-password").value;
+        const passwordConfirm =
+          document.getElementById("signup-password-confirm").value;
+
+        if (password !== passwordConfirm) {
+          document.getElementById("signup-status").textContent =
+            "❌ Пароли не совпадают";
+          return;
+        }
+
+        const { data, error } = await client.auth.signUp({ email, password });
+
+        if (error) {
+          document.getElementById("signup-status").textContent =
+            "❌ Ошибка регистрации: " + error.message;
+        } else {
+          document.getElementById("signup-status").style.color = "green";
+          document.getElementById("signup-status").textContent =
+            "✅ Регистрация успешна! Проверьте почту для подтверждения.";
+        }
+      });
+
+  </script>
+
+  <!-- Подключение скриптов -->
+  <script src="js/ut.js"></script>
+  <script src="js/addstuf.js"></script>
+  <script src="js/table.js"></script>
+  <script src="js/paytable.js"></script>
+  <script src="js/banktable.js"></script>
+  <script src="js/menu.js"></script>
+  <script src="js/homeinfo.js"></script>
+  <script src="js/schema.js"></script>
+  <script src="js/reports.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/core-js/3.32.1/minified.js"></script>
+
+  <!-- Подключаем библиотеки -->
+  <script src="https://cdn.jsdelivr.net/npm/exceljs@4.3.0/dist/exceljs.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/0.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+
+<!-- Модальное окно настроек пользователя -->
+<div id="settings-modal" style="
+  display: none;
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(0,0,0,0.5);
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+">
+  <div style="
+    background: #fff;
+    padding: 20px;
+    border-radius: 5px;
+    max-width: 400px;
+    width: 90%;
+    box-sizing: border-box;
+  ">
+    <h3>Настройки пользователя</h3>
+<form id="settings-form">
+  <label>Старый пароль:</label>
+  <input type="password" id="old-password" required minlength="6" style="width: 100%;" /><br /><br />
+
+  <label>Новый пароль:</label>
+  <input type="password" id="new-password" required minlength="6" style="width: 100%;" /><br /><br />
+
+  <label>Подтвердите новый пароль:</label>
+  <input type="password" id="confirm-password" required minlength="6" style="width: 100%;" /><br /><br />
+
+  <button type="submit">Сохранить</button>
+  <button type="button" id="settings-cancel" style="margin-left: 10px;">Отмена</button>
+  <div id="settings-status" style="margin-top: 10px; color: red;"></div>
+</form>
+
+      <div id="settings-status" style="margin-top: 10px; color: red;"></div>
+    </form>
+  </div>
+</div>
+
 
 </body>
 </html>

@@ -319,3 +319,72 @@ body {
   background: #007bff;
   color: #fff;
 }
+#auth-section {
+  display: none;
+}
+/* Стили для формы авторизации */
+#auth-section {
+  max-width: 400px;
+  margin: 60px auto;
+  padding: 30px 25px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  background: #f9f9f9;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  font-family: Arial, sans-serif;
+}
+
+#auth-section h2 {
+  text-align: center;
+  margin-bottom: 20px;
+  color: #333;
+}
+
+#auth-section input[type="email"],
+#auth-section input[type="password"],
+#auth-section input[type="text"] {
+  width: 100%;
+  padding: 12px 15px;
+  margin: 8px 0 15px;
+  border: 1px solid #bbb;
+  border-radius: 5px;
+  box-sizing: border-box;
+  font-size: 16px;
+}
+
+#auth-section button {
+  width: 100%;
+  padding: 12px;
+  background-color: #007bff;
+  border: none;
+  border-radius: 5px;
+  color: white;
+  font-size: 17px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+#auth-section button:hover {
+  background-color: #0056b3;
+}
+
+#login-status {
+  margin-top: 10px;
+  min-height: 18px;
+  text-align: center;
+  font-weight: 600;
+  color: red;
+}
+
+#auth-toggle {
+  margin-top: 15px;
+  text-align: center;
+  font-size: 14px;
+  color: #007bff;
+  cursor: pointer;
+  user-select: none;
+}
+
+#auth-toggle:hover {
+  text-decoration: underline;
+}
