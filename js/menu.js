@@ -356,6 +356,7 @@ function checkMenu() {
 document.addEventListener("DOMContentLoaded", function () {
   loadHomesAndBuildMenu();
   toggleMenu();
+  if (undefined ==homes) return;
   // Если параметры найдены в URL, используем их, иначе — из localStorage
   var homeCode = getParam("homeCode");
   var actionCode = getParam("actionCode");
