@@ -1,11 +1,11 @@
-﻿// Список доступных действий (например, для каждого дома)
+﻿﻿// Список доступных действий (например, для каждого дома)
 const actions = [
   { name: "Лицевые счета", actionCode: "accounts" },
   { name: "Список", actionCode: "list" },
   { name: "Платежи", actionCode: "payments" },
   { name: "Банк", actionCode: "bank" },
   { name: "Отчеты", actionCode: "reports" },
-//  { name: "Информация по дому", actionCode: "info" },
+  { name: "Информация по дому", actionCode: "info" },
   { name: "Схема дома", actionCode: "schema" }
 ];
 var homes, ls, nach, files, adr, dt, org, b, what, kto, oplat, plat;
@@ -298,7 +298,7 @@ async function handleMenuClick(homeCode, actionCode, actionLink) {
       reportsInit();
       break;
     case "info":
-      displayHomeInfo();
+      displayHomeInfo(homeCode);
       break;
     case "schema":
       initSchema();
