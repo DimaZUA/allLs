@@ -249,6 +249,16 @@ function calculateInitialDebit(accountId, start) {
   return debit;
 }
 function generateTable() {
+var table = document.querySelector("table");
+var prevOrder=0;
+if (table){
+var tbody = table.querySelector("tbody");
+
+// 1️⃣ Сохраняем текущий порядок квартир
+prevOrder = Array.from(tbody.rows)
+  .filter(row => row.cells.length > 0) // пропускаем невалидные строки
+  .map(row => row.cells[0].textContent.trim());
+}
   var start = new Date(document.getElementById("start-date").value);
   var end = new Date(document.getElementById("end-date").value);
   end.setMonth(end.getMonth() + 1);
@@ -397,21 +407,18 @@ while (_currentDate2 <= end) {
   // Суммируем начисления по услуге или по всем услугам
   var charges = 0;
   if (nach[_accountId] && nach[_accountId][y] && nach[_accountId][y][m]) {
-    if (serviceFilterId !== null) {
-      charges = nach[_accountId][y][m][serviceFilterId] || 0;
-    } else {
       charges = Object.values(nach[_accountId][y][m]).reduce(function (sum, val) {
         return sum + val;
       }, 0);
-    }
     totalCharges[`${y}-${m}`] = (totalCharges[`${y}-${m}`] || 0) + charges;
+
+    if (serviceFilterId !== null) charges = nach[_accountId][y][m][serviceFilterId] || 0;
   }
 
   // Оплаты (если serviceFilterId !== null, не показываем оплаты)
   var payments = [];
   var paymentsSum = 0;
   if (
-    serviceFilterId === null && displayMode != "charges-only" &&
     oplat[_accountId] &&
     oplat[_accountId][y] &&
     oplat[_accountId][y][m]
@@ -578,6 +585,11 @@ while (_currentDate2 <= end) {
   );
 }
 
+if (prevOrder){
+const rows = Array.from(tbody.rows).filter(row => row.cells.length > 0);
+rows.sort((a, b) => prevOrder.indexOf(a.cells[0].textContent.trim()) - prevOrder.indexOf(b.cells[0].textContent.trim()));
+rows.forEach(row => tbody.appendChild(row));
+}
   thead.appendChild(footerRow);
   var headerRows = thead.querySelectorAll("tr"); // Получаем все строки <tr>
   var headerRowsClone = Array.from(headerRows).map(function (row) {
@@ -587,9 +599,13 @@ while (_currentDate2 <= end) {
     row.classList.add("header-row-clone");
     tbody.appendChild(row);
   });
-  tableContainer.appendChild(table);
-  initPosters();
-  doRed();
+tableContainer.appendChild(table);
+
+// 2️⃣ Восстанавливаем порядок строк по сохранённым номерам квартир
+
+initPosters();
+doRed();
+
   setParam("start", document.getElementById("start-date").value);
   setParam("end", document.getElementById("end-date").value);
   setParam("displayMode", displayMode);
