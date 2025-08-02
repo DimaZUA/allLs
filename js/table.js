@@ -406,13 +406,14 @@ while (_currentDate2 <= end) {
 
   // Суммируем начисления по услуге или по всем услугам
   var charges = 0;
+  var chargesAll = 0;
   if (nach[_accountId] && nach[_accountId][y] && nach[_accountId][y][m]) {
-      charges = Object.values(nach[_accountId][y][m]).reduce(function (sum, val) {
+      chargesAll = Object.values(nach[_accountId][y][m]).reduce(function (sum, val) {
         return sum + val;
       }, 0);
-    totalCharges[`${y}-${m}`] = (totalCharges[`${y}-${m}`] || 0) + charges;
+    totalCharges[`${y}-${m}`] = (totalCharges[`${y}-${m}`] || 0) + chargesAll;
 
-    if (serviceFilterId !== null) charges = nach[_accountId][y][m][serviceFilterId] || 0;
+    if (serviceFilterId !== null) {charges = nach[_accountId][y][m][serviceFilterId] || 0;} else {charges=chargesAll}
   }
 
   // Оплаты (если serviceFilterId !== null, не показываем оплаты)
@@ -443,7 +444,7 @@ while (_currentDate2 <= end) {
   }
 
   // Обновляем долг
-  _debitEnd += charges - paymentsSum;
+  _debitEnd += chargesAll - paymentsSum;
 
   _currentDate2.setMonth(_currentDate2.getMonth() + 1);
 }
@@ -560,7 +561,18 @@ while (_currentDate2 <= end) {
     var _month3 = _currentDate.getMonth() + 1;
     var _year3 = _currentDate.getFullYear();
     var key = "".concat(_year3, "-").concat(_month3);
-    var chargeTotal = totalCharges[key] || 0;
+let chargeTotal = 0;
+if (serviceFilterId !== null) {
+  // Подсчитываем сумму только по конкретной услуге
+  for (const accId in nach) {
+    if (nach[accId][_year3] && nach[accId][_year3][_month3] && nach[accId][_year3][_month3][serviceFilterId]) {
+      chargeTotal += nach[accId][_year3][_month3][serviceFilterId];
+    }
+  }
+} else {
+  chargeTotal = totalCharges[key] || 0;
+}
+
     var paymentTotal = totalPayments[key] || 0;
 
     if (displayMode === "charges-only") {
