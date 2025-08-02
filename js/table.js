@@ -267,6 +267,10 @@ function generateTable() {
   table.appendChild(tbody);
   var servicesWithCharges = new Set();
   var filterValue = document.getElementById("record-filter").value;
+  var serviceFilterId = null;
+  if (displayMode.startsWith("service-")) {
+    serviceFilterId = displayMode.split("-")[1];
+  }
 
   // Собираем список услуг с начислениями в заданный период
   for (var accountId in nach) {
@@ -294,20 +298,29 @@ function generateTable() {
     });
     headerRow +=
       '<th onclick="sortTable(this)">Оплаты</th><th onclick="sortTable(this)">Долг на конец</th></tr>';
+ } else if (serviceFilterId !== null) {
+  var currentDate = new Date(start);
+  while (currentDate <= end) {
+    var m = currentDate.getMonth() + 1;
+    var y = currentDate.getFullYear();
+    headerRow +=
+      '<th onclick="sortTable(this)">Начислено ' + m + "-" + y + '</th>';
+      // Оплаты можно не показывать или показать пустые колонки, здесь не показываем
+    currentDate.setMonth(currentDate.getMonth() + 1);
+  }
+  headerRow += '<th onclick="sortTable(this)">Долг на конец</th></tr>';
   } else {
     var currentDate = new Date(start);
     while (currentDate <= end) {
       var _month2 = currentDate.getMonth() + 1;
       var _year2 = currentDate.getFullYear();
-      headerRow +=
-        '<th onclick="sortTable(this)">\u041D\u0430\u0447\u0438\u0441\u043B\u0435\u043D\u043E '
-          .concat(_month2, "/")
-          .concat(
-            _year2,
-            '</th><th onclick="sortTable(this)">\u041E\u043F\u043B\u0430\u0447\u0435\u043D\u043E '
-          )
-          .concat(_month2, "/")
-          .concat(_year2, "</th>");
+    if (displayMode === "detailed" || displayMode === "charges-only") {
+      headerRow += `<th onclick="sortTable(this)">Начислено ${_month2}-${_year2}</th>`;
+    }
+
+    if (displayMode === "detailed" || displayMode === "payments-only") {
+      headerRow += `<th onclick="sortTable(this)">Оплачено ${_month2}-${_year2}</th>`;
+    }
       currentDate.setMonth(currentDate.getMonth() + 1);
     }
     headerRow += '<th onclick="sortTable(this)">Долг на конец</th></tr>';
@@ -377,51 +390,57 @@ function generateTable() {
     } else {
       var _debitEnd = debitStart;
       var _currentDate2 = new Date(start);
-      while (_currentDate2 <= end) {
-        var _month5 = _currentDate2.getMonth() + 1;
-        var _year5 = _currentDate2.getFullYear();
+while (_currentDate2 <= end) {
+  var m = _currentDate2.getMonth() + 1;
+  var y = _currentDate2.getFullYear();
 
-        // Суммируем начисления
-        var charges = 0;
-        if (nach[_accountId][_year5] && nach[_accountId][_year5][_month5]) {
-          charges = Object.values(nach[_accountId][_year5][_month5]).reduce(
-            function (sum, val) {
-              return sum + val;
-            },
-            0
-          );
-          totalCharges["".concat(_year5, "-").concat(_month5)] =
-            (totalCharges["".concat(_year5, "-").concat(_month5)] || 0) +
-            charges;
-        }
+  // Суммируем начисления по услуге или по всем услугам
+  var charges = 0;
+  if (nach[_accountId] && nach[_accountId][y] && nach[_accountId][y][m]) {
+    if (serviceFilterId !== null) {
+      charges = nach[_accountId][y][m][serviceFilterId] || 0;
+    } else {
+      charges = Object.values(nach[_accountId][y][m]).reduce(function (sum, val) {
+        return sum + val;
+      }, 0);
+    }
+    totalCharges[`${y}-${m}`] = (totalCharges[`${y}-${m}`] || 0) + charges;
+  }
 
-        // Суммируем оплаты
-        var _payments = [];
-        if (
-          oplat[_accountId] &&
-          oplat[_accountId][_year5] &&
-          oplat[_accountId][_year5][_month5]
-        ) {
-          _payments = oplat[_accountId][_year5][_month5];
-          totalPayments["".concat(_year5, "-").concat(_month5)] =
-            (totalPayments["".concat(_year5, "-").concat(_month5)] || 0) +
-            _payments.reduce(function (sum, payment) {
-              return sum + payment.sum;
-            }, 0);
-        }
+  // Оплаты (если serviceFilterId !== null, не показываем оплаты)
+  var payments = [];
+  var paymentsSum = 0;
+  if (
+    serviceFilterId === null && displayMode != "charges-only" &&
+    oplat[_accountId] &&
+    oplat[_accountId][y] &&
+    oplat[_accountId][y][m]
+  ) {
+    payments = oplat[_accountId][y][m];
+    var monthPaymentsSum = payments.reduce(function (sum, payment) {
+      return sum + payment.sum;
+    }, 0);
+    paymentsSum = monthPaymentsSum;
+    totalPayments[`${y}-${m}`] = (totalPayments[`${y}-${m}`] || 0) + monthPaymentsSum;
+  }
 
-        // Отображаем начисления и оплаты в ячейках
-        row.innerHTML += "<td>".concat(charges.toFixedWithComma(), "</td>");
-        row.appendChild(generatePaymentCell(_payments));
+  // Выводим начисления
+  if (displayMode != "payments-only") 
+  row.innerHTML += `<td v="${charges}">${!charges ? "–" : charges.toFixedWithComma()}</td>`;
 
-        // Обновляем долг на конец месяца
-        _debitEnd +=
-          charges -
-          _payments.reduce(function (sum, payment) {
-            return sum + payment.sum;
-          }, 0);
-        _currentDate2.setMonth(_currentDate2.getMonth() + 1);
-      }
+
+
+  // Вывод оплат, если не фильтруем по услуге
+  if (serviceFilterId === null && displayMode != "charges-only") {
+    row.appendChild(generatePaymentCell(payments));
+  }
+
+  // Обновляем долг
+  _debitEnd += charges - paymentsSum;
+
+  _currentDate2.setMonth(_currentDate2.getMonth() + 1);
+}
+
       totalEndDebt += _debitEnd;
       row.innerHTML += "<td>".concat(_debitEnd.toFixedWithComma(), "</td>");
     }
@@ -528,25 +547,37 @@ function generateTable() {
         "</td><td>"
       )
       .concat(totalEndDebt.toFixedWithComma(), "</td>");
-  } else {
-    var _currentDate = new Date(start);
-    while (_currentDate <= end) {
-      var _month3 = _currentDate.getMonth() + 1;
-      var _year3 = _currentDate.getFullYear();
-      var chargeTotal =
-        totalCharges["".concat(_year3, "-").concat(_month3)] || 0;
-      var paymentTotal =
-        totalPayments["".concat(_year3, "-").concat(_month3)] || 0;
+} else {
+  var _currentDate = new Date(start);
+  while (_currentDate <= end) {
+    var _month3 = _currentDate.getMonth() + 1;
+    var _year3 = _currentDate.getFullYear();
+    var key = "".concat(_year3, "-").concat(_month3);
+    var chargeTotal = totalCharges[key] || 0;
+    var paymentTotal = totalPayments[key] || 0;
+
+    if (displayMode === "charges-only") {
+      footerRow.innerHTML += "<td>".concat(chargeTotal.toFixedWithComma(), "</td>");
+    } else if (displayMode === "payments-only") {
+      footerRow.innerHTML += "<td>".concat(paymentTotal.toFixedWithComma(), "</td>");
+    } else if (displayMode === "detailed") {
       footerRow.innerHTML += "<td>"
         .concat(chargeTotal.toFixedWithComma(), "</td><td>")
         .concat(paymentTotal.toFixedWithComma(), "</td>");
-      _currentDate.setMonth(_currentDate.getMonth() + 1);
+    } else if (displayMode.startsWith("service-")) {
+      // В этом режиме показываются только начисления по услуге
+      footerRow.innerHTML += "<td>".concat(chargeTotal.toFixedWithComma(), "</td>");
     }
-    footerRow.innerHTML += "<td>".concat(
-      totalEndDebt.toFixedWithComma(),
-      "</td>"
-    );
+
+    _currentDate.setMonth(_currentDate.getMonth() + 1);
   }
+
+  footerRow.innerHTML += "<td>".concat(
+    totalEndDebt.toFixedWithComma(),
+    "</td>"
+  );
+}
+
   thead.appendChild(footerRow);
   var headerRows = thead.querySelectorAll("tr"); // Получаем все строки <tr>
   var headerRowsClone = Array.from(headerRows).map(function (row) {
@@ -648,22 +679,21 @@ function sortTable(header) {
 
   // Сортируем строки
 rows.sort(function (rowA, rowB) {
-    var cellA =
-      rowA.cells[index].getAttribute("v") || rowA.cells[index].textContent;
-    var cellB =
-      rowB.cells[index].getAttribute("v") || rowB.cells[index].textContent;
+  var cellA = rowA.cells[index].getAttribute("v") || rowA.cells[index].textContent;
+  var cellB = rowB.cells[index].getAttribute("v") || rowB.cells[index].textContent;
 
-    // Преобразуем строки в числа, если возможно
-    var valA = parseFloat(cellA.replace(/\s/g, "").replace(",", "."));
-    var valB = parseFloat(cellB.replace(/\s/g, "").replace(",", "."));
+  // Преобразуем "-" в 0
+  if (cellA.trim() === "-") cellA = "0";
+  if (cellB.trim() === "-") cellB = "0";
 
-    // Если значение не является числом, то оно будет равно NaN
-    // В таком случае, используем сам текст
-    if (isNaN(valA)) valA = cellA;
-    if (isNaN(valB)) valB = cellB;
+  var valA = parseFloat(cellA.replace(/\s/g, "").replace(",", "."));
+  var valB = parseFloat(cellB.replace(/\s/g, "").replace(",", "."));
 
-    // Сортировка с учетом числовых значений или текста
-    return isAsc ? (valA < valB ? 1 : -1) : valA > valB ? 1 : -1;
+  // Если не число — сравниваем как строки
+  if (isNaN(valA)) valA = cellA;
+  if (isNaN(valB)) valB = cellB;
+
+  return isAsc ? (valA < valB ? 1 : -1) : valA > valB ? 1 : -1;
 });
 
   // Добавляем отсортированные строки обратно в tbody
@@ -879,6 +909,46 @@ function handlePeriodChange(event) {
   }
 }
 function initTable() {
+
+  // Собираем уникальные коды услуг из nach
+  var serviceIds = new Set();
+
+  for (var orgId in nach) {
+    if (!nach.hasOwnProperty(orgId)) continue;
+    var years = nach[orgId];
+    for (var year in years) {
+      if (!years.hasOwnProperty(year)) continue;
+      var months = years[year];
+      for (var month in months) {
+        if (!months.hasOwnProperty(month)) continue;
+        var days = months[month];
+        for (var day in days) {
+          if (!days.hasOwnProperty(day)) continue;
+          // Здесь day — это код услуги (число)
+          serviceIds.add(Number(day));
+        }
+      }
+    }
+  }
+
+  // Формируем опции для display-mode: стандартные
+  var displayOptions =
+    '<option value="summarized">По услугам</option>' +
+    '<option value="detailed">По месяцам</option>' +
+    '<option value="charges-only">По месяцам (начислено)</option>' +
+    '<option value="payments-only">По месяцам (оплаты)</option>';
+
+  // Добавляем только те услуги, которые есть в nach
+  serviceIds.forEach(function(serviceId) {
+    if (us[serviceId]) {
+      displayOptions +=
+        '<option value="service-' + serviceId + '">' + us[serviceId] + "</option>";
+    }
+  });
+
+
+
+
   document.getElementById("maincontainer").innerHTML =
     '<div id="org" align="right"></div>' +
     '<div id="filter-container">' +
@@ -904,8 +974,7 @@ function initTable() {
     "<label>" +
     "Отображение:" +
     '<select id="display-mode">' +
-    '<option value="summarized">По услугам</option>' +
-    '<option value="detailed">По месяцам</option>' +
+    displayOptions +
     "</select>" +
     "</label>" +
     "</div>" +
@@ -949,36 +1018,44 @@ function initTable() {
 }
 function doRed() {
   var table = document.querySelector(".main");
-  var _iterator = _createForOfIteratorHelper(table.rows),
-    _step;
-  try {
-    for (_iterator.s(); !(_step = _iterator.n()).done; ) {
-      var row = _step.value;
-      var cells = row.cells;
+  for (var row of table.rows) {
+    var cells = row.cells;
+    var visualIndex = 0;
 
-      // Второй столбец
-      var secondCellValue = parseFloat(cells[1].textContent);
-      if (secondCellValue > 0) {
-        cells[1].classList.add("red");
+    for (var i = 0; i < cells.length; i++) {
+      var cell = cells[i];
+      var colspan = parseInt(cell.getAttribute("colspan") || "1");
+
+      // Обработка третьего визуального столбца (индекс 2)
+      if (visualIndex <= 2 && visualIndex + colspan > 2) {
+        var value = parseFloat(cell.textContent);
+        if (value > 0) cell.classList.add("red");
       }
 
-      // Последний столбец
-      var lastCellValue = parseFloat(cells[cells.length - 1].textContent);
-      if (lastCellValue > 0) {
-        cells[cells.length - 1].classList.add("red");
-      }
-
-      // Столбцы между вторым и последним
-      for (var i = 2; i < cells.length - 1; i++) {
-        var cellValue = parseFloat(cells[i].textContent);
-        if (cellValue < 0) {
-          cells[i].classList.add("red");
+      // Обработка остальных ячеек между 4 и предпоследним (визуально)
+      for (var v = 3; v < getTotalVisualColumns(row) - 1; v++) {
+        if (visualIndex <= v && visualIndex + colspan > v) {
+          var value = parseFloat(cell.textContent);
+          if (value < 0) cell.classList.add("red");
         }
       }
+
+      visualIndex += colspan;
     }
-  } catch (err) {
-    _iterator.e(err);
-  } finally {
-    _iterator.f();
+
+    // Последний визуальный столбец — самый правый cell
+    var lastCell = cells[cells.length - 1];
+    var lastValue = parseFloat(lastCell.textContent);
+    if (lastValue > 0) lastCell.classList.add("red");
   }
 }
+
+// Подсчёт количества визуальных колонок
+function getTotalVisualColumns(row) {
+  var total = 0;
+  for (var cell of row.cells) {
+    total += parseInt(cell.getAttribute("colspan") || "1");
+  }
+  return total;
+}
+
