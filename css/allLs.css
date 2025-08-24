@@ -292,9 +292,9 @@ table#main {
     background: #eee;
     font-weight: bold; 
 }
-.itog td:last-child:not(:only-child) {
+.box .itog td:last-child:not(:only-child) {
     color: #000;       /* черный цвет текста */
-    font-size: 3rem;   /* размер шрифта */
+    font-size: 2.3rem;   /* размер шрифта */
 }
 
 .subtable td:nth-child(2) {
