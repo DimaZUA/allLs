@@ -181,3 +181,5 @@ li.folder {
 .file-list li.image::before   { content: "🖼️"; }
 .file-list li.archive::before { content: "🗜️"; }
 .file-list li.other::before   { content: "📦"; }
+
+
