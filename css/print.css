@@ -1,4 +1,4 @@
-﻿/* Стили для печати */
+﻿﻿/* Стили для печати */
 @media print {
     body * {
         visibility: hidden;

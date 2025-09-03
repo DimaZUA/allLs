@@ -1,0 +1,183 @@
+﻿/* Общий контейнер панели файлов */
+#filebar {
+    padding: 10px;
+    width: 280px;
+    height: 100%; /* полностью по высоте окна */
+    overflow: hidden auto; /* горизонтальная скрыта, вертикальная auto */
+    background: #f7f7f7;
+    border-right: 1px solid #ddd;
+    box-sizing: border-box;
+    font-family: sans-serif;
+    font-size: 14px;
+}
+
+/* Панель предпросмотра */
+#preview {
+    margin-left: 290px;
+    padding: 1px;
+    height: calc(100vh);
+    box-sizing: border-box;
+    background: #fff;
+    border: 1px solid #ddd;
+}
+
+/* Список файлов и папок */
+.file-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.file-list li {
+    padding: 4px 6px;
+    margin: 1px 0;
+    cursor: pointer;
+    border-radius: 3px;
+    transition: background 0.2s, color 0.2s;
+}
+
+/* Наведение на элемент списка */
+.file-list li:hover {
+    background: #e9f1ff;
+}
+
+/* Папки (включая ..) */
+li.folder {
+    font-weight: 600;
+    background: #fff9d6; /* мягкий жёлтый фон */
+}
+
+/* Сетка месяцев с минимальными отступами */
+.month-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(4, auto);
+    gap: 2px;
+    margin-top: 2px;
+}
+
+/* Кнопки месяцев */
+.month-btn {
+    padding: 4px 6px;
+    border-radius: 3px;
+    border: 1px solid #ccc;
+    background: #fafafa;
+    cursor: pointer;
+    font-size: 13px;
+    transition: background 0.2s, color 0.2s;
+}
+
+.month-btn:disabled {
+    background: #eee;
+    color: #aaa;
+    cursor: not-allowed;
+}
+
+/* Кнопки годов */
+.year-btn {
+    padding: 4px 6px;
+    margin: 1px;
+    border-radius: 3px;
+    border: 1px solid #ccc;
+    background: #fafafa;
+    cursor: pointer;
+    font-size: 13px;
+    transition: background 0.2s, color 0.2s;
+}
+
+.year-btn:hover,
+.month-btn:hover {
+    background: #e9f1ff;
+}
+
+/* Кнопки прокрутки годов */
+.year-scroll {
+    padding: 4px 8px;
+    border: 1px solid #ccc;
+    background: #fafafa;
+    cursor: pointer;
+}
+
+.year-scroll:hover {
+    background: #eee;
+}
+
+/* Типы файлов можно оставить для визуальной подсветки */
+.excel   { background: #d4f8c4; }
+.image   { background: #c4e3f8; }
+.pdf     { background: #fdfdfd; }
+.doc     { background: #fce2c4; }
+.archive { background: #ececec; }
+.other   { background: #f5f5f5; }
+
+/* Единый стиль для активных элементов */
+.active-file,
+.active-folder,
+.active-month,
+.active-year {
+    background: #87CEEB !important; /* синий */
+    color: black;
+    font-weight: 600;
+}
+
+/* Просмотренные файлы */
+.viewed {
+    color: #2F4F4F;
+}
+
+/* --- иконки --- */
+
+/* Папки */
+.file-list li.folder::before {
+    content: "📁";
+    margin-right: 6px;
+}
+
+/* Родительская папка .. */
+.file-list li.folder:first-child::before {
+    content: "⬆️";
+}
+/* Сбрасываем стандартные маркеры и отступы */
+.file-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+/* Элементы списка растягиваются на всю ширину */
+.file-list li {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    padding: 4px 6px; /* можно уменьшить при желании */
+    margin: 1px 0;
+    cursor: pointer;
+    border-radius: 3px;
+    transition: background 0.2s, color 0.2s;
+}
+
+/* Иконка слева */
+.file-list li::before {
+    display: inline-block;
+    width: 20px; /* ширина для иконки */
+    margin-right: 6px;
+    text-align: center;
+}
+
+/* Папки */
+.file-list li.folder::before {
+    content: "📁";
+}
+
+/* Родительская папка .. */
+.file-list li.folder.first::before {
+    content: "⬆️";
+}
+
+/* Файлы по типу */
+.file-list li.pdf::before     { content: "📄"; }
+.file-list li.doc::before     { content: "📝"; }
+.file-list li.excel::before   { content: "📊"; }
+.file-list li.image::before   { content: "🖼️"; }
+.file-list li.archive::before { content: "🗜️"; }
+.file-list li.other::before   { content: "📦"; }
