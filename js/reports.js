@@ -1,9 +1,6 @@
 ﻿var lastFileData = {};
-try {
-    lastFileData = JSON.parse(localStorage.getItem("lastViewedFile") || "{}");
-} catch(e) {
-    console.warn("Неверный JSON в localStorage для lastViewedFile");
-}
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+  "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
 
 const monthLabels = ["січ","лют","бер","квіт","трав","черв","лип","серп","вер","жовт","лист","груд"];
 let selectedYear = null;
@@ -12,6 +9,11 @@ let selectedFile = null;
 let currentFolderPath = null;
 
 function reportsInit() {
+try {
+    lastFileData = JSON.parse(localStorage.getItem("lastViewedFile") || "{}");
+} catch(e) {
+    console.warn("Неверный JSON в localStorage для lastViewedFile");
+}
 
     const container = document.getElementById("maincontainer");
     container.innerHTML = `
@@ -93,6 +95,12 @@ function addFileLi(ul, f) {
     }
 
 function restoreState(rootPath, years) {
+try {
+    lastFileData = JSON.parse(localStorage.getItem("lastViewedFile") || "{}");
+} catch(e) {
+    console.warn("Неверный JSON в localStorage для lastViewedFile");
+}
+
     console.log("restoreState called");
     console.log("lastFileData:", lastFileData);
 
