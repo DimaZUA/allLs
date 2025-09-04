@@ -166,13 +166,20 @@ function openFile(f) {
     btnContainer.style.marginBottom = "10px";
     preview.appendChild(btnContainer);
 
-    // кнопка "Скачать файл" (оригинал)
-    const downloadBtn = document.createElement("a");
-    downloadBtn.href = f;
-    downloadBtn.download = f.split("/").pop();
-    downloadBtn.textContent = "📥 Скачать файл";
-    downloadBtn.style.marginRight = "10px";
-    btnContainer.appendChild(downloadBtn);
+// кнопка "Скачать файл" (оригинал) через <button>
+const downloadBtn = document.createElement("button");
+downloadBtn.textContent = "📥 Скачать файл";
+downloadBtn.style.marginRight = "10px";
+downloadBtn.onclick = () => {
+    const a = document.createElement("a");
+    a.href = f;
+    a.download = f.split("/").pop();
+    a.style.display = "none";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+};
+btnContainer.appendChild(downloadBtn);
 
     // контейнер для содержимого файла
     const content = document.createElement("div");
@@ -227,8 +234,11 @@ function openFile(f) {
 
 
 
+const BOTTOM_MARGIN_PX = 20; // сколько оставляем белыми пикселей снизу
+
 async function downloadPdfAsPng(pdfUrl) {
     const pdf = await pdfjsLib.getDocument(pdfUrl).promise;
+
     for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
         const page = await pdf.getPage(pageNum);
         const viewport = page.getViewport({ scale: 2 });
@@ -239,13 +249,36 @@ async function downloadPdfAsPng(pdfUrl) {
 
         await page.render({ canvasContext: ctx, viewport }).promise;
 
-        // скачиваем каждую страницу как PNG
+        // --- определяем нижнюю границу контента ---
+        const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        let bottom = canvas.height;
+
+        outer: for (let y = canvas.height - 1; y >= 0; y--) {
+            for (let x = 0; x < canvas.width; x++) {
+                const idx = (y * canvas.width + x) * 4;
+                if (imgData.data[idx] < 250 || imgData.data[idx + 1] < 250 || imgData.data[idx + 2] < 250) {
+                    bottom = y + 1 + BOTTOM_MARGIN_PX; // оставляем подушку
+                    if (bottom > canvas.height) bottom = canvas.height; // не выходим за границу
+                    break outer;
+                }
+            }
+        }
+
+        // --- создаём обрезанный canvas ---
+        const croppedCanvas = document.createElement("canvas");
+        croppedCanvas.width = canvas.width;
+        croppedCanvas.height = bottom;
+        const croppedCtx = croppedCanvas.getContext("2d");
+        croppedCtx.drawImage(canvas, 0, 0, canvas.width, bottom, 0, 0, canvas.width, bottom);
+
+        // --- скачиваем PNG ---
         const link = document.createElement("a");
-        link.href = canvas.toDataURL("image/png");
+        link.href = croppedCanvas.toDataURL("image/png");
         link.download = `${pdfUrl.split("/").pop().replace(".pdf", "")}-p${pageNum}.png`;
         link.click();
     }
 }
+
 
 
 
