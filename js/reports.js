@@ -152,25 +152,93 @@ function openFile(f) {
     selectedFile = f;
 
     preview.innerHTML = "";
+
+    // контейнер для кнопок
+    const btnContainer = document.createElement("div");
+    btnContainer.style.marginBottom = "10px";
+    preview.appendChild(btnContainer);
+
+    // кнопка "Скачать файл" (оригинал)
     const downloadBtn = document.createElement("a");
     downloadBtn.href = f;
     downloadBtn.download = f.split("/").pop();
     downloadBtn.textContent = "📥 Скачать файл";
-    downloadBtn.style.display = "block";
-    downloadBtn.style.marginBottom = "10px";
-    preview.appendChild(downloadBtn);
+    downloadBtn.style.marginRight = "10px";
+    btnContainer.appendChild(downloadBtn);
 
-    if (f.match(/\.(jpg|png|gif)$/i)) {
-        preview.innerHTML += `<img src="${f}" style="max-width:100%;height:100%;">`;
-    } else if (f.match(/\.pdf$/i)) {
-        preview.innerHTML += `<iframe src="${f}" width="100%" height="100%" frameborder="0"></iframe>`;
+    // контейнер для содержимого файла
+    const content = document.createElement("div");
+    content.style.width = "100%";
+    content.style.height = "calc(100vh - 80px)";
+    preview.appendChild(content);
+
+    if (f.match(/\.pdf$/i)) {
+        // кнопка "Сохранить как картинку"
+        const pngBtn = document.createElement("button");
+        pngBtn.textContent = "🖼 Сохранить как картинку";
+        pngBtn.onclick = () => downloadPdfAsPng(f);
+        btnContainer.appendChild(pngBtn);
+
+        // урл с отключением кэша для последнего месяца
+        let noCacheUrl = f;
+        if (selectedYear && selectedMonth) {
+            const { months } = listDir("files/" + selectedYear);
+            if (selectedMonth === months[months.length - 1]) {
+                noCacheUrl += "?t=" + Date.now();
+            }
+        }
+
+        const iframe = document.createElement("iframe");
+        iframe.src = noCacheUrl;
+        iframe.width = "100%";
+        iframe.height = "100%";
+        iframe.frameBorder = "0";
+        content.appendChild(iframe);
+
+    } else if (f.match(/\.(jpg|png|gif)$/i)) {
+        const img = document.createElement("img");
+        img.src = f;
+        img.style.maxWidth = "100%";
+        img.style.height = "100%";
+        content.appendChild(img);
+
     } else if (f.match(/\.(xls|xlsx)$/i)) {
         const viewerUrl = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(window.location.origin + "/" + f)}`;
-        preview.innerHTML += `<iframe src="${viewerUrl}" width="100%" height="100%" frameborder="0"></iframe>`;
+        const iframe = document.createElement("iframe");
+        iframe.src = viewerUrl;
+        iframe.width = "100%";
+        iframe.height = "100%";
+        iframe.frameBorder = "0";
+        content.appendChild(iframe);
+
     } else {
+        // для txt/doc — просто скачиваем
         downloadBtn.click();
     }
 }
+
+
+
+async function downloadPdfAsPng(pdfUrl) {
+    const pdf = await pdfjsLib.getDocument(pdfUrl).promise;
+    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+        const page = await pdf.getPage(pageNum);
+        const viewport = page.getViewport({ scale: 2 });
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+
+        await page.render({ canvasContext: ctx, viewport }).promise;
+
+        // скачиваем каждую страницу как PNG
+        const link = document.createElement("a");
+        link.href = canvas.toDataURL("image/png");
+        link.download = `${pdfUrl.split("/").pop().replace(".pdf", "")}-p${pageNum}.png`;
+        link.click();
+    }
+}
+
 
 
 
