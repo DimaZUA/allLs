@@ -174,6 +174,7 @@ downloadBtn.onclick = () => {
     const a = document.createElement("a");
     a.href = f;
     a.download = f.split("/").pop();
+    console.log(homes);
     a.style.display = "none";
     document.body.appendChild(a);
     a.click();
