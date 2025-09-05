@@ -218,7 +218,7 @@ btnContainer.appendChild(downloadBtn);
         content.appendChild(img);
 
     } else if (f.match(/\.(xls|xlsx)$/i)) {
-        const viewerUrl = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(window.location.origin + "/" + f)}`;
+        const viewerUrl = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(window.location.origin + "/allLs/" + f)}`;
         const iframe = document.createElement("iframe");
         iframe.src = viewerUrl;
         iframe.width = "100%";
