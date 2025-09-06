@@ -704,6 +704,10 @@ function createPaymentCell(row, monthlyPayments, accountId) {
   }
 
   // Формируем строки с данными платежей
+if (monthlyPayments.length === 0) {
+  // Если оплат нет — вставляем непустое содержимое, чтобы Excel не смещал колонки
+  paymentCell.innerHTML = "&nbsp;";
+} else {
   var tableRows = monthlyPayments
     .map(function (payment) {
       var formattedDate = payment.date.split(".")[0]; // Преобразуем дату в формат D
@@ -738,6 +742,8 @@ function createPaymentCell(row, monthlyPayments, accountId) {
     "</tbody>" +
     "</table>" +
     "</div>";
+}
+
   row.appendChild(paymentCell);
   return totalPayments;
 }

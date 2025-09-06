@@ -295,7 +295,7 @@ async function handleMenuClick(homeCode, actionCode, actionLink) {
       initBankTable();
       break;
     case "reports":
-      reportsInit();
+      reportsInit(homeCode);
       break;
     case "info":
       displayHomeInfo(homeCode);

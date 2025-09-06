@@ -8,7 +8,7 @@ let selectedMonth = null;
 let selectedFile = null;
 let currentFolderPath = null;
 
-function reportsInit() {
+function reportsInit(homeCode=0) {
 try {
     lastFileData = JSON.parse(localStorage.getItem("lastViewedFile") || "{}");
 } catch(e) {
@@ -173,8 +173,7 @@ downloadBtn.style.marginRight = "10px";
 downloadBtn.onclick = () => {
     const a = document.createElement("a");
     a.href = f;
-    a.download = f.split("/").pop();
-    console.log(homes);
+    a.download = getDownloadName(f); // используем новую функцию
     a.style.display = "none";
     document.body.appendChild(a);
     a.click();
@@ -259,7 +258,7 @@ async function downloadPdfAsPng(pdfUrl) {
                 const idx = (y * canvas.width + x) * 4;
                 if (imgData.data[idx] < 250 || imgData.data[idx + 1] < 250 || imgData.data[idx + 2] < 250) {
                     bottom = y + 1 + BOTTOM_MARGIN_PX; // оставляем подушку
-                    if (bottom > canvas.height) bottom = canvas.height; // не выходим за границу
+                    if (bottom > canvas.height) bottom = canvas.height;
                     break outer;
                 }
             }
@@ -275,10 +274,17 @@ async function downloadPdfAsPng(pdfUrl) {
         // --- скачиваем PNG ---
         const link = document.createElement("a");
         link.href = croppedCanvas.toDataURL("image/png");
-        link.download = `${pdfUrl.split("/").pop().replace(".pdf", "")}-p${pageNum}.png`;
+
+        // используем getDownloadName для базового имени
+        const baseName = getDownloadName(pdfUrl).replace(/\.pdf$/i, '');
+        link.download = `${baseName}-p${pageNum}.png`;
+
+        document.body.appendChild(link);
         link.click();
+        document.body.removeChild(link);
     }
 }
+
 
 
 
@@ -492,6 +498,26 @@ function updateFileListWithAnimation (oldUL, newUL) {
 
 
 
+function getDownloadName(f) {
+    const parts = f.split("/");
+    let year = null;
+    let month = null;
+    let name = parts.pop();
+
+    // ищем год и месяц в пути
+    for (let i = 0; i < parts.length; i++) {
+        if (/^\d{4}$/.test(parts[i])) year = parts[i].slice(2); // YY
+        if (/^(0[1-9]|1[0-2])$/.test(parts[i])) month = parts[i]; // MM
+    }
+
+    // ищем home
+    const home = homes.find(h => h.code === homeCode);
+    const prefix = home && home.org3 ? home.org3 + "_" : "";
+
+    if (year && month) return `${prefix}${year}_${month}_${name}`;
+    if (year) return `${prefix}${year}_${name}`;
+    return `${prefix}${name}`;
+}
 
 
 
@@ -505,5 +531,5 @@ function updateFileListWithAnimation (oldUL, newUL) {
 
 
 
-
 }
+

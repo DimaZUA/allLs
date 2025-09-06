@@ -1000,99 +1000,79 @@ var formatNumber = function formatNumber(num) {
   return num.toFixed(2).replace(/\.00$/, "") * 1;
 };
 
-// Функция для извлечения скрытого текста из <div class="descr">
-function extractHiddenText(td) {
-  var hiddenDiv = td.querySelector(".descr");
-  if (!hiddenDiv) return "";
-  var text = "";
 
-  // Если внутри есть просто текст
-  if (hiddenDiv.textContent.trim()) {
-    text += hiddenDiv.textContent.trim();
-  }
-
-  // Если внутри есть таблица
-  var subTable = hiddenDiv.querySelector(".subtable");
-  if (subTable) {
-    var rows = Array.from(subTable.querySelectorAll("tr"));
-    text +=
-      "\n\n" +
-      rows
-        .map(function (row) {
-          var cols = Array.from(row.querySelectorAll("th, td")).map(function (
-            cell
-          ) {
-            return cell.innerText.trim();
-          });
-          return cols.join(" | ");
-        })
-        .join("\n");
-  }
-  return text.trim();
-}
 
 // Функция для получения месяца и года в формате ММ.ГГГГ
 function getMonthYear(actionCode) {
-  var monthYear = "";
-  if (actionCode === "list") {
-    var monthInput = document.getElementById("end-date");
-    var dateValue = monthInput.value;
+  let year = "";
+  let month = "";
+  let ls="";
+    if (actionCode === "accounts") {
+const yearToggles = document.querySelectorAll(".toggle-box");
+
+// Находим первый открытый (checked)
+let firstOpenYear = null;
+for (let toggle of yearToggles) {
+  if (toggle.checked) {
+    // id у тебя в формате "block-2023"
+    firstOpenYear = toggle.id.slice(-2);
+    break; // остановимся на первом
+  }
+}
+     ls=firstOpenYear + "_кв." + document.getElementById('number').selectedOptions[0].textContent;
+  } else if (actionCode === "list") {
+    const monthInput = document.getElementById("end-date");
+    const dateValue = monthInput?.value;
     if (dateValue) {
-      var _dateValue$split = dateValue.split("-"),
-        _dateValue$split2 = _slicedToArray(_dateValue$split, 2),
-        year = _dateValue$split2[0],
-        month = _dateValue$split2[1];
-      monthYear = "".concat(month.padStart(2, "0"), ".").concat(year);
+      [year, month] = dateValue.split("-");
     }
   } else if (actionCode === "payments") {
-    var selectMonth = document.getElementById("monthSelect");
-    var selectedOption = selectMonth.value;
+    const selectMonth = document.getElementById("monthSelect");
+    const selectedOption = selectMonth?.value;
     if (selectedOption) {
-      var _selectedOption$split = selectedOption.split("-"),
-        _selectedOption$split2 = _slicedToArray(_selectedOption$split, 2),
-        _year = _selectedOption$split2[0],
-        _month = _selectedOption$split2[1];
-      monthYear = "".concat(_month.padStart(2, "0"), ".").concat(_year);
+      [year, month] = selectedOption.split("-");
     }
   } else if (actionCode === "bank") {
-    var dateInput = document.getElementById("toDate");
-    var _dateValue = dateInput.value;
-    if (_dateValue) {
-      var _month2 = _dateValue.split("-")[1];
-      var _year2 = _dateValue.split("-")[0];
-      monthYear = "".concat(_month2.padStart(2, "0"), ".").concat(_year2);
+    const dateInput = document.getElementById("toDate");
+    const dateValue = dateInput?.value;
+    if (dateValue) {
+      year = dateValue.split("-")[0];
+      month = dateValue.split("-")[1];
     }
   }
-  return monthYear;
+
+  if (year && month) {
+    return year.slice(-2) + "_" + month.padStart(2, "0"); // YY_MM
+  }
+    if (year) {
+    return year.slice(-2); // YY
+  }
+    if (ls) {
+    return ls;
+  }
+
+
+  return "";
 }
+
 
 // Функция для генерации имени файла
 function generateFileName(home, actionCode) {
-  var name = home.name;
-
-  // Проверяем наличие текста в кавычках
-  var match = name.match(/"([^"]+)"/);
-  if (match) {
-    // Если текст в кавычках есть, берем первые три буквы из него
-    name = match[1].substring(0, 3);
-  } else {
-    // Иначе убираем "ЖК" или "ОСББ" и пробелы в начале
-    name = name.replace(/^(ЖК|ОСББ)\s*/i, "").substring(0, 3);
-  }
+  var name = home.org3+'_';
 
   // Добавляем код действия в имя файла
   var actionSuffix = "";
   if (actionCode === "list") {
-    actionSuffix = "_ЛС_";
+    actionSuffix = "_ЛС";
   } else if (actionCode === "payments") {
-    actionSuffix = "_оплаты_";
+    actionSuffix = "_оплаты";
   } else if (actionCode === "bank") {
-    actionSuffix = "_банк_";
+    actionSuffix = "_банк";
   }
 
   // Получаем месяц и год в нужном формате
   var monthYear = getMonthYear(actionCode);
-  return "".concat(name).concat(actionSuffix).concat(monthYear, ".xlsx");
+  return "".concat(name).concat(monthYear).concat(actionSuffix, ".xlsx");
 }
 function isElementVisible(el) {
   while (el) {
