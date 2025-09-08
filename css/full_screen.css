@@ -1,0 +1,63 @@
+﻿/* Стили для полноэкранного режима */
+@media screen {
+    body.fullscreen * {
+        visibility: hidden;
+    }
+
+    body.fullscreen #number {
+        border: none;
+    }
+
+    body.fullscreen #maincontainer, 
+    body.fullscreen #maincontainer *, 
+    body.fullscreen #tableWrapper,
+    body.fullscreen #tableWrapper *,
+    body.fullscreen #header,
+    body.fullscreen #header * {
+        visibility: visible;
+    }
+
+    body.fullscreen .box[style*="block"] {
+        display: block !important;
+    }
+
+    body.fullscreen table {
+        border-collapse: collapse;
+        padding: 0px !important;
+    }
+
+    body.fullscreen th, 
+    body.fullscreen td {
+        padding: 0px 10px 0px 10px !important;
+        text-align: center;
+    }
+
+    body.fullscreen #header {
+        display: block;
+        margin-bottom: 10px;
+    }
+
+    body.fullscreen .sidebar, 
+    body.fullscreen .hamburger, 
+    body.fullscreen .preloader, 
+    body.fullscreen input, 
+    body.fullscreen .descr, 
+    body.fullscreen #datetime, 
+    body.fullscreen .buttons-container,
+    body.fullscreen #filter-container {
+        display: none;
+    }
+
+    body.fullscreen .toggle-box:not(:checked) + label {
+        display: none;
+    }
+
+    body.fullscreen .content {
+        margin-left: 0 !important;
+        transform: none !important;
+        position: relative !important;
+        left: 0 !important;
+        width: 95%;
+        max-width: 95%;
+    }
+}

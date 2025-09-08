@@ -195,13 +195,16 @@ btnContainer.appendChild(downloadBtn);
         btnContainer.appendChild(pngBtn);
 
         // урл с отключением кэша для последнего месяца
-        let noCacheUrl = f;
+let noCacheUrl = f;
         if (selectedYear && selectedMonth) {
-            const { months } = listDir("files/" + selectedYear);
+    const rootPath = files.files[0].split("/").slice(0, 2).join("/");
+
+            const { months } = listDir(rootPath +'/'+ selectedYear);
             if (selectedMonth === months[months.length - 1]) {
                 noCacheUrl += "?t=" + Date.now();
             }
         }
+
 
         const iframe = document.createElement("iframe");
         iframe.src = noCacheUrl;
