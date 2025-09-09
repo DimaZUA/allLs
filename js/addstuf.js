@@ -119,6 +119,8 @@ var originalParentTable = null; // Оригинальный родитель д�
 var originalParentHeader = null; // Оригинальный родитель для элемента с id="header"
 var originalSiblings = []; // Сохраняем другие элементы страницы
 
+
+
 function handleHeaderClick(event) {
   var table = event.target.closest("table"); // Находим ближайшую таблицу
   if (!table) return;
@@ -138,10 +140,10 @@ function handleHeaderClick(event) {
     // Получаем элементы с классом "balance-info" и с id="header"
     //var balanceInfo = document.querySelector(".balance-info");
     var header = document.getElementById("header");
-
+    var settingsModal = document.getElementById("settings-modal");
     // Скрываем всё, кроме таблицы, элементов с классом "balance-info" и с id="header"
     originalSiblings.forEach(function (el) {
-      if (el !== table && el !== header) {
+      if (el !== table && el !== header && el !== settingsModal) {
         el.style.display = "none";
       }
     });
@@ -174,18 +176,44 @@ document.querySelectorAll("button").forEach(function (btn) {
     //if (balanceInfo) wrapper.appendChild(balanceInfo); // Добавляем элемент с классом "balance-info"
     wrapper.appendChild(table);
     body.appendChild(wrapper);
-    isTableFocused = true;
     showMessage("Для возврата щелкните мышью по заголовку таблицы");
-  } else {
+setTimeout(() => {
+  document.addEventListener("click", handleOutsideClick);
+}, 0);
+
+    isTableFocused = true;
+  } 
+}
+
+function handleOutsideClick(event) {
+  //var table = event.target.closest("table"); // Находим ближайшую таблицу
+
+var tables = document.querySelectorAll('table#main');
+var table = null;
+
+tables.forEach(function(t) {
+  if (!table && t.offsetParent !== null) { // таблица видимая
+    table = t;
+  }
+});
+
+
+  if (!table) return;
+  var body = document.body;
+
+  if (isTableFocused){
     var _document$getElementB2;
+    var settingsModal = document.getElementById("settings-modal");
+
     // Восстанавливаем элементы
     originalSiblings.forEach(function (el) {
-      return (el.style.display = "");
+      if (el !== settingsModal) return (el.style.display = "");
     });
 // Показываем все button внутри таблицы
 document.querySelectorAll("button").forEach(function (btn) {
-  btn.style.display = "";
+   btn.style.display = "";
 });
+document.getElementById("message").style.display='none';
     // Возвращаем таблицу и элементы обратно в их исходные родительские элементы
     if (originalParentTable) originalParentTable.appendChild(table);
     if (originalParentHeader)
@@ -200,8 +228,11 @@ document.querySelectorAll("button").forEach(function (btn) {
       _document$getElementB2 === void 0 ||
       _document$getElementB2.remove();
     isTableFocused = false;
+  document.removeEventListener("click", handleOutsideClick);
+
   }
 }
+
 function addStuff(accountId) {
   var accountData = nach[accountId] || {}; // Данные для указанного accountId
   var paymentData = oplat[accountId] || {}; // Данные оплат для указанного accountId

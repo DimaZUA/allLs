@@ -1611,6 +1611,9 @@ function captureAndCopy() {
 
   // Добавляем стили непосредственно перед рендером
   applyBorders(mainTable);
+mainTable.querySelectorAll("td[rowspan]").forEach(td => {
+  td.style.position = "relative";
+});
 
   if (getParam("actionCode") == "accounts") {
     var address = document.getElementById("adr")?.innerText || "";
