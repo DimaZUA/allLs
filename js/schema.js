@@ -184,7 +184,7 @@ function initSchema() {
   };
   var display = "opl";
 
-  // --- Показатели с числовыми значениями (меняют ширину пропорционально)
+  // --- Показатели с числовыми значениями (масштабируются пропорционально) ---
   const numericDisplays = ["opl", "nach", "dolg", "pl"];
 
   // --- Служебные функции расчёта начислений/платежей ---
@@ -255,7 +255,7 @@ function initSchema() {
     item.dolg = dolg;
   });
 
-  // --- Средняя площадь по всему дому ---
+  // --- Средняя площадь по дому ---
   const allAreas = lsWithZeroFloor
     .map((it) => parseFloat(it.pl) || parseFloat(it.area) || 0)
     .filter((a) => a > 0);
@@ -280,16 +280,28 @@ function initSchema() {
 
   // --- Создание квартирных блоков ---
   var createItemsForFloor = function (pod, et, container) {
-    var items = lsWithZeroFloor.filter((i) => i.pod === pod && i.et === et);
+var items = lsWithZeroFloor
+  .filter((i) => i.pod === pod && i.et === et)
+  .sort((a, b) => {
+    const parseNum = (kv) => {
+      const m = String(kv).match(/^(\d+)([A-Za-zА-Яа-я]*)$/);
+      return m ? [parseInt(m[1]), m[2] || ""] : [0, ""];
+    };
+    const [na, sa] = parseNum(a.kv);
+    const [nb, sb] = parseNum(b.kv);
+    if (na === nb) return sa.localeCompare(sb, "ru");
+    return na - nb;
+  });
+    
     items.forEach((item) => {
       var itemDiv = document.createElement("div");
       itemDiv.classList.add("floor-item");
+      itemDiv.setAttribute("data-id", item.id);
       if (item.et == 0) itemDiv.classList.add("floor-zero");
 
       // 📏 Пропорциональная ширина
       const baseWidth = 60;
       let width = baseWidth;
-
       if (numericDisplays.includes(display)) {
         const avg = avgValues[display] || avgArea;
         const value = parseFloat(item[display]) || avg;
@@ -297,10 +309,12 @@ function initSchema() {
         width = Math.max(30, Math.min(baseWidth * scale, 120));
       }
 
-      // ✨ Плавная анимация при переключении
       itemDiv.style.transition = "width 0.6s ease";
       itemDiv.style.width = width + "px";
       itemDiv.style.height = "40px";
+
+      // 🔹 Значение сохраняем для будущего обновления
+      itemDiv.dataset.value = parseFloat(item[display]) || 0;
 
       // 🔹 Номер квартиры
       var kvBackground = document.createElement("span");
@@ -315,26 +329,14 @@ function initSchema() {
       var valueSpan = document.createElement("span");
       valueSpan.classList.add("value-span");
       var value = item[display] || 0;
-
       if (numericDisplays.includes(display)) {
         value = parseFloat(value).toFixed(2);
         if (parseFloat(value) === 0) value = "-";
       }
-
       valueSpan.textContent = value;
       itemDiv.appendChild(valueSpan);
 
-      if (display === "fio") itemDiv.classList.add("fio-text");
-      if (display === "opl" || display === "nach") {
-        if (parseFloat(value) < 0) valueSpan.classList.add("red");
-      }
-      if (display === "dolg") {
-        if (parseFloat(value) < 0) valueSpan.classList.add("green");
-        if (item.dolg && item.nach && item.dolg > item.nach * 6 && item.nach > 50)
-          itemDiv.classList.add("red");
-      }
-
-      // 🔹 data-fio для подсказки
+      // 🔹 data-fio — теперь ВСЕ поля, не фильтруем
       itemDiv.setAttribute(
         "data-fio",
         Object.entries(displayKeysName)
@@ -388,6 +390,22 @@ function initSchema() {
     return grid;
   };
 
+  // --- Функция плавного обновления размеров ---
+  function updateFloorItemsSize(newDisplay) {
+    const allItems = document.querySelectorAll(".floor-item:not(.floor-zero)");
+    if (numericDisplays.includes(newDisplay)) {
+      const avg = avgValues[newDisplay] || avgArea;
+      allItems.forEach((div) => {
+        const val = parseFloat(div.dataset.value);
+        const ratio = isNaN(val) || val <= 0 ? 1 : val / avg;
+        const targetWidth = Math.min(120, Math.max(30, 60 * ratio));
+        div.style.width = targetWidth + "px";
+      });
+    } else {
+      allItems.forEach((div) => (div.style.width = "60px"));
+    }
+  }
+
   // --- Общий итог ---
   var getTotal = (filterFn, data) =>
     ["ls", "kv", "fio"].includes(display)
@@ -412,14 +430,14 @@ function initSchema() {
 
     var buttons = document.createElement("div");
     buttons.classList.add("mb-2", "flex", "gap-2");
+
     displayKeys.forEach((key) => {
       var btn = document.createElement("button");
       btn.classList.add("p-2", "border");
       if (display === key) btn.classList.add("bg-blue-500", "text-white");
       btn.textContent = displayKeysName[key];
       btn.addEventListener("click", function () {
-        display = key;
-        renderSchema();
+      	updateDisplay(key);
       });
       buttons.appendChild(btn);
     });
@@ -463,8 +481,53 @@ function initSchema() {
       item.addEventListener("mouseleave", () => (tooltip.style.display = "none"));
     });
   };
+// 📊 Обновление значений и ширины без пересоздания элементов
+function updateDisplay(newDisplay) {
+  display = newDisplay;
+
+  // Обновляем подсветку кнопок
+  document.querySelectorAll(".mb-2 button").forEach((btn) => {
+    const key = Object.entries(displayKeysName).find(([k, v]) => v === btn.textContent)?.[0];
+    btn.classList.toggle("bg-blue-500", key === display);
+    btn.classList.toggle("text-white", key === display);
+  });
+
+  // Обновляем квартиры
+  document.querySelectorAll(".floor-item").forEach((div) => {
+    const id = div.dataset.id;
+    const item = lsWithZeroFloor.find((x) => x.id === id);
+    if (!item) return;
+
+    const baseWidth = 60;
+    const avg = avgValues[newDisplay] || avgArea;
+    const value = parseFloat(item[newDisplay]) || avg;
+    const scale = value / avg;
+    const newWidth = numericDisplays.includes(newDisplay)
+      ? Math.max(30, Math.min(baseWidth * scale, 120))
+      : baseWidth;
+
+    // ✨ Плавная анимация (элементы уже есть в DOM)
+    div.style.transition = "width 0.6s ease";
+    div.offsetWidth; // 🧠 форсируем перерисовку, чтобы браузер "увидел" старую ширину
+    div.style.width = newWidth + "px";
+
+    // Обновляем значение
+    const valSpan = div.querySelector(".value-span");
+    let v = item[newDisplay] || 0;
+    if (numericDisplays.includes(newDisplay)) {
+      v = parseFloat(v).toFixed(2);
+      if (parseFloat(v) === 0) v = "-";
+    }
+    valSpan.textContent = v;
+  });
+}
 
   renderSchema();
 }
+
+
+
+
+
 
 

@@ -43,6 +43,8 @@ body {
 
 /* === Квартира (ячейка) === */
 .floor-item {
+  /* Базовый вид */
+  min-width: 30px;
   height: 40px;
   display: flex;
   flex-direction: column;
@@ -59,12 +61,26 @@ body {
   cursor: pointer;
   justify-content: flex-start;
 
-  /* 🟢 Плавная анимация ширины, цвета и масштаба */
+  /* 🔥 Плавная анимация */
   transition:
-    width 0.4s ease,
+    width 5s ease,
+    background-color 3s ease,
+    transform 3s ease;
+  will-change: width;
+}
+
+.floor-item.fixed-width {
+  width: 60px !important;
+  transition:
     background-color 0.3s ease,
     transform 0.3s ease;
 }
+
+/* 🟢 Лёгкое увеличение при наведении */
+.floor-item:hover {
+  transform: scale(1.05);
+}
+
 
 /* Этаж без квартир (нулевой) */
 .floor-zero {
@@ -75,16 +91,6 @@ body {
   border: none;
 }
 
-/* 🟢 При наведении лёгкое увеличение */
-.floor-item:hover {
-  transform: scale(1.05);
-}
-
-/* Фиксированная ширина для нечисловых режимов */
-.floor-item.fixed-width {
-  width: 60px !important;
-  transition: background-color 0.3s ease, transform 0.3s ease;
-}
 
 /* === Текст внутри ячеек === */
 .p-2 {
