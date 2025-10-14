@@ -1,4 +1,4 @@
-﻿/* Общие стили */
+﻿/* === Общие стили === */
 body {
   font-family: Arial, sans-serif;
   margin: 0;
@@ -18,7 +18,7 @@ body {
   align-items: flex-start;
 }
 
-/* Стили для этажей */
+/* === Стили для этажей === */
 .floor-row {
   display: flex;
   justify-content: flex-start;
@@ -33,7 +33,7 @@ body {
   margin-right: 10px;
 }
 
-/* Контейнер для элементов этажа */
+/* Контейнер для квартир */
 .floor-item-container {
   display: flex;
   gap: 10px;
@@ -41,9 +41,8 @@ body {
   flex-grow: 1;
 }
 
-/* Общие стили для элементов этажа */
-.floor-item{
-  width: 60px;
+/* === Квартира (ячейка) === */
+.floor-item {
   height: 40px;
   display: flex;
   flex-direction: column;
@@ -52,23 +51,52 @@ body {
   white-space: nowrap;
   padding: 2px;
   flex-shrink: 0;
-  justify-content:center;
-
-}
-.floor-item:not(.floor-zero) {
+  justify-content: center;
   background-color: #f1f1f1;
   border: 1px solid #ddd;
   font-size: 12px;
   border-radius: 4px;
   cursor: pointer;
   justify-content: flex-start;
+
+  /* 🟢 Плавная анимация ширины, цвета и масштаба */
+  transition:
+    width 0.4s ease,
+    background-color 0.3s ease,
+    transform 0.3s ease;
 }
 
+/* Этаж без квартир (нулевой) */
+.floor-zero {
+  visibility: hidden;
+  width: 0 !important;
+  height: 0 !important;
+  padding: 0;
+  border: none;
+}
+
+/* 🟢 При наведении лёгкое увеличение */
+.floor-item:hover {
+  transform: scale(1.05);
+}
+
+/* Фиксированная ширина для нечисловых режимов */
+.floor-item.fixed-width {
+  width: 60px !important;
+  transition: background-color 0.3s ease, transform 0.3s ease;
+}
+
+/* === Текст внутри ячеек === */
 .p-2 {
   font-size: 14px;
 }
 
-/* Всплывающий увеличенный текст */
+.fio-text {
+  text-align: left;
+  padding-left: 2px;
+}
+
+/* === Всплывающая подсказка === */
 .fio-tooltip {
   position: fixed;
   background-color: rgba(0, 0, 0, 0.85);
@@ -87,12 +115,7 @@ body {
   pointer-events: none;
 }
 
-.fio-text {
-  text-align: left;
-  padding-left: 2px;
-}
-
-/* Итоги */
+/* === Итоги по этажу === */
 .floor-total {
   margin-left: auto;
   text-align: right;
@@ -104,6 +127,7 @@ body {
   font-weight: bold;
 }
 
+/* === Вспомогательные классы === */
 .border {
   border: 1px solid #ccc;
   padding: 10px;
@@ -118,8 +142,7 @@ body {
   color: #ffffff;
 }
 
-
-/* Дополнительные стили */
+/* === Дополнительные элементы внутри ячеек === */
 .kv-background {
   font-size: 1em;
   opacity: 0.3;
@@ -134,6 +157,7 @@ body {
   z-index: 1;
   align-self: flex-end;
 }
+
 .floor-zero .kv-background {
   display: none;
 }
