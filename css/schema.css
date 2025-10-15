@@ -18,12 +18,23 @@ body {
   align-items: flex-start;
 }
 
-/* === Стили для этажей === */
+/* === Подъезды === */
+.pod-block {
+  display: inline-block;
+  vertical-align: top;
+  margin: 0 8px 16px 0;
+  border: 3px solid #ccc;  /* возвращаем рамку */
+  padding: 10px;
+  border-radius: 6px;
+  background-color: #fff;
+}
+
+/* === Строки этажей === */
 .floor-row {
   display: flex;
-  justify-content: flex-start;
-  align-items: center;
-  margin-bottom: 10px;
+  align-items: flex-start;
+  margin-bottom: 5px;
+  position: relative;
 }
 
 .floor-number {
@@ -31,139 +42,122 @@ body {
   width: 30px;
   font-weight: bold;
   margin-right: 10px;
+  text-align: center;
 }
 
-/* Контейнер для квартир */
+/* Контейнер квартир */
 .floor-item-container {
   display: flex;
-  gap: 10px;
   flex-wrap: wrap;
+  gap: 10px;
   flex-grow: 1;
+  align-items: flex-start;
 }
 
 /* === Квартира (ячейка) === */
 .floor-item {
-  /* Базовый вид */
   min-width: 30px;
   height: 40px;
   display: flex;
   flex-direction: column;
-  position: relative;
-  overflow: hidden;
-  white-space: nowrap;
+  justify-content: flex-start;
+  align-items: flex-start;
   padding: 2px;
-  flex-shrink: 0;
-  justify-content: center;
   background-color: #f1f1f1;
   border: 1px solid #ddd;
   font-size: 12px;
   border-radius: 4px;
   cursor: pointer;
-  justify-content: flex-start;
-
-  /* 🔥 Плавная анимация */
-  transition:
-    width 5s ease,
-    background-color 3s ease,
-    transform 3s ease;
-  will-change: width;
+  overflow: hidden;
+  transition: width 0.5s ease, opacity 0.5s ease, background-color 0.3s ease;
 }
 
-.floor-item.fixed-width {
-  width: 60px !important;
-  transition:
-    background-color 0.3s ease,
-    transform 0.3s ease;
-}
-
-/* 🟢 Лёгкое увеличение при наведении */
 .floor-item:hover {
   transform: scale(1.05);
 }
 
-
-/* Этаж без квартир (нулевой) */
-.floor-zero {
-  visibility: hidden;
-  width: 0 !important;
-  height: 0 !important;
-  padding: 0;
-  border: none;
-}
-
-
-/* === Текст внутри ячеек === */
-.p-2 {
-  font-size: 14px;
-}
-
-.fio-text {
-  text-align: left;
-  padding-left: 2px;
-}
-
-/* === Всплывающая подсказка === */
-.fio-tooltip {
-  position: fixed;
-  background-color: rgba(0, 0, 0, 0.85);
-  color: white;
-  padding: 10px 15px;
-  border-radius: 6px;
-  font-size: 18px;
+/* === Номер квартиры === */
+.kv-background {
+  font-size: 12px;
   font-weight: bold;
-  white-space: normal;
-  word-wrap: break-word;
-  word-break: break-word;
-  max-width: 80vw;
-  overflow: hidden;
-  z-index: 9999;
-  display: none;
-  pointer-events: none;
+  align-self: flex-start;
+  z-index: 1;
+  opacity: 0.3;  /* прозрачность как раньше */
+  transition: color 0.3s ease;
+}
+
+/* === Значение внутри квартиры === */
+.value-span {
+  position: relative;
+  z-index: 2;
+  align-self: flex-end;
+  font-size: 12px;
 }
 
 /* === Итоги по этажу === */
 .floor-total {
+  background: none !important;
+  border: none !important;
+  box-shadow: none !important;
+  width: auto !important;
+  min-width: 60px;
   margin-left: auto;
   text-align: right;
-  flex-grow: 1;
-  align-self: center;
+  font-weight: 600;
+  color: #333;
+  transition: opacity 0.5s ease, color 0.5s ease;
+  flex-shrink: 0;
 }
 
-.font-bold {
-  font-weight: bold;
+.floor-total .value-span {
+  display: inline-block;
+  min-width: 60px;
+  text-align: right;
 }
 
-/* === Вспомогательные классы === */
-.border {
-  border: 1px solid #ccc;
-  padding: 10px;
-  margin: 10px;
+/* === Итоги по стоякам и подъезду === */
+.stand-container, .floor-total-container {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
 }
 
-.bg-blue-500 {
-  background-color: #3b82f6;
+.stand-container .floor-total, .floor-total-container .floor-total {
+  min-width: 60px;
+  flex-shrink: 0;
+  text-align: right;
 }
 
-.text-white {
-  color: #ffffff;
-}
-
-/* === Дополнительные элементы внутри ячеек === */
-.kv-background {
-  font-size: 1em;
-  opacity: 0.3;
-  z-index: 0;
-  border: 1px solid rgba(200, 200, 200, 0.5);
-  border-radius: 3px;
-  align-self: flex-start;
-}
-
-.value-span {
-  position: relative;
-  z-index: 1;
-  align-self: flex-end;
-}
-
-.floor-zero .kv-background {
+/* === Всплывающая подсказка === */
+.fio-tooltip {
+  position: absolute;
+  background: rgba(0, 0, 0, 0.8);
+  color: #fff;
+  padding: 4px 6px;
+  border-radius: 4px;
+  font-size: 18px;
+  pointer-events: none;
   display: none;
+  z-index: 1000;
+  max-width: 300px;
+  white-space: pre-line;
 }
+
+/* === Кнопки выбора === */
+#root button {
+  cursor: pointer;
+  border: 1px solid #ccc;
+  padding: 5px 10px;
+  font-size: 14px;
+  transition: background-color 0.3s ease;
+}
+
+#root button.bg-blue-500 {
+  background-color: #3b82f6;
+  color: #fff;
+}
+
+/* === Цвет долга для итогов и номеров квартир === */
+.green { color: green !important; }
+.red { color: red !important; }
+.black { color: black !important; }

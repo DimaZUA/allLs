@@ -1,533 +1,568 @@
-﻿function _typeof(o) {
-  "@babel/helpers - typeof";
-  return (
-    (_typeof =
-      "function" == typeof Symbol && "symbol" == typeof Symbol.iterator
-        ? function (o) {
-            return typeof o;
-          }
-        : function (o) {
-            return o &&
-              "function" == typeof Symbol &&
-              o.constructor === Symbol &&
-              o !== Symbol.prototype
-              ? "symbol"
-              : typeof o;
-          }),
-    _typeof(o)
-  );
-}
-function _toConsumableArray(r) {
-  return (
-    _arrayWithoutHoles(r) ||
-    _iterableToArray(r) ||
-    _unsupportedIterableToArray(r) ||
-    _nonIterableSpread()
-  );
-}
-function _nonIterableSpread() {
-  throw new TypeError(
-    "Invalid attempt to spread non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."
-  );
-}
-function _iterableToArray(r) {
-  if (
-    ("undefined" != typeof Symbol && null != r[Symbol.iterator]) ||
-    null != r["@@iterator"]
-  )
-    return Array.from(r);
-}
-function _arrayWithoutHoles(r) {
-  if (Array.isArray(r)) return _arrayLikeToArray(r);
-}
-function ownKeys(e, r) {
-  var t = Object.keys(e);
-  if (Object.getOwnPropertySymbols) {
-    var o = Object.getOwnPropertySymbols(e);
-    r &&
-      (o = o.filter(function (r) {
-        return Object.getOwnPropertyDescriptor(e, r).enumerable;
-      })),
-      t.push.apply(t, o);
-  }
-  return t;
-}
-function _objectSpread(e) {
-  for (var r = 1; r < arguments.length; r++) {
-    var t = null != arguments[r] ? arguments[r] : {};
-    r % 2
-      ? ownKeys(Object(t), !0).forEach(function (r) {
-          _defineProperty(e, r, t[r]);
-        })
-      : Object.getOwnPropertyDescriptors
-      ? Object.defineProperties(e, Object.getOwnPropertyDescriptors(t))
-      : ownKeys(Object(t)).forEach(function (r) {
-          Object.defineProperty(e, r, Object.getOwnPropertyDescriptor(t, r));
-        });
-  }
-  return e;
-}
-function _defineProperty(e, r, t) {
-  return (
-    (r = _toPropertyKey(r)) in e
-      ? Object.defineProperty(e, r, {
-          value: t,
-          enumerable: !0,
-          configurable: !0,
-          writable: !0,
-        })
-      : (e[r] = t),
-    e
-  );
-}
-function _toPropertyKey(t) {
-  var i = _toPrimitive(t, "string");
-  return "symbol" == _typeof(i) ? i : i + "";
-}
-function _toPrimitive(t, r) {
-  if ("object" != _typeof(t) || !t) return t;
-  var e = t[Symbol.toPrimitive];
-  if (void 0 !== e) {
-    var i = e.call(t, r || "default");
-    if ("object" != _typeof(i)) return i;
-    throw new TypeError("@@toPrimitive must return a primitive value.");
-  }
-  return ("string" === r ? String : Number)(t);
-}
-function _slicedToArray(r, e) {
-  return (
-    _arrayWithHoles(r) ||
-    _iterableToArrayLimit(r, e) ||
-    _unsupportedIterableToArray(r, e) ||
-    _nonIterableRest()
-  );
-}
-function _nonIterableRest() {
-  throw new TypeError(
-    "Invalid attempt to destructure non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."
-  );
-}
-function _unsupportedIterableToArray(r, a) {
-  if (r) {
-    if ("string" == typeof r) return _arrayLikeToArray(r, a);
-    var t = {}.toString.call(r).slice(8, -1);
-    return (
-      "Object" === t && r.constructor && (t = r.constructor.name),
-      "Map" === t || "Set" === t
-        ? Array.from(r)
-        : "Arguments" === t ||
-          /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(t)
-        ? _arrayLikeToArray(r, a)
-        : void 0
-    );
-  }
-}
-function _arrayLikeToArray(r, a) {
-  (null == a || a > r.length) && (a = r.length);
-  for (var e = 0, n = Array(a); e < a; e++) n[e] = r[e];
-  return n;
-}
-function _iterableToArrayLimit(r, l) {
-  var t =
-    null == r
-      ? null
-      : ("undefined" != typeof Symbol && r[Symbol.iterator]) || r["@@iterator"];
-  if (null != t) {
-    var e,
-      n,
-      i,
-      u,
-      a = [],
-      f = !0,
-      o = !1;
-    try {
-      if (((i = (t = t.call(r)).next), 0 === l)) {
-        if (Object(t) !== t) return;
-        f = !1;
-      } else
-        for (
-          ;
-          !(f = (e = i.call(t)).done) && (a.push(e.value), a.length !== l);
-          f = !0
-        );
-    } catch (r) {
-      (o = !0), (n = r);
-    } finally {
-      try {
-        if (!f && null != t["return"] && ((u = t["return"]()), Object(u) !== u))
-          return;
-      } finally {
-        if (o) throw n;
-      }
-    }
-    return a;
-  }
-}
-function _arrayWithHoles(r) {
-  if (Array.isArray(r)) return r;
+﻿// ===================== 1. ВСПОМОГАТЕЛЬНЫЕ РАСЧЁТЫ =====================
+function getTotalForCurrentMonth(nachData, lsId) {
+  const d = new Date();
+  d.setDate(d.getDate() - 5);
+  const y = d.getFullYear(), m = d.getMonth() + 1;
+  return nachData[lsId]?.[y]?.[m]
+    ? Object.values(nachData[lsId][y][m]).reduce((s, v) => s + v, 0)
+    : 0;
 }
 
+function getTotalForCurrentMonthOplat(oplatData, lsId) {
+  const d = new Date();
+  d.setDate(d.getDate() - 5);
+  const y = d.getFullYear(), m = d.getMonth() + 1;
+  return oplatData[lsId]?.[y]?.[m]
+    ? oplatData[lsId][y][m].reduce((s, p) => s + p.sum, 0)
+    : 0;
+}
 
+function getTotalForAllTime(nachData, lsId) {
+  let total = 0;
+  if (nachData[lsId]) {
+    Object.values(nachData[lsId]).forEach(months =>
+      Object.values(months).forEach(days =>
+        total += Object.values(days).reduce((s, v) => s + v, 0)
+      )
+    );
+  }
+  return total;
+}
 
-function initSchema() {
-  var displayKeys = ["pl", "ls", "pers", "kv", "dolg", "opl", "nach"];
-  var displayKeysName = {
-    pl: "Площадь",
-    ls: "Лицевые счета",
-    pers: "Прописано чел.",
-    kv: "Номера квартир",
-    dolg: "Долги",
-    opl: "Платежи",
-    nach: "Начисления",
-    fio: "ФИО",
-    note: "",
-  };
-  var display = "opl";
+function getTotalForAllTimeOplat(oplatData, lsId) {
+  let total = 0;
+  if (oplatData[lsId]) {
+    Object.values(oplatData[lsId]).forEach(months =>
+      Object.values(months).forEach(payments =>
+        total += payments.reduce((s, p) => s + p.sum, 0)
+      )
+    );
+  }
+  return total;
+}
 
-  // --- Показатели с числовыми значениями (масштабируются пропорционально) ---
-  const numericDisplays = ["opl", "nach", "dolg", "pl"];
+// ===================== 2. ПОДГОТОВКА ДАННЫХ =====================
+function parseKvNum(kv) {
+  const m = String(kv).match(/^(\d+)/);
+  return m ? parseInt(m[1]) : 0;
+}
 
-  // --- Служебные функции расчёта начислений/платежей ---
-  var getTotalForCurrentMonth = function (nachData, lsId) {
-    var currentDate = new Date();
-    currentDate.setDate(currentDate.getDate() - 5);
-    var y = currentDate.getFullYear(),
-      m = currentDate.getMonth() + 1;
-    var total = 0;
-    if (nachData[lsId]?.[y]?.[m]) {
-      total = Object.values(nachData[lsId][y][m]).reduce((s, v) => s + v, 0);
-    }
-    return total;
-  };
-
-  var getTotalForCurrentMonthOplat = function (oplatData, lsId) {
-    var currentDate = new Date();
-    currentDate.setDate(currentDate.getDate() - 5);
-    var y = currentDate.getFullYear(),
-      m = currentDate.getMonth() + 1;
-    var total = 0;
-    if (oplatData[lsId]?.[y]?.[m]) {
-      total = oplatData[lsId][y][m].reduce((s, p) => s + p.sum, 0);
-    }
-    return total;
-  };
-
-  var getTotalForAllTime = function (nachData, lsId) {
-    var total = 0;
-    if (nachData[lsId]) {
-      Object.values(nachData[lsId]).forEach((months) =>
-        Object.values(months).forEach((days) => {
-          total += Object.values(days).reduce((s, v) => s + v, 0);
-        })
-      );
-    }
-    return total;
-  };
-
-  var getTotalForAllTimeOplat = function (oplatData, lsId) {
-    var total = 0;
-    if (oplatData[lsId]) {
-      Object.values(oplatData[lsId]).forEach((months) =>
-        Object.values(months).forEach((payments) => {
-          total += payments.reduce((s, p) => s + p.sum, 0);
-        })
-      );
-    }
-    return total;
-  };
-
-  // --- Подготовка данных ---
-  var lsWithZeroFloor = Object.entries(ls)
+function prepareLsData(ls, nach, oplat) {
+  // Сначала создаём список квартир с базовыми данными
+  const list = Object.entries(ls)
     .map(([key, item]) => ({ ...item, id: key }))
-    .filter((item) => item.et && item.pod);
+    .filter(item => item.et && item.pod);
 
-  // Добавляем начисления, платежи, долг
-  lsWithZeroFloor.forEach((item) => {
-    var id = item.id;
-    var currentNach = getTotalForCurrentMonth(nach, id);
-    var currentOpl = getTotalForCurrentMonthOplat(oplat, id);
-    var totalNach = getTotalForAllTime(nach, id);
-    var totalOpl = getTotalForAllTimeOplat(oplat, id);
-    var dolg = totalNach - totalOpl;
-
+  list.forEach(item => {
+    const id = item.id;
+    const currentNach = getTotalForCurrentMonth(nach, id);
+    const currentOpl = getTotalForCurrentMonthOplat(oplat, id);
+    const totalNach = getTotalForAllTime(nach, id);
+    const totalOpl = getTotalForAllTimeOplat(oplat, id);
     item.nach = currentNach;
     item.opl = currentOpl;
-    item.dolg = dolg;
+    item.dolg = totalNach - totalOpl;
   });
 
-  // --- Средняя площадь по дому ---
-  const allAreas = lsWithZeroFloor
-    .map((it) => parseFloat(it.pl) || parseFloat(it.area) || 0)
-    .filter((a) => a > 0);
-  const avgArea =
-    allAreas.reduce((a, b) => a + b, 0) / (allAreas.length || 1);
+  // --- Разделение первого этажа на цокольный + первый, если нужно ---
+  const pods = [...new Set(list.map(i => i.pod))]; // все подъезды
 
-  // --- Средние значения по numericDisplays ---
-  const avgValues = {};
-  numericDisplays.forEach((key) => {
-    const vals = lsWithZeroFloor.map((i) => parseFloat(i[key]) || 0);
-    avgValues[key] =
-      vals.reduce((a, b) => a + b, 0) / (vals.filter((v) => v > 0).length || 1);
-  });
+  pods.forEach(podId => {
+    // квартиры выше первого этажа
+    const upperFloors = list.filter(i => i.pod === podId && i.et > 1);
+    const upperFloorCount = new Set(upperFloors.map(i => i.et)).size;
+    const avgKvUpper = upperFloorCount ? upperFloors.length / upperFloorCount : 0;
 
-  // --- Подъезды и этажи ---
-  var entrances = [...new Set(lsWithZeroFloor.map((it) => +it.pod))].sort(
-    (a, b) => a - b
-  );
-  var floors = [...new Set(lsWithZeroFloor.map((it) => it.et).concat([0]))].sort(
-    (a, b) => b - a
-  );
-
-  // --- Создание квартирных блоков ---
-  var createItemsForFloor = function (pod, et, container) {
-var items = lsWithZeroFloor
-  .filter((i) => i.pod === pod && i.et === et)
-  .sort((a, b) => {
-    const parseNum = (kv) => {
-      const m = String(kv).match(/^(\d+)([A-Za-zА-Яа-я]*)$/);
-      return m ? [parseInt(m[1]), m[2] || ""] : [0, ""];
-    };
-    const [na, sa] = parseNum(a.kv);
-    const [nb, sb] = parseNum(b.kv);
-    if (na === nb) return sa.localeCompare(sb, "ru");
-    return na - nb;
-  });
-    
-    items.forEach((item) => {
-      var itemDiv = document.createElement("div");
-      itemDiv.classList.add("floor-item");
-      itemDiv.setAttribute("data-id", item.id);
-      if (item.et == 0) itemDiv.classList.add("floor-zero");
-
-      // 📏 Пропорциональная ширина
-      const baseWidth = 60;
-      let width = baseWidth;
-      if (numericDisplays.includes(display)) {
-        const avg = avgValues[display] || avgArea;
-        const value = parseFloat(item[display]) || avg;
-        const scale = value / avg;
-        width = Math.max(30, Math.min(baseWidth * scale, 120));
-      }
-
-      itemDiv.style.transition = "width 0.6s ease";
-      itemDiv.style.width = width + "px";
-      itemDiv.style.height = "40px";
-
-      // 🔹 Значение сохраняем для будущего обновления
-      itemDiv.dataset.value = parseFloat(item[display]) || 0;
-
-      // 🔹 Номер квартиры
-      var kvBackground = document.createElement("span");
-      kvBackground.classList.add("kv-background");
-      if (item.dolg < item.nach + 10) kvBackground.classList.add("green");
-      if (item.dolg > item.nach * 6 && item.nach > 50)
-        kvBackground.classList.add("red");
-      kvBackground.textContent = item.kv;
-      itemDiv.appendChild(kvBackground);
-
-      // 🔹 Значение
-      var valueSpan = document.createElement("span");
-      valueSpan.classList.add("value-span");
-      var value = item[display] || 0;
-      if (numericDisplays.includes(display)) {
-        value = parseFloat(value).toFixed(2);
-        if (parseFloat(value) === 0) value = "-";
-      }
-      valueSpan.textContent = value;
-      itemDiv.appendChild(valueSpan);
-
-      // 🔹 data-fio — теперь ВСЕ поля, не фильтруем
-      itemDiv.setAttribute(
-        "data-fio",
-        Object.entries(displayKeysName)
-          .map(([key, name]) => {
-            var v = item[key] ?? "";
-            if (typeof v === "number") v = formatNumber(v);
-            if (v === "" || item.et === 0) return "";
-            return name ? `${name}: ${v}` : v;
-          })
-          .filter(Boolean)
-          .join("\n")
-      );
-
-      container.appendChild(itemDiv);
-    });
-  };
-
-  // --- Отрисовка этажей и подъездов ---
-  var createFloorsForPod = function (pod, podDiv) {
-    floors.forEach((et) => {
-      var floorDiv = document.createElement("div");
-      floorDiv.classList.add("floor-row");
-
-      var floorNumber = document.createElement("div");
-      floorNumber.classList.add("floor-number");
-      floorNumber.textContent = et === 0 ? "Итог" : et;
-
-      var container = document.createElement("div");
-      container.classList.add("floor-item-container");
-      createItemsForFloor(pod, et, container);
-
-      floorDiv.appendChild(floorNumber);
-      floorDiv.appendChild(container);
-      podDiv.appendChild(floorDiv);
-    });
-  };
-
-  var createEntrancesAndFloors = function () {
-    var grid = document.createElement("div");
-    grid.classList.add("entrances-grid");
-    entrances.forEach((pod) => {
-      var podDiv = document.createElement("div");
-      podDiv.classList.add("border", "p-2");
-      var title = document.createElement("div");
-      title.classList.add("font-bold");
-      title.textContent = `Подъезд ${pod}`;
-      podDiv.appendChild(title);
-      createFloorsForPod(pod, podDiv);
-      grid.appendChild(podDiv);
-    });
-    return grid;
-  };
-
-  // --- Функция плавного обновления размеров ---
-  function updateFloorItemsSize(newDisplay) {
-    const allItems = document.querySelectorAll(".floor-item:not(.floor-zero)");
-    if (numericDisplays.includes(newDisplay)) {
-      const avg = avgValues[newDisplay] || avgArea;
-      allItems.forEach((div) => {
-        const val = parseFloat(div.dataset.value);
-        const ratio = isNaN(val) || val <= 0 ? 1 : val / avg;
-        const targetWidth = Math.min(120, Math.max(30, 60 * ratio));
-        div.style.width = targetWidth + "px";
+    // квартиры на первом этаже
+    const firstFloor = list.filter(i => i.pod === podId && i.et === 1);
+    if (firstFloor.length >= avgKvUpper * 1.5) {
+      // если квартир примерно в 2 раза больше, создаём "цокольный этаж"
+      firstFloor.sort((a, b) => parseKvNum(a.kv) - parseKvNum(b.kv));
+      const half = Math.ceil(firstFloor.length / 2);
+      firstFloor.forEach((item, idx) => {
+        item.et = idx < half ? 0.5 : 1; // цокольный этаж = 0.5, остальное 1
       });
-    } else {
-      allItems.forEach((div) => (div.style.width = "60px"));
     }
+  });
+
+  // --- Вычисляем стояки ---
+  const groupedByPodEt = {};
+  list.forEach(item => {
+    const key = `${item.pod}-${item.et}`;
+    if (!groupedByPodEt[key]) groupedByPodEt[key] = [];
+    groupedByPodEt[key].push(item);
+  });
+
+  Object.values(groupedByPodEt).forEach(items => {
+    items.sort((a, b) => parseKvNum(a.kv) - parseKvNum(b.kv));
+    const firstKv = items[0];
+    if (!firstKv) return;
+    const baseNum = parseKvNum(firstKv.kv);
+    items.forEach(it => {
+      const num = parseKvNum(it.kv);
+      it.st = num ? (num - baseNum + 1) : 1;
+    });
+  });
+
+  return list;
+}
+
+
+
+function calculateAverages(lsList, numericDisplays) {
+  const allAreas = lsList
+    .map(it => parseFloat(it.pl) || parseFloat(it.area) || 0)
+    .filter(a => a > 0);
+  const avgArea = allAreas.reduce((a, b) => a + b, 0) / (allAreas.length || 1);
+
+  const avgValues = {};
+  numericDisplays.forEach(key => {
+    const vals = lsList.map(i => parseFloat(i[key]) || 0);
+    avgValues[key] =
+      vals.reduce((a, b) => a + b, 0) /
+      (vals.filter(v => v > 0).length || 1);
+  });
+
+  return { avgArea, avgValues };
+}
+
+function countUniqueKv(items) {
+  const seen = new Set();
+  items.forEach(i => {
+    const num = parseKvNum(i.kv);
+    if (num) seen.add(num);
+  });
+  return seen.size;
+}
+
+function countLs(items) {
+  return items.length;
+}
+
+// ===================== 3. СОЗДАНИЕ DOM =====================
+function createItemsForFloor(lsList, pod, et, container, opts) {
+  const { displayKeys, displayKeysName, display, numericDisplays, avgValues, avgArea, isFloorTotal } = opts;
+  const items = lsList.filter(i => i.pod === pod && i.et === et);
+  const baseWidth = 60;
+
+  if (!isFloorTotal) {
+    items.sort((a, b) => parseKvNum(a.kv) - parseKvNum(b.kv));
+    items.forEach(item => {
+      const div = document.createElement("div");
+      div.classList.add("floor-item");
+      div.dataset.id = item.id;
+
+      const avg = avgValues[display] || avgArea;
+      const value = parseFloat(item[display]) || avg;
+
+      const width = numericDisplays.includes(display)
+        ? Math.max(30, Math.min((baseWidth * value) / avg, 120))
+        : baseWidth;
+      div.style.width = width + "px";
+      div.style.transition = "width 0.5s ease, opacity 0.5s ease";
+      div.style.height = "40px";
+
+      // Номер квартиры
+      const kvSpan = document.createElement("span");
+      kvSpan.classList.add("kv-background");
+      kvSpan.textContent = item.kv;
+
+      kvSpan.classList.remove("green", "red", "black");
+      if(item.dolg < 0) kvSpan.classList.add("green");
+      else if(item.dolg > avgValues["dolg"]) kvSpan.classList.add("red");
+      else kvSpan.classList.add("black");
+
+      div.appendChild(kvSpan);
+
+      // Значение
+      const valSpan = document.createElement("span");
+      valSpan.classList.add("value-span");
+      let val = ["ls", "kv", "pers"].includes(display)
+        ? item[display]
+        : (+item[display] || 0).toFixed(2);
+      if(numericDisplays.includes(display) && +val === 0) val = "-";
+      valSpan.textContent = val;
+
+      // Окраска значения для долгов
+      if(display === "dolg") {
+        if(item.dolg < 0) valSpan.style.color = "green";
+        else if(item.dolg > avgValues["dolg"]) valSpan.style.color = "red";
+        else valSpan.style.color = "black";
+      } else {
+        valSpan.style.color = "black";
+      }
+
+      div.appendChild(valSpan);
+
+      // Всплывающая подсказка
+      div.dataset.fio = Object.entries(displayKeysName)
+        .map(([key, name]) => {
+          let v = item[key] ?? "";
+          if(typeof v === "number") v = v.toLocaleString("ru-RU");
+          if(v === "" || item.et === 0) return "";
+          return name ? `${name}: ${v}` : v;
+        })
+        .filter(Boolean)
+        .join("\n");
+
+      container.appendChild(div);
+    });
+  } else {
+    // Итог по этажу
+    const totalItem = { et, pod };
+    opts.displayKeys.forEach(key => {
+      if(["ls","kv"].includes(key)) {
+        totalItem[key] = key === "ls" ? countLs(items) : countUniqueKv(items);
+      } else {
+        totalItem[key] = items.reduce((s,i) => s + (+i[key]||0), 0);
+      }
+    });
+
+    const div = document.createElement("div");
+    div.classList.add("floor-total");
+    div.dataset.id = `total-${pod}-${et}`;
+    div.style.width = "60px";
+    div.style.transition = "opacity 0.5s ease";
+    div.style.opacity = 0;
+
+    const span = document.createElement("span");
+    span.classList.add("value-span");
+    span.textContent = ["ls","kv"].includes(display)
+      ? totalItem[display]
+      : totalItem[display].toFixed(2);
+
+    // Окраска долгов в итогах по этажу
+    if(display === "dolg") {
+      const count = countUniqueKv(items) || 1;
+      const avgDolg = totalItem.dolg / count;
+      span.style.color = avgDolg < 0 ? "green" : avgDolg > avgValues["dolg"] ? "red" : "black";
+    }
+
+    div.appendChild(span);
+    container.appendChild(div);
+
+    requestAnimationFrame(() => { div.style.opacity = 1; });
+  }
+}
+
+
+function createFloorsForPod(lsList, pod, podDiv, opts) {
+  // берем только этажи этого подъезда
+  const floors = [...new Set(lsList.filter(it => it.pod === pod && it.et > 0).map(it => it.et))]
+                   .sort((a, b) => b - a);
+
+  floors.forEach(et => {
+    const floorDiv = document.createElement("div");
+    floorDiv.classList.add("floor-row");
+
+    const floorNum = document.createElement("div");
+    floorNum.classList.add("floor-number");
+    floorNum.textContent = et === 0.5 ? "Цок." : et; // показываем 0,5 как "0,5"
+
+    const cont = document.createElement("div");
+    cont.classList.add("floor-item-container");
+
+    createItemsForFloor(lsList, pod, et, cont, { ...opts, isFloorTotal: false });
+    createItemsForFloor(lsList, pod, et, cont, { ...opts, isFloorTotal: true });
+
+    floorDiv.appendChild(floorNum);
+    floorDiv.appendChild(cont);
+    podDiv.appendChild(floorDiv);
+  });
+
+  // --- Далее итог по стоякам и подъезду без изменений ---
+  const standsRow = document.createElement("div");
+  standsRow.classList.add("floor-row");
+
+  const standsLabel = document.createElement("div");
+  standsLabel.classList.add("floor-number");
+  standsLabel.textContent = "Ітог";
+
+  const standsContainer = document.createElement("div");
+  standsContainer.classList.add("floor-item-container");
+
+  const podItems = lsList.filter(i => i.pod === pod);
+  const maxSt = Math.max(...podItems.map(i => i.st || 0));
+  const display = opts.display;
+
+  for (let st = 1; st <= maxSt; st++) {
+    const stItems = podItems.filter(i => i.st === st);
+    let total;
+    if (["ls", "kv"].includes(display)) {
+      total = display === "ls" ? countLs(stItems) : countUniqueKv(stItems);
+    } else {
+      total = stItems.reduce((s, i) => s + (+i[display] || 0), 0);
+    }
+
+    const div = document.createElement("div");
+    div.classList.add("floor-total");
+    div.dataset.id = `stand-${pod}-${st}`;
+    div.style.width = "60px";
+    div.style.opacity = 0;
+    div.style.transition = "opacity 0.5s ease";
+
+    const span = document.createElement("span");
+    span.classList.add("value-span");
+    span.textContent = ["ls","kv"].includes(display) ? total : total.toFixed(2);
+    div.appendChild(span);
+    standsContainer.appendChild(div);
+
+    requestAnimationFrame(() => { div.style.opacity = 1; });
   }
 
-  // --- Общий итог ---
-  var getTotal = (filterFn, data) =>
-    ["ls", "kv", "fio"].includes(display)
-      ? data.filter(filterFn).length
-      : data
-          .filter(filterFn)
-          .reduce((sum, i) => sum + (parseFloat(i[display]) || 0), 0);
+  let totalPod;
+  if (["ls", "kv"].includes(display)) {
+    totalPod = display === "ls" ? countLs(podItems) : countUniqueKv(podItems);
+  } else {
+    totalPod = podItems.reduce((s, i) => s + (+i[display] || 0), 0);
+  }
+  const divTotal = document.createElement("div");
+  divTotal.classList.add("floor-total");
+  divTotal.dataset.id = `totalpod-${pod}`;
+  divTotal.style.width = "60px";
+  divTotal.style.opacity = 0;
+  divTotal.style.transition = "opacity 0.5s ease";
 
-  var createTotal = function () {
-    var div = document.createElement("div");
-    div.classList.add("text-center", "font-bold", "mt-4");
-    div.textContent = `Общий итог: ${formatNumber(
-      getTotal((i) => i.et > 0, lsWithZeroFloor)
-    )}`;
-    return div;
-  };
+  const spanTotal = document.createElement("span");
+  spanTotal.classList.add("value-span");
+  spanTotal.textContent = ["ls","kv"].includes(display) ? totalPod : totalPod.toFixed(2);
+  divTotal.appendChild(spanTotal);
+  standsContainer.appendChild(divTotal);
 
-  // --- Рендер всей схемы ---
-  var renderSchema = function () {
-    var root = document.createElement("div");
-    root.id = "root";
+  standsRow.appendChild(standsLabel);
+  standsRow.appendChild(standsContainer);
+  podDiv.appendChild(standsRow);
+}
 
-    var buttons = document.createElement("div");
-    buttons.classList.add("mb-2", "flex", "gap-2");
 
-    displayKeys.forEach((key) => {
-      var btn = document.createElement("button");
-      btn.classList.add("p-2", "border");
-      if (display === key) btn.classList.add("bg-blue-500", "text-white");
-      btn.textContent = displayKeysName[key];
-      btn.addEventListener("click", function () {
-      	updateDisplay(key);
-      });
-      buttons.appendChild(btn);
+// ===================== 6. ПОДСКАЗКИ =====================
+function initTooltips() {
+  let tooltip = document.querySelector(".fio-tooltip");
+  if (!tooltip) {
+    tooltip = document.createElement("div");
+    tooltip.classList.add("fio-tooltip");
+    document.body.appendChild(tooltip);
+  }
+
+  document.querySelectorAll(".floor-item").forEach(item => {
+    item.addEventListener("mouseenter", e => {
+      const fio = item.dataset.fio;
+      if (fio) {
+        tooltip.innerHTML = fio.replace(/\n/g, "<br>");
+        tooltip.style.display = "block";
+      }
     });
-
-    root.appendChild(buttons);
-    root.appendChild(createEntrancesAndFloors());
-    root.appendChild(createTotal());
-
-    var main = document.getElementById("maincontainer");
-    main.innerHTML = "";
-    main.appendChild(root);
-
-    // --- Подсказки fio ---
-    var tooltip = document.querySelector(".fio-tooltip");
-    if (!tooltip) {
-      tooltip = document.createElement("div");
-      tooltip.classList.add("fio-tooltip");
-      document.body.appendChild(tooltip);
-    }
-
-    document.querySelectorAll(".floor-item").forEach((item) => {
-      item.addEventListener("mouseenter", (e) => {
-        var fio = item.getAttribute("data-fio");
-        if (fio) {
-          tooltip.innerHTML = fio.replace(/\n/g, "<br>");
-          tooltip.style.display = "block";
-        }
-      });
-      item.addEventListener("mousemove", (e) => {
-        var tw = tooltip.offsetWidth,
-          th = tooltip.offsetHeight;
-        var x = e.clientX + 10,
-          y = e.clientY + 10;
-        tooltip.style.maxWidth = window.innerWidth * 0.8 + "px";
-        if (x + tw > window.innerWidth) x = e.clientX - tw - 10;
-        if (y + th > window.innerHeight) y = e.clientY - th - 10;
-        if (x < 0) x = 10;
-        tooltip.style.top = y + "px";
-        tooltip.style.left = x + "px";
-      });
-      item.addEventListener("mouseleave", () => (tooltip.style.display = "none"));
+    item.addEventListener("mousemove", e => {
+      const tw = tooltip.offsetWidth, th = tooltip.offsetHeight;
+      let x = e.clientX + 10, y = e.clientY + 10;
+      tooltip.style.maxWidth = window.innerWidth * 0.8 + "px";
+      if (x + tw > window.innerWidth) x = e.clientX - tw - 10;
+      if (y + th > window.innerHeight) y = e.clientY - th - 10;
+      if (x < 0) x = 10;
+      tooltip.style.top = y + "px";
+      tooltip.style.left = x + "px";
     });
-  };
-// 📊 Обновление значений и ширины без пересоздания элементов
-function updateDisplay(newDisplay) {
-  display = newDisplay;
+    item.addEventListener("mouseleave", () => (tooltip.style.display = "none"));
+  });
+}
 
-  // Обновляем подсветку кнопок
-  document.querySelectorAll(".mb-2 button").forEach((btn) => {
-    const key = Object.entries(displayKeysName).find(([k, v]) => v === btn.textContent)?.[0];
-    btn.classList.toggle("bg-blue-500", key === display);
-    btn.classList.toggle("text-white", key === display);
+// ===================== 5. РЕНДЕР =====================
+function renderSchema(state) {
+  const { displayKeys, displayKeysName, display } = state;
+  const root = document.createElement("div");
+  root.id = "root";
+
+  const buttons = document.createElement("div");
+  buttons.classList.add("mb-2", "flex", "gap-2");
+
+  displayKeys.forEach(key => {
+    const btn = document.createElement("button");
+    btn.classList.add("p-2", "border");
+    if (display === key) btn.classList.add("bg-blue-500", "text-white");
+    btn.textContent = displayKeysName[key];
+    btn.addEventListener("click", () => updateDisplay(key, state));
+    buttons.appendChild(btn);
   });
 
-  // Обновляем квартиры
-  document.querySelectorAll(".floor-item").forEach((div) => {
-    const id = div.dataset.id;
-    const item = lsWithZeroFloor.find((x) => x.id === id);
-    if (!item) return;
+  root.appendChild(buttons);
 
-    const baseWidth = 60;
+  const grid = document.createElement("div");
+  grid.classList.add("entrances-grid");
+  state.entrances.forEach(pod => {
+    const podDiv = document.createElement("div");
+    podDiv.classList.add("pod-block"); // рамка
+    const title = document.createElement("div");
+    title.classList.add("font-bold");
+    title.textContent = `Під'їзд ${pod}`;
+    podDiv.appendChild(title);
+    createFloorsForPod(state.lsList, pod, podDiv, state);
+    grid.appendChild(podDiv);
+  });
+  root.appendChild(grid);
+
+  // Итоги по дому
+const totalHouseDiv = document.createElement("div");
+totalHouseDiv.classList.add("total-house");
+
+const keys = ["pl","ls","pers","kv","dolg","opl","nach"];
+keys.forEach(k => {
+  const div = document.createElement("div");
+  const spanLabel = document.createElement("span");
+  spanLabel.textContent = state.displayKeysName[k] + ": ";
+  div.appendChild(spanLabel);
+
+  let val;
+  if(k === "ls") {
+    val = state.lsList.length; // просто количество счетов
+  } else if(k === "kv") {
+    // уникальные квартиры, 366 и 366А / 366-А считаем одной
+    const seen = new Set();
+    state.lsList.forEach(i => {
+      const normalized = String(i.kv).replace(/[^0-9]/g,''); // оставляем только цифры
+      if(normalized) seen.add(normalized);
+    });
+    val = seen.size;
+  } else {
+    val = state.lsList.reduce((s, i) => s + (+i[k] || 0), 0);
+  }
+
+  const spanVal = document.createElement("span");
+  spanVal.textContent = ["ls","kv","pers"].includes(k) ? val : val.toLocaleString("ru-RU", {minimumFractionDigits:2, maximumFractionDigits:2});
+
+  // окраска долгов
+  if(k === "dolg") {
+    spanVal.style.color = val < 0 ? "green" : val > state.avgValues["dolg"] ? "red" : "black";
+  }
+
+  div.appendChild(spanVal);
+  totalHouseDiv.appendChild(div);
+});
+
+root.appendChild(totalHouseDiv);
+
+
+  const main = document.getElementById("maincontainer");
+  main.innerHTML = "";
+  main.appendChild(root);
+
+  initTooltips();
+}
+
+// ===================== 7. ОБНОВЛЕНИЕ =====================
+function updateDisplay(newDisplay, state) {
+  state.display = newDisplay;
+  const { lsList, numericDisplays, avgValues, avgArea, displayKeysName } = state;
+  const baseWidth = 60;
+
+  // Обновление квартир
+  document.querySelectorAll(".floor-item").forEach(div => {
+    const obj = lsList.find(x => x.id === div.dataset.id);
+    if(!obj) return;
+
     const avg = avgValues[newDisplay] || avgArea;
-    const value = parseFloat(item[newDisplay]) || avg;
-    const scale = value / avg;
-    const newWidth = numericDisplays.includes(newDisplay)
-      ? Math.max(30, Math.min(baseWidth * scale, 120))
+    const value = parseFloat(obj[newDisplay]) || avg;
+    const width = numericDisplays.includes(newDisplay)
+      ? Math.max(30, Math.min((baseWidth * value)/avg, 120))
       : baseWidth;
+    div.style.width = width + "px";
 
-    // ✨ Плавная анимация (элементы уже есть в DOM)
-    div.style.transition = "width 0.6s ease";
-    div.offsetWidth; // 🧠 форсируем перерисовку, чтобы браузер "увидел" старую ширину
-    div.style.width = newWidth + "px";
+    const span = div.querySelector(".value-span");
+    let val = ["ls","kv","pers"].includes(newDisplay)
+      ? obj[newDisplay]
+      : (+obj[newDisplay]||0).toFixed(2);
+    if(numericDisplays.includes(newDisplay) && +val===0) val = "-";
+    span.textContent = val;
 
-    // Обновляем значение
-    const valSpan = div.querySelector(".value-span");
-    let v = item[newDisplay] || 0;
-    if (numericDisplays.includes(newDisplay)) {
-      v = parseFloat(v).toFixed(2);
-      if (parseFloat(v) === 0) v = "-";
+    // Окраска значений при долговом отображении
+    if(newDisplay === "dolg") {
+      if(obj.dolg < 0) span.style.color = "green";
+      else if(obj.dolg > avgValues["dolg"]) span.style.color = "red";
+      else span.style.color = "black";
+    } else {
+      span.style.color = "black";
     }
-    valSpan.textContent = v;
+
+    // Цвет номера квартиры всегда
+    const kvSpan = div.querySelector(".kv-background");
+    kvSpan.classList.remove("green","red","black");
+    if(obj.dolg < 0) kvSpan.classList.add("green");
+    else if(obj.dolg > avgValues["dolg"]) kvSpan.classList.add("red");
+    else kvSpan.classList.add("black");
+  });
+
+  // Обновление итогов с плавной анимацией
+  document.querySelectorAll(".floor-total").forEach(div => {
+    const id = div.dataset.id;
+    if(!id) return;
+
+    let items = [];
+if(id.startsWith("total-")) {
+  const [,pod,etStr] = id.match(/^total-(\d+)-([\d\.]+)/) || [];
+  const et = parseFloat(etStr);
+  items = lsList.filter(i => i.pod==pod && i.et==et);
+} else if(id.startsWith("stand-")) {
+  const [,pod,stStr] = id.match(/^stand-(\d+)-([\d\.]+)/) || [];
+  const st = parseFloat(stStr);
+  items = lsList.filter(i => i.pod==pod && i.st==st);
+} else if(id.startsWith("totalpod-")) {
+  const [,pod] = id.match(/^totalpod-(\d+)/) || [];
+  items = lsList.filter(i => i.pod==pod);
+}
+
+    let total;
+    if(["ls","kv"].includes(newDisplay)) {
+      total = newDisplay==="ls"? items.length : countUniqueKv(items);
+    } else {
+      total = items.reduce((s,i)=> s + (+i[newDisplay]||0), 0);
+    }
+
+    const span = div.querySelector(".value-span");
+    span.textContent = ["ls","kv","pers"].includes(newDisplay) ? total : total.toFixed(2);
+
+    // окраска долгов
+    if(newDisplay === "dolg") {
+      let count = items.length;
+      if(id.startsWith("total-") || id.startsWith("stand-")) count = countUniqueKv(items) || 1;
+      const avgDolg = total / count;
+      span.style.color = avgDolg < 0 ? "green" : avgDolg > avgValues["dolg"] ? "red" : "black";
+    } else {
+      span.style.color = "black";
+    }
+
+    // плавная анимация
+    div.style.opacity = 0;
+    requestAnimationFrame(() => { div.style.opacity = 1; });
+  });
+
+  // Кнопки
+  document.querySelectorAll("#root button").forEach(btn => {
+    const key = Object.entries(displayKeysName).find(([k,v]) => v===btn.textContent)?.[0];
+    const active = key===newDisplay;
+    btn.classList.toggle("bg-blue-500", active);
+    btn.classList.toggle("text-white", active);
   });
 }
 
-  renderSchema();
+
+// ===================== 8. ИНИЦИАЛИЗАЦИЯ =====================
+function initSchema() {
+  const displayKeys = ["pl", "ls", "pers", "kv", "dolg", "opl", "nach"];
+  const displayKeysName = {
+    pl: "Площа",
+    ls: "Особові рахунки",
+    pers: "Прописано осіб",
+    kv: "Квартири",
+    dolg: "Борги",
+    opl: "Платажі",
+    nach: "Нараховано",
+  };
+  const numericDisplays = ["opl","nach","dolg","pl"];
+  let display = "opl";
+
+  const lsList = prepareLsData(ls,nach,oplat);
+  const { avgArea, avgValues } = calculateAverages(lsList, numericDisplays);
+  const entrances = [...new Set(lsList.map(it=>+it.pod))].sort((a,b)=>a-b);
+
+  const state = { display, displayKeys, displayKeysName, numericDisplays, lsList, avgArea, avgValues, entrances };
+  renderSchema(state);
 }
-
-
-
-
-
-
-
