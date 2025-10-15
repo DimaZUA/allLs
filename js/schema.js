@@ -144,57 +144,65 @@ function createItemsForFloor(lsList, pod, et, container, opts) {
   const { displayKeys, displayKeysName, display, numericDisplays, avgValues, avgArea, isFloorTotal } = opts;
   const items = lsList.filter(i => i.pod === pod && i.et === et);
   const baseWidth = 60;
+  const minWidth = 30;
+  const maxWidth = 120;
 
   if (!isFloorTotal) {
     items.sort((a, b) => parseKvNum(a.kv) - parseKvNum(b.kv));
+
     items.forEach(item => {
       const div = document.createElement("div");
       div.classList.add("floor-item");
       div.dataset.id = item.id;
 
-      const avg = avgValues[display] || avgArea;
-      const value = parseFloat(item[display]) || avg;
-
-      const width = numericDisplays.includes(display)
-        ? Math.max(30, Math.min((baseWidth * value) / avg, 120))
-        : baseWidth;
+      // --- Ширина ---
+      let width;
+      if (display === "dolg") {
+        const dolgs = items.map(i => i.dolg || 0);
+        const minDolg = Math.min(...dolgs);
+        const maxDolg = Math.max(...dolgs);
+        const val = item.dolg || 0;
+        const norm = (val - minDolg) / (maxDolg - minDolg || 1);
+        width = minWidth + norm * (maxWidth - minWidth);
+      } else {
+        const avg = avgValues[display] || avgArea;
+        const value = parseFloat(item[display]) || 0;
+        width = numericDisplays.includes(display)
+          ? Math.max(minWidth, Math.min((baseWidth * value) / avg, maxWidth))
+          : baseWidth;
+      }
       div.style.width = width + "px";
       div.style.transition = "width 0.5s ease, opacity 0.5s ease";
       div.style.height = "40px";
 
-      // Номер квартиры
+      // --- Номер квартиры ---
       const kvSpan = document.createElement("span");
       kvSpan.classList.add("kv-background");
       kvSpan.textContent = item.kv;
-
-      kvSpan.classList.remove("green", "red", "black");
+      kvSpan.classList.remove("green","red","black");
       if(item.dolg < 0) kvSpan.classList.add("green");
       else if(item.dolg > avgValues["dolg"]) kvSpan.classList.add("red");
       else kvSpan.classList.add("black");
-
       div.appendChild(kvSpan);
 
-      // Значение
+      // --- Значение ---
       const valSpan = document.createElement("span");
       valSpan.classList.add("value-span");
-      let val = ["ls", "kv", "pers"].includes(display)
+      let val = ["ls","kv","pers"].includes(display)
         ? item[display]
         : (+item[display] || 0).toFixed(2);
       if(numericDisplays.includes(display) && +val === 0) val = "-";
       valSpan.textContent = val;
 
-      // Окраска значения для долгов
       if(display === "dolg") {
         if(item.dolg < 0) valSpan.style.color = "green";
         else if(item.dolg > avgValues["dolg"]) valSpan.style.color = "red";
         else valSpan.style.color = "black";
-      } else {
-        valSpan.style.color = "black";
-      }
+      } else valSpan.style.color = "black";
 
       div.appendChild(valSpan);
 
-      // Всплывающая подсказка
+      // --- Всплывающая подсказка ---
       div.dataset.fio = Object.entries(displayKeysName)
         .map(([key, name]) => {
           let v = item[key] ?? "";
@@ -208,9 +216,9 @@ function createItemsForFloor(lsList, pod, et, container, opts) {
       container.appendChild(div);
     });
   } else {
-    // Итог по этажу
+    // --- Итог по этажу ---
     const totalItem = { et, pod };
-    opts.displayKeys.forEach(key => {
+    displayKeys.forEach(key => {
       if(["ls","kv"].includes(key)) {
         totalItem[key] = key === "ls" ? countLs(items) : countUniqueKv(items);
       } else {
@@ -231,7 +239,6 @@ function createItemsForFloor(lsList, pod, et, container, opts) {
       ? totalItem[display]
       : totalItem[display].toFixed(2);
 
-    // Окраска долгов в итогах по этажу
     if(display === "dolg") {
       const count = countUniqueKv(items) || 1;
       const avgDolg = totalItem.dolg / count;
@@ -240,10 +247,10 @@ function createItemsForFloor(lsList, pod, et, container, opts) {
 
     div.appendChild(span);
     container.appendChild(div);
-
     requestAnimationFrame(() => { div.style.opacity = 1; });
   }
 }
+
 
 
 function createFloorsForPod(lsList, pod, podDiv, opts) {
@@ -453,36 +460,47 @@ function updateDisplay(newDisplay, state) {
   state.display = newDisplay;
   const { lsList, numericDisplays, avgValues, avgArea, displayKeysName } = state;
   const baseWidth = 60;
+  const minWidth = 30;
+  const maxWidth = 120;
 
-  // Обновление квартир
   document.querySelectorAll(".floor-item").forEach(div => {
     const obj = lsList.find(x => x.id === div.dataset.id);
     if(!obj) return;
 
-    const avg = avgValues[newDisplay] || avgArea;
-    const value = parseFloat(obj[newDisplay]) || avg;
-    const width = numericDisplays.includes(newDisplay)
-      ? Math.max(30, Math.min((baseWidth * value)/avg, 120))
-      : baseWidth;
+    // --- Ширина ---
+    let width;
+    if(newDisplay === "dolg") {
+      const dolgs = lsList.map(i => i.dolg || 0);
+      const minDolg = Math.min(...dolgs);
+      const maxDolg = Math.max(...dolgs);
+      const val = obj.dolg || 0;
+      const norm = (val - minDolg) / (maxDolg - minDolg || 1);
+      width = minWidth + norm * (maxWidth - minWidth);
+    } else {
+      const avg = avgValues[newDisplay] || avgArea;
+      const value = parseFloat(obj[newDisplay]) || 0;
+      width = numericDisplays.includes(newDisplay)
+        ? Math.max(minWidth, Math.min((baseWidth * value)/avg, maxWidth))
+        : baseWidth;
+    }
     div.style.width = width + "px";
 
+    // --- Значение ---
     const span = div.querySelector(".value-span");
     let val = ["ls","kv","pers"].includes(newDisplay)
       ? obj[newDisplay]
       : (+obj[newDisplay]||0).toFixed(2);
-    if(numericDisplays.includes(newDisplay) && +val===0) val = "-";
+    if(numericDisplays.includes(newDisplay) && +val === 0) val = "-";
     span.textContent = val;
 
-    // Окраска значений при долговом отображении
+    // --- Окраска долгов ---
     if(newDisplay === "dolg") {
       if(obj.dolg < 0) span.style.color = "green";
       else if(obj.dolg > avgValues["dolg"]) span.style.color = "red";
       else span.style.color = "black";
-    } else {
-      span.style.color = "black";
-    }
+    } else span.style.color = "black";
 
-    // Цвет номера квартиры всегда
+    // --- Цвет номера квартиры ---
     const kvSpan = div.querySelector(".kv-background");
     kvSpan.classList.remove("green","red","black");
     if(obj.dolg < 0) kvSpan.classList.add("green");
@@ -490,24 +508,22 @@ function updateDisplay(newDisplay, state) {
     else kvSpan.classList.add("black");
   });
 
-  // Обновление итогов с плавной анимацией
+  // --- Обновление итогов по этажам/стоякам/подъезду (остается как раньше) ---
   document.querySelectorAll(".floor-total").forEach(div => {
     const id = div.dataset.id;
     if(!id) return;
 
     let items = [];
-if(id.startsWith("total-")) {
-  const [,pod,etStr] = id.match(/^total-(\d+)-([\d\.]+)/) || [];
-  const et = parseFloat(etStr);
-  items = lsList.filter(i => i.pod==pod && i.et==et);
-} else if(id.startsWith("stand-")) {
-  const [,pod,stStr] = id.match(/^stand-(\d+)-([\d\.]+)/) || [];
-  const st = parseFloat(stStr);
-  items = lsList.filter(i => i.pod==pod && i.st==st);
-} else if(id.startsWith("totalpod-")) {
-  const [,pod] = id.match(/^totalpod-(\d+)/) || [];
-  items = lsList.filter(i => i.pod==pod);
-}
+    if(id.startsWith("total-")) {
+      const [,pod,et] = id.match(/^total-(\d+)-([\d\.]+)/) || [];
+      items = lsList.filter(i => i.pod==pod && i.et==et);
+    } else if(id.startsWith("stand-")) {
+      const [,pod,st] = id.match(/^stand-(\d+)-([\d\.]+)/) || [];
+      items = lsList.filter(i => i.pod==pod && i.st==st);
+    } else if(id.startsWith("totalpod-")) {
+      const [,pod] = id.match(/^totalpod-(\d+)/) || [];
+      items = lsList.filter(i => i.pod==pod);
+    }
 
     let total;
     if(["ls","kv"].includes(newDisplay)) {
@@ -519,22 +535,18 @@ if(id.startsWith("total-")) {
     const span = div.querySelector(".value-span");
     span.textContent = ["ls","kv","pers"].includes(newDisplay) ? total : total.toFixed(2);
 
-    // окраска долгов
     if(newDisplay === "dolg") {
       let count = items.length;
       if(id.startsWith("total-") || id.startsWith("stand-")) count = countUniqueKv(items) || 1;
       const avgDolg = total / count;
       span.style.color = avgDolg < 0 ? "green" : avgDolg > avgValues["dolg"] ? "red" : "black";
-    } else {
-      span.style.color = "black";
-    }
+    } else span.style.color = "black";
 
-    // плавная анимация
     div.style.opacity = 0;
     requestAnimationFrame(() => { div.style.opacity = 1; });
   });
 
-  // Кнопки
+  // --- Кнопки ---
   document.querySelectorAll("#root button").forEach(btn => {
     const key = Object.entries(displayKeysName).find(([k,v]) => v===btn.textContent)?.[0];
     const active = key===newDisplay;
@@ -542,6 +554,7 @@ if(id.startsWith("total-")) {
     btn.classList.toggle("text-white", active);
   });
 }
+
 
 
 // ===================== 8. ИНИЦИАЛИЗАЦИЯ =====================
@@ -553,7 +566,7 @@ function initSchema() {
     pers: "Прописано осіб",
     kv: "Квартири",
     dolg: "Борги",
-    opl: "Платажі",
+    opl: "Платежі",
     nach: "Нараховано",
   };
   const numericDisplays = ["opl","nach","dolg","pl"];
