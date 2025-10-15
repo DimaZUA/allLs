@@ -359,16 +359,24 @@ function initTooltips() {
         tooltip.style.display = "block";
       }
     });
-    item.addEventListener("mousemove", e => {
-      const tw = tooltip.offsetWidth, th = tooltip.offsetHeight;
-      let x = e.clientX + 10, y = e.clientY + 10;
-      tooltip.style.maxWidth = window.innerWidth * 0.8 + "px";
-      if (x + tw > window.innerWidth) x = e.clientX - tw - 10;
-      if (y + th > window.innerHeight) y = e.clientY - th - 10;
-      if (x < 0) x = 10;
-      tooltip.style.top = y + "px";
-      tooltip.style.left = x + "px";
-    });
+item.addEventListener("mousemove", e => {
+  const tw = tooltip.offsetWidth, th = tooltip.offsetHeight;
+
+  // Используем pageX/pageY вместо clientX/clientY
+  let x = e.pageX + 10;
+  let y = e.pageY + 10;
+
+  tooltip.style.maxWidth = window.innerWidth * 0.8 + "px";
+
+  // Коррекция по видимой области окна
+  if (x + tw > window.scrollX + window.innerWidth) x = e.pageX - tw - 10;
+  if (y + th > window.scrollY + window.innerHeight) y = e.pageY - th - 10;
+  if (x < window.scrollX) x = window.scrollX + 10;
+
+  tooltip.style.left = x + "px";
+  tooltip.style.top = y + "px";
+});
+
     item.addEventListener("mouseleave", () => (tooltip.style.display = "none"));
   });
 }
