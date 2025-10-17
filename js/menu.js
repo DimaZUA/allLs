@@ -1,12 +1,12 @@
 ﻿﻿// Список доступных действий (например, для каждого дома)
 const actions = [
-  { name: "Лицевые счета", actionCode: "accounts" },
-  { name: "Список", actionCode: "list" },
+  { name: "Особові рахунки", actionCode: "accounts" },
+  { name: "Перелік", actionCode: "list" },
   { name: "Платежи", actionCode: "payments" },
   { name: "Банк", actionCode: "bank" },
-  { name: "Отчеты", actionCode: "reports" },
-  { name: "Информация по дому", actionCode: "info" },
-  { name: "Схема дома", actionCode: "schema" }
+  { name: "Звіти", actionCode: "reports" },
+  { name: "Інформація", actionCode: "info" },
+  { name: "Схема будинку", actionCode: "schema" }
 ];
 var homes, ls, nach, files, adr, dt, org, b, what, kto, oplat, plat;
 
@@ -85,7 +85,7 @@ const logoutItem = document.createElement("li");
 logoutItem.classList.add("menu-item", "logout-item");
 
 const logoutLink = document.createElement("span");
-logoutLink.textContent = "Выйти";
+logoutLink.textContent = "Вийти";
 logoutLink.style.color = "red";
 logoutLink.style.cursor = "pointer";
 logoutLink.onclick = async () => {
@@ -99,7 +99,7 @@ settingsItem.classList.add("menu-item", "settings-item");
 
 const settingsLink = document.createElement("span");
 settingsLink.id = "settingsLink";
-settingsLink.textContent = "Настройки";
+settingsLink.textContent = "Налаштування";
 settingsLink.style.cursor = "pointer";
 settingsLink.onclick = () => {
 userSettings();
@@ -520,19 +520,19 @@ function userSettings() {
     const confirmPassword = settingsConfirmPassword.value;
 
     if (!oldPassword) {
-      settingsStatus.textContent = 'Введите старый пароль';
+      settingsStatus.textContent = 'Введіть старий пароль';
       return;
     }
     if (!newPassword) {
-      settingsStatus.textContent = 'Введите новый пароль';
+      settingsStatus.textContent = 'Введіть новий пароль';
       return;
     }
     if (newPassword.length < 6) {
-      settingsStatus.textContent = 'Новый пароль должен быть не менее 6 символов';
+      settingsStatus.textContent = 'Новий пароль повинен містити не меньш 6 символів';
       return;
     }
     if (newPassword !== confirmPassword) {
-      settingsStatus.textContent = 'Новый пароль и подтверждение не совпадают';
+      settingsStatus.textContent = 'Новий пароль та підтвердження не збігаються';
       return;
     }
 

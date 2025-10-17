@@ -202,16 +202,27 @@ function createItemsForFloor(lsList, pod, et, container, opts) {
 
       div.appendChild(valSpan);
 
-      // --- Всплывающая подсказка ---
-      div.dataset.fio = Object.entries(displayKeysName)
-        .map(([key, name]) => {
-          let v = item[key] ?? "";
-          if(typeof v === "number") v = v.toLocaleString("ru-RU");
-          if(v === "" || item.et === 0) return "";
-          return name ? `${name}: ${v}` : v;
-        })
-        .filter(Boolean)
-        .join("\n");
+// --- Всплывающая подсказка ---
+const infoParts = [];
+
+// базовые поля из displayKeysName
+for (const [key, name] of Object.entries(displayKeysName)) {
+  let v = item[key] ?? "";
+  if (typeof v === "number") v = v.toLocaleString("ru-RU");
+  if (v === "" || item.et === 0) continue;
+  infoParts.push(`${name}: ${v}`);
+}
+
+// дополнительные поля
+if (item.tel) infoParts.push(`Телефон: ${item.tel}`);
+if (item.email) infoParts.push(`Електронна пошта: ${item.email}`);
+if (item.note) {
+  // заменяем \n на <br> при отображении
+  const formattedNote = item.note.replace(/\n/g, "<br>");
+  infoParts.push(`Примітка: ${formattedNote}`);
+}
+
+div.dataset.fio = infoParts.join("\n");
 
       container.appendChild(div);
     });
@@ -570,11 +581,11 @@ function initSchema() {
   const displayKeys = ["pl", "ls", "pers", "kv", "dolg", "opl", "nach"];
   const displayKeysName = {
     pl: "Площа",
-    ls: "Особові рахунки",
+    ls: "Особовий рахунок",
     pers: "Прописано осіб",
-    kv: "Квартири",
-    dolg: "Борги",
-    opl: "Платежі",
+    kv: "Квартира",
+    dolg: "Борг",
+    opl: "Платіж",
     nach: "Нараховано",
   };
   const numericDisplays = ["opl","nach","dolg","pl"];

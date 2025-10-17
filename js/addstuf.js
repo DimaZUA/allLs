@@ -630,7 +630,7 @@ if (cumulativeBalance !== 0) {
       .concat(
         curLS.note
           ? "\u041F\u0440\u0438\u043C\u0456\u0442\u043A\u0430: ".concat(
-              curLS.note,
+              curLS.note.replace(/\n/g, "<br>"),
               "<br>"
             )
           : "",

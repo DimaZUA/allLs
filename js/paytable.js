@@ -209,7 +209,7 @@ document.getElementById("maincontainer").innerHTML =
         '<tr>' +
           '<th>Кв.</th>' +
           '<th>Дата</th>' +
-          '<th>Сумма</th>' +
+          '<th>Сума</th>' +
           '<th>Призначення платежу</th>' +
         '</tr>' +
       '</thead>' +

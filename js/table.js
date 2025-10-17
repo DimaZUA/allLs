@@ -298,7 +298,7 @@ prevOrder = Array.from(tbody.rows)
 
   // Создание заголовка
   var headerRow =
-    '<tr><th onclick="sortTable(this)">Квартира</th><th onclick="sortTable(this)">ФИО</th><th onclick="sortTable(this)">Дебет на начало</th>';
+    '<tr><th onclick="sortTable(this)">Квартира</th><th onclick="sortTable(this)">П.І. по Б.</th><th onclick="sortTable(this)">Борг почтковий</th>';
   if (displayMode === "summarized") {
     Array.from(servicesWithCharges).forEach(function (serviceId) {
       headerRow += '<th onclick="sortTable(this)">'.concat(
@@ -307,33 +307,33 @@ prevOrder = Array.from(tbody.rows)
       );
     });
     headerRow +=
-      '<th onclick="sortTable(this)">Оплаты</th><th onclick="sortTable(this)">Долг на конец</th></tr>';
+      '<th onclick="sortTable(this)">Оплати</th><th onclick="sortTable(this)">Борг кінцевий</th></tr>';
  } else if (serviceFilterId !== null) {
   var currentDate = new Date(start);
   while (currentDate <= end) {
     var m = currentDate.getMonth() + 1;
     var y = currentDate.getFullYear();
     headerRow +=
-      '<th onclick="sortTable(this)">Начислено ' + m + "-" + y + '</th>';
+      '<th onclick="sortTable(this)">Нараховано ' + m + "-" + y + '</th>';
       // Оплаты можно не показывать или показать пустые колонки, здесь не показываем
     currentDate.setMonth(currentDate.getMonth() + 1);
   }
-  headerRow += '<th onclick="sortTable(this)">Долг на конец</th></tr>';
+  headerRow += '<th onclick="sortTable(this)">Борг кінцевий</th></tr>';
   } else {
     var currentDate = new Date(start);
     while (currentDate <= end) {
       var _month2 = currentDate.getMonth() + 1;
       var _year2 = currentDate.getFullYear();
     if (displayMode === "detailed" || displayMode === "charges-only") {
-      headerRow += `<th onclick="sortTable(this)">Начислено ${_month2}-${_year2}</th>`;
+      headerRow += `<th onclick="sortTable(this)">Нараховано ${_month2}-${_year2}</th>`;
     }
 
     if (displayMode === "detailed" || displayMode === "payments-only") {
-      headerRow += `<th onclick="sortTable(this)">Оплачено ${_month2}-${_year2}</th>`;
+      headerRow += `<th onclick="sortTable(this)">Сплчено ${_month2}-${_year2}</th>`;
     }
       currentDate.setMonth(currentDate.getMonth() + 1);
     }
-    headerRow += '<th onclick="sortTable(this)">Долг на конец</th></tr>';
+    headerRow += '<th onclick="sortTable(this)">Борг кінцевий</th></tr>';
   }
   thead.innerHTML = headerRow;
   var totalStartDebt = 0;
