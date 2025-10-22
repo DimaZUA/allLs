@@ -117,273 +117,71 @@ function applyPreset() {
   }
 }
 
-// ===================== 📊 Начальный дебет =====================
-function calculateInitialDebit(accountId, start) {
-  let debit = 0;
+function calculateDebtMonthsFromCache(monthData, debtEnd, endDate) {
+return;
+  if (!monthData || monthData.length === 0) return 0;
 
-  // Учитываем все оплаты, сделанные до start
-  if (oplat[accountId]) {
-    for (const year of Object.keys(oplat[accountId])) {
-      for (const month of Object.keys(oplat[accountId][year])) {
-        const date = new Date(year, month - 1);
-        date.setHours(0, 0, 0, 0);
-        if (date < start) {
-          oplat[accountId][year][month].forEach(payment => {
-            debit -= payment.sum;
-          });
+  // Обрезаем endDate если он позже текущего месяца
+  const now = new Date();
+  const currentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  if (endDate > currentMonth) endDate = currentMonth;
+
+  // Сортируем по дате
+  monthData.sort((a, b) => a.date - b.date);
+
+  let remainingDebt = debtEnd;
+  let months = 0;
+
+  // --- Переплата ---
+  if (debtEnd < 0) {
+    const lastNonZero = [...monthData].reverse().find(c => c.chargesSum > 0);
+    if (!lastNonZero) return 0;
+    const result = -(Math.abs(debtEnd) / lastNonZero.chargesSum);
+    return +result.toFixed(1);
+  }
+
+  let currentDate = new Date(endDate);
+  currentDate.setHours(12);
+
+  const firstDate = monthData[0].date;
+
+  while (remainingDebt > 0) {
+    if (!(currentDate instanceof Date) || isNaN(currentDate)) break;
+
+    const y = currentDate.getFullYear();
+    const m = currentDate.getMonth() + 1;
+    const chargeObj = monthData.find(c => c.date.getFullYear() === y && c.date.getMonth() + 1 === m);
+    const sum = chargeObj ? chargeObj.chargesSum : 0;
+
+    if (sum > 0) {
+      if (remainingDebt >= sum) {
+        remainingDebt -= sum;
+        months += 1;
+      } else {
+        months += remainingDebt / sum;
+        remainingDebt = 0;
+      }
+    }
+
+    currentDate.setMonth(currentDate.getMonth() - 1);
+
+    if (currentDate < firstDate) {
+      if (remainingDebt > 0) {
+        const firstNonZero = monthData.find(c => c.chargesSum > 0);
+        if (firstNonZero) {
+          months += remainingDebt / firstNonZero.chargesSum;
         }
       }
+      break;
     }
   }
 
-  // Считаем только начисления до start
-  if (nach[accountId]) {
-    for (const year of Object.keys(nach[accountId])) {
-      for (const month of Object.keys(nach[accountId][year])) {
-        const date = new Date(year, month - 1);
-        date.setHours(0, 0, 0, 0);
-        if (date < start) {
-          for (const serviceId of Object.keys(nach[accountId][year][month])) {
-            debit += nach[accountId][year][month][serviceId];
-          }
-        }
-      }
-    }
-  }
-
-  return debit;
+  return +months.toFixed(1);
 }
-function generateTable() {
-  const tableContainer = document.getElementById("table-container");
-  tableContainer.innerHTML = "";
+// === Инициализация monthData ===
+let monthData = {};
 
-  const start = new Date(document.getElementById("start-date").value);
-  const end = new Date(document.getElementById("end-date").value);
-  start.setHours(0, 0, 0, 0);
-  end.setMonth(end.getMonth() + 1);
-  end.setDate(0); // Последний день предыдущего месяца
-  end.setHours(23, 59, 59, 999);
 
-  const displayMode = document.getElementById("display-mode").value;
-  const filterValue = document.getElementById("record-filter").value;
-  let serviceFilterId = null;
-  if (displayMode.startsWith("service-")) {
-    serviceFilterId = displayMode.split("-")[1];
-  }
-
-  // 1️⃣ Сохраняем текущий порядок квартир
-  let prevOrder = [];
-  const existingTable = document.querySelector("table");
-  if (existingTable) {
-    const tbodyPrev = existingTable.querySelector("tbody");
-    prevOrder = Array.from(tbodyPrev.rows)
-      .filter(row => row.cells.length > 0)
-      .map(row => row.cells[0].textContent.trim());
-  }
-
-  // 2️⃣ Собираем список услуг с начислениями в период
-  const servicesWithCharges = new Set();
-  for (const accountId in nach) {
-    for (const year in nach[accountId]) {
-      for (const month in nach[accountId][year]) {
-        const date = new Date(year, month - 1, 1, 12);
-        if (date >= start && date <= end) {
-          Object.keys(nach[accountId][year][month]).forEach(sid =>
-            servicesWithCharges.add(sid)
-          );
-        }
-      }
-    }
-  }
-
-  // 3️⃣ Создаём таблицу и заголовок
-  const table = document.createElement("table");
-  table.classList.add("main");
-  const thead = document.createElement("thead");
-  const tbody = document.createElement("tbody");
-  table.appendChild(thead);
-  table.appendChild(tbody);
-
-  let headerRow = '<tr><th onclick="sortTable(this)">Квартира</th><th onclick="sortTable(this)">П.І. по Б.</th><th onclick="sortTable(this)">Борг почтковий</th>';
-
-  if (displayMode === "summarized") {
-    for (const serviceId of servicesWithCharges) {
-      headerRow += `<th onclick="sortTable(this)">${us[serviceId]}</th>`;
-    }
-    headerRow += '<th onclick="sortTable(this)">Оплати</th><th onclick="sortTable(this)">Борг кінцевий</th></tr>';
-  } else {
-    let currentDate = new Date(start);
-    while (currentDate <= end) {
-      const m = currentDate.getMonth() + 1;
-      const y = currentDate.getFullYear();
-
-      if (displayMode === "detailed" || displayMode === "charges-only") {
-        headerRow += `<th onclick="sortTable(this)">Нараховано ${m}-${y}</th>`;
-      }
-      if (displayMode === "detailed" || displayMode === "payments-only") {
-        headerRow += `<th onclick="sortTable(this)">Сплчено ${m}-${y}</th>`;
-      }
-
-      currentDate.setMonth(currentDate.getMonth() + 1);
-    }
-    headerRow += '<th onclick="sortTable(this)">Борг кінцевий</th></tr>';
-  }
-  thead.innerHTML = headerRow;
-
-  // 4️⃣ Основные данные
-  let totalStartDebt = 0,
-      totalEndDebt = 0,
-      totalCharges = {},
-      totalPayments = {};
-
-  for (const accountId in nach) {
-    let debitStart = calculateInitialDebit(accountId, start);
-    totalStartDebt += debitStart;
-
-    const payments = calculatePayments(accountId, start, end);
-    const totalCharge = calculateCharges(accountId, start, end, false);
-    const lastMonthCharges = calculateCharges(accountId, start, end, true);
-    let debitEnd = debitStart + totalCharge - payments;
-
-    // Фильтрация записей
-    if (
-      (filterValue === "paid-or-low-debt" && !(payments > 0 || debitEnd < lastMonthCharges * 3)) ||
-      (filterValue === "paid" && payments === 0) ||
-      (filterValue === "overpaid" && debitEnd > 0) ||
-      (filterValue === "debtors" && (payments > 0 || debitEnd <= lastMonthCharges * 3))
-    ) continue;
-
-    const row = document.createElement("tr");
-    row.appendChild(generateLsCell(accountId));
-    row.innerHTML += `<td>${ls[accountId].fio}</td>`;
-    row.innerHTML += `<td>${debitStart.toFixedWithComma()}</td>`;
-
-    if (displayMode === "summarized") {
-      const chargesByService = {};
-      let paymentsSum = 0;
-      let paymentsArr = [];
-
-      for (const year in nach[accountId]) {
-        for (const month in nach[accountId][year]) {
-          const date = new Date(year, month - 1, 1, 12);
-          if (date >= start && date <= end) {
-            for (const serviceId in nach[accountId][year][month]) {
-              chargesByService[serviceId] = (chargesByService[serviceId] || 0) + nach[accountId][year][month][serviceId];
-              totalCharges[serviceId] = (totalCharges[serviceId] || 0) + nach[accountId][year][month][serviceId];
-            }
-
-            if (oplat[accountId] && oplat[accountId][year] && oplat[accountId][year][month]) {
-              paymentsArr.push(...oplat[accountId][year][month]);
-              oplat[accountId][year][month].forEach(p => {
-                paymentsSum += p.sum;
-                totalPayments[month] = (totalPayments[month] || 0) + p.sum;
-              });
-            }
-          }
-        }
-      }
-
-      for (const serviceId of servicesWithCharges) {
-        row.innerHTML += `<td>${(chargesByService[serviceId] || 0).toFixedWithComma()}</td>`;
-      }
-      row.appendChild(generatePaymentCell(paymentsArr));
-      debitEnd = debitStart + Object.values(chargesByService).reduce((sum, val) => sum + val, 0) - paymentsSum;
-      totalEndDebt += debitEnd;
-      row.innerHTML += `<td>${debitEnd.toFixedWithComma()}</td>`;
-    } else {
-      let _debitEnd = debitStart;
-      let currentDateIter = new Date(start);
-      while (currentDateIter <= end) {
-        const m = currentDateIter.getMonth() + 1;
-        const y = currentDateIter.getFullYear();
-        let charges = 0, chargesAll = 0;
-
-        if (nach[accountId] && nach[accountId][y] && nach[accountId][y][m]) {
-          chargesAll = Object.values(nach[accountId][y][m]).reduce((sum, val) => sum + val, 0);
-          totalCharges[`${y}-${m}`] = (totalCharges[`${y}-${m}`] || 0) + chargesAll;
-
-          charges = serviceFilterId ? (nach[accountId][y][m][serviceFilterId] || 0) : chargesAll;
-        }
-
-        let paymentsMonth = [];
-        let paymentsSum = 0;
-        if (!serviceFilterId && oplat[accountId] && oplat[accountId][y] && oplat[accountId][y][m]) {
-          paymentsMonth = oplat[accountId][y][m];
-          paymentsSum = paymentsMonth.reduce((sum, p) => sum + p.sum, 0);
-          totalPayments[`${y}-${m}`] = (totalPayments[`${y}-${m}`] || 0) + paymentsSum;
-        }
-
-        if (displayMode !== "payments-only") row.innerHTML += `<td v="${charges}">${!charges ? "–" : charges.toFixedWithComma()}</td>`;
-        if (!serviceFilterId && displayMode !== "charges-only") row.appendChild(generatePaymentCell(paymentsMonth));
-        _debitEnd += chargesAll - paymentsSum;
-
-        currentDateIter.setMonth(currentDateIter.getMonth() + 1);
-      }
-      totalEndDebt += _debitEnd;
-      row.innerHTML += `<td>${_debitEnd.toFixedWithComma()}</td>`;
-    }
-
-    tbody.appendChild(row);
-  }
-
-  // 5️⃣ Итоговая строка
-  const footerRow = document.createElement("tr");
-  footerRow.classList.add("itog");
-  footerRow.innerHTML = `<td colspan=2>Ітого</td><td>${totalStartDebt.toFixedWithComma()}</td>`;
-
-  if (displayMode === "summarized") {
-    for (const serviceId of servicesWithCharges) {
-      footerRow.innerHTML += `<td>${(totalCharges[serviceId] || 0).toFixedWithComma()}</td>`;
-    }
-    footerRow.innerHTML += `<td>${Object.values(totalPayments).reduce((sum, val) => sum + val, 0).toFixedWithComma()}</td><td>${totalEndDebt.toFixedWithComma()}</td>`;
-  } else {
-    let currentDateIter = new Date(start);
-    while (currentDateIter <= end) {
-      const m = currentDateIter.getMonth() + 1;
-      const y = currentDateIter.getFullYear();
-      const key = `${y}-${m}`;
-      let chargeTotal = serviceFilterId
-        ? Object.keys(nach).reduce((sum, accId) => sum + (nach[accId][y]?.[m]?.[serviceFilterId] || 0), 0)
-        : totalCharges[key] || 0;
-      let paymentTotal = totalPayments[key] || 0;
-
-      if (displayMode === "charges-only") footerRow.innerHTML += `<td>${chargeTotal.toFixedWithComma()}</td>`;
-      else if (displayMode === "payments-only") footerRow.innerHTML += `<td>${paymentTotal.toFixedWithComma()}</td>`;
-      else footerRow.innerHTML += `<td>${chargeTotal.toFixedWithComma()}</td><td>${paymentTotal.toFixedWithComma()}</td>`;
-
-      currentDateIter.setMonth(currentDateIter.getMonth() + 1);
-    }
-    footerRow.innerHTML += `<td>${totalEndDebt.toFixedWithComma()}</td>`;
-  }
-
-  tbody.appendChild(footerRow);
-
-  // 6️⃣ Восстанавливаем порядок строк по сохранённым квартирам
-  if (prevOrder.length) {
-    const rows = Array.from(tbody.rows).filter(row => row.cells.length > 0);
-    rows.sort((a, b) => prevOrder.indexOf(a.cells[0].textContent.trim()) - prevOrder.indexOf(b.cells[0].textContent.trim()));
-    rows.forEach(row => tbody.appendChild(row));
-  }
-
-  // 7️⃣ Клонируем заголовок для прокрутки
-  Array.from(thead.querySelectorAll("tr")).forEach(row => {
-    const clone = row.cloneNode(true);
-    clone.classList.add("header-row-clone");
-    tbody.appendChild(clone);
-  });
-
-  tableContainer.appendChild(table);
-
-  // 8️⃣ Инициализация постеров и красок
-  initPosters();
-  doRed();
-
-  // 9️⃣ Сохраняем параметры
-  setParam("start", document.getElementById("start-date").value);
-  setParam("end", document.getElementById("end-date").value);
-  setParam("displayMode", displayMode);
-  setParam("preset", document.getElementById("preset-select").value);
-}
 var chartInstance = null;
 
 function parseCellValue(text) {
@@ -440,62 +238,325 @@ function sortTable(header) {
   header.classList.add(isAsc ? "sorted-desc" : "sorted-asc");
 
   // Сортируем строки
-  rows.sort((rowA, rowB) => {
-    let cellA = rowA.cells[index].getAttribute("v") || rowA.cells[index].textContent;
-    let cellB = rowB.cells[index].getAttribute("v") || rowB.cells[index].textContent;
+rows.sort((rowA, rowB) => {
+  const cellA = rowA.cells[index];
+  const cellB = rowB.cells[index];
 
-    // Преобразуем "-" в 0
-    if (cellA.trim() === "-") cellA = "0";
-    if (cellB.trim() === "-") cellB = "0";
+  // Пропускаем строки без ячейки
+  if (!cellA && !cellB) return 0;
+  if (!cellA) return 1; 
+  if (!cellB) return -1;
 
-    let valA = parseFloat(cellA.replace(/\s/g, "").replace(",", "."));
-    let valB = parseFloat(cellB.replace(/\s/g, "").replace(",", "."));
+  let valA = cellA.getAttribute("v");
+  let valB = cellB.getAttribute("v");
 
-    // Если не число — сравниваем как строки
-    if (isNaN(valA)) valA = cellA;
-    if (isNaN(valB)) valB = cellB;
+  if (valA == null) valA = cellA.textContent.trim().replace(/\s/g, "").replace(",", ".");
+  if (valB == null) valB = cellB.textContent.trim().replace(/\s/g, "").replace(",", ".");
 
-    return isAsc ? (valA < valB ? 1 : -1) : (valA > valB ? 1 : -1);
-  });
+  valA = parseFloat(valA === "-" ? "0" : valA);
+  valB = parseFloat(valB === "-" ? "0" : valB);
+
+  if (isNaN(valA)) valA = cellA.textContent.trim();
+  if (isNaN(valB)) valB = cellB.textContent.trim();
+
+  if (valA < valB) return isAsc ? -1 : 1;
+  if (valA > valB) return isAsc ? 1 : -1;
+  return 0;
+});
+
 
   // Добавляем отсортированные строки обратно в tbody
   rows.forEach(row => tbody.appendChild(row));
 
   // Клонируем строки заголовка и добавляем их в конец tbody
-  const headerRowsClone = Array.from(table.querySelectorAll("thead tr")).map(row => {
+  Array.from(table.querySelectorAll("thead tr")).forEach(row => {
     const clone = row.cloneNode(true);
     clone.classList.add("header-row-clone");
-    return clone;
+    tbody.appendChild(clone);
+  });
+}
+
+function calculateDebtMonthsFromCache(monthData, debtEnd, endDate) {
+  if (!monthData || monthData.length === 0) return 0;
+
+  // Обрезаем endDate если он позже текущего месяца
+  const now = new Date();
+  const currentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  if (endDate > currentMonth) endDate = currentMonth;
+
+  // Сортируем по дате
+  monthData.sort((a, b) => a.date - b.date);
+
+  let remainingDebt = debtEnd;
+  let months = 0;
+
+  // --- Переплата ---
+  if (debtEnd < 0) {
+    const lastNonZero = [...monthData].reverse().find(c => c.chargesSum > 0);
+    if (!lastNonZero) return 0;
+    const result = -(Math.abs(debtEnd) / lastNonZero.chargesSum);
+    return +result.toFixed(1);
+  }
+
+  let currentDate = new Date(endDate);
+  currentDate.setHours(12);
+
+  const firstDate = monthData[0].date;
+
+  while (remainingDebt > 0) {
+    if (!(currentDate instanceof Date) || isNaN(currentDate)) break;
+
+    const y = currentDate.getFullYear();
+    const m = currentDate.getMonth() + 1;
+    const chargeObj = monthData.find(c => c.date.getFullYear() === y && c.date.getMonth() + 1 === m);
+    const sum = chargeObj ? chargeObj.chargesSum : 0;
+
+    if (sum > 0) {
+      if (remainingDebt >= sum) {
+        remainingDebt -= sum;
+        months += 1;
+      } else {
+        months += remainingDebt / sum;
+        remainingDebt = 0;
+      }
+    }
+
+    currentDate.setMonth(currentDate.getMonth() - 1);
+
+    if (currentDate < firstDate) {
+      if (remainingDebt > 0) {
+        const firstNonZero = monthData.find(c => c.chargesSum > 0);
+        if (firstNonZero) {
+          months += remainingDebt / firstNonZero.chargesSum;
+        }
+      }
+      break;
+    }
+  }
+
+  return +months.toFixed(1);
+}
+
+function generateTable() {
+  const tableContainer = document.getElementById("table-container");
+  tableContainer.innerHTML = "";
+
+  const start = new Date(document.getElementById("start-date").value);
+  const end = new Date(document.getElementById("end-date").value);
+  start.setHours(0, 0, 0, 0);
+  end.setMonth(end.getMonth() + 1);
+  end.setDate(0);
+  end.setHours(23, 59, 59, 999);
+
+  const displayMode = document.getElementById("display-mode").value;
+  const filterValue = document.getElementById("record-filter").value;
+
+  let serviceFilterId = null;
+  if (displayMode.startsWith("service-")) {
+    serviceFilterId = displayMode.split("-")[1];
+  }
+
+  // Список услуг с начислениями
+  const servicesWithCharges = new Set();
+  for (const accountId in nach) {
+    for (const year in nach[accountId]) {
+      for (const month in nach[accountId][year]) {
+        const date = new Date(year, month - 1, 1, 12);
+        if (date >= start && date <= end) {
+          Object.keys(nach[accountId][year][month]).forEach(sid => servicesWithCharges.add(sid));
+        }
+      }
+    }
+  }
+
+  const table = document.createElement("table");
+  table.classList.add("main");
+  const thead = document.createElement("thead");
+  const tbody = document.createElement("tbody");
+  table.appendChild(thead);
+  table.appendChild(tbody);
+
+  // Заголовок
+  let headerRow = '<tr><th onclick="sortTable(this)">Квартира</th><th onclick="sortTable(this)">П.І. по Б.</th><th onclick="sortTable(this)">Борг початковий</th>';
+
+  if (displayMode === "summarized") {
+    for (const serviceId of servicesWithCharges) {
+      headerRow += `<th onclick="sortTable(this)">${us[serviceId]}</th>`;
+    }
+    headerRow += '<th onclick="sortTable(this)">Оплати</th><th onclick="sortTable(this)">Борг кінцевий</th><th onclick="sortTable(this)">Місців боргу</th></tr>';
+  } else {
+    let currentDate = new Date(start);
+    while (currentDate <= end) {
+      const m = currentDate.getMonth() + 1;
+      const y = currentDate.getFullYear();
+      if (displayMode === "detailed" || displayMode === "charges-only" || displayMode.startsWith("service-")) {
+        headerRow += `<th onclick="sortTable(this)">Нараховано ${m}-${y}</th>`;
+      }
+      if (displayMode === "detailed" || displayMode === "payments-only") {
+        headerRow += `<th onclick="sortTable(this)">Сплачено ${m}-${y}</th>`;
+      }
+      currentDate.setMonth(currentDate.getMonth() + 1);
+    }
+    headerRow += '<th onclick="sortTable(this)">Борг кінцевий</th><th onclick="sortTable(this)">Місців боргу</th></tr>';
+  }
+  thead.innerHTML = headerRow;
+
+  // Данные
+  let totalStartDebt = 0,
+      totalEndDebt = 0,
+      totalCharges = {},
+      totalPayments = {},
+      totalDebtMonths = 0,
+      rowCount = 0;
+
+  for (const accountId in nach) {
+    const monthData = [];
+    let totalChargesSum = 0;      // для отображения в таблице
+    let totalPaymentsSum = 0;     // для отображения в таблице
+    let totalChargesSumFull = 0;  // для расчета конечного долга
+    let totalPaymentsSumFull = 0; // для расчета конечного долга
+
+    for (const year in nach[accountId]) {
+      for (const month in nach[accountId][year]) {
+        const date = new Date(year, month - 1, 1, 12);
+        if (date < start || date > end) continue;
+
+        const chargesByService = { ...nach[accountId][year][month] };
+        const chargesSum = Object.values(chargesByService).reduce((s, v) => s + v, 0);
+
+        const paymentsArr = oplat[accountId]?.[year]?.[month] || [];
+        const paymentsSum = paymentsArr.reduce((s, p) => s + p.sum, 0);
+
+        monthData.push({
+          date,
+          chargesByService,
+          chargesSum,
+          paymentsArr,
+          paymentsSum
+        });
+
+        totalChargesSum += chargesSum;
+        totalPaymentsSum += paymentsSum;
+        totalChargesSumFull += chargesSum;
+        totalPaymentsSumFull += paymentsSum;
+      }
+    }
+
+    const debitStart = calculateInitialDebit(accountId, start);
+    const debitEnd = debitStart + totalChargesSumFull - totalPaymentsSumFull;
+    const debtMonths = calculateDebtMonthsFromCache(monthData, debitEnd, end);
+
+    // Фильтр
+    if ((filterValue === "paid-or-low-debt" && !(totalPaymentsSum > 0 || debitEnd < totalChargesSum * 3)) ||
+        (filterValue === "paid" && totalPaymentsSum === 0) ||
+        (filterValue === "overpaid" && debitEnd > 0) ||
+        (filterValue === "debtors" && (totalPaymentsSum > 0 || debitEnd <= totalChargesSum * 3))) continue;
+
+    const row = document.createElement("tr");
+    row.appendChild(generateLsCell(accountId));
+    row.innerHTML += `<td>${ls[accountId].fio}</td>`;
+    row.innerHTML += `<td>${debitStart.toFixedWithComma()}</td>`;
+    totalStartDebt += debitStart;
+
+    if (displayMode === "summarized") {
+      for (const serviceId of servicesWithCharges) {
+        const chargesByServiceSum = monthData.reduce((s, m) => s + (m.chargesByService[serviceId] || 0), 0);
+        row.innerHTML += `<td>${chargesByServiceSum.toFixedWithComma()}</td>`;
+        totalCharges[serviceId] = (totalCharges[serviceId] || 0) + chargesByServiceSum;
+      }
+      const paymentsSumRow = monthData.reduce((s, m) => s + m.paymentsSum, 0);
+      row.innerHTML += `<td>${paymentsSumRow.toFixedWithComma()}</td>`;
+      row.innerHTML += `<td>${debitEnd.toFixedWithComma()}</td>`; // всегда один и тот же долг
+      row.innerHTML += `<td>${debtMonths}</td>`;
+      totalEndDebt += debitEnd;
+      rowCount++;
+    } else {
+      // Отображение детально или по услуге
+      monthData.forEach(m => {
+        let chargesAll;
+        if (displayMode.startsWith("service-")) {
+          chargesAll = m.chargesByService[serviceFilterId] || 0;
+        } else {
+          chargesAll = m.chargesSum;
+        }
+
+        if (displayMode !== "payments-only") {
+          row.innerHTML += `<td>${!chargesAll ? "–" : chargesAll.toFixedWithComma()}</td>`;
+        }
+
+        if (displayMode !== "charges-only" && !displayMode.startsWith("service-")) {
+          row.appendChild(generatePaymentCell(m.paymentsArr));
+        }
+
+        const monthKey = `${m.date.getFullYear()}-${m.date.getMonth() + 1}`;
+        totalCharges[monthKey] = (totalCharges[monthKey] || 0) + chargesAll;
+        totalPayments[monthKey] = (totalPayments[monthKey] || 0) + m.paymentsSum;
+      });
+
+      totalEndDebt += debitEnd; // всегда используем один и тот же долг
+      totalDebtMonths += debtMonths;
+      rowCount++;
+      row.innerHTML += `<td>${debitEnd.toFixedWithComma()}</td>`; // всегда один и тот же долг
+      row.innerHTML += `<td>${debtMonths}</td>`;
+    }
+
+    tbody.appendChild(row);
+  }
+
+// Итоговая строка
+const footerRow = document.createElement("tr");
+footerRow.classList.add("itog");
+footerRow.innerHTML = `<td colspan=2>Ітого</td><td>${totalStartDebt.toFixedWithComma()}</td>`;
+
+if (displayMode === "summarized") {
+  for (const serviceId of servicesWithCharges) {
+    footerRow.innerHTML += `<td>${(totalCharges[serviceId] || 0).toFixedWithComma()}</td>`;
+  }
+  const totalPaymentsSumAll = Object.values(totalPayments).reduce((a, b) => a + b, 0);
+  footerRow.innerHTML += `<td>${totalPaymentsSumAll.toFixedWithComma()}</td>`;
+  footerRow.innerHTML += `<td>${totalEndDebt.toFixedWithComma()}</td>`; // всегда один и тот же долг
+  footerRow.innerHTML += `<td>${rowCount ? (totalDebtMonths / rowCount).toFixed(1) : "–"}</td>`;
+} else {
+  const monthKeys = Object.keys(totalCharges).sort();
+
+  monthKeys.forEach(k => {
+    if (displayMode !== "payments-only") {
+      const charges = totalCharges[k] || 0;
+      footerRow.innerHTML += `<td>${charges ? charges.toFixedWithComma() : "–"}</td>`;
+    }
+    if (displayMode !== "charges-only" && !displayMode.startsWith("service-")) {
+      const payments = totalPayments[k] || 0;
+      footerRow.innerHTML += `<td>${payments ? payments.toFixedWithComma() : "–"}</td>`;
+    }
   });
 
-  headerRowsClone.forEach(row => tbody.appendChild(row));
+  footerRow.innerHTML += `<td>${totalEndDebt.toFixedWithComma()}</td>`; // всегда один и тот же долг
+  footerRow.innerHTML += `<td>${rowCount ? (totalDebtMonths / rowCount).toFixed(1) : "–"}</td>`;
 }
-function generateLsCell(accountId) {
-  const curLS = ls[accountId];
-  const lsCell = document.createElement("td");
-  lsCell.classList.add("poster");
 
-  lsCell.innerHTML = `
-    ${curLS.kv} <!-- Номер квартиры -->
-    <div class="descr">
-      <div>
-        ЛС: ${curLS.ls}<br> <!-- Лицевой счет -->
-        ФИО: ${curLS.fio}<br> <!-- ФИО -->
-        ${curLS.pl ? `Площадь: ${curLS.pl} м²<br>` : ""} <!-- Площадь -->
-        ${curLS.pers ? `Жильцов: ${curLS.pers}<br>` : ""} <!-- Количество жильцов -->
-        ${curLS.komn ? `Комнат: ${curLS.komn}<br>` : ""} <!-- Количество комнат -->
-        ${curLS.et ? `Этаж: ${curLS.et}<br>` : ""} <!-- Этаж -->
-        ${curLS.pod ? `Подъезд: ${curLS.pod}<br>` : ""} <!-- Подъезд -->
-        ${curLS.lgota ? `Льготник: ${curLS.lgota}<br>` : ""} <!-- Льготник -->
-        ${curLS.tel ? `Телефон: ${curLS.tel}<br>` : ""} <!-- Телефон -->
-        ${curLS.note ? `Примечание: ${curLS.note}<br>` : ""} <!-- Примечание -->
-        ${curLS.email ? `e-mail: ${curLS.email}<br>` : ""} <!-- Email -->
-      </div>
-    </div>
-  `;
+tbody.appendChild(footerRow);
 
-  return lsCell;
+  // Клонируем заголовок
+  Array.from(thead.querySelectorAll("tr")).forEach(r => {
+    const clone = r.cloneNode(true);
+    clone.classList.add("header-row-clone");
+    tbody.appendChild(clone);
+  });
+
+  tableContainer.appendChild(table);
+
+  initPosters();
+  doRed();
+
+  // Сохраняем параметры
+  setParam("start", document.getElementById("start-date").value);
+  setParam("end", document.getElementById("end-date").value);
+  setParam("displayMode", displayMode);
+  setParam("preset", document.getElementById("preset-select").value);
 }
+
+
+
 function generatePaymentCell(payments) {
   const totalPayment = payments.reduce((sum, payment) => sum + payment.sum, 0);
   const paymentCell = document.createElement("td");
@@ -692,14 +753,19 @@ function initTable() {
 
   if (getParam("displayMode")) displayMode.value = getParam("displayMode");
 
+
+
   generateTable();
 }
 
 function doRed() {
   const table = document.querySelector(".main");
+  if (!table) return;
 
   for (const row of table.rows) {
     const cells = row.cells;
+    if (!cells.length) continue;
+
     let visualIndex = 0;
     const totalVisualCols = getTotalVisualColumns(row);
 
@@ -707,13 +773,13 @@ function doRed() {
       const cell = cells[i];
       const colspan = parseInt(cell.getAttribute("colspan") || "1", 10);
 
-      // Обработка третьего визуального столбца (индекс 2)
+      // 1️⃣ Третий визуальный столбец (индекс 2) — начальный долг
       if (visualIndex <= 2 && visualIndex + colspan > 2) {
         const value = parseFloat(cell.textContent);
         if (value > 0) cell.classList.add("red");
       }
 
-      // Обработка остальных ячеек между 4 и предпоследним (визуально)
+      // 2️⃣ Столбцы между 4 и предпоследним визуальным — отрицательные суммы
       for (let v = 3; v < totalVisualCols - 1; v++) {
         if (visualIndex <= v && visualIndex + colspan > v) {
           const value = parseFloat(cell.textContent);
@@ -724,12 +790,21 @@ function doRed() {
       visualIndex += colspan;
     }
 
-    // Последний визуальный столбец — самый правый cell
+    // 3️⃣ Последний визуальный столбец — количество месяцев долга
     const lastCell = cells[cells.length - 1];
     const lastValue = parseFloat(lastCell.textContent);
-    if (lastValue > 0) lastCell.classList.add("red");
+    if (!isNaN(lastValue) && lastValue >= 4) {
+      lastCell.classList.add("red");
+
+      // Предпоследний столбец (сумма или итог)
+      if (cells.length > 1) {
+        const prevCell = cells[cells.length - 2];
+        prevCell.classList.add("red");
+      }
+    }
   }
 }
+
 
 // Подсчёт количества визуальных колонок
 const getTotalVisualColumns = (row) =>
@@ -737,4 +812,99 @@ const getTotalVisualColumns = (row) =>
     (sum, cell) => sum + parseInt(cell.getAttribute("colspan") || "1", 10),
     0
   );
+ 
+function generateServiceSummaryCell(accountId, chargesByService, totalAmount) {
+  const cell = document.createElement("td");
+  cell.classList.add("poster");
+
+  // Контент ячейки — сумма начислений
+  cell.textContent = totalAmount.toFixedWithComma();
+
+  // Создаём внутренний div для Poster
+  const descrDiv = document.createElement("div");
+  descrDiv.classList.add("descr");
+
+  // Формируем список услуг
+  let html = "<ul style='margin:0;padding:0;list-style:none'>";
+  for (const serviceId in chargesByService) {
+    html += `<li>${us[serviceId]}: ${chargesByService[serviceId].toFixedWithComma()}</li>`;
+  }
+  html += "</ul>";
+
+  descrDiv.innerHTML = html;
+  cell.appendChild(descrDiv);
+
+  // Обработка hover для показа Poster/tooltip
+  cell.addEventListener("mouseenter", () => {
+    descrDiv.style.display = "block";
+  });
+  cell.addEventListener("mouseleave", () => {
+    descrDiv.style.display = "none";
+  });
+
+  return cell;
+}
+
+// ===================== 📊 Начальный дебет =====================
+function calculateInitialDebit(accountId, start) {
+  let debit = 0;
+
+  // Учитываем все оплаты, сделанные до start
+  if (oplat[accountId]) {
+    for (const year of Object.keys(oplat[accountId])) {
+      for (const month of Object.keys(oplat[accountId][year])) {
+        const date = new Date(year, month - 1);
+        date.setHours(0, 0, 0, 0);
+        if (date < start) {
+          oplat[accountId][year][month].forEach(payment => {
+            debit -= payment.sum;
+          });
+        }
+      }
+    }
+  }
+
+  // Считаем только начисления до start
+  if (nach[accountId]) {
+    for (const year of Object.keys(nach[accountId])) {
+      for (const month of Object.keys(nach[accountId][year])) {
+        const date = new Date(year, month - 1);
+        date.setHours(0, 0, 0, 0);
+        if (date < start) {
+          for (const serviceId of Object.keys(nach[accountId][year][month])) {
+            debit += nach[accountId][year][month][serviceId];
+          }
+        }
+      }
+    }
+  }
+
+  return debit;
+}
+function generateLsCell(accountId) {
+  const curLS = ls[accountId];
+  const lsCell = document.createElement("td");
+  lsCell.classList.add("poster");
+
+  lsCell.innerHTML = `
+    ${curLS.kv} <!-- Номер квартиры -->
+    <div class="descr">
+      <div>
+        ЛС: ${curLS.ls}<br> <!-- Лицевой счет -->
+        ФИО: ${curLS.fio}<br> <!-- ФИО -->
+        ${curLS.pl ? `Площадь: ${curLS.pl} м²<br>` : ""} <!-- Площадь -->
+        ${curLS.pers ? `Жильцов: ${curLS.pers}<br>` : ""} <!-- Количество жильцов -->
+        ${curLS.komn ? `Комнат: ${curLS.komn}<br>` : ""} <!-- Количество комнат -->
+        ${curLS.et ? `Этаж: ${curLS.et}<br>` : ""} <!-- Этаж -->
+        ${curLS.pod ? `Подъезд: ${curLS.pod}<br>` : ""} <!-- Подъезд -->
+        ${curLS.lgota ? `Льготник: ${curLS.lgota}<br>` : ""} <!-- Льготник -->
+        ${curLS.tel ? `Телефон: ${curLS.tel}<br>` : ""} <!-- Телефон -->
+        ${curLS.note ? `Примечание: ${curLS.note}<br>` : ""} <!-- Примечание -->
+        ${curLS.email ? `e-mail: ${curLS.email}<br>` : ""} <!-- Email -->
+      </div>
+    </div>
+  `;
+
+  return lsCell;
+}
 

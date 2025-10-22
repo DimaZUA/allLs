@@ -235,7 +235,7 @@ document.getElementById("maincontainer").innerHTML =
   var ths = document.getElementById("paytable").querySelectorAll("th");
 for (var i = 0; i < ths.length; i++) {
   ths[i].addEventListener("click", function () {
-    sortTable(this);
+    sortPayTable(this);
   });
 }
 
@@ -316,7 +316,7 @@ function toggleFullscreen(element, isFullscreen) {
 }
 
 
-function sortTable(header) {
+function sortPayTable(header) {
   var table = header.closest("table");
   var tbody = table.querySelector("tbody");
 
