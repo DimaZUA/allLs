@@ -1131,7 +1131,7 @@ function renderAnalizTable(data) {
     const topValues = calcSummary(topRows, topData);
     const bottomValues = calcSummary(bottomRows, bottomData);
 
-    const fillRow = (tr, values) => {
+    const fillRow = (tr, values, rowCount) => {
       tr.innerHTML = `
         <td>Ітого</td>
         <td class="summary-total">${values[0].toFixedWithComma()}</td>
@@ -1146,7 +1146,7 @@ function renderAnalizTable(data) {
         <td class="summary-debtor">${values[7].toFixedWithComma()}</td>
         <td class="summary-debtor">${values[8].toFixedWithComma()}</td>
         <td class="summary-debtor">${values[9].toFixed(1)}%</td>
-        <td class="summary-debtor">${values[10]} / ${values[11].toFixed(1)}%</td>
+        <td class="summary-debtor">${(values[10] / rowCount).toFixed(1)} / ${values[11].toFixed(1)}%</td>
       `;
     };
 
@@ -1161,8 +1161,8 @@ function renderAnalizTable(data) {
       topSummary.after(spacer);
     }
 
-    fillRow(topSummary, topValues);
-    fillRow(bottomSummary, bottomValues);
+    fillRow(topSummary, topValues, topRows.length);
+    fillRow(bottomSummary, bottomValues, bottomRows.length);
 
     // надпись над ползунком
     const currentRow = data[splitIndex - 1];
