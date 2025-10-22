@@ -1346,7 +1346,7 @@ function _exportTableToExcel() {
                 // Ищем все видимые таблицы
                 tables = Array.from(
                   mainContainer.querySelectorAll(
-                    "#banktable, #paytable, .main, #main"
+                    "#banktable, #paytable, .main, #main, .analiz-table"
                   )
                 ).filter(function (el) {
                   while (el) {

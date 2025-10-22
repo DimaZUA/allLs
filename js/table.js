@@ -118,7 +118,6 @@ function applyPreset() {
 }
 
 function calculateDebtMonthsFromCache(monthData, debtEnd, endDate) {
-return;
   if (!monthData || monthData.length === 0) return 0;
 
   // Обрезаем endDate если он позже текущего месяца
@@ -350,7 +349,10 @@ function generateTable() {
 
   const displayMode = document.getElementById("display-mode").value;
   const filterValue = document.getElementById("record-filter").value;
-
+  if (displayMode === "analiz") {
+  	tableContainer.appendChild(generateAnaliz(start,end));
+  	return;
+  }
   let serviceFilterId = null;
   if (displayMode.startsWith("service-")) {
     serviceFilterId = displayMode.split("-")[1];
@@ -681,7 +683,7 @@ function initTable() {
       displayOptions += `<option value="service-${serviceId}">${us[serviceId]}</option>`;
     }
   });
-
+  displayOptions +='<option value="analiz">Анализ</option>';
   const mainHTML = `
     <div id="org" align="right"></div>
     <div id="filter-container">
@@ -907,4 +909,288 @@ function generateLsCell(accountId) {
 
   return lsCell;
 }
+
+function generateAnaliz(start, end) {
+  // Список месяцев
+  const months = [];
+  let current = new Date(start.getFullYear(), start.getMonth(), 1);
+  const endMonth = new Date(end.getFullYear(), end.getMonth(), 1);
+  while (current <= endMonth) {
+    months.push(new Date(current));
+    current.setMonth(current.getMonth() + 1);
+  }
+
+  const result = [];
+
+  months.forEach(monthDate => {
+    let totalCharged = 0, totalPaid = 0, totalCount = 0;
+
+    let overpayCharged = 0, overpayPaid = 0, overpayCount = 0, overpayDebtEnd = 0;
+    let debtorCharged = 0, debtorPaid = 0, debtorCount = 0;
+
+    Object.keys(nach).forEach(accountId => {
+      const year = monthDate.getFullYear();
+      const month = monthDate.getMonth() + 1;
+
+      // Начислено и оплачено до начала месяца
+      let chargesBefore = 0, paymentsBefore = 0;
+      for (const y in nach[accountId]) {
+        for (const m in nach[accountId][y]) {
+          const d = new Date(y, m-1, 1);
+          if (d < monthDate) {
+            chargesBefore += Object.values(nach[accountId][y][m]).reduce((s,v)=>s+v,0);
+            paymentsBefore += (oplat[accountId]?.[y]?.[m] || []).reduce((s,p)=>s+p.sum,0);
+          }
+        }
+      }
+
+      let debitStart = chargesBefore - paymentsBefore;
+
+      // Начислено и оплачено в текущем месяце
+      const chargesThisMonth = Object.values(nach[accountId]?.[year]?.[month] || {}).reduce((s,v)=>s+v,0);
+      const paymentsThisMonth = (oplat[accountId]?.[year]?.[month] || []).reduce((s,p)=>s+p.sum,0);
+
+      const debitEnd = debitStart + chargesThisMonth - paymentsThisMonth;
+
+      totalCharged += chargesThisMonth;
+      totalPaid += paymentsThisMonth;
+      totalCount++;
+
+      // Определяем категорию квартиры
+      if (debitEnd < 0) {
+        overpayCharged += chargesThisMonth;
+        overpayPaid += paymentsThisMonth;
+        overpayCount++;
+        overpayDebtEnd += debitEnd;
+      } else {
+        // считаем сколько месяцев накопленного долга
+        let monthsOfDebt = 0;
+        let accumDebit = debitEnd;
+        for (let y = year; y >= 2000; y--) { // достаточно проверить прошлые годы
+          for (let m = (y === year ? month : 12); m >= 1; m--) {
+            const chargesPast = Object.values(nach[accountId]?.[y]?.[m] || {}).reduce((s,v)=>s+v,0);
+            if (chargesPast <= 0) continue;
+            if (accumDebit >= chargesPast) {
+              accumDebit -= chargesPast;
+              monthsOfDebt++;
+            } else {
+              monthsOfDebt += accumDebit / chargesPast;
+              accumDebit = 0;
+            }
+          }
+        }
+        if (monthsOfDebt >= 4) {
+          debtorCharged += chargesThisMonth;
+          debtorPaid += paymentsThisMonth;
+          debtorCount++;
+        }
+      }
+    });
+
+    const percentPaid = totalCharged ? ((totalPaid / totalCharged) * 100).toFixed(1) : "0";
+    const overpayPercent = overpayCharged ? ((overpayPaid / overpayCharged) * 100).toFixed(1) : "0";
+    const debtorPercent = debtorCharged ? ((debtorPaid / debtorCharged) * 100).toFixed(1) : "0";
+    const debtorPercentCount = totalCount ? ((debtorCount / totalCount) * 100).toFixed(1) : "0";
+
+    result.push({
+      month: `${String(monthDate.getMonth()+1).padStart(2,'0')}.${monthDate.getFullYear()}`,
+      totalCharged, totalPaid, percentPaid,
+      overpayCharged, overpayPaid, overpayPercent, overpayDebtEnd,
+      debtorCharged, debtorPaid, debtorPercent, debtorCount, debtorPercentCount,totalCount
+    });
+  });
+
+  return renderAnalizTable(result);
+}
+
+function renderAnalizTable(data) {
+  const wrapper = document.createElement("div");
+
+  // === Надпись над ползунком ===
+  const label = document.createElement("div");
+  label.style.textAlign = "center";
+  label.style.marginBottom = "5px";
+  label.style.fontWeight = "bold";
+  wrapper.appendChild(label);
+
+  // === Ползунок ===
+  const slider = document.createElement("input");
+  slider.type = "range";
+  slider.min = 1;
+  slider.max = data.length;
+  slider.value = data.length;
+  slider.style.width = "100%";
+  slider.style.marginBottom = "10px";
+  wrapper.appendChild(slider);
+
+  // === Таблица ===
+  const table = document.createElement("table");
+  table.classList.add("analiz-table");
+
+  const thead = document.createElement("thead");
+  const tr1 = document.createElement("tr");
+  tr1.innerHTML = `
+    <th rowspan="2">Місяць</th>
+    <th colspan="3" class="th-total">Всього по будинку</th>
+    <th colspan="4" class="th-overpay">Переплатники</th>
+    <th colspan="4" class="th-debtor">Боржники</th>
+  `;
+  const tr2 = document.createElement("tr");
+  tr2.innerHTML = `
+    <th class="th-total">Нараховано</th>
+    <th class="th-total">Сплачено</th>
+    <th class="th-total">% оплати</th>
+
+    <th class="th-overpay">Нараховано</th>
+    <th class="th-overpay">Сплачено</th>
+    <th class="th-overpay">% оплати</th>
+    <th class="th-overpay">Переплата</th>
+
+    <th class="th-debtor">Нараховано</th>
+    <th class="th-debtor">Сплачено</th>
+    <th class="th-debtor">% оплати</th>
+    <th class="th-debtor">К-сть / %</th>
+  `;
+  thead.appendChild(tr1);
+  thead.appendChild(tr2);
+  table.appendChild(thead);
+
+  const tbody = document.createElement("tbody");
+  const rows = [];
+
+  // === Парсер чисел с запятой ===
+  function parseNumber(str) {
+    if (!str) return 0;
+    return parseFloat(str.replace(/\s/g,'').replace(',', '.')) || 0;
+  }
+
+  // === Данные ===
+  data.forEach(row => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${row.month}</td>
+      <td class="td-total">${(row.totalCharged || 0).toFixedWithComma()}</td>
+      <td class="td-total">${(row.totalPaid || 0).toFixedWithComma()}</td>
+      <td class="td-total">${row.percentPaid}</td>
+
+      <td class="td-overpay">${(row.overpayCharged || 0).toFixedWithComma()}</td>
+      <td class="td-overpay">${(row.overpayPaid || 0).toFixedWithComma()}</td>
+      <td class="td-overpay">${row.overpayPercent}</td>
+      <td class="td-overpay">${(row.overpayDebtEnd || 0).toFixedWithComma()}</td>
+
+      <td class="td-debtor">${(row.debtorCharged || 0).toFixedWithComma()}</td>
+      <td class="td-debtor">${(row.debtorPaid || 0).toFixedWithComma()}</td>
+      <td class="td-debtor">${row.debtorPercent}</td>
+      <td class="td-debtor">${row.debtorCount} / ${row.debtorPercentCount}</td>
+    `;
+    // сохраняем общее количество квартир в dataset, чтобы потом использовать в итогах
+    tr.dataset.totalCount = row.totalCount || 0;
+    tr.dataset.debtorCount = row.debtorCount || 0;
+
+    tbody.appendChild(tr);
+    rows.push(tr);
+  });
+
+  // === Итоговые строки ===
+  const topSummary = document.createElement("tr");
+  topSummary.classList.add("summary-row", "top-summary");
+  const spacer = document.createElement("tr");
+  spacer.classList.add("spacer");
+  spacer.style.height = "10px";
+  const bottomSummary = document.createElement("tr");
+  bottomSummary.classList.add("summary-row", "bottom-summary");
+  tbody.appendChild(bottomSummary);
+
+  table.appendChild(tbody);
+  wrapper.appendChild(table);
+  
+  // === Функция пересчёта итогов ===
+  function updateSummaries(splitIndex) {
+    const topRows = rows.slice(0, splitIndex);
+    const bottomRows = rows.slice(splitIndex);
+    const topData = data.slice(0, splitIndex);
+    const bottomData = data.slice(splitIndex);
+
+    const calcSummary = (rows, partData) => {
+      const sum = (i) => rows.reduce((acc, row) => acc + parseNumber(row.cells[i].textContent), 0);
+      const avg = (i) => rows.length ? sum(i)/rows.length : 0;
+
+      // считаем общее количество квартир и должников по выбранным месяцам
+      const totalCount = partData.reduce((acc, d) => acc + (d.totalCount || 0), 0);
+      const debtorCount = partData.reduce((acc, d) => acc + (d.debtorCount || 0), 0);
+      const debtorPercentCount = totalCount ? (debtorCount / totalCount) * 100 : 0;
+
+      return [
+        sum(1), sum(2), sum(1) ? (sum(2)/sum(1))*100 : 0,        // total
+        sum(4), sum(5), sum(4) ? (sum(5)/sum(4))*100 : 0, avg(7), // overpay
+        sum(8), sum(9), sum(8) ? (sum(9)/sum(8))*100 : 0,         // debtor
+        debtorCount, debtorPercentCount                           // "К-сть / %"
+      ];
+    };
+
+    const topValues = calcSummary(topRows, topData);
+    const bottomValues = calcSummary(bottomRows, bottomData);
+
+    const fillRow = (tr, values) => {
+      tr.innerHTML = `
+        <td>Ітого</td>
+        <td class="summary-total">${values[0].toFixedWithComma()}</td>
+        <td class="summary-total">${values[1].toFixedWithComma()}</td>
+        <td class="summary-total">${values[2].toFixed(1)}%</td>
+
+        <td class="summary-overpay">${values[3].toFixedWithComma()}</td>
+        <td class="summary-overpay">${values[4].toFixedWithComma()}</td>
+        <td class="summary-overpay">${values[5].toFixed(1)}%</td>
+        <td class="summary-overpay">${values[6].toFixedWithComma()}</td>
+
+        <td class="summary-debtor">${values[7].toFixedWithComma()}</td>
+        <td class="summary-debtor">${values[8].toFixedWithComma()}</td>
+        <td class="summary-debtor">${values[9].toFixed(1)}%</td>
+        <td class="summary-debtor">${values[10]} / ${values[11].toFixed(1)}%</td>
+      `;
+    };
+
+    // удаляем старый topSummary и spacer
+    if (topSummary.parentNode) topSummary.remove();
+    if (spacer.parentNode) spacer.remove();
+
+    // вставляем topSummary после splitIndex-1
+    const refNode = rows[splitIndex - 1] || null;
+    if (refNode) {
+      refNode.after(topSummary);
+      topSummary.after(spacer);
+    }
+
+    fillRow(topSummary, topValues);
+    fillRow(bottomSummary, bottomValues);
+
+    // надпись над ползунком
+    const currentRow = data[splitIndex - 1];
+    if (currentRow) label.textContent = `${currentRow.month} р.`;
+  }
+
+  slider.addEventListener('input', () => {
+    updateSummaries(parseInt(slider.value));
+  });
+
+  updateSummaries(rows.length);
+
+  return wrapper;
+}
+
+
+
+
+// === форматирование чисел ===
+Number.prototype.toFixedWithComma = function() {
+  return this.toLocaleString('uk-UA',{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+
+
+function parseNumber(str) {
+  if (!str) return 0;
+  // убираем пробелы, заменяем запятую на точку
+  return parseFloat(str.replace(/\s/g,'').replace(',', '.')) || 0;
+}
+
 

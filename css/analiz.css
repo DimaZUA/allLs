@@ -1,0 +1,56 @@
+.analiz-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-family: Arial, sans-serif;
+  font-size: 16px; /* увеличенный шрифт */
+}
+
+.analiz-table th,
+.analiz-table td {
+  border: 1px solid #ccc;
+  padding: 8px 10px;
+  text-align: right;
+}
+
+.analiz-table th {
+  background-color: #f0f0f0;
+  text-align: center;
+}
+
+/* Заголовки групп */
+.th-total { background-color: #e0e0e0; }
+.th-overpay { background-color: #d6f5d6; }  /* светло-зеленый */
+.th-debtor { background-color: #f5d6d6; }  /* светло-красный */
+
+/* Данные */
+.td-total { background-color: #fafafa; }
+.td-overpay { background-color: #f0fff0; }  /* светло-зеленый */
+.td-debtor { background-color: #fff0f0; }  /* светло-красный */
+
+/* Итоги */
+.summary-total { font-weight: bold; background-color: #e0e0e0; }
+.summary-overpay { font-weight: bold; background-color: #d6f5d6; }
+.summary-debtor { font-weight: bold; background-color: #f5d6d6; }
+
+/* Верхняя итоговая строка выделение */
+.top-summary td { border-top: 2px solid #000; }
+
+/* Нижняя итоговая строка выделение */
+.bottom-summary td { border-top: 2px solid #000; }
+
+/* Отступ между верхней итоговой строкой и остальными */
+.spacer td { border: none; background: transparent; height: 10px; }
+
+/* Надпись над ползунком */
+.slider-label {
+  text-align: center;
+  font-weight: bold;
+  margin-bottom: 5px;
+  font-size: 16px; /* соответствует таблице */
+}
+
+/* Ползунок */
+input[type=range] {
+  width: 100%;
+  margin-bottom: 10px;
+}
