@@ -934,7 +934,7 @@ function generateAnaliz(start, end) {
       debtorPaid: 0,
       debtorCount: 0,
       totalCount: 0,
-      totalChargedMonth: 0
+      totaldebitStart: 0
     };
 
     Object.keys(nach).forEach(accountId => {
@@ -961,8 +961,8 @@ function generateAnaliz(start, end) {
       const paymentsThisMonth = (oplat[accountId]?.[year]?.[month] || []).reduce((s,p)=>s+p.sum,0);
       const debitEnd = debitStart + chargesThisMonth - paymentsThisMonth;
 
-      row.totalChargedMonth += chargesThisMonth;
-      row.totalCharged += debitStart;
+      row.totaldebitStart += debitStart;
+      row.totalCharged += chargesThisMonth;
       row.totalPaid += paymentsThisMonth;
       row.totalCount++;
 
@@ -981,7 +981,7 @@ function generateAnaliz(start, end) {
     });
 
     row.percentPaid = row.totalCharged ? (row.totalPaid / row.totalCharged) * 100 : 0;
-    row.overpayPercent = row.totalChargedMonth ? (-row.overpayDebtEnd / row.totalChargedMonth) * 100 : 0;
+    row.overpayPercent = row.totalCharged ? (-row.overpayDebtEnd / row.totalCharged) * 100 : 0;
     row.debtorPercent = row.debtorCharged ? (row.debtorPaid / row.debtorCharged) * 100 : 0;
     row.debtorPercentCount = row.totalCount ? (row.debtorCount / row.totalCount) * 100 : 0;
 
@@ -1015,25 +1015,27 @@ function renderAnalizTable(data) {
   const table = document.createElement("table");
   table.classList.add("analiz-table");
 
+//      <th class="th-overpay">Нараховано</th>
+//      <th class="th-overpay">Сплачено</th>
+
+//      <th class="th-debtor">Підлягае сплаті</th>
   const thead = document.createElement("thead");
   thead.innerHTML = `
     <tr>
       <th rowspan="2">Місяць</th>
       <th colspan="3" class="th-total">Всього по будинку</th>
-      <th colspan="4" class="th-overpay">Переплатники</th>
-      <th colspan="4" class="th-debtor">Боржники</th>
+      <th colspan="2" class="th-overpay">Переплатники</th>
+      <th colspan="3" class="th-debtor">Боржники</th>
     </tr>
     <tr>
-      <th class="th-total">Підлягае сплаті</th>
+      <th class="th-total">Нараховано</th>
       <th class="th-total">Сплачено</th>
       <th class="th-total">% оплати</th>
 
-      <th class="th-overpay">Нараховано</th>
-      <th class="th-overpay">Сплачено</th>
-      <th class="th-overpay">% переплати</th>
       <th class="th-overpay">Переплата</th>
+      <th class="th-overpay">% переплати</th>
 
-      <th class="th-debtor">Підлягае сплаті</th>
+
       <th class="th-debtor">Сплачено</th>
       <th class="th-debtor">% оплати</th>
       <th class="th-debtor">К-сть / %</th>
@@ -1044,6 +1046,10 @@ function renderAnalizTable(data) {
   const tbody = document.createElement("tbody");
   const rows = [];
 
+//      <td class="td-overpay">${Math.round(row.overpayCharged)}</td>
+//      <td class="td-overpay">${Math.round(row.overpayPaid)}</td>
+
+//      <td class="td-debtor">${Math.round(row.debtorCharged)}</td>
   // === Создаем строки таблицы ===
   data.forEach(row => {
     const tr = document.createElement("tr");
@@ -1053,12 +1059,10 @@ function renderAnalizTable(data) {
       <td class="td-total">${Math.round(row.totalPaid)}</td>
       <td class="td-total">${row.percentPaid.toFixed(1)}%</td>
 
-      <td class="td-overpay">${Math.round(row.overpayCharged)}</td>
-      <td class="td-overpay">${Math.round(row.overpayPaid)}</td>
-      <td class="td-overpay">${row.overpayPercent.toFixed(1)}%</td>
       <td class="td-overpay">${Math.round(row.overpayDebtEnd)}</td>
+      <td class="td-overpay">${row.overpayPercent.toFixed(1)}%</td>
 
-      <td class="td-debtor">${Math.round(row.debtorCharged)}</td>
+
       <td class="td-debtor">${Math.round(row.debtorPaid)}</td>
       <td class="td-debtor">${row.debtorPercent.toFixed(1)}%</td>
       <td class="td-debtor">${row.debtorCount}/${Math.round(row.debtorPercentCount)}%</td>
@@ -1099,8 +1103,9 @@ function renderAnalizTable(data) {
 
         overpayCharged: sum('overpayCharged'),
         overpayPaid: sum('overpayPaid'),
-        overpayPercent: avg('overpayPercent') ,
         overpayDebtEnd: sum('overpayDebtEnd'),
+        overpayPercent: avg('overpayPercent') ,
+
 
         debtorCharged: sum('debtorCharged'),
         debtorPaid: sum('debtorPaid'),
@@ -1111,7 +1116,10 @@ function renderAnalizTable(data) {
         rowCount: partData.length
       };
     };
+//        <td class="summary-overpay">${Math.round(summary.overpayCharged / summary.rowCount)}</td>
+//        <td class="summary-overpay">${Math.round(summary.overpayPaid / summary.rowCount)}</td>
 
+//        <td class="summary-debtor">${Math.round(summary.debtorCharged / summary.rowCount)}</td>
     const fillRow = (tr, summary) => {
       tr.innerHTML = `
         <td>Ітого</td>
@@ -1119,12 +1127,11 @@ function renderAnalizTable(data) {
         <td class="summary-total">${Math.round(summary.totalPaid / summary.rowCount)}</td>
         <td class="summary-total">${summary.percentPaid.toFixed(1)}%</td>
 
-        <td class="summary-overpay">${Math.round(summary.overpayCharged / summary.rowCount)}</td>
-        <td class="summary-overpay">${Math.round(summary.overpayPaid / summary.rowCount)}</td>
-        <td class="summary-overpay">${summary.overpayPercent.toFixed(1)}%</td>
         <td class="summary-overpay">${Math.round(summary.overpayDebtEnd / summary.rowCount)}</td>
+        <td class="summary-overpay">${summary.overpayPercent.toFixed(1)}%</td>
 
-        <td class="summary-debtor">${Math.round(summary.debtorCharged / summary.rowCount)}</td>
+
+
         <td class="summary-debtor">${Math.round(summary.debtorPaid / summary.rowCount)}</td>
         <td class="summary-debtor">${summary.debtorPercent.toFixed(1)}%</td>
         <td class="summary-debtor">${Math.round(summary.debtorCount / summary.rowCount)}/${Math.round(summary.debtorPercentCount)}%</td>
