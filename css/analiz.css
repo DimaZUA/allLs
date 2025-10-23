@@ -2,13 +2,13 @@
   border-collapse: collapse;
   width: 100%;
   font-family: Arial, sans-serif;
-  font-size: 16px; /* увеличенный шрифт */
+  font-size: 18px; /* увеличенный шрифт */
 }
 
 .analiz-table th,
 .analiz-table td {
   border: 1px solid #ccc;
-  padding: 8px 10px;
+  padding: 0px 10px;
   text-align: right;
 }
 
@@ -27,10 +27,16 @@
 .td-overpay { background-color: #f0fff0; }  /* светло-зеленый */
 .td-debtor { background-color: #fff0f0; }  /* светло-красный */
 
-/* Итоги */
-.summary-total { font-weight: bold; background-color: #e0e0e0; }
-.summary-overpay { font-weight: bold; background-color: #d6f5d6; }
-.summary-debtor { font-weight: bold; background-color: #f5d6d6; }
+.analiz-table td.summary-total,
+.analiz-table td.summary-overpay,
+.analiz-table td.summary-debtor {
+  padding: 10px 10px;
+  font-weight: bold;
+}
+
+.summary-total {background-color: #e0e0e0; }
+.summary-overpay {background-color: #d6f5d6; }
+.summary-debtor {background-color: #f5d6d6;}
 
 /* Верхняя итоговая строка выделение */
 .top-summary td { border-top: 2px solid #000; }
