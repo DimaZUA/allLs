@@ -439,10 +439,12 @@ function generateTable() {
         totalCharges[serviceId] = (totalCharges[serviceId] || 0) + chargesByServiceSum;
       }
       const paymentsSumRow = monthData.reduce((s, m) => s + m.paymentsSum, 0);
+      totalPayments["all"] = (totalPayments["all"] || 0) + paymentsSumRow;
       row.innerHTML += `<td>${paymentsSumRow.toFixedWithComma()}</td>`;
       row.innerHTML += `<td>${debitEnd.toFixedWithComma()}</td>`; // всегда один и тот же долг
       row.innerHTML += `<td>${debtMonths}</td>`;
       totalEndDebt += debitEnd;
+      totalDebtMonths += debtMonths;
       rowCount++;
     } else {
       // Отображение детально или по услуге
@@ -486,7 +488,7 @@ if (displayMode === "summarized") {
   for (const serviceId of servicesWithCharges) {
     footerRow.innerHTML += `<td>${(totalCharges[serviceId] || 0).toFixedWithComma()}</td>`;
   }
-  const totalPaymentsSumAll = Object.values(totalPayments).reduce((a, b) => a + b, 0);
+  const totalPaymentsSumAll = totalPayments["all"] || 0;
   footerRow.innerHTML += `<td>${totalPaymentsSumAll.toFixedWithComma()}</td>`;
   footerRow.innerHTML += `<td>${totalEndDebt.toFixedWithComma()}</td>`; // всегда один и тот же долг
   footerRow.innerHTML += `<td>${rowCount ? (totalDebtMonths / rowCount).toFixed(1) : "–"}</td>`;
