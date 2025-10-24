@@ -997,7 +997,7 @@ function generateAnaliz(start, end) {
       row.totalPaid += paymentsThisMonth;
       row.totalCount++;
 
-      if (debitEnd < 0) {
+      if (debitEnd <= 0) {
         row.overpayCharged += chargesThisMonth;
         row.overpayPaid += paymentsThisMonth;
         row.overpayDebtEnd += debitEnd;
@@ -1154,7 +1154,7 @@ function renderAnalizTable(data) {
 //        <td class="summary-debtor">${Math.round(summary.debtorCharged / summary.rowCount)}</td>
     const fillRow = (tr, summary) => {
       tr.innerHTML = `
-        <td>Ітого</td>
+        <td>В середньому:</td>
         <td class="summary-total">${Math.round(summary.totalCharged / summary.rowCount)}</td>
         <td class="summary-total">${Math.round(summary.totalPaid / summary.rowCount)}</td>
         <td class="summary-total">${summary.percentPaid.toFixed(1)}%</td>
