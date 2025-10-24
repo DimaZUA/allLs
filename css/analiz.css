@@ -60,3 +60,39 @@ input[type=range] {
   width: 100%;
   margin-bottom: 10px;
 }
+
+
+
+
+
+/* Подсветка строки при наведении — с сохранением трёхцветности */
+.analiz-table tbody tr:hover .td-total {
+  background-color: #dcdcdc; /* немного темнее серого */
+}
+.analiz-table tbody tr:hover .td-overpay {
+  background-color: #c8f0c8; /* ярче зелёный */
+}
+.analiz-table tbody tr:hover .td-debtor {
+  background-color: #f0c8c8; /* ярче красный */
+}
+.analiz-table tbody tr:hover td:first-child {
+  background-color: #f2f2f2; /* месяц — нейтральный фон */
+}
+.analiz-table tbody tr:hover td {
+  cursor: pointer;
+  font-weight: bold;
+}
+
+
+
+
+/* Строка итого — не подсвечивать как обычную */
+.analiz-table .summary-row:hover td {
+  background-color: inherit;
+}
+
+/* Только верхняя строка итого — курсор вверх-вниз и легкая подсветка */
+.top-summary:hover td {
+  background-color: #eef;
+  cursor: ns-resize;
+}

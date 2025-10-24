@@ -33,6 +33,7 @@ function setDefaultDates() {
   const startInput = document.getElementById("start-date");
   const endInput = document.getElementById("end-date");
   const presets = document.getElementById("preset-select");
+  const displayMode = document.getElementById("display-mode");
 
   startInput.min = formatDate(minDate, "yyyy-mm");
   startInput.max = formatDate(maxDate, "yyyy-mm");
@@ -63,6 +64,7 @@ function setDefaultDates() {
   if (getParam("preset")) presets.value = getParam("preset");
   if (getParam("end")) endInput.value = getParam("end");
   if (getParam("start")) startInput.value = getParam("start");
+  
 
   applyPreset();
 }
@@ -289,6 +291,7 @@ function generateTable() {
 
   const displayMode = document.getElementById("display-mode").value;
   const filterValue = document.getElementById("record-filter").value;
+  setParam("displayMode", displayMode);
   if (displayMode === "analiz") {
   	tableContainer.appendChild(generateAnaliz(start,end));
   	return;
@@ -493,7 +496,6 @@ tbody.appendChild(footerRow);
   // Сохраняем параметры
   setParam("start", document.getElementById("start-date").value);
   setParam("end", document.getElementById("end-date").value);
-  setParam("displayMode", displayMode);
   setParam("preset", document.getElementById("preset-select").value);
 }
 
@@ -690,7 +692,7 @@ function initTable() {
   document.getElementById("maincontainer").innerHTML = mainHTML;
 
   setDefaultDates();
-  handlePeriodChange();
+  
 
   // Привязываем события
   const presetSelect = document.getElementById("preset-select");
@@ -698,18 +700,16 @@ function initTable() {
   const endDateInput = document.getElementById("end-date");
   const recordFilter = document.getElementById("record-filter");
   const displayMode = document.getElementById("display-mode");
-
+  if (getParam("displayMode")) displayMode.value = getParam("displayMode");
+  handlePeriodChange();
   presetSelect.addEventListener("change", handlePeriodChange);
   startDateInput.addEventListener("change", () => handlePeriodChange("start"));
   endDateInput.addEventListener("change", () => handlePeriodChange("end"));
   recordFilter.addEventListener("change", generateTable);
   displayMode.addEventListener("change", generateTable);
 
-  if (getParam("displayMode")) displayMode.value = getParam("displayMode");
 
-
-
-  generateTable();
+  
 }
 
 function doRed() {
@@ -1016,7 +1016,6 @@ function renderAnalizTable(data) {
   table.classList.add("analiz-table");
 
 //      <th class="th-overpay">Нараховано</th>
-//      <th class="th-overpay">Сплачено</th>
 
 //      <th class="th-debtor">Підлягае сплаті</th>
   const thead = document.createElement("thead");
@@ -1024,7 +1023,7 @@ function renderAnalizTable(data) {
     <tr>
       <th rowspan="2">Місяць</th>
       <th colspan="3" class="th-total">Всього по будинку</th>
-      <th colspan="2" class="th-overpay">Переплатники</th>
+      <th colspan="3" class="th-overpay">Переплатники</th>
       <th colspan="3" class="th-debtor">Боржники</th>
     </tr>
     <tr>
@@ -1032,6 +1031,7 @@ function renderAnalizTable(data) {
       <th class="th-total">Сплачено</th>
       <th class="th-total">% оплати</th>
 
+      <th class="th-overpay">Сплачено</th>
       <th class="th-overpay">Переплата</th>
       <th class="th-overpay">% переплати</th>
 
@@ -1047,7 +1047,7 @@ function renderAnalizTable(data) {
   const rows = [];
 
 //      <td class="td-overpay">${Math.round(row.overpayCharged)}</td>
-//      <td class="td-overpay">${Math.round(row.overpayPaid)}</td>
+
 
 //      <td class="td-debtor">${Math.round(row.debtorCharged)}</td>
   // === Создаем строки таблицы ===
@@ -1059,6 +1059,7 @@ function renderAnalizTable(data) {
       <td class="td-total">${Math.round(row.totalPaid)}</td>
       <td class="td-total">${row.percentPaid.toFixed(1)}%</td>
 
+      <td class="td-overpay">${Math.round(row.overpayPaid)}</td>
       <td class="td-overpay">${Math.round(row.overpayDebtEnd)}</td>
       <td class="td-overpay">${row.overpayPercent.toFixed(1)}%</td>
 
@@ -1117,7 +1118,7 @@ function renderAnalizTable(data) {
       };
     };
 //        <td class="summary-overpay">${Math.round(summary.overpayCharged / summary.rowCount)}</td>
-//        <td class="summary-overpay">${Math.round(summary.overpayPaid / summary.rowCount)}</td>
+
 
 //        <td class="summary-debtor">${Math.round(summary.debtorCharged / summary.rowCount)}</td>
     const fillRow = (tr, summary) => {
@@ -1127,6 +1128,7 @@ function renderAnalizTable(data) {
         <td class="summary-total">${Math.round(summary.totalPaid / summary.rowCount)}</td>
         <td class="summary-total">${summary.percentPaid.toFixed(1)}%</td>
 
+        <td class="summary-overpay">${Math.round(summary.overpayPaid / summary.rowCount)}</td>
         <td class="summary-overpay">${Math.round(summary.overpayDebtEnd / summary.rowCount)}</td>
         <td class="summary-overpay">${summary.overpayPercent.toFixed(1)}%</td>
 
@@ -1149,6 +1151,12 @@ function renderAnalizTable(data) {
 
     fillRow(topSummary, calcSummary(topData));
     fillRow(bottomSummary, calcSummary(bottomData));
+// === Если верхняя строка итого в самом низу — скрываем нижнюю
+if (splitIndex === data.length) {
+  bottomSummary.style.display = "none";
+} else {
+  bottomSummary.style.display = "";
+}
 
     const currentRow = data[splitIndex - 1];
     if (currentRow) label.textContent = `${currentRow.month} р.`;
@@ -1158,7 +1166,85 @@ function renderAnalizTable(data) {
     updateSummaries(parseInt(slider.value));
   });
 
-  updateSummaries(rows.length);
+  // === Определяем значение по умолчанию для ползунка ===
+  let defaultIndex = rows.length; // по умолчанию последний месяц
 
+  if (data.length > 1) {
+    // Находим все декабри (месяц == 12)
+    const decemberIndexes = data
+      .map((r, i) => ({i, isDecember: r.month.startsWith("12.")}))
+      .filter(x => x.isDecember)
+      .map(x => x.i + 1); // +1 потому что slider нумерация с 1
+
+    if (decemberIndexes.length > 0) {
+      // Берем последний декабрь
+      defaultIndex = decemberIndexes[decemberIndexes.length - 1];
+    } else {
+      // Если декабрей нет — середина таблицы
+      defaultIndex = Math.round(data.length / 2);
+    }
+  }
+
+  // Устанавливаем ползунок и вызываем обновление
+  slider.value = defaultIndex;
+  updateSummaries(defaultIndex);
+
+
+
+  
+  
+  
+  
+  
+  
+  // === Поддержка перетаскивания строки итого ===
+  let isDragging = false;
+  let startY = 0;
+  let startIndex = 0;
+
+  topSummary.style.cursor = "default"; // курсор вверх-вниз
+  topSummary.addEventListener("mousedown", (e) => {
+    isDragging = true;
+    startY = e.clientY;
+    startIndex = parseInt(slider.value);
+    topSummary.style.background = "#eef"; // визуальный эффект
+    document.body.style.userSelect = "none"; // отключаем выделение текста
+  });
+
+  document.addEventListener("mousemove", (e) => {
+    if (!isDragging) return;
+    const dy = e.clientY - startY;
+
+    // Определяем, на сколько строк перемещаем
+    const rowHeight = rows[0].offsetHeight || 25;
+    let delta = Math.round(dy / rowHeight);
+
+    let newIndex = Math.min(Math.max(1, startIndex + delta), rows.length);
+    if (newIndex !== parseInt(slider.value)) {
+      slider.value = newIndex;
+      updateSummaries(newIndex);
+    }
+  });
+
+  document.addEventListener("mouseup", () => {
+    if (!isDragging) return;
+    isDragging = false;
+    topSummary.style.background = ""; // убираем подсветку
+    document.body.style.userSelect = ""; // возвращаем выделение текста
+  });
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
   return wrapper;
 }
