@@ -765,7 +765,7 @@ function doRed() {
       }
 
       // 2️⃣ Столбцы между 4 и предпоследним визуальным — отрицательные суммы
-      for (let v = 3; v < totalVisualCols - 1; v++) {
+      for (let v = 3; v < totalVisualCols - 2; v++) {
         if (visualIndex <= v && visualIndex + colspan > v) {
           const value = parseFloat(cell.textContent);
           if (value < 0) cell.classList.add("red");
