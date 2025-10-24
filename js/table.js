@@ -165,57 +165,86 @@ function sortTable(header) {
   const table = header.closest("table");
   const tbody = table.querySelector("tbody");
 
-  // Удаляем все строки с классом "header-row-clone"
-  tbody.querySelectorAll(".header-row-clone").forEach(row => row.remove());
+  // Удаляем старые клоны итогов и нижний заголовок
+  tbody.querySelectorAll(".header-row-clone, .footer-header-clone").forEach(row => row.remove());
 
   const rows = Array.from(tbody.rows);
   const isAsc = header.classList.contains("sorted-asc");
   const index = Array.from(header.parentNode.children).indexOf(header);
 
-  // Убираем классы сортировки с других заголовков
-  header.parentNode.querySelectorAll("th").forEach(th =>
+  // Снимаем классы сортировки со всех верхних и нижних заголовков
+  table.querySelectorAll("th").forEach(th =>
     th.classList.remove("sorted-asc", "sorted-desc")
   );
   header.classList.add(isAsc ? "sorted-desc" : "sorted-asc");
 
-  // Сортируем строки
-rows.sort((rowA, rowB) => {
-  const cellA = rowA.cells[index];
-  const cellB = rowB.cells[index];
+  // Находим строку итогов
+  const itogRow = rows.find(r => r.classList.contains("itog"));
+  // Фильтруем строки для сортировки
+  const sortableRows = rows.filter(r => !r.classList.contains("itog"));
 
-  // Пропускаем строки без ячейки
-  if (!cellA && !cellB) return 0;
-  if (!cellA) return 1; 
-  if (!cellB) return -1;
+  // Сортировка строк
+  sortableRows.sort((rowA, rowB) => {
+    const cellA = rowA.cells[index];
+    const cellB = rowB.cells[index];
 
-  let valA = cellA.getAttribute("v");
-  let valB = cellB.getAttribute("v");
+    if (!cellA && !cellB) return 0;
+    if (!cellA) return 1;
+    if (!cellB) return -1;
 
-  if (valA == null) valA = cellA.textContent.trim().replace(/\s/g, "").replace(",", ".");
-  if (valB == null) valB = cellB.textContent.trim().replace(/\s/g, "").replace(",", ".");
+    let valA = cellA.getAttribute("v");
+    let valB = cellB.getAttribute("v");
 
-  valA = parseFloat(valA === "-" ? "0" : valA);
-  valB = parseFloat(valB === "-" ? "0" : valB);
+    if (valA == null) valA = cellA.textContent.trim().replace(/\s/g, "").replace(",", ".");
+    if (valB == null) valB = cellB.textContent.trim().replace(/\s/g, "").replace(",", ".");
 
-  if (isNaN(valA)) valA = cellA.textContent.trim();
-  if (isNaN(valB)) valB = cellB.textContent.trim();
+    valA = parseFloat(valA === "-" ? "0" : valA);
+    valB = parseFloat(valB === "-" ? "0" : valB);
 
-  if (valA < valB) return isAsc ? -1 : 1;
-  if (valA > valB) return isAsc ? 1 : -1;
-  return 0;
-});
+    if (isNaN(valA)) valA = cellA.textContent.trim();
+    if (isNaN(valB)) valB = cellB.textContent.trim();
 
+    if (valA < valB) return isAsc ? -1 : 1;
+    if (valA > valB) return isAsc ? 1 : -1;
+    return 0;
+  });
 
-  // Добавляем отсортированные строки обратно в tbody
-  rows.forEach(row => tbody.appendChild(row));
+  // Перестраиваем tbody
+  tbody.innerHTML = "";
 
-  // Клонируем строки заголовка и добавляем их в конец tbody
-  Array.from(table.querySelectorAll("thead tr")).forEach(row => {
-    const clone = row.cloneNode(true);
+  // Клонируем строку итогов в верх
+  if (itogRow) {
+    const clone = itogRow.cloneNode(true);
     clone.classList.add("header-row-clone");
     tbody.appendChild(clone);
-  });
+  }
+
+  // Добавляем отсортированные строки
+  sortableRows.forEach(row => tbody.appendChild(row));
+
+  // Возвращаем оригинальную строку итогов в самый низ
+  if (itogRow) tbody.appendChild(itogRow);
+
+  // Клонируем верхний заголовок внизу (нижний заголовок)
+  const theadRow = table.querySelector("thead tr");
+  if (theadRow) {
+    const footerClone = theadRow.cloneNode(true);
+    footerClone.classList.add("footer-header-clone");
+
+    // Повесим на клон обработчики сортировки
+    footerClone.querySelectorAll("th").forEach((th, idx) => {
+      th.onclick = () => {
+        // Вызов sortTable с соответствующим верхним заголовком
+        const originalHeader = theadRow.children[idx];
+        sortTable(originalHeader);
+      };
+    });
+
+    tbody.appendChild(footerClone);
+  }
 }
+
+
 
 function calculateDebtMonthsFromCache(monthData, debtEnd, endDate) {
   if (!monthData || monthData.length === 0) return 0;

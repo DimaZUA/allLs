@@ -79,20 +79,19 @@ input[type=range] {
   background-color: #f2f2f2; /* месяц — нейтральный фон */
 }
 .analiz-table tbody tr:hover td {
-  cursor: pointer;
   font-weight: bold;
 }
 
-
-
-
 /* Строка итого — не подсвечивать как обычную */
 .analiz-table .summary-row:hover td {
-  background-color: inherit;
+  background-color: inherit !important;
+  font-weight: normal;
+  cursor: default;
 }
 
-/* Только верхняя строка итого — курсор вверх-вниз и легкая подсветка */
-.top-summary:hover td {
-  background-color: #eef;
-  cursor: ns-resize;
+/* ✅ Только верхняя строка итого — курсор вверх-вниз и легкая подсветка */
+.analiz-table .top-summary:hover td {
+  background-color: #eef !important;
+  cursor: ns-resize !important;
+  font-weight: bold;
 }
