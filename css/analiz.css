@@ -93,5 +93,5 @@ input[type=range] {
 .analiz-table .top-summary:hover td {
   background-color: #eef !important;
   cursor: ns-resize !important;
-  font-weight: bold;
+/*  font-weight: bold;
 }
