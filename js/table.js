@@ -674,7 +674,6 @@ function initTable() {
     }
   });
   displayOptions +='<option value="analiz">Анализ</option>';
-  displayOptions +='<option value="analiz1">Анализ старый</option>';
   const mainHTML = `
     <div id="org" align="right"></div>
     <div id="filter-container">
