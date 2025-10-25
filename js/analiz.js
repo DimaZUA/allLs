@@ -458,7 +458,7 @@ function generateAnaliz1(start, end) {
         row.overpayDebtEnd += debitEnd;
       } else {
         const monthsOfDebt = calculateDebtMonths(chargesHistory, debitEnd);
-        if (monthsOfDebt >= 4) {
+        if (monthsOfDebt > 3.5) {
           row.debtorCharged += debitStart;
           row.debtorPaid += paymentsThisMonth;
           row.debtorCount++;
@@ -468,7 +468,7 @@ function generateAnaliz1(start, end) {
 
     row.percentPaid = row.totalCharged ? (row.totalPaid / row.totalCharged) * 100 : 0;
     row.overpayPercent = row.totalCharged ? (-row.overpayDebtEnd / row.totalCharged) * 100 : 0;
-    row.debtorPercent = row.debtorCharged ? (row.debtorPaid / row.debtorCharged) * 100 : 0;
+    row.debtorPercent = row.totalCharged ? (row.debtorPaid / row.totalCharged) * 100 : 0;
     row.debtorPercentCount = row.totalCount ? (row.debtorCount / row.totalCount) * 100 : 0;
 
     result.push(row);
@@ -596,7 +596,7 @@ function renderAnalizTable1(data) {
 
         debtorCharged: sum('debtorCharged'),
         debtorPaid: sum('debtorPaid'),
-        debtorPercent: sum('debtorCharged') ? (sum('debtorPaid') / sum('debtorCharged')) * 100 : 0,
+        debtorPercent: sum('totalCharged') ? (sum('debtorPaid') / sum('totalCharged')) * 100 : 0,
         debtorCount,
         debtorPercentCount: totalCount ? (debtorCount / totalCount) * 100 : 0,
 
@@ -674,12 +674,7 @@ if (splitIndex === data.length) {
   // Устанавливаем ползунок и вызываем обновление
   slider.value = defaultIndex;
   updateSummaries(defaultIndex);
-
-
-
-  
-  
-  
+ 
   
   
   
