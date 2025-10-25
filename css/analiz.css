@@ -1,10 +1,11 @@
 .analiz-table {
   border-collapse: collapse;
-  width: 100%;
   font-family: Arial, sans-serif;
-  font-size: 18px; /* увеличенный шрифт */
+  font-size: 18px;
+  width: auto; /* вместо 100% */
+  table-layout: auto; /* разрешаем браузеру подгонять ширину */
+  margin: 0 auto; /* выравнивание по центру */
 }
-
 .analiz-table th,
 .analiz-table td {
   border: 1px solid #ccc;
@@ -12,21 +13,29 @@
   text-align: right;
 }
 
+/* Общий стиль заголовков */
 .analiz-table th {
-  background-color: #f0f0f0;
   text-align: center;
+  color: #000;
+  font-weight: bold;
 }
 
 /* Заголовки групп */
-.th-total { background-color: #e0e0e0; }
-.th-overpay { background-color: #d6f5d6; }  /* светло-зеленый */
-.th-debtor { background-color: #f5d6d6; }  /* светло-красный */
+.th-total  { background-color: #e0e0e0; }  /* серый */
+.th-overpay { background-color: #f5d6d6; } /* светло-красный */
+.th-debtor  { background-color: #d6e5f5; } /* светло-синий */
+
+/* Для верхнего ряда заголовков — немного темнее, чтобы было видно границу секций */
+.analiz-table thead tr:first-child .th-total  { background-color: #d0d0d0; }
+.analiz-table thead tr:first-child .th-overpay { background-color: #f0bcbc; }
+.analiz-table thead tr:first-child .th-debtor  { background-color: #bcd0f0; }
 
 /* Данные */
-.td-total { background-color: #fafafa; }
-.td-overpay { background-color: #f0fff0; }  /* светло-зеленый */
-.td-debtor { background-color: #fff0f0; }  /* светло-красный */
+.td-total  { background-color: #fafafa; }
+.td-overpay { background-color: #fff0f0; }  /* светло-красный */
+.td-debtor  { background-color: #f0f8ff; }  /* светло-синий */
 
+/* Итоговые строки */
 .analiz-table td.summary-total,
 .analiz-table td.summary-overpay,
 .analiz-table td.summary-debtor {
@@ -34,9 +43,9 @@
   font-weight: bold;
 }
 
-.summary-total {background-color: #e0e0e0; }
-.summary-overpay {background-color: #d6f5d6; }
-.summary-debtor {background-color: #f5d6d6;}
+.summary-total  { background-color: #e0e0e0; } /* серый */
+.summary-overpay { background-color: #f5d6d6; } /* тёмно-красный */
+.summary-debtor  { background-color: #c8dbf0; } /* синий */
 
 /* Верхняя итоговая строка выделение */
 .top-summary td { border-top: 2px solid #000; }
@@ -61,19 +70,15 @@ input[type=range] {
   margin-bottom: 10px;
 }
 
-
-
-
-
 /* Подсветка строки при наведении — с сохранением трёхцветности */
 .analiz-table tbody tr:hover .td-total {
   background-color: #dcdcdc; /* немного темнее серого */
 }
 .analiz-table tbody tr:hover .td-overpay {
-  background-color: #c8f0c8; /* ярче зелёный */
+  background-color: #f0c8c8; /* ярче красный */
 }
 .analiz-table tbody tr:hover .td-debtor {
-  background-color: #f0c8c8; /* ярче красный */
+  background-color: #c8dcf0; /* ярче синий */
 }
 .analiz-table tbody tr:hover td:first-child {
   background-color: #f2f2f2; /* месяц — нейтральный фон */
@@ -93,5 +98,7 @@ input[type=range] {
 .analiz-table .top-summary:hover td {
   background-color: #eef !important;
   cursor: ns-resize !important;
-/*  font-weight: bold;
+/*  font-weight: bold; */
 }
+
+

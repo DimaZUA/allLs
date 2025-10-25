@@ -110,10 +110,30 @@ function generateAnaliz(start, end) {
 function renderAnalizTable(data) {
   const wrapper = document.createElement("div");
 
+  // === Надпись над ползунком ===
+  const label = document.createElement("div");
+  label.style.textAlign = "center";
+  label.style.marginBottom = "5px";
+  label.style.fontWeight = "bold";
+  wrapper.appendChild(label);
+
+  // === Ползунок ===
+  const slider = document.createElement("input");
+  slider.type = "range";
+  slider.min = 1;
+  slider.max = data.length;
+  slider.value = data.length;
+  slider.style.width = "100%";
+  slider.style.marginBottom = "10px";
+  wrapper.appendChild(slider);
+
   // === Таблица ===
   const table = document.createElement("table");
   table.classList.add("analiz-table");
 
+//      <th class="th-overpay">Нараховано</th>
+
+//      <th class="th-debtor">Підлягае сплаті</th>
   const thead = document.createElement("thead");
   thead.innerHTML = `
     <tr>
@@ -131,6 +151,7 @@ function renderAnalizTable(data) {
       <th class="th-overpay">Переплата</th>
       <th class="th-overpay">% переплати</th>
 
+
       <th class="th-debtor">Сплачено</th>
       <th class="th-debtor">% оплати</th>
       <th class="th-debtor">К-сть / %</th>
@@ -141,6 +162,10 @@ function renderAnalizTable(data) {
   const tbody = document.createElement("tbody");
   const rows = [];
 
+//      <td class="td-overpay">${Math.round(row.overpayCharged)}</td>
+
+
+//      <td class="td-debtor">${Math.round(row.debtorCharged)}</td>
   // === Создаем строки таблицы ===
   data.forEach(row => {
     const tr = document.createElement("tr");
@@ -154,6 +179,7 @@ function renderAnalizTable(data) {
       <td class="td-overpay">${Math.round(row.overpayDebtEnd)}</td>
       <td class="td-overpay">${row.overpayPercent.toFixed(1)}%</td>
 
+
       <td class="td-debtor">${Math.round(row.debtorPaid)}</td>
       <td class="td-debtor">${row.debtorPercent.toFixed(1)}%</td>
       <td class="td-debtor">${row.debtorCount}/${Math.round(row.debtorPercentCount)}%</td>
@@ -165,15 +191,13 @@ function renderAnalizTable(data) {
   // === Итоговые строки ===
   const topSummary = document.createElement("tr");
   topSummary.classList.add("summary-row", "top-summary");
-
   const spacer = document.createElement("tr");
   spacer.classList.add("spacer");
   spacer.style.height = "10px";
-
   const bottomSummary = document.createElement("tr");
   bottomSummary.classList.add("summary-row", "bottom-summary");
-
   tbody.appendChild(bottomSummary);
+
   table.appendChild(tbody);
   wrapper.appendChild(table);
 
@@ -197,7 +221,8 @@ function renderAnalizTable(data) {
         overpayCharged: sum('overpayCharged'),
         overpayPaid: sum('overpayPaid'),
         overpayDebtEnd: sum('overpayDebtEnd'),
-        overpayPercent: avg('overpayPercent'),
+        overpayPercent: avg('overpayPercent') ,
+
 
         debtorCharged: sum('debtorCharged'),
         debtorPaid: sum('debtorPaid'),
@@ -208,7 +233,10 @@ function renderAnalizTable(data) {
         rowCount: partData.length
       };
     };
+//        <td class="summary-overpay">${Math.round(summary.overpayCharged / summary.rowCount)}</td>
 
+
+//        <td class="summary-debtor">${Math.round(summary.debtorCharged / summary.rowCount)}</td>
     const fillRow = (tr, summary) => {
       tr.innerHTML = `
         <td>В середньому:</td>
@@ -219,6 +247,8 @@ function renderAnalizTable(data) {
         <td class="summary-overpay">${Math.round(summary.overpayPaid / summary.rowCount)}</td>
         <td class="summary-overpay">${Math.round(summary.overpayDebtEnd / summary.rowCount)}</td>
         <td class="summary-overpay">${summary.overpayPercent.toFixed(1)}%</td>
+
+
 
         <td class="summary-debtor">${Math.round(summary.debtorPaid / summary.rowCount)}</td>
         <td class="summary-debtor">${summary.debtorPercent.toFixed(1)}%</td>
@@ -237,67 +267,82 @@ function renderAnalizTable(data) {
 
     fillRow(topSummary, calcSummary(topData));
     fillRow(bottomSummary, calcSummary(bottomData));
+// === Если верхняя строка итого в самом низу — скрываем нижнюю
+if (splitIndex === data.length) {
+  bottomSummary.style.display = "none";
+} else {
+  bottomSummary.style.display = "";
+}
 
-    // Если верхняя строка итого в самом низу — скрываем нижнюю
-    if (splitIndex === data.length) {
-      bottomSummary.style.display = "none";
-    } else {
-      bottomSummary.style.display = "";
-    }
+    const currentRow = data[splitIndex - 1];
+    if (currentRow) label.textContent = `${currentRow.month} р.`;
   }
 
-  // === Определяем значение по умолчанию ===
-  let splitIndex = data.length;
+  slider.addEventListener('input', () => {
+    updateSummaries(parseInt(slider.value));
+  });
+
+  // === Определяем значение по умолчанию для ползунка ===
+  let defaultIndex = rows.length; // по умолчанию последний месяц
+
   if (data.length > 1) {
+    // Находим все декабри (месяц == 12)
     const decemberIndexes = data
       .map((r, i) => ({i, isDecember: r.month.startsWith("12.")}))
       .filter(x => x.isDecember)
-      .map(x => x.i + 1);
+      .map(x => x.i + 1); // +1 потому что slider нумерация с 1
 
     if (decemberIndexes.length > 0) {
-      splitIndex = decemberIndexes[decemberIndexes.length - 1];
+      // Берем последний декабрь
+      defaultIndex = decemberIndexes[decemberIndexes.length - 1];
     } else {
-      splitIndex = Math.round(data.length / 2);
+      // Если декабрей нет — середина таблицы
+      defaultIndex = Math.round(data.length / 2);
     }
   }
 
-  updateSummaries(splitIndex);
-
-  // === Перетаскивание строки итога ===
+  // Устанавливаем ползунок и вызываем обновление
+  slider.value = defaultIndex;
+  updateSummaries(defaultIndex);
+ 
+  
+  
+  
+  // === Поддержка перетаскивания строки итого ===
   let isDragging = false;
   let startY = 0;
   let startIndex = 0;
 
-  topSummary.style.cursor = "ns-resize";
-
+  topSummary.style.cursor = "default"; // курсор вверх-вниз
   topSummary.addEventListener("mousedown", (e) => {
     isDragging = true;
     startY = e.clientY;
-    startIndex = splitIndex;
-    topSummary.style.background = "#eef";
-    document.body.style.userSelect = "none";
+    startIndex = parseInt(slider.value);
+    topSummary.style.background = "#eef"; // визуальный эффект
+    document.body.style.userSelect = "none"; // отключаем выделение текста
   });
 
   document.addEventListener("mousemove", (e) => {
     if (!isDragging) return;
     const dy = e.clientY - startY;
+
+    // Определяем, на сколько строк перемещаем
     const rowHeight = rows[0].offsetHeight || 25;
     let delta = Math.round(dy / rowHeight);
+
     let newIndex = Math.min(Math.max(1, startIndex + delta), rows.length);
-    if (newIndex !== splitIndex) {
-      splitIndex = newIndex;
-      updateSummaries(splitIndex);
+    if (newIndex !== parseInt(slider.value)) {
+      slider.value = newIndex;
+      updateSummaries(newIndex);
     }
   });
 
   document.addEventListener("mouseup", () => {
     if (!isDragging) return;
     isDragging = false;
-    topSummary.style.background = "";
-    document.body.style.userSelect = "";
+    topSummary.style.background = ""; // убираем подсветку
+    document.body.style.userSelect = ""; // возвращаем выделение текста
   });
-
+  
   return wrapper;
 }
-
-
