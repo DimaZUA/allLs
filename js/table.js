@@ -432,6 +432,31 @@ function generateTable() {
         (filterValue === "debtors" && (totalPaymentsSum > 0 || debitEnd <= totalChargesSum * 3))) continue;
 
     const row = document.createElement("tr");
+    row.setAttribute("data-kv", ls[accountId].kv);
+row.addEventListener("click", (e) => {
+  const accountId = e.currentTarget.dataset.kv;
+  const homeCode = getParam("homeCode");
+  if (!homeCode) return console.warn("homeCode не найден");
+
+  // Ищем span с текстом "Особові рахунки" в нужном блоке меню
+  const actionLink = Array.from(
+    document.querySelectorAll(`.menu-item[data-code="${homeCode}"] ul span`)
+  ).find(span => span.textContent.trim() === "Особові рахунки");
+
+  if (!actionLink) {
+    console.warn('Не найден пункт меню "Особові рахунки" для', homeCode);
+    return;
+  }
+  // Сохраняем выбранный лицевой счёт
+  setParam("kv", accountId);
+
+  // Переходим в раздел лицевых счетов
+  handleMenuClick(homeCode, "accounts", actionLink);
+
+});
+
+
+    
     row.appendChild(generateLsCell(accountId));
     row.innerHTML += `<td>${ls[accountId].fio}</td>`;
     row.innerHTML += `<td>${debitStart.toFixedWithComma()}</td>`;

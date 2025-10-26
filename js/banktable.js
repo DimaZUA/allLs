@@ -5,7 +5,7 @@ function initBankTable() {
 document.getElementById('maincontainer').innerHTML =
     '<div id="filter-container">' +
         '<div class="column">' +
-            '<label>С:' +
+            '<label>З:' +
                 '<input type="date" id="fromDate">' +
             '</label>' +
             '<label>По:' +
@@ -19,21 +19,21 @@ document.getElementById('maincontainer').innerHTML =
             '</label>' +
             '<label>Тип:' +
                 '<select id="typeSelect">' +
-                    '<option value="all">Всё</option>' +
-                    '<option value="allNoSobst">Всё без собственников</option>' +
-                    '<option value="income">Поступления все</option>' +
-                    '<option value="incomeNoSobst">Поступления без собственников</option>' +
-                    '<option value="expense">Расходы все</option>' +
-                    '<option value="expenseZP">Зарплата, налоги, подотчет</option>' +
-                    '<option value="expenseCom">Платежи поставщикам</option>' +
-                    '<option value="expensenoZPnoCom">Прочие расходы</option>' +
+                    '<option value="all">Все</option>' +
+                    '<option value="allNoSobst">Всё без власників</option>' +
+                    '<option value="income">Надходження всі</option>' +
+                    '<option value="incomeNoSobst">Надходження без власників</option>' +
+                    '<option value="expense">Витрати всі</option>' +
+                    '<option value="expenseZP">Зарплата, податки, під звіт</option>' +
+                    '<option value="expenseCom">Спалата надавачам послуг</option>' +
+                    '<option value="expensenoZPnoCom">Інщі витрати</option>' +
                 '</select>' +
             '</label>' +
         '</div>' +
 
         '<!-- Обертка для текстового фильтра и кнопки -->' +
         '<div class="full-span" style="display: flex; align-items: center; gap: 10px;">' +
-            '<input type="text" id="textFilter" placeholder="Введите текст для фильтрации" style="flex: 1; min-width: 200px;">' +
+            '<input type="text" id="textFilter" placeholder="Введіть текст для фільтрації" style="flex: 1; min-width: 200px;">' +
             buttons +
         '</div>' +
 
@@ -44,11 +44,11 @@ document.getElementById('maincontainer').innerHTML =
             '<thead>' +
                 '<tr>' +
                     '<th>Дата</th>' +
-                    '<th>Сумма</th>' +
+                    '<th>Сума</th>' +
                     '<th>За</th>' +
                     '<th>Контрагент</th>' +
-                    '<th>За что</th>' +
-                    '<th>Назначение платежа</th>' +
+                    '<th>За що</th>' +
+                    '<th>Призначення платежу</th>' +
                 '</tr>' +
             '</thead>' +
             '<tbody></tbody>' +
@@ -147,7 +147,7 @@ var yearInt = parseInt(year);
     monthSelect.innerHTML = ''; // Очищаем предыдущие значения
         var option = document.createElement('option');
         option.value = 0;
-        option.textContent = "(Любой месяц)";
+        option.textContent = "(Будь-який місяць)";
         monthSelect.appendChild(option);
 
     // Добавляем опции в select
@@ -243,12 +243,12 @@ var toDateFormatted = toDatePlusOne.toLocaleDateString('ru-RU');
 summaryContainer.innerHTML = `
     <div style="display: flex; gap: 20px;">
         <div>
-            Остаток на (${fromDateFormatted}): <span>${balanceStart.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span> грн<br>
-            Остаток на (${toDateFormatted}): <span>${balanceEnd.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span> грн
+            Залишок на (${fromDateFormatted}): <span>${balanceStart.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span> грн<br>
+            Залишок на (${toDateFormatted}): <span>${balanceEnd.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span> грн
         </div>
         <div>
-            Всего получено: <span class="green">${totalReceivedAmount.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span> грн<br>
-            Всего оплачено: <span class="red">${totalPaidAmount.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span> грн
+            Надходження: <span class="green">${totalReceivedAmount.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span> грн<br>
+            Витрати: <span class="red">${totalPaidAmount.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span> грн
         </div>
     </div>
 `;

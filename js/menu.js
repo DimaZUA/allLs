@@ -2,7 +2,7 @@
 const actions = [
   { name: "Особові рахунки", actionCode: "accounts" },
   { name: "Перелік", actionCode: "list" },
-  { name: "Платежи", actionCode: "payments" },
+  { name: "Платежі", actionCode: "payments" },
   { name: "Банк", actionCode: "bank" },
   { name: "Звіти", actionCode: "reports" },
   { name: "Інформація", actionCode: "info" },

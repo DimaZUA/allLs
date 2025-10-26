@@ -184,8 +184,6 @@ document.getElementById("maincontainer").innerHTML =
         '<input type="number" id="toDay" min="1" max="31">' +
       '</label>' +
     '</div>' +
-    '<div class="full-span" style="display: flex; justify-content: space-between; align-items: center;">' +
-      '<span>Щелчок по заголовку таблицы — отображение/скрытие назначений платежей</span>' +
       buttons +
     '</div>' +
   '</div>' +
@@ -366,6 +364,6 @@ rows.sort(function (rowA, rowB) {
   });
   headerRowsClone.forEach(function (row) {
     row.classList.add("header-row-clone");
-    tbody.appendChild(row);
+    //tbody.appendChild(row);
   });
 }
