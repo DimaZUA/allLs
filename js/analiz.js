@@ -120,7 +120,7 @@ function renderAnalizTable(data) {
       <th rowspan="2">Місяць</th>
       <th colspan="3" class="th-total">Всього по будинку</th>
       <th colspan="3" class="th-overpay">Переплатники</th>
-      <th colspan="3" class="th-debtor">Боржники</th>
+      <th colspan="4" class="th-debtor">Боржники</th>
     </tr>
     <tr>
       <th class="th-total">Нараховано</th>
@@ -133,7 +133,8 @@ function renderAnalizTable(data) {
 
       <th class="th-debtor">Сплачено</th>
       <th class="th-debtor">% оплати</th>
-      <th class="th-debtor">К-сть / %</th>
+      <th class="th-debtor">К-сть</th>
+      <th class="th-debtor">% кв</th>
     </tr>
   `;
   table.appendChild(thead);
@@ -148,15 +149,16 @@ function renderAnalizTable(data) {
       <td>${row.month}</td>
       <td class="td-total">${Math.round(row.totalCharged)}</td>
       <td class="td-total">${Math.round(row.totalPaid)}</td>
-      <td class="td-total">${row.percentPaid.toFixed(1)}%</td>
+      <td class="td-total">${row.percentPaid.toFixed(1)}</td>
 
       <td class="td-overpay">${Math.round(row.overpayPaid)}</td>
       <td class="td-overpay">${Math.round(row.overpayDebtEnd)}</td>
-      <td class="td-overpay">${row.overpayPercent.toFixed(1)}%</td>
+      <td class="td-overpay">${row.overpayPercent.toFixed(1)}</td>
 
       <td class="td-debtor">${Math.round(row.debtorPaid)}</td>
-      <td class="td-debtor">${row.debtorPercent.toFixed(1)}%</td>
-      <td class="td-debtor">${row.debtorCount}/${Math.round(row.debtorPercentCount)}%</td>
+      <td class="td-debtor">${row.debtorPercent.toFixed(1)}</td>
+      <td class="td-debtor">${row.debtorCount}</td>
+            <td class="td-debtor">${Math.round(row.debtorPercentCount)}</td>
     `;
     tbody.appendChild(tr);
     rows.push(tr);
@@ -217,15 +219,16 @@ function renderAnalizTable(data) {
         <td>В середньому за ${summary.rowCount} міс.:</td>
         <td class="summary-total">${Math.round(summary.totalCharged / summary.rowCount)}</td>
         <td class="summary-total">${Math.round(summary.totalPaid / summary.rowCount)}</td>
-        <td class="summary-total">${summary.percentPaid.toFixed(1)}%</td>
+        <td class="summary-total">${summary.percentPaid.toFixed(1)}</td>
 
         <td class="summary-overpay">${Math.round(summary.overpayPaid / summary.rowCount)}</td>
         <td class="summary-overpay">${Math.round(summary.overpayDebtEnd / summary.rowCount)}</td>
-        <td class="summary-overpay">${summary.overpayPercent.toFixed(1)}%</td>
+        <td class="summary-overpay">${summary.overpayPercent.toFixed(1)}</td>
 
         <td class="summary-debtor">${Math.round(summary.debtorPaid / summary.rowCount)}</td>
-        <td class="summary-debtor">${summary.debtorPercent.toFixed(1)}%</td>
-        <td class="summary-debtor">${Math.round(summary.debtorCount / summary.rowCount)}/${Math.round(summary.debtorPercentCount)}%</td>
+        <td class="summary-debtor">${summary.debtorPercent.toFixed(1)}</td>
+        <td class="summary-debtor">${Math.round(summary.debtorCount / summary.rowCount)}</td>
+        <td class="summary-debtor">${Math.round(summary.debtorPercentCount)}</td>
       `;
     };
 
@@ -274,6 +277,7 @@ function renderAnalizTable(data) {
         td.style.height = "50px";
         td.style.verticalAlign = "bottom";
         td.style.padding = "4px";
+        if (idx === fields.length - 1) td.colSpan = 2;
 
         const topCell = topSummary.cells[idx + 1];
         const bottomCell = bottomSummary.cells[idx + 1];
