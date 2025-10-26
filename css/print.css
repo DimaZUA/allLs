@@ -31,7 +31,7 @@
         margin-bottom: 10px;
     }
 
-    #preview, #filebar, .buttons-container, .sidebar, .hamburger, .preloader, input, .descr, #datetime, #filter-container {
+    #preview, #filebar, .buttons-container, .sidebar, .hamburger, .preloader, input, .descr, #datetime, #filter-container,.compare-row {
         display: none;
     }
 

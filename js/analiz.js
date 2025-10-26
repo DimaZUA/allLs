@@ -209,9 +209,12 @@ function renderAnalizTable(data) {
       };
     };
 
+    const topSummaryData = calcSummary(topData);
+    const bottomSummaryData = calcSummary(bottomData);
+
     const fillRow = (tr, summary) => {
       tr.innerHTML = `
-        <td>В середньому:</td>
+        <td>В середньому за ${summary.rowCount} міс.:</td>
         <td class="summary-total">${Math.round(summary.totalCharged / summary.rowCount)}</td>
         <td class="summary-total">${Math.round(summary.totalPaid / summary.rowCount)}</td>
         <td class="summary-total">${summary.percentPaid.toFixed(1)}%</td>
@@ -226,7 +229,7 @@ function renderAnalizTable(data) {
       `;
     };
 
-    // вставляем topSummary после splitIndex-1
+    // Вставляем итоговые строки
     const refNode = rows[splitIndex - 1] || null;
     if (topSummary.parentNode) topSummary.remove();
     if (spacer.parentNode) spacer.remove();
@@ -235,14 +238,136 @@ function renderAnalizTable(data) {
       topSummary.after(spacer);
     }
 
-    fillRow(topSummary, calcSummary(topData));
-    fillRow(bottomSummary, calcSummary(bottomData));
+    fillRow(topSummary, topSummaryData);
+    fillRow(bottomSummary, bottomSummaryData);
 
-    // Если верхняя строка итого в самом низу — скрываем нижнюю
-    if (splitIndex === data.length) {
-      bottomSummary.style.display = "none";
-    } else {
+    // === Визуальная гистограмма "Было / Стало" ===
+    if (table.querySelector(".compare-row")) {
+      table.querySelector(".compare-row").remove();
+    }
+
+    if (splitIndex < data.length) {
       bottomSummary.style.display = "";
+
+      const compareRow = document.createElement("tr");
+      compareRow.classList.add("compare-row");
+      bottomSummary.after(compareRow);
+
+      const fields = [
+        "totalCharged", "totalPaid", "percentPaid",
+        "overpayPaid", "overpayDebtEnd", "overpayPercent",
+        "debtorPaid", "debtorPercent", "debtorCount"
+      ];
+
+      // Первая ячейка — подпись
+      const labelTd = document.createElement("td");
+      labelTd.innerHTML = `
+        <div>
+          <span style="color:gray;">Было</span><br>
+          <span style="color:green;">Стало</span>
+        </div>
+      `;
+      compareRow.appendChild(labelTd);
+
+      fields.forEach((f, idx) => {
+        const td = document.createElement("td");
+        td.style.height = "50px";
+        td.style.verticalAlign = "bottom";
+        td.style.padding = "4px";
+
+        const topCell = topSummary.cells[idx + 1];
+        const bottomCell = bottomSummary.cells[idx + 1];
+
+        const parseVal = (cell) => {
+          if (!cell) return 0;
+          const text = cell.textContent.replace(",", ".").replace("%", "").trim();
+          return parseFloat(text) || 0;
+        };
+
+        const topVal = parseVal(topCell);
+        const bottomVal = parseVal(bottomCell);
+
+        let maxVal;
+        if (idx === 0 || idx === 1) { // начислено / оплачено
+          const topOther = parseVal(topSummary.cells[1]);
+          const bottomOther = parseVal(bottomSummary.cells[1]);
+          const topPaid = parseVal(topSummary.cells[2]);
+          const bottomPaid = parseVal(bottomSummary.cells[2]);
+          maxVal = Math.max(topOther, bottomOther, topPaid, bottomPaid, 1);
+        } else {
+          maxVal = Math.max(Math.abs(topVal), Math.abs(bottomVal), 1);
+        }
+
+        const topHeight = (Math.abs(topVal) / maxVal) * 80;
+        const bottomHeight = (Math.abs(bottomVal) / maxVal) * 80;
+
+        // Цвет фона всей ячейки
+        let bgColor = "#f9f9f9";
+        if (idx > 0) {
+          const isLast = idx === fields.length - 1;
+          const better = isLast ? Math.abs(bottomVal) < Math.abs(topVal) : Math.abs(bottomVal) > Math.abs(topVal);
+          bgColor = better ? "#b6f2b6" : "#f9b6b6";
+        }
+        td.style.background = bgColor;
+
+        td.innerHTML = `
+          <div style="display:flex; justify-content:center; align-items:flex-end; height:80px; gap:4px;">
+            <div style="width:30px; height:${topHeight}px; background:gray; border-radius:5px;"></div>
+            <div style="width:30px; height:${bottomHeight}px; background:green; border-radius:5px;"></div>
+          </div>
+        `;
+
+        // === Горизонтальные гистограммы при наведении ===
+        td.addEventListener("mouseenter", () => {
+          const rowsAll = table.querySelectorAll("tbody tr");
+          let maxCol = 1;
+          rowsAll.forEach(tr => {
+            const cell = tr.cells[idx + 1];
+            if (!cell) return;
+            const val = Math.abs(parseVal(cell));
+            if (val > maxCol) maxCol = val;
+          });
+
+          rowsAll.forEach(tr => {
+            const cell = tr.cells[idx + 1];
+            if (!cell) return;
+            const val = Math.abs(parseVal(cell));
+
+            const overlay = document.createElement("div");
+            overlay.classList.add("cell-bg");
+            overlay.style.position = "absolute";
+            overlay.style.top = "0";
+            overlay.style.left = "0";
+            overlay.style.height = "100%";
+            overlay.style.width = "0%";
+            overlay.style.background = "rgba(100,200,255,0.3)";
+            overlay.style.pointerEvents = "none";
+            overlay.style.transition = "width 1s ease";
+
+            cell.style.position = "relative";
+            cell.appendChild(overlay);
+
+            setTimeout(() => {
+              overlay.style.width = (val / maxCol * 100) + "%";
+            }, 10);
+
+            // дрожание ячейки
+            cell.style.animation = "shake 1s";
+            cell.addEventListener("animationend", () => {
+              cell.style.animation = "";
+            });
+          });
+        });
+
+        td.addEventListener("mouseleave", () => {
+          const overlays = table.querySelectorAll(".cell-bg");
+          overlays.forEach(o => o.remove());
+        });
+
+        compareRow.appendChild(td);
+      });
+    } else {
+      bottomSummary.style.display = "none";
     }
   }
 
@@ -299,5 +424,3 @@ function renderAnalizTable(data) {
 
   return wrapper;
 }
-
-
