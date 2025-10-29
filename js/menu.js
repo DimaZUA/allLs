@@ -4,7 +4,7 @@ const actions = [
   { name: "Перелік", actionCode: "list" },
   { name: "Платежі", actionCode: "payments" },
   { name: "Банк", actionCode: "bank" },
-  { name: "Звіти", actionCode: "reports" },
+  { name: "Документи", actionCode: "reports" },
   { name: "Інформація", actionCode: "info" },
   { name: "Схема будинку", actionCode: "schema" }
 ];
