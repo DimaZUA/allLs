@@ -72,7 +72,8 @@ document.getElementById('maincontainer').innerHTML =
 
 function setInitialDates () {
     // Конечная дата - это значение переменной dt
-    var dtDate = new Date(dt.split(' ')[0].split('.').reverse().join('-') + 'T' + dt.split(' ')[1]);
+    var dtDate = new Date(dt.split(' ')[0].split('.').reverse().join('-') + ' ' + dt.split(' ')[1]);
+
     var endDate = dtDate;
 
     // Начальная дата зависит от текущего числа
@@ -87,9 +88,21 @@ function setInitialDates () {
         startDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);  // 1-е число предыдущего месяца
     }
     // Устанавливаем начальную и конечную дату в элементы управления
-    document.getElementById('fromDate').value = formatDate(startDate,"yyyy-mm-dd");
-    document.getElementById('toDate').value = formatDate(endDate,"yyyy-mm-dd");
+    function formatDateForInput(date) {
+    	let yyyy = date.getFullYear();
+	    let mm = String(date.getMonth() + 1).padStart(2, '0');
+	    let dd = String(date.getDate()).padStart(2, '0');
+	    return `${yyyy}-${mm}-${dd}`;
+	    }
+
+    document.getElementById('fromDate').value = formatDateForInput(startDate);
+    document.getElementById('toDate').value = formatDateForInput(endDate);
     document.getElementById('typeSelect').value = 'allNoSobst'
+console.log(dt);
+console.log(dtDate);
+console.log(endDate);
+
+
 }
 
 
