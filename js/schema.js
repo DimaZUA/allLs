@@ -589,7 +589,7 @@ function initSchema() {
     nach: "Нараховано",
   };
   const numericDisplays = ["opl","nach","dolg","pl"];
-  let display = "opl";
+  let display = "pl";
 
   const lsList = prepareLsData(ls,nach,oplat);
   const { avgArea, avgValues } = calculateAverages(lsList, numericDisplays);
