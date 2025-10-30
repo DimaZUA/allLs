@@ -32,61 +32,56 @@ function populateMonthSelector() {
   var monthSelect = document.getElementById("monthSelect");
   var uniqueMonths = {};
 
-  // Собираем уникальные годы и месяцы из oplat
   for (var lsKey in oplat) {
     if (oplat.hasOwnProperty(lsKey)) {
       var userPayments = oplat[lsKey];
       for (var year in userPayments) {
-        if (userPayments.hasOwnProperty(year)) {
-          for (var month in userPayments[year]) {
-            if (userPayments[year].hasOwnProperty(month)) {
-              uniqueMonths[year + "-" + month] = true;
-            }
-          }
+        for (var month in userPayments[year]) {
+          uniqueMonths[year + "-" + month] = true;
         }
       }
     }
   }
 
-  // Сортируем месяцы и заполняем селектор
-  var monthsArray = [];
-  for (var key in uniqueMonths) {
-    monthsArray.push(key);
-  }
-  monthsArray.sort(function (a, b) {
-    var dateA = new Date(a.split("-").join("-"));
-    var dateB = new Date(b.split("-").join("-"));
-    return dateA.getTime() - dateB.getTime();
+  var monthsArray = Object.keys(uniqueMonths);
+
+  // ⭐ Нормализуем и сортируем даты
+  monthsArray.sort(function(a, b) {
+    var [yA, mA] = a.split("-");
+    var [yB, mB] = b.split("-");
+
+    mA = mA.padStart(2, "0");
+    mB = mB.padStart(2, "0");
+
+    return new Date(yA + "-" + mA + "-01") - new Date(yB + "-" + mB + "-01");
   });
-  var currentYear = finalDate.getFullYear();
-  var currentMonth = finalDate.getMonth() + 1; // Месяцы в JavaScript начинаются с 0
 
-  var latestValidMonth = ""; // Переменная для хранения самого позднего доступного месяца
+  var today = finalDate.getDate();
+  var indexToSelect = monthsArray.length - 1; // последний месяц
 
+  // ⭐ Если сегодня ≤10 → выбираем предпоследний, если есть
+  if (today <= 10 && monthsArray.length > 1) {
+    indexToSelect = monthsArray.length - 2;
+  }
+
+  // Заполняем селектор
   for (var i = 0; i < monthsArray.length; i++) {
     var item = monthsArray[i];
-    var year = item.split("-")[0];
-    var month = item.split("-")[1];
-    // Определяем, если месяц еще не превышает текущий
-    if (year < currentYear || (year == currentYear && month <= currentMonth)) {
-      latestValidMonth = item;
-      console.log(year + "  " + month);
-    }
+    var [year, month] = item.split("-");
+    var mm = month.padStart(2, "0");
+
     var option = document.createElement("option");
-    option.value = item;
+    option.value = year + "-" + mm;
     option.textContent =
-      new Date(0, month - 1).toLocaleString("ru", {
-        month: "long"
-      }) +
-      " " +
-      year;
+      new Date(year + "-" + mm + "-01").toLocaleString("ru", { month: "long" }) +
+      " " + year;
+
+    if (i === indexToSelect) option.selected = true;
+
     monthSelect.appendChild(option);
-    // Выбираем последний допустимый месяц
-    if (item === latestValidMonth) {
-      option.selected = true;
-    }
   }
 }
+
 function generatePayTable() {
   var selectedMonth = document.getElementById("monthSelect").value.split("-");
   var year = parseInt(selectedMonth[0], 10);
