@@ -2,7 +2,8 @@ var lastFileData = {};
 pdfjsLib.GlobalWorkerOptions.workerSrc =
   "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
 
-const BASE_URL = "https://dimazua.github.io/allLs/files/";
+//const BASE_URL = "https://dimazua.github.io/allLs/files/";
+const BASE_URL = "https://pub-bf08b4f84d3e447e8021dc49cca3a1bf.r2.dev/";
 const monthLabels = ["січ","лют","бер","квіт","трав","черв","лип","серп","вер","жовт","лист","груд"];
 const BOTTOM_MARGIN_PX = 20;
 
@@ -14,6 +15,7 @@ let homeCode = 0;
 
 // --- Инициализация ---
 function reportsInit(homeCodeParam=0) {
+currentFolderPath =null;
     homeCode = homeCodeParam;
 
     try {
@@ -206,18 +208,65 @@ function renderFilebar() {
     filebar.innerHTML = "";
 
     const rootPath = files.files[0].split("/")[0];
-    const rootDir = listDir(rootPath);
+
+    // --- Режим просмотра папки ---
+    if (currentFolderPath) {
+        const folderDir = listDir(currentFolderPath);
+
+        // Кнопка "Назад" + имя папки
+        const parts = currentFolderPath.split("/");
+        const folderName = parts[parts.length - 1] || "";
+        const backBtn = document.createElement("button");
+        backBtn.textContent = "⬅ Назад" + (folderName ? " / " + folderName : "");
+        backBtn.style.marginBottom = "10px";
+        backBtn.onclick = () => {
+            currentFolderPath = null; // сразу возвращаемся в корень
+            renderFilebar();
+        };
+        filebar.appendChild(backBtn);
+
+        // Список папок и файлов внутри текущей папки
+        if (folderDir.folders.length || folderDir.files.length) {
+            const ul = document.createElement("ul");
+            ul.className = "file-list folder-files";
+
+            folderDir.folders.forEach(f => {
+                const li = document.createElement("li");
+                li.textContent = f;
+                li.className = "folder";
+                li.onclick = () => {
+                    currentFolderPath = currentFolderPath + "/" + f;
+                    renderFilebar();
+                    const subDir = listDir(currentFolderPath);
+                    const fileToOpen = getFileToOpen(subDir.files);
+                    if (fileToOpen) openFile(fileToOpen);
+                };
+                ul.appendChild(li);
+            });
+
+            folderDir.files.forEach(f => addFileLi(ul, f));
+
+            filebar.appendChild(ul);
+        }
+
+        // Подсветка открытого файла
+        document.querySelectorAll("#filebar li.file").forEach(li => {
+            li.classList.toggle("active-file", li.dataset.path === selectedFile);
+        });
+        return; // выходим, не рисуем остальное
+    }
 
     // --- Восстановление последнего открытого файла ---
-    let restoredFile = null;
     if (lastFileData.path) {
         const lastFileName = lastFileData.path.split("/").pop();
-        restoredFile = files.files.find(f => f.startsWith(rootPath + "/") && f.endsWith("/" + lastFileName));
+        const restoredFile = files.files.find(f => f.startsWith(rootPath + "/") && f.endsWith("/" + lastFileName));
         if (restoredFile) selectedFile = restoredFile;
     }
 
+    const rootDir = listDir(rootPath);
+
     // --- Верхние папки и файлы ---
-    if (rootDir.folders.length > 0 || rootDir.files.length > 0) {
+    if (rootDir.folders.length || rootDir.files.length) {
         const ul = document.createElement("ul");
         ul.className = "file-list";
         rootDir.folders.forEach(f => {
@@ -238,7 +287,7 @@ function renderFilebar() {
     }
 
     // --- Кнопки годов ---
-    if (rootDir.years.length > 0) {
+    if (rootDir.years.length) {
         const yearsDiv = document.createElement("div");
         yearsDiv.style.display = "flex";
         yearsDiv.style.gap = "4px";
@@ -253,6 +302,7 @@ function renderFilebar() {
             btn.onclick = () => {
                 selectedYear = y;
                 selectedMonth = null;
+                currentFolderPath = null; // сброс папки при смене года
                 renderFilebar();
             };
             yearsDiv.appendChild(btn);
@@ -260,17 +310,14 @@ function renderFilebar() {
         filebar.appendChild(yearsDiv);
     }
 
-    if (!selectedYear && rootDir.years.length > 0) selectedYear = rootDir.years[rootDir.years.length-1];
+    if (!selectedYear && rootDir.years.length) selectedYear = rootDir.years[rootDir.years.length - 1];
 
     if (selectedYear) {
         const yearPath = rootPath + "/" + selectedYear;
         const yearDir = listDir(yearPath);
 
         // --- Файлы года вне месяцев ---
-        const yearFiles = yearDir.files.filter(f => {
-            const rel = f.substring((yearPath + "/").length);
-            return !/^(0[1-9]|1[0-2])\//.test(rel);
-        });
+        const yearFiles = yearDir.files.filter(f => !/^(0[1-9]|1[0-2])\//.test(f.substring((yearPath + "/").length)));
         if (yearFiles.length) {
             const ulYearFiles = document.createElement("ul");
             ulYearFiles.className = "file-list year-files";
@@ -293,7 +340,7 @@ function renderFilebar() {
             const monthDir = listDir(monthPath);
 
             const btn = document.createElement("button");
-            btn.textContent = monthLabels[i-1];
+            btn.textContent = monthLabels[i - 1];
             btn.className = "month-btn";
             btn.disabled = monthDir.files.length === 0 && monthDir.folders.length === 0;
 
@@ -301,28 +348,34 @@ function renderFilebar() {
 
             btn.onclick = () => {
                 selectedMonth = m;
+                currentFolderPath = null; // сброс папки при смене месяца
                 renderFilebar();
-                const monthFiles = monthDir.files;
-                const fileToOpen = getFileToOpen(monthFiles);
+                const fileToOpen = getFileToOpen(monthDir.files);
                 if (fileToOpen) openFile(fileToOpen);
             };
             monthDiv.appendChild(btn);
         }
-        filebar.appendChild(monthDiv);
+// --- Добавляем только если есть хотя бы один доступный месяц ---
+if (availableMonths.length) filebar.appendChild(monthDiv);
 
         // --- Определяем активный месяц ---
         if (!selectedMonth) {
             let monthCandidate = null;
+            const nowMonth = String(new Date().getMonth() + 1).padStart(2, "0");
+
             if (lastFileData.path) {
                 const parts = lastFileData.path.split("/");
                 const lastMonth = parts.find(p => /^(0[1-9]|1[0-2])$/.test(p));
                 if (lastMonth && availableMonths.includes(lastMonth)) monthCandidate = lastMonth;
             }
+
             if (!monthCandidate) {
-                const nowMonth = String(new Date().getMonth() + 1).padStart(2, "0");
-                if (availableMonths.includes(nowMonth)) monthCandidate = nowMonth;
-                else if (availableMonths.length) monthCandidate = availableMonths[availableMonths.length - 1];
+                // Берём максимальный доступный месяц < текущего
+                const smallerMonths = availableMonths.filter(m => m < nowMonth);
+                if (smallerMonths.length) monthCandidate = smallerMonths[smallerMonths.length - 1];
+                else if (availableMonths.length) monthCandidate = availableMonths[0]; // иначе минимальный доступный
             }
+
             selectedMonth = monthCandidate;
         }
 
@@ -337,9 +390,10 @@ function renderFilebar() {
         if (selectedMonth) {
             const monthPath = yearPath + "/" + selectedMonth;
             const monthDir = listDir(monthPath);
-            if (monthDir.folders.length > 0 || monthDir.files.length > 0) {
+            if (monthDir.folders.length || monthDir.files.length) {
                 const monthUL = document.createElement("ul");
                 monthUL.className = "file-list month-files";
+
                 monthDir.folders.forEach(f => {
                     const li = document.createElement("li");
                     li.textContent = f;
@@ -347,13 +401,15 @@ function renderFilebar() {
                     li.onclick = () => {
                         currentFolderPath = monthPath + "/" + f;
                         renderFilebar();
-                        const folderDir = listDir(currentFolderPath);
-                        const fileToOpen = getFileToOpen(folderDir.files);
+                        const subDir = listDir(currentFolderPath);
+                        const fileToOpen = getFileToOpen(subDir.files);
                         if (fileToOpen) openFile(fileToOpen);
                     };
                     monthUL.appendChild(li);
                 });
+
                 monthDir.files.forEach(f => addFileLi(monthUL, f));
+
                 filebar.appendChild(monthUL);
 
                 const fileToOpen = getFileToOpen(monthDir.files);
@@ -370,6 +426,10 @@ function renderFilebar() {
         li.classList.toggle("active-file", li.dataset.path === selectedFile);
     });
 }
+
+
+
+
 
 
 // --- Помощник: выбрать файл для открытия ---
