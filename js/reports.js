@@ -460,7 +460,7 @@ function openFile(f) {
 
     if (f.match(/\.pdf$/i)) {
         const pngBtn = document.createElement("button");
-        pngBtn.textContent = "🖼 Скачать PDF как PNG";
+        pngBtn.textContent = "🖼 Скачать как фото (для Viber/Telegram)";
         pngBtn.onclick = () => downloadPdfAsPng(BASE_URL + f);
         btnContainer.appendChild(pngBtn);
     }
