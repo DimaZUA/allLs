@@ -406,3 +406,36 @@ font-size: 1rem;
 }
 .red{color: #A00000;}
 .green{color: #007050;}
+
+#datetime {
+  position: relative;
+}
+
+#datetime .hover-text {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  background-color: rgba(0,0,0,0.6);
+  opacity: 0;
+  transition: opacity 0.2s;
+  pointer-events: none;
+  font-size: 2rem;
+}
+
+#datetime:hover .hover-text {
+  opacity: 1;
+}
+
+#datetime span.original {
+  transition: opacity 0.2s;
+}
+
+#datetime:hover span.original {
+  opacity: 0.3;
+}

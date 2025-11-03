@@ -170,7 +170,8 @@ div.addEventListener("click", (e) => {
   }
 
   setParam("kv", ls[accountId].kv);
-
+  let tooltip = document.querySelector(".fio-tooltip");
+  if(tooltip) tooltip.style.display = "none";
   // Переходим в раздел лицевых счетов
   handleMenuClick(homeCode, "accounts", actionLink);
 });

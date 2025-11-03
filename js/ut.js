@@ -747,19 +747,19 @@ function timeAgo(dateString) {
   if (diffInDays > 0) {
     result += ""
       .concat(diffInDays, " ")
-      .concat(okon(diffInDays, "дней", "день", "дня"), " ");
+      .concat(okon(diffInDays, "днів", "день", "дні"), " ");
   }
   if (diffInHours % 24 > 0) {
     result += ""
       .concat(diffInHours % 24, " ")
-      .concat(okon(diffInHours % 24, "часов", "час", "часа"), " ");
+      .concat(okon(diffInHours % 24, "годин", "годину", "години"), " ");
   }
   if (diffInMinutes % 60 > 0) {
     result += ""
       .concat(diffInMinutes % 60, " ")
-      .concat(okon(diffInMinutes % 60, "минут", "минута", "минуты"), " ");
+      .concat(okon(diffInMinutes % 60, "хвилин", "хвилина", "хвилини"), " ");
   }
-  return result || "Менее минуты назад";
+  return result || "Меньш хвилини";
 }
 function setParam(paramName, paramValue) {
   // Извлекаем параметры URL

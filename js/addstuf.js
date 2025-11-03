@@ -563,91 +563,41 @@ if (cumulativeBalance !== 0) {
     lastYearToggle.checked = true;
   }
   var curLS = ls[accountId];
-  document.getElementById("datetime").innerHTML =
-    "<br><div>\n                \u041E\u0420: "
-      .concat(
-        curLS.ls,
-        "<br>  <!-- \u041E\u0441\u043E\u0431\u043E\u0432\u0438\u0439 \u0440\u0430\u0445\u0443\u043D\u043E\u043A -->\n                \u041F.\u0406.\u0411.: "
-      )
-      .concat(
-        curLS.fio,
-        "<br>  <!-- \u041F\u0440\u0456\u0437\u0432\u0438\u0449\u0435, \u0456\u043C'\u044F, \u0431\u0430\u0442\u044C\u043A\u043E\u0432\u0456 -->\n                "
-      )
-      .concat(
-        curLS.pl
-          ? "\u041F\u043B\u043E\u0449\u0430: ".concat(
-              curLS.pl,
-              " \u043C\xB2<br>"
-            )
-          : "",
-        "  <!-- \u041F\u043B\u043E\u0449\u0430 -->\n                "
-      )
-      .concat(
-        curLS.pers
-          ? "\u0416\u0438\u0442\u0435\u043B\u0456\u0432: ".concat(
-              curLS.pers,
-              "<br>"
-            )
-          : "",
-        "  <!-- \u041A\u0456\u043B\u044C\u043A\u0456\u0441\u0442\u044C \u0436\u0438\u0442\u0435\u043B\u0456\u0432 -->\n                "
-      )
-      .concat(
-        curLS.komn
-          ? "\u041A\u0456\u043C\u043D\u0430\u0442: ".concat(curLS.komn, "<br>")
-          : "",
-        "  <!-- \u041A\u0456\u043B\u044C\u043A\u0456\u0441\u0442\u044C \u043A\u0456\u043C\u043D\u0430\u0442 -->\n                "
-      )
-      .concat(
-        curLS.et
-          ? "\u041F\u043E\u0432\u0435\u0440\u0445: ".concat(curLS.et, "<br>")
-          : "",
-        "  <!-- \u041F\u043E\u0432\u0435\u0440\u0445 -->\n                "
-      )
-      .concat(
-        curLS.pod
-          ? "\u041F\u0456\u0434'\u0457\u0437\u0434: ".concat(curLS.pod, "<br>")
-          : "",
-        "  <!-- \u041F\u0456\u0434'\u0457\u0437\u0434 -->\n                "
-      )
-      .concat(
-        curLS.lgota
-          ? "\u041F\u0456\u043B\u044C\u0433\u043E\u0432\u0438\u043A: ".concat(
-              curLS.lgota,
-              "<br>"
-            )
-          : "",
-        "  <!-- \u041F\u0456\u043B\u044C\u0433\u043E\u0432\u0438\u043A -->\n                "
-      )
-      .concat(
-        curLS.tel
-          ? "\u0422\u0435\u043B\u0435\u0444\u043E\u043D: ".concat(
-              curLS.tel,
-              "<br>"
-            )
-          : "",
-        "  <!-- \u0422\u0435\u043B\u0435\u0444\u043E\u043D -->\n                "
-      )
-      .concat(
-        curLS.note
-          ? "\u041F\u0440\u0438\u043C\u0456\u0442\u043A\u0430: ".concat(
-              curLS.note.replace(/\n/g, "<br>"),
-              "<br>"
-            )
-          : "",
-        "  <!-- \u041F\u0440\u0438\u043C\u0456\u0442\u043A\u0430 -->\n                "
-      )
-      .concat(
-        curLS.email ? "e-mail: ".concat(curLS.email, "<br>") : "",
-        "  <!-- Email -->\n            <br>\u0414\u0430\u043D\u0456 \u0432\u043A\u0430\u0437\u0430\u043D\u0456 \u0441\u0442\u0430\u043D\u043E\u043C \u043D\u0430 <br>"
-      )
-      .concat(dt, " (")
-      .concat(timeAgo(dt), "\u0442\u043E\u043C\u0443.)\n        </div>");
-  initPosters();
-  setParam("kv", ls[accountId].kv);
-  lastRow.scrollIntoView({
-    behavior: "smooth",
-    block: "end"
-  });
+container = document.getElementById("datetime");
+container.style.cursor = "pointer";
+
+const content = `
+  <span class="original">
+    <br>
+    <div>
+      ОР: ${curLS.ls}<br>
+      П.І.Б.: ${curLS.fio}<br>
+      ${curLS.pl ? `Площа: ${curLS.pl} м²<br>` : ""}
+      ${curLS.pers ? `Жителів: ${curLS.pers}<br>` : ""}
+      ${curLS.komn ? `Кімнат: ${curLS.komn}<br>` : ""}
+      ${curLS.et ? `Поверх: ${curLS.et}<br>` : ""}
+      ${curLS.pod ? `Під'їзд: ${curLS.pod}<br>` : ""}
+      ${curLS.lgota ? `Пільговик: ${curLS.lgota}<br>` : ""}
+      ${curLS.tel ? `Телефон: ${curLS.tel}<br>` : ""}
+      ${curLS.note ? `Примітка: ${curLS.note.replace(/\n/g, "<br>")}<br>` : ""}
+      ${curLS.email ? `e-mail: ${curLS.email}<br>` : ""}
+      <br>Дані вказані станом на <br>${dt} (${timeAgo(dt)} тому.)
+    </div>
+  </span>
+  <span class="hover-text">Повідомити про зміні</span>
+`;
+
+container.innerHTML = content;
+
+initPosters();
+setParam("kv", ls[accountId].kv);
+
+lastRow.scrollIntoView({ behavior: "smooth", block: "end" });
+
+container.addEventListener("click", function () {
+  handleChangeRequest(accountId);
+});
+
 
 }
 function createPaymentCell(row, monthlyPayments, accountId) {
@@ -904,4 +854,9 @@ function initLS() {
   }
   addStuff(ind);
   document.getElementById("number").value = ind;
+}
+function handleChangeRequest(accountId) {
+  // Здесь будет логика обработки запроса на зміни
+  console.log("Запит на зміни для accountId:", accountId);
+  // Например, открытие модального окна или формы
 }
