@@ -222,37 +222,65 @@ table#main {
            background-color: #f4f4f9;
 }
 
+/* Основной контейнер фильтра */
 #filter-container {
-
-            display: inline-grid; /* Компактное размещение, зависящее от содержимого */
-            grid-template-columns: 350px auto auto auto;
-            gap: 16px; /* Расстояние между колонками */
-            align-items: center; /* Центрирование содержимого колонок */
-            justify-content: center; /* Центрирование контейнера по горизонтали */
-            padding: 16px;
-            border: 1px solid #ccc; /* Граница для визуализации размера контейнера */
-
-    
-    
+    display: grid;
+    grid-template-columns: repeat(4, 1fr); /* 4 колонки на широком экране */
+    gap: 16px;
+    align-items: center;
     padding: 15px;
     background-color: #f9f9f9;
-
     border: 1px solid #ddd;
     border-radius: 8px;
+    box-sizing: border-box;
+    width: 100%;
     max-width: 100%;
-    margin-bottom: 20px;
-    width: auto; 
 }
-        .column {
-            display: flex;
-            flex-direction: column;
-            gap: 8px; /* Расстояние между элементами внутри колонки */
-        }
- #filter-container .full-span {
-            grid-column: 1 / -1; /* Растянуть на все три колонки */
-            text-align: center; /* Выравнивание текста по левому краю */
-            margin-bottom: 8px; /* Отступ от следующей строки */
-        }
+
+/* Каждая колонка */
+.column {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+/* Лейблы */
+#filter-container label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between; /* текст слева, input/селект справа */
+    gap: 8px;
+    width: 100%;
+}
+
+/* Инпуты, селекты и кнопки */
+#filter-container select,
+#filter-container input,
+#filter-container button {
+    padding: 8px 12px;
+    font-size: 1rem;
+    border-radius: 4px;
+    border: 1px solid #ccc;
+    width: 100%; /* растягиваем на всю ширину колонки */
+}
+
+/* Надписи, которые должны занимать всю ширину */
+#filter-container .full-span {
+    grid-column: 1 / -1;
+    text-align: center;
+    margin-bottom: 8px;
+}
+
+/* Медиазапрос для узких экранов */
+@media (max-width: 800px) {
+    #filter-container {
+        grid-template-columns: 1fr; /* все колонки в одну строку */
+    }
+    #filter-container .column {
+        width: 100%;
+    }
+}
+
 #filter-container label {
     font-size: 1rem;
     margin-right: 10px;
@@ -438,4 +466,59 @@ font-size: 1rem;
 
 #datetime:hover span.original {
   opacity: 0.3;
+}
+
+
+/* styles.css */
+.modal-overlay {
+  display: flex;
+  position: fixed;
+  top:0;
+  left:0;
+  width:100%;
+  height:100%;
+  background: rgba(0,0,0,0.5);
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+}
+
+.modal-container {
+  background: #fff;
+  padding: 20px;
+  border-radius: 8px;
+  width: 700px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal-container h3 {
+  margin-top: 0;
+  margin-bottom: 10px;
+}
+
+.modal-section {
+  margin-bottom: 20px;
+  display: flex;
+  gap: 20px;
+}
+
+.modal-section .left, .modal-section .right {
+  flex: 1;
+}
+
+.modal-section label {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.modal-section input[type="text"], 
+.modal-section input[type="number"], 
+.modal-section input[type="date"] {
+  width: 150px;
+}
+
+button {
+  margin-right: 10px;
 }

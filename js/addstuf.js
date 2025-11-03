@@ -856,7 +856,96 @@ function initLS() {
   document.getElementById("number").value = ind;
 }
 function handleChangeRequest(accountId) {
-  // Здесь будет логика обработки запроса на зміни
-  console.log("Запит на зміни для accountId:", accountId);
-  // Например, открытие модального окна или формы
+  const data = ls[accountId] || {}; // старые значения, могут быть undefined
+
+  // Удаляем старую модалку
+  const existingModal = document.getElementById('changeModal');
+  if (existingModal) existingModal.remove();
+
+  // Создаем оверлей
+  const modal = document.createElement('div');
+  modal.id = 'changeModal';
+  modal.className = 'modal-overlay';
+
+  // Контейнер формы
+  const container = document.createElement('div');
+  container.className = 'modal-container';
+
+  // Первый блок: основные данные
+  const block1 = document.createElement('div');
+  block1.className = 'modal-section';
+  block1.innerHTML = `
+    <div class="right">
+      <p>Станом на ${new Date().toLocaleDateString()}</p>
+      <p>П.І. по Б.: ${data.fio || ''}</p>
+      <p>Площа: ${data.pl || ''}</p>
+      <p>Мешканців: ${data.pers || ''}</p>
+    </div>
+    <div class="left">
+      <label>Станом на: <input type="date" name="effectiveDate" value="${new Date().toISOString().split('T')[0]}"></label>
+      <label>П.І. по Б.: <input type="text" name="fio" value="${data.fio || ''}"></label>
+      <label>Площа: <input type="number" name="pl" value="${data.pl || ''}" step="0.01"></label>
+      <label>Мешканців: <input type="number" name="pers" value="${data.pers || ''}"></label>
+    </div>
+  `;
+
+  // Второй блок: коррекция по лицевому счету
+  const block2 = document.createElement('div');
+  block2.className = 'modal-section';
+  block2.innerHTML = `
+    <div class="left">
+      <label>Місяць: <input type="month" name="correctionMonth"></label>
+      <label>Сума: <input type="number" name="correctionAmount" step="0.01"></label>
+      <p>+ зменшення боргу = збільшення боргу</p>
+    </div>
+  `;
+
+  // Третий блок: контактные данные (только поля)
+  const block3 = document.createElement('div');
+  block3.className = 'modal-section';
+  block3.innerHTML = `
+    <div class="left">
+      <label>Електронна адреса: <input type="text" name="email" value="${data.email || ''}"></label>
+      <label>Поверх: <input type="number" name="et" value="${data.et || ''}"></label>
+      <label>Підїзд: <input type="number" name="pod" value="${data.pod || ''}"></label>
+      <label>Номер телефону: <input type="text" name="tel" value="${data.tel || ''}"></label>
+      <label>Примітка: <input type="text" name="note" value="${data.note || ''}"></label>
+    </div>
+  `;
+
+  // Добавляем блоки в контейнер
+  container.appendChild(block1);
+  container.appendChild(block2);
+  container.appendChild(block3);
+
+  // Кнопки
+  const btnContainer = document.createElement('div');
+  btnContainer.innerHTML = `
+    <button type="submit" id="saveChanges">Зберегти</button>
+    <button type="button" id="closeModal">Відмінити</button>
+  `;
+  container.appendChild(btnContainer);
+
+  modal.appendChild(container);
+  document.body.appendChild(modal);
+
+  // Сохранение данных
+  document.getElementById('saveChanges').onclick = function() {
+    const inputs = container.querySelectorAll('input');
+    const newData = {};
+    inputs.forEach(input => {
+      newData[input.name] = input.value;
+    });
+    console.log("Нові дані для збереження:", newData, "для accountId:", accountId);
+    modal.remove();
+  };
+
+  // Закрытие модалки
+  document.getElementById('closeModal').onclick = function() {
+    modal.remove();
+  };
 }
+
+
+
+
