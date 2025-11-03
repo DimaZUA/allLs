@@ -154,6 +154,26 @@ function createItemsForFloor(lsList, pod, et, container, opts) {
       const div = document.createElement("div");
       div.classList.add("floor-item");
       div.dataset.id = item.id;
+div.addEventListener("click", (e) => {
+  const accountId = e.currentTarget.dataset.id; // <-- твой id
+  const homeCode = getParam("homeCode");
+  if (!homeCode) return console.warn("homeCode не найден");
+
+  // Ищем пункт меню "Особові рахунки"
+  const actionLink = Array.from(
+    document.querySelectorAll(`.menu-item[data-code="${homeCode}"] ul span`)
+  ).find(span => span.textContent.trim() === "Особові рахунки");
+
+  if (!actionLink) {
+    console.warn('Не найден пункт меню "Особові рахунки" для', homeCode);
+    return;
+  }
+
+  setParam("kv", accountId);
+
+  // Переходим в раздел лицевых счетов
+  handleMenuClick(homeCode, "accounts", actionLink);
+});
 
       // --- Ширина ---
       let width;
