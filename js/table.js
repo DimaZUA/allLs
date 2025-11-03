@@ -434,7 +434,7 @@ function generateTable() {
     const row = document.createElement("tr");
     row.setAttribute("data-kv", ls[accountId].kv);
 row.addEventListener("click", (e) => {
-  const accountId = e.currentTarget.dataset.kv;
+  const kv = e.currentTarget.dataset.kv;
   const homeCode = getParam("homeCode");
   if (!homeCode) return console.warn("homeCode не найден");
 
@@ -448,7 +448,7 @@ row.addEventListener("click", (e) => {
     return;
   }
   // Сохраняем выбранный лицевой счёт
-  setParam("kv", accountId);
+  setParam("kv", kv);
 
   // Переходим в раздел лицевых счетов
   handleMenuClick(homeCode, "accounts", actionLink);

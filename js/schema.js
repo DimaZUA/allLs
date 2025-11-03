@@ -169,7 +169,7 @@ div.addEventListener("click", (e) => {
     return;
   }
 
-  setParam("kv", accountId);
+  setParam("kv", ls[accountId].kv);
 
   // Переходим в раздел лицевых счетов
   handleMenuClick(homeCode, "accounts", actionLink);
