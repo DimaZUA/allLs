@@ -958,18 +958,21 @@ document.getElementById('saveChanges').onclick = function() {
   const newData = {};
   const changed = {}; // сюда запишем только изменённые поля
 
+    if (!inputs[5].value) inputs[5].value=0;
+    data.correctionAmount=0;
+    if (data.fio==inputs[1].value && data.pl==inputs[2].value && data.pers==inputs[3].value) data.effectiveDate=inputs[0].value;
+    if (inputs[5].value==0) data.correctionMonth=inputs[4].value;
+    data.correctionText='';
+    data.email=data.email||'';
+    data.tel=data.tel||'';
+    data.note=data.note||'';
+
+
   inputs.forEach(input => {
     const name = input.name;
     const value = input.value;
     newData[name] = value;
 
-    if (newData.correctionAmount=="") newData.correctionAmount=0;
-    data.correctionAmount=0;
-    if (newData.correctionAmount==0) data.correctionMonth=newData.correctionMonth;
-    data.correctionText='';
-    data.email=data.email||'';
-    data.tel=data.tel||'';
-    data.note=data.note||'';
     // Сравниваем с исходными данными
     if (data[name] != value) {  // != чтобы учитывать и число/строку
       changed[name] = { old: data[name], new: value };
