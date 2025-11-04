@@ -573,7 +573,7 @@ const content = `
       ОР: ${curLS.ls}<br>
       П.І.Б.: ${curLS.fio}<br>
       ${curLS.pl ? `Площа: ${curLS.pl} м²<br>` : ""}
-      ${curLS.pers ? `Жителів: ${curLS.pers}<br>` : ""}
+      ${curLS.pers ? `Мешканців: ${curLS.pers}<br>` : ""}
       ${curLS.komn ? `Кімнат: ${curLS.komn}<br>` : ""}
       ${curLS.et ? `Поверх: ${curLS.et}<br>` : ""}
       ${curLS.pod ? `Під'їзд: ${curLS.pod}<br>` : ""}
@@ -855,97 +855,190 @@ function initLS() {
   addStuff(ind);
   document.getElementById("number").value = ind;
 }
-function handleChangeRequest(accountId) {
-  const data = ls[accountId] || {}; // старые значения, могут быть undefined
 
-  // Удаляем старую модалку
+
+// script.js
+function handleChangeRequest(accountId) {
+  const data = ls[accountId] || {};
+
   const existingModal = document.getElementById('changeModal');
   if (existingModal) existingModal.remove();
 
-  // Создаем оверлей
   const modal = document.createElement('div');
   modal.id = 'changeModal';
   modal.className = 'modal-overlay';
 
-  // Контейнер формы
+  // Закрытие при клике за пределами модалки
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) closeModal();
+  });
+
   const container = document.createElement('div');
   container.className = 'modal-container';
 
-  // Первый блок: основные данные
+  const today = new Date();
+  const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+  const monthStr = today.toISOString().slice(0,7);
+
+  // ===== Блок 1 =====
   const block1 = document.createElement('div');
-  block1.className = 'modal-section';
+  block1.className = 'modal-section modal-block-1';
   block1.innerHTML = `
-    <div class="right">
-      <p>Станом на ${new Date().toLocaleDateString()}</p>
-      <p>П.І. по Б.: ${data.fio || ''}</p>
-      <p>Площа: ${data.pl || ''}</p>
-      <p>Мешканців: ${data.pers || ''}</p>
-    </div>
-    <div class="left">
-      <label>Станом на: <input type="date" name="effectiveDate" value="${new Date().toISOString().split('T')[0]}"></label>
-      <label>П.І. по Б.: <input type="text" name="fio" value="${data.fio || ''}"></label>
-      <label>Площа: <input type="number" name="pl" value="${data.pl || ''}" step="0.01"></label>
-      <label>Мешканців: <input type="number" name="pers" value="${data.pers || ''}"></label>
-    </div>
+    <h4>Основні дані</h4>
+    <div>Станом на</div>
+    <div>${today.toLocaleDateString()}</div>
+    <div><input type="date" name="effectiveDate" value="${firstOfMonth.toISOString().split('T')[0]}"></div>
+
+    <div>П.І. по Б.</div>
+    <div>${data.fio || ''}</div>
+    <div><input type="text" name="fio" value="${data.fio || ''}"></div>
+
+    <div>Площа</div>
+    <div>${data.pl || ''}</div>
+    <div><input type="number" name="pl" value="${data.pl || ''}" step="0.01"></div>
+
+    <div>Мешканців</div>
+    <div>${data.pers || ''}</div>
+    <div><input type="number" name="pers" value="${data.pers || ''}"></div>
   `;
 
-  // Второй блок: коррекция по лицевому счету
+  // ===== Блок 2 =====
   const block2 = document.createElement('div');
-  block2.className = 'modal-section';
+  block2.className = 'modal-section modal-block-2';
   block2.innerHTML = `
-    <div class="left">
-      <label>Місяць: <input type="month" name="correctionMonth"></label>
-      <label>Сума: <input type="number" name="correctionAmount" step="0.01"></label>
-      <p>+ зменшення боргу = збільшення боргу</p>
-    </div>
+    <h4>Корекція по лицевому рахунку</h4>
+    <label>Місяць: <input type="month" name="correctionMonth" value="${monthStr}"></label>
+    <label>Сума: <input type="number" name="correctionAmount" step="1" value=""></label>
+    <label id="correctionTextLabel">Підстава для зміни боргу: <input type="text" name="correctionText"></label>
   `;
+  block2.querySelector('input[name="correctionAmount"]').addEventListener('input', function() {
+    const label = block2.querySelector('#correctionTextLabel');
+    if (this.value && parseFloat(this.value) < 0) {
+      label.innerHTML = 'Підстава для збільшення боргу: <input type="text" name="correctionText">';
+    } else {
+      label.innerHTML = 'Підстава для зменшення боргу: <input type="text" name="correctionText">';
+    }
+  });
 
-  // Третий блок: контактные данные (только поля)
+  // ===== Блок 3 =====
   const block3 = document.createElement('div');
-  block3.className = 'modal-section';
+  block3.className = 'modal-section modal-block-3';
   block3.innerHTML = `
-    <div class="left">
-      <label>Електронна адреса: <input type="text" name="email" value="${data.email || ''}"></label>
-      <label>Поверх: <input type="number" name="et" value="${data.et || ''}"></label>
-      <label>Підїзд: <input type="number" name="pod" value="${data.pod || ''}"></label>
-      <label>Номер телефону: <input type="text" name="tel" value="${data.tel || ''}"></label>
-      <label>Примітка: <input type="text" name="note" value="${data.note || ''}"></label>
-    </div>
+    <h4>Контактні дані</h4>
+    <div><span class="label">Підїзд:</span><input type="number" name="pod" value="${data.pod || ''}"></div>
+    <div><span class="label">Поверх:</span><input type="number" name="et" value="${data.et || ''}"></div>
+    <div><span class="label">Електронна адреса:</span><input type="text" name="email" value="${data.email || ''}"></div>
+    <div><span class="label">Номер телефону:</span><input type="text" name="tel" value="${data.tel || ''}"></div>
+    <div id="noteField"><span class="label">Примітка:</span><textarea name="note">${data.note || ''}</textarea></div>
   `;
 
-  // Добавляем блоки в контейнер
   container.appendChild(block1);
   container.appendChild(block2);
   container.appendChild(block3);
 
   // Кнопки
   const btnContainer = document.createElement('div');
+  btnContainer.style.marginTop = '15px';
   btnContainer.innerHTML = `
-    <button type="submit" id="saveChanges">Зберегти</button>
-    <button type="button" id="closeModal">Відмінити</button>
+    <button type="submit" id="saveChanges">Повідомити про зміни</button>
+    <button type="button" id="closeModal">Закрити</button>
   `;
   container.appendChild(btnContainer);
 
   modal.appendChild(container);
   document.body.appendChild(modal);
 
-  // Сохранение данных
-  document.getElementById('saveChanges').onclick = function() {
-    const inputs = container.querySelectorAll('input');
-    const newData = {};
-    inputs.forEach(input => {
-      newData[input.name] = input.value;
-    });
-    console.log("Нові дані для збереження:", newData, "для accountId:", accountId);
-    modal.remove();
-  };
+  function closeModal() {
+    modal.classList.add('fade-out');
+    setTimeout(() => modal.remove(), 300);
+  }
 
-  // Закрытие модалки
-  document.getElementById('closeModal').onclick = function() {
-    modal.remove();
-  };
+document.getElementById('saveChanges').onclick = function() {
+  const inputs = container.querySelectorAll('input, textarea');
+  const newData = {};
+  const changed = {}; // сюда запишем только изменённые поля
+
+  inputs.forEach(input => {
+    const name = input.name;
+    const value = input.value;
+    newData[name] = value;
+
+    if (newData.correctionAmount=="") newData.correctionAmount=0;
+    data.correctionAmount=0;
+    if (newData.correctionAmount==0) data.correctionMonth=newData.correctionMonth;
+    data.correctionText='';
+    data.email=data.email||'';
+    data.tel=data.tel||'';
+    data.note=data.note||'';
+    // Сравниваем с исходными данными
+    if (data[name] != value) {  // != чтобы учитывать и число/строку
+      changed[name] = { old: data[name], new: value };
+    }
+  });
+
+  // Отправляем все данные + изменения
+  sendCorrectionToSheet(newData, accountId, changed);
+  console.log(newData, accountId, changed);
+  // Закрываем модалку
+  closeModal();
+};
+
+  document.getElementById('closeModal').onclick = closeModal;
 }
 
 
 
 
+
+
+async function sendCorrectionToSheet(newData, accountId, changedFields = {}) {
+  newData.accountId = accountId;
+  newData.address = adr + ', ' + (ls[accountId]?.kv || '');
+  newData.homeCode = getParam("homeCode");
+  newData.org = org;
+
+  // Добавляем объект изменённых полей как JSON
+  newData.changedFields = JSON.stringify(changedFields);
+
+  try {
+    const { data: { user }, error } = await client.auth.getUser();
+    if (error || !user) {
+      console.warn('Не удалось получить пользователя:', error);
+      newData.sender = '';
+    } else {
+      const name = user.user_metadata?.full_name;
+      const email = user.email || '';
+      newData.sender = name ? `${name} (${email})` : email;
+    }
+  } catch (err) {
+    console.error('Ошибка получения пользователя:', err);
+    newData.sender = '';
+  }
+
+  try {
+    const response = await fetch('https://script.google.com/macros/s/AKfycbw3v8UT0bhfBRJ_a74RDqFthviRdBD6d7jzsmrcILd69-YZ2QMR-KmZDiMvHmHs5EqboQ/exec', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams(newData)
+    });
+    const result = await response.json();
+
+    if (result.status === 'success') {
+      showMessage('Дані відправлено успішно!');
+
+      // Подсветка изменённых полей в таблице, если они есть
+      Object.keys(changedFields).forEach(field => {
+        const cell = document.querySelector(`[data-account="${accountId}"][data-field="${field}"]`);
+        if (cell) cell.style.backgroundColor = '#ffff99'; // жёлтая подсветка
+      });
+
+    } else {
+      alert('Помилка: ' + result.message);
+    }
+  } catch (err) {
+    console.error('Помилка мережі:', err);
+    alert('Не вдалося відправити дані.');
+  }
+}

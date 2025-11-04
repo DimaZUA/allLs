@@ -279,6 +279,8 @@ table#main {
     #filter-container .column {
         width: 100%;
     }
+    .buttons-container{
+    display: none}
 }
 
 #filter-container label {
@@ -469,7 +471,11 @@ font-size: 1rem;
 }
 
 
+
+
 /* styles.css */
+
+/* Оверлей и модалка */
 .modal-overlay {
   display: flex;
   position: fixed;
@@ -481,44 +487,254 @@ font-size: 1rem;
   justify-content: center;
   align-items: center;
   z-index: 9999;
+  opacity: 0;
+  animation: fadeIn 0.3s forwards;
+}
+
+.modal-overlay.fade-out {
+  animation: fadeOut 0.3s forwards;
+}
+
+@keyframes fadeIn {
+  to {opacity: 1;}
+}
+@keyframes fadeOut {
+  to {opacity: 0;}
 }
 
 .modal-container {
   background: #fff;
   padding: 20px;
   border-radius: 8px;
-  width: 700px;
+  width: 720px;
   max-height: 90vh;
   overflow-y: auto;
+  font-family: sans-serif;
+  transform: translateY(-20px);
+  animation: slideIn 0.3s forwards;
 }
 
-.modal-container h3 {
+.modal-overlay.fade-out .modal-container {
+  animation: slideOut 0.3s forwards;
+}
+
+@keyframes slideIn {
+  to {transform: translateY(0);}
+}
+@keyframes slideOut {
+  to {transform: translateY(-20px);}
+}
+
+/* styles.css */
+
+/* Оверлей и модалка */
+.modal-overlay {
+  display: flex;
+  position: fixed;
+  top:0;
+  left:0;
+  width:100%;
+  height:100%;
+  background: rgba(0,0,0,0.5);
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+  opacity: 0;
+  animation: fadeIn 0.3s forwards;
+}
+
+.modal-overlay.fade-out {
+  animation: fadeOut 0.3s forwards;
+}
+
+@keyframes fadeIn {
+  to {opacity: 1;}
+}
+@keyframes fadeOut {
+  to {opacity: 0;}
+}
+
+.modal-container {
+  background: #fff;
+  padding: 20px;
+  border-radius: 8px;
+  width: 720px;
+  max-height: 90vh;
+  overflow-y: auto;
+  font-family: sans-serif;
+  transform: translateY(-20px);
+  animation: slideIn 0.3s forwards;
+}
+
+.modal-overlay.fade-out .modal-container {
+  animation: slideOut 0.3s forwards;
+}
+
+@keyframes slideIn {
+  to {transform: translateY(0);}
+}
+@keyframes slideOut {
+  to {transform: translateY(-20px);}
+}
+
+/* styles.css */
+
+/* Оверлей и модалка */
+.modal-overlay {
+  display: flex;
+  position: fixed;
+  top:0;
+  left:0;
+  width:100%;
+  height:100%;
+  background: rgba(0,0,0,0.5);
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+  opacity: 0;
+  animation: fadeIn 0.3s forwards;
+}
+
+.modal-overlay.fade-out {
+  animation: fadeOut 0.3s forwards;
+}
+
+@keyframes fadeIn {
+  to {opacity: 1;}
+}
+@keyframes fadeOut {
+  to {opacity: 0;}
+}
+
+.modal-container {
+  background: #fff;
+  padding: 20px;
+  border-radius: 8px;
+  width: 720px;
+  max-height: 90vh;
+  overflow-y: auto;
+  font-family: sans-serif;
+  transform: translateY(-20px);
+  animation: slideIn 0.3s forwards;
+}
+
+.modal-overlay.fade-out .modal-container {
+  animation: slideOut 0.3s forwards;
+}
+
+@keyframes slideIn {
+  to {transform: translateY(0);}
+}
+@keyframes slideOut {
+  to {transform: translateY(-20px);}
+}
+
+.modal-container h3, .modal-container h4 {
   margin-top: 0;
   margin-bottom: 10px;
+  border-bottom: 1px solid #ccc;
+  padding-bottom: 4px;
 }
 
 .modal-section {
   margin-bottom: 20px;
-  display: flex;
-  gap: 20px;
+  padding: 10px 0;
+  border-bottom: 1px solid #aaa;
 }
 
-.modal-section .left, .modal-section .right {
-  flex: 1;
+/* Блок 1 - три колонки */
+.modal-block-1 {
+  display: grid;
+  grid-template-columns: 20% 45% 33%;
+  gap: 10px;
+  margin-top: 10px;
 }
 
-.modal-section label {
+.modal-block-1 div {
+  padding: 4px 0;
+}
+
+.modal-block-1 input {
+  width: 100%;
+  padding: 4px 6px;
+  box-sizing: border-box;
+}
+
+/* Блок 2 и 3 - два столбца, поля одинаковой ширины */
+.modal-block-2, .modal-block-3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.modal-block-2 label,
+.modal-block-3 div {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 10px;
+  align-items: center;
 }
 
-.modal-section input[type="text"], 
-.modal-section input[type="number"], 
-.modal-section input[type="date"] {
-  width: 150px;
+.modal-block-2 label input,
+.modal-block-3 div input {
+  width: 45%; /* одинаковая ширина всех полей */
 }
 
+/* Поля на всю ширину (растянуты на 2 колонки) */
+#correctionTextLabel,
+#noteField {
+  grid-column: span 2;
+}
+
+#correctionTextLabel input,
+#noteField textarea {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+#noteField textarea {
+  height: 50px;
+  resize: vertical;
+}
+
+/* Адаптив */
+@media (max-width: 600px) {
+  .modal-block-1, .modal-block-2, .modal-block-3 {
+    grid-template-columns: 1fr;
+  }
+
+  .modal-block-2 label,
+  .modal-block-3 div {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .modal-block-2 label input,
+  .modal-block-3 div input,
+  #noteField textarea,
+  #correctionTextLabel input,
+  .modal-block-1 input {
+    width: 100%;
+    margin-top: 2px;
+  }
+}
+
+/* Кнопки */
 button {
+  padding: 6px 12px;
   margin-right: 10px;
+  cursor: pointer;
+  border: 1px solid #888;
+  border-radius: 4px;
+  background: #f0f0f0;
+}
+
+button:hover {
+  background: #e0e0e0;
+}
+.modal-block-1 h4,
+.modal-block-2 h4,
+.modal-block-3 h4 {
+  grid-column: 1 / -1; /* занимает все колонки */
+  margin-bottom: 10px;
 }
