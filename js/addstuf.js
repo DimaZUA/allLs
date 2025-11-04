@@ -1361,10 +1361,20 @@ function showHistoryModal(data) {
     dateDiv.textContent = `${dateChange ? "зміни з: "+dateChange.toLocaleDateString("uk-UA") : ""} — ${dateEntry ? "внесено: "+dateEntry.toLocaleString("uk-UA") : ""}`;
     contentDiv.appendChild(dateDiv);
 
-    // Цвет статуса
-    let statusColor = "#b6ffb3"; // зелёный по умолчанию
-    if (row.status?.includes("очікує")) statusColor = "#ffe79a"; // жёлтый
-    else if (row.status?.includes("відхилено")) statusColor = "#ffb3b3"; // красный
+// Замена символов на текст
+if (row.status === "+") {
+    row.status = "Зміни внесено";
+} else if (row.status === "-") {
+    row.status = "Відхилено";
+}
+
+// Цвет статуса
+let statusColor = "#ffe79a"; // оранжевый по умолчанию
+if (row.status?.toLowerCase().includes("внесено")) {
+    statusColor = "#b6ffb3"; // зелёный
+} else if (row.status?.toLowerCase().includes("відхилено")) {
+    statusColor = "#ffb3b3"; // красный
+}
 
     // Поля
     const fields = [
@@ -1381,7 +1391,7 @@ function showHistoryModal(data) {
     fields.forEach(f => {
       if ((f.old || "") !== (f.new || "")) {
         const fDiv = document.createElement("div");
-        fDiv.innerHTML = `${f.label}: <span style="text-decoration:line-through;color:#888">${f.old || "—"}</span> → <span style="background:#ffff99">${f.new || "—"}</span>`;
+        fDiv.innerHTML = `${f.label}: <span style="color:#888">${f.old || "—"}</span> → <span style="background:#ffff99">${f.new || "—"}</span>`;
         contentDiv.appendChild(fDiv);
       }
     });
