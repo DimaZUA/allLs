@@ -876,8 +876,15 @@ function handleChangeRequest(accountId) {
   const container = document.createElement('div');
   container.className = 'modal-container';
 
-  const today = new Date();
-  const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+const today = new Date();
+const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+
+// Локальный формат YYYY-MM-DD
+const firstOfMonthStr = firstOfMonth.getFullYear() + '-' +
+                        String(firstOfMonth.getMonth() + 1).padStart(2, '0') + '-' +
+                        String(firstOfMonth.getDate()).padStart(2, '0');
+
+
   const monthStr = today.toISOString().slice(0,7);
 
   // ===== Блок 1 =====
@@ -887,7 +894,7 @@ function handleChangeRequest(accountId) {
     <h4>Основні дані</h4>
     <div>Станом на</div>
     <div>${today.toLocaleDateString()}</div>
-    <div><input type="date" name="effectiveDate" value="${firstOfMonth.toISOString().split('T')[0]}"></div>
+    <div><input type="date" name="effectiveDate" value="${firstOfMonthStr}"></div>
 
     <div>П.І. по Б.</div>
     <div>${data.fio || ''}</div>
@@ -906,7 +913,7 @@ function handleChangeRequest(accountId) {
   const block2 = document.createElement('div');
   block2.className = 'modal-section modal-block-2';
   block2.innerHTML = `
-    <h4>Корекція по лицевому рахунку</h4>
+    <h4>Корекція по особовому рахунку</h4>
     <label>Місяць: <input type="month" name="correctionMonth" value="${monthStr}"></label>
     <label>Сума: <input type="number" name="correctionAmount" step="1" value=""></label>
     <label id="correctionTextLabel">Підстава для зміни боргу: <input type="text" name="correctionText"></label>
@@ -936,55 +943,116 @@ function handleChangeRequest(accountId) {
   container.appendChild(block2);
   container.appendChild(block3);
 
-  // Кнопки
-  const btnContainer = document.createElement('div');
-  btnContainer.style.marginTop = '15px';
-  btnContainer.innerHTML = `
+// Кнопки
+const btnContainer = document.createElement('div');
+btnContainer.style.marginTop = '15px';
+btnContainer.style.display = 'flex';
+btnContainer.style.justifyContent = 'space-between'; // две слева, одна справа
+btnContainer.style.width = '100%';
+
+btnContainer.innerHTML = `
+  <div>
     <button type="submit" id="saveChanges">Повідомити про зміни</button>
     <button type="button" id="closeModal">Закрити</button>
-  `;
-  container.appendChild(btnContainer);
+  </div>
+  <div>
+    <button type="button" id="showHistoryBtn">Історія запитів</button>
+  </div>
+`;
+
+container.appendChild(btnContainer);
+
 
   modal.appendChild(container);
   document.body.appendChild(modal);
+// Вешаем обработчик
+document.getElementById('showHistoryBtn').addEventListener('click', () => {
+  ShowHistory(accountId);
+});
+
 
   function closeModal() {
     modal.classList.add('fade-out');
     setTimeout(() => modal.remove(), 300);
   }
 
-document.getElementById('saveChanges').onclick = function() {
+document.getElementById('saveChanges').onclick = async function () {
   const inputs = container.querySelectorAll('input, textarea');
-  const newData = {};
-  const changed = {}; // сюда запишем только изменённые поля
 
-    if (!inputs[5].value) inputs[5].value=0;
-    data.correctionAmount=0;
-    if (data.fio==inputs[1].value && data.pl==inputs[2].value && data.pers==inputs[3].value) data.effectiveDate=inputs[0].value;
-    if (inputs[5].value==0) data.correctionMonth=inputs[4].value;
-    data.correctionText='';
-    data.email=data.email||'';
-    data.tel=data.tel||'';
-    data.note=data.note||'';
+  const trackedFields = ['fio','pl','pers','note','tel','email','pod','et'];
+  const keyFields = ['fio','pl','pers'];
 
+  function norm(v) {
+    if (v === undefined || v === null) return '';
+    const s = String(v).trim().toLowerCase();
+    if (s === '0') return '';
+    return s;
+  }
 
-  inputs.forEach(input => {
-    const name = input.name;
-    const value = input.value;
-    newData[name] = value;
+  const payload = {};
+  let keyChanged = false;
 
-    // Сравниваем с исходными данными
-    if (data[name] != value) {  // != чтобы учитывать и число/строку
-      changed[name] = { old: data[name], new: value };
+  trackedFields.forEach(name => {
+    const oldRaw = data[name] ?? '';
+    const newRaw = container.querySelector(`[name="${name}"]`)?.value ?? '';
+
+    const oldNorm = norm(oldRaw);
+    const newNorm = norm(newRaw);
+
+    if (oldNorm !== newNorm) {
+      payload[name + '_old'] = oldRaw ?? '';
+      payload[name + '_new'] = newRaw ?? '';
+
+      if (keyFields.includes(name)) keyChanged = true;
     }
   });
 
-  // Отправляем все данные + изменения
-  sendCorrectionToSheet(newData, accountId, changed);
-  console.log(newData, accountId, changed);
-  // Закрываем модалку
+  // Коррекция долга
+  const correctionAmount = parseFloat(
+    container.querySelector(`[name="correctionAmount"]`)?.value || 0
+  );
+
+  if (correctionAmount) {
+    payload.correctionAmount = correctionAmount;
+    payload.correctionMonth = container.querySelector(`[name="correctionMonth"]`)?.value || '';
+    payload.correctionText = container.querySelector(`[name="correctionText"]`)?.value || '';
+  }
+
+  // Effective date only if key data changed
+  if (keyChanged) {
+    payload.effectiveDate = container.querySelector(`[name="effectiveDate"]`)?.value || '';
+  }
+
+  // Базовые поля
+  payload.accountId = accountId;
+  payload.address = adr + ', ' + (ls[accountId]?.kv || '');
+  payload.homeCode = getParam("homeCode");
+  payload.org = org;
+
+  try {
+    const { data: { user }, error } = await client.auth.getUser();
+    if (user) {
+      const name = user.user_metadata?.full_name;
+      const email = user.email || '';
+      payload.sender = name ? `${name} (${email})` : email;
+    }
+  } catch {
+    payload.sender = '';
+  }
+
+  if (Object.keys(payload).length <= 5) {
+    alert("Зміни відсутні");
+    //closeModal();
+    return;
+  }
+
+  await sendCorrection(payload, accountId);
+
+  console.log("Отправлено в Google Sheets:", payload);
   closeModal();
 };
+
+
 
   document.getElementById('closeModal').onclick = closeModal;
 }
@@ -994,54 +1062,349 @@ document.getElementById('saveChanges').onclick = function() {
 
 
 
-async function sendCorrectionToSheet(newData, accountId, changedFields = {}) {
-  newData.accountId = accountId;
-  newData.address = adr + ', ' + (ls[accountId]?.kv || '');
-  newData.homeCode = getParam("homeCode");
-  newData.org = org;
-
-  // Добавляем объект изменённых полей как JSON
-  newData.changedFields = JSON.stringify(changedFields);
-
-  try {
-    const { data: { user }, error } = await client.auth.getUser();
-    if (error || !user) {
-      console.warn('Не удалось получить пользователя:', error);
-      newData.sender = '';
-    } else {
-      const name = user.user_metadata?.full_name;
-      const email = user.email || '';
-      newData.sender = name ? `${name} (${email})` : email;
-    }
-  } catch (err) {
-    console.error('Ошибка получения пользователя:', err);
-    newData.sender = '';
+// --- Отправка коррекции ---
+async function sendCorrection(payload, accountId) {
+  const { data: { user }, error: userError } = await client.auth.getUser();
+  if (userError || !user) {
+    showMessage("Потрібно увійти в систему");
+    return;
   }
 
+  const senderName = user.user_metadata?.full_name || "";
+  const senderEmail = user.email || "";
+  const sender = senderName ? `${senderName} (${senderEmail})` : senderEmail;
+
+  const finalData = {
+    account_id: accountId,
+    address: payload.address || "",
+    home_code: payload.homeCode || "",
+    org: payload.org || "",
+    sender:sender || "",
+    effective_date: payload.effectiveDate ? new Date(payload.effectiveDate) : null,
+    fio_old: payload.fio_old || "",
+    fio_new: payload.fio_new || "",
+    pl_old: payload.pl_old || null,
+    pl_new: payload.pl_new || null,
+    pers_old: payload.pers_old || null,
+    pers_new: payload.pers_new || null,
+    pod_old: payload.pod_old || null,
+    pod_new: payload.pod_new || null,
+    et_old: payload.et_old || null,
+    et_new: payload.et_new || null,
+    email_old: payload.email_old || "",
+    email_new: payload.email_new || "",
+    tel_old: payload.tel_old || "",
+    tel_new: payload.tel_new || "",
+    note_old: payload.note_old || "",
+    note_new: payload.note_new || "",
+    correction_month: payload.correctionMonth ? new Date(payload.correctionMonth) : null,
+    correction_amount: payload.correctionAmount || null,
+    correction_text: payload.correctionText || "",
+    submitted_at: new Date(),
+    status: "очікує обробки"
+  };
+
+  const loader = showLoader("Відправка даних...");
   try {
-    const response = await fetch('https://script.google.com/macros/s/AKfycbw3v8UT0bhfBRJ_a74RDqFthviRdBD6d7jzsmrcILd69-YZ2QMR-KmZDiMvHmHs5EqboQ/exec', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: new URLSearchParams(newData)
+    const { data: insertedData, error: insertError } = await client
+      .from('corrections')
+      .insert([finalData]);
+
+    loader.close();
+
+    if (insertError) {
+      console.error("Supabase insert error:", insertError);
+      showMessage("Помилка при відправці даних.");
+      return;
+    }
+
+    showMessage("Дані відправлено успішно!");
+    console.log("Inserted row:", insertedData);
+
+    // --- Формируем изменения как строку для EmailJS ---
+    const changes = [];
+    if (finalData.fio_old !== finalData.fio_new) changes.push(`ФІО: ${finalData.fio_old} → ${finalData.fio_new}`);
+    if (finalData.pl_old !== finalData.pl_new) changes.push(`Площа: ${finalData.pl_old} → ${finalData.pl_new}`);
+    if (finalData.pers_old !== finalData.pers_new) changes.push(`Мешканців: ${finalData.pers_old} → ${finalData.pers_new}`);
+    if (finalData.pod_old !== finalData.pod_new) changes.push(`Під’їзд: ${finalData.pod_old} → ${finalData.pod_new}`);
+    if (finalData.et_old !== finalData.et_new) changes.push(`Поверх: ${finalData.et_old} → ${finalData.et_new}`);
+    if (finalData.email_old !== finalData.email_new) changes.push(`Email: ${finalData.email_old} → ${finalData.email_new}`);
+    if (finalData.tel_old !== finalData.tel_new) changes.push(`Телефон: ${finalData.tel_old} → ${finalData.tel_new}`);
+    if (finalData.note_old !== finalData.note_new) changes.push(`Примітка: ${finalData.note_old} → ${finalData.note_new}`);
+    const changesStr = changes.join("\r\n");
+
+    // --- Отправка через EmailJS ---
+    try {
+      const templateParams = {
+        name: finalData.sender,
+        sender: finalData.sender,
+        subject: "Зміни по "+ payload.org,
+        address: finalData.address,
+        changes: changesStr || "—",
+        correction: finalData.correction_amount || "—",
+        correctionText: finalData.correction_text || "—"
+      };
+
+      await emailjs.send("service_ed425wm", "template_vcrj80e", templateParams, "GieX-9pNBnKJ0Z2HK");
+      console.log("Email sent successfully!");
+
+    } catch (mailErr) {
+      console.error("Mail sending error:", mailErr);
+      alert("Не вдалося надіслати повідомлення на пошту.");
+    }
+
+  } catch (err) {
+    loader.close();
+    console.error("Помилка мережі:", err);
+    showMessage("Не вдалося відправити дані.");
+  }
+}
+
+
+
+
+function showLoader(message = "Завантаження...", cancelCallback) {
+  let loaderModal = null;
+  let timer = setTimeout(() => {
+    loaderModal = document.createElement("div");
+    loaderModal.className = "modal-overlay";
+    loaderModal.style = `
+      position:fixed;
+      top:0; left:0; width:100%; height:100%;
+      background: rgba(0,0,0,0.8);
+      display:flex; justify-content:center; align-items:center;
+      z-index:10000;
+    `;
+    loaderModal.innerHTML = `
+      <div style="background:#fff; padding:30px 40px; border-radius:10px; text-align:center; position:relative;">
+        <h3 style="margin-bottom:20px;">${message}</h3>
+        <div id="spinner" style="margin:20px auto; width:50px; height:50px; border:6px solid #f3f3f3; border-top:6px solid #3498db; border-radius:50%; animation: spin 1s linear infinite;"></div>
+        <button id="cancelBtn" style="margin-top:20px; padding:6px 12px; cursor:pointer;">Відмінити</button>
+      </div>
+      <style>
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .modal-overlay * { font-family: sans-serif; }
+      </style>
+    `;
+    document.body.appendChild(loaderModal);
+
+    const cancelBtn = loaderModal.querySelector("#cancelBtn");
+    cancelBtn.addEventListener("click", () => {
+      if (cancelCallback) cancelCallback();
+      loaderModal.remove();
     });
-    const result = await response.json();
+  }, 1000); // показываем только если прошло >1с
 
-    if (result.status === 'success') {
-      showMessage('Дані відправлено успішно!');
+  return {
+    close: () => {
+      clearTimeout(timer);      // если запрос завершился раньше 1с, лоадер не покажется
+      if (loaderModal) loaderModal.remove(); // если уже показался, удаляем
+    },
+    element: loaderModal
+  };
+}
 
-      // Подсветка изменённых полей в таблице, если они есть
-      Object.keys(changedFields).forEach(field => {
-        const cell = document.querySelector(`[data-account="${accountId}"][data-field="${field}"]`);
-        if (cell) cell.style.backgroundColor = '#ffff99'; // жёлтая подсветка
-      });
 
-    } else {
-      alert('Помилка: ' + result.message);
+
+// --- Получение истории из Supabase ---
+async function ShowHistory(accountId) {
+  const { data: { user } } = await client.auth.getUser();
+  if (!user) return showMessage("Потрібно увійти в систему");
+
+  const senderName = user?.user_metadata?.full_name || "";
+  const senderEmail = user?.email || "";
+  const sender = senderName ? `${senderName} (${senderEmail})` : senderEmail;
+
+  const loader = showLoader("Завантаження історії...");
+  try {
+const { data, error } = await client
+  .from('corrections')
+  .select('*')
+  .eq('sender', sender)
+  .eq('account_id', accountId)   // фильтр по accountId
+  .order('submitted_at', { ascending: false });
+
+    loader.close();
+
+    if (error) {
+      console.error(error);
+      return showMessage("Помилка отримання історії");
     }
+
+    if (!Array.isArray(data)) {
+      console.error("Supabase returned data is not an array", data);
+      return showMessage("Неправильний формат історії");
+    }
+
+    showHistoryModal(data);
+
   } catch (err) {
-    console.error('Помилка мережі:', err);
-    alert('Не вдалося відправити дані.');
+    loader.close();
+    console.error(err);
+    showMessage("Помилка отримання історії");
   }
+}
+
+function showHistoryModal(data) {
+  const modal = document.createElement("div");
+  modal.className = "modal-overlay";
+  modal.style = `
+    position:fixed;
+    top:0; left:0; width:100%; height:100%;
+    background: rgba(0,0,0,0.8);
+    display:flex; justify-content:center; align-items:flex-start;
+    padding-top:40px;
+    overflow-y:auto;
+    z-index:10000;
+  `;
+
+  const modalWindow = document.createElement("div");
+  modalWindow.className = "modal-window";
+  modalWindow.style = `
+    background:#fff;
+    max-width:650px;
+    width:90%;
+    padding:20px;
+    border-radius:10px;
+    position:relative;
+  `;
+
+  const title = document.createElement("h3");
+  title.textContent = "Історія запитів на зміну";
+
+  const closeBtn = document.createElement("button");
+  closeBtn.textContent = "✖";
+  closeBtn.style = `
+    position:absolute;
+    top:15px;
+    right:15px;
+    cursor:pointer;
+    background:transparent;
+    border:none;
+    font-size:18px;
+  `;
+  closeBtn.addEventListener("click", () => modal.remove());
+
+  const list = document.createElement("div");
+  list.id = "historyList";
+  list.style.marginTop = "20px";
+
+  modalWindow.appendChild(title);
+  modalWindow.appendChild(closeBtn);
+  modalWindow.appendChild(list);
+  modal.appendChild(modalWindow);
+  document.body.appendChild(modal);
+
+  if (!data || data.length === 0) {
+    const emptyMsg = document.createElement("p");
+    emptyMsg.textContent = "Запитів ще не було.";
+    list.appendChild(emptyMsg);
+    return;
+  }
+
+  data.forEach(row => {
+    const item = document.createElement("div");
+    item.style = `
+      border:1px solid #ccc;
+      border-radius:6px;
+      margin-bottom:10px;
+      padding:10px;
+      background:#fff;
+      position:relative;
+    `;
+
+    // Крестик для удаления, только если статус "очікує обробки"
+    if (row.status?.includes("очікує")) {
+      const deleteBtn = document.createElement("button");
+      deleteBtn.textContent = "✖";
+      deleteBtn.style = `
+        position:absolute;
+        top:5px;
+        right:5px;
+        cursor:pointer;
+        background:transparent;
+        border:none;
+        font-size:16px;
+        color:red;
+      `;
+      deleteBtn.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        if (!confirm("Видалити запис?")) return;
+        try {
+          const { error } = await client
+            .from('corrections')
+            .delete()
+            .eq('id', row.id);
+
+          if (error) {
+            console.error(error);
+            alert("Помилка видалення запису");
+          } else {
+            item.remove(); // убираем блок из модалки
+          }
+        } catch (err) {
+          console.error(err);
+          alert("Помилка мережі");
+        }
+      });
+      item.appendChild(deleteBtn);
+    }
+
+    // Контейнер для содержимого
+    const contentDiv = document.createElement("div");
+
+    // Даты
+    const dateEntry = row.submitted_at ? new Date(row.submitted_at) : null;
+    const dateChange = row.effective_date ? new Date(row.effective_date) : null;
+    const dateDiv = document.createElement("div");
+    dateDiv.style.fontWeight = "bold";
+    dateDiv.textContent = `${dateChange ? "зміни з: "+dateChange.toLocaleDateString("uk-UA") : ""} — ${dateEntry ? "внесено: "+dateEntry.toLocaleString("uk-UA") : ""}`;
+    contentDiv.appendChild(dateDiv);
+
+    // Цвет статуса
+    let statusColor = "#b6ffb3"; // зелёный по умолчанию
+    if (row.status?.includes("очікує")) statusColor = "#ffe79a"; // жёлтый
+    else if (row.status?.includes("відхилено")) statusColor = "#ffb3b3"; // красный
+
+    // Поля
+    const fields = [
+      { label: "ФІО", old: row.fio_old, new: row.fio_new },
+      { label: "Площа", old: row.pl_old, new: row.pl_new },
+      { label: "Мешканців", old: row.pers_old, new: row.pers_new },
+      { label: "Під’їзд", old: row.pod_old, new: row.pod_new },
+      { label: "Поверх", old: row.et_old, new: row.et_new },
+      { label: "Email", old: row.email_old, new: row.email_new },
+      { label: "Телефон", old: row.tel_old, new: row.tel_new },
+      { label: "Примітка", old: row.note_old, new: row.note_new }
+    ];
+
+    fields.forEach(f => {
+      if ((f.old || "") !== (f.new || "")) {
+        const fDiv = document.createElement("div");
+        fDiv.innerHTML = `${f.label}: <span style="text-decoration:line-through;color:#888">${f.old || "—"}</span> → <span style="background:#ffff99">${f.new || "—"}</span>`;
+        contentDiv.appendChild(fDiv);
+      }
+    });
+
+    // Коррекция
+    if (row.correction_amount) {
+      const corrDiv = document.createElement("div");
+      corrDiv.innerHTML = `Корекція: ${row.correction_amount} за ${row.correction_month ? new Date(row.correction_month).toLocaleDateString("uk-UA") : ""}<br>Підстава: ${row.correction_text || ""}`;
+      contentDiv.appendChild(corrDiv);
+    }
+
+    // Статус
+    const statusDiv = document.createElement("div");
+    statusDiv.style = `margin-top:4px;padding:4px;background:${statusColor};border-radius:4px;width:max-content;font-weight:bold`;
+    statusDiv.textContent = row.status;
+    contentDiv.appendChild(statusDiv);
+
+    item.appendChild(contentDiv);
+    list.appendChild(item);
+  });
+
+  // Закрытие модалки по клику на фон
+  modal.addEventListener("click", e => {
+    if (e.target === modal) modal.remove();
+  });
 }

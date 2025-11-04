@@ -738,3 +738,35 @@ button:hover {
   grid-column: 1 / -1; /* занимает все колонки */
   margin-bottom: 10px;
 }
+.form-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 12px;
+}
+
+.left-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.form-actions button {
+  padding: 8px 14px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.primary {
+  background: #007bff;
+  color: white;
+}
+
+.secondary {
+  background: #eeeeee;
+}
+
+.history-btn {
+  white-space: nowrap;
+}
