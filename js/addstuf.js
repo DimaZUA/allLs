@@ -1100,7 +1100,7 @@ async function sendCorrection(payload, accountId) {
     correction_month: payload.correctionMonth ? new Date(payload.correctionMonth) : null,
     correction_amount: payload.correctionAmount || null,
     correction_text: payload.correctionText || "",
-    submitted_at: new Date(),
+    submitted_at: new Date().toISOString().slice(0, 19).replace('T', ' '),
     status: "очікує обробки"
   };
 
