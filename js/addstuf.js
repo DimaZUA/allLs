@@ -247,7 +247,14 @@ function addStuff(accountId) {
             }
         }
     }  
-  
+  const link=homes.find(h => h.code == getParam(homeCode))?.token ?? "";
+  const adrLink=document.getElementById("adr")
+  const currentKv=ls[accountId].kv;
+  if (link && currentKv && currentKv>0) {
+  	adrLink.href =`https://next.privat24.ua/payments/form/%7B%22token%22:%22${link}%22,%22personalAccount%22:%22${currentKv}%22%7D`
+  }else{
+  	adrLink.removeAttribute("href");
+  }
   var container = document.getElementById("din"); // Контейнер для таблицы
   container.innerHTML = ""; // Очищаем контейнер перед добавлением новой таблицы
   document.getElementById("fio").textContent = ls[accountId].fio;
