@@ -512,7 +512,7 @@ row.addEventListener("click", (e) => {
 // Итоговая строка
 const footerRow = document.createElement("tr");
 footerRow.classList.add("itog");
-footerRow.innerHTML = `<td colspan=2>Ітого</td><td>${totalStartDebt.toFixedWithComma()}</td>`;
+footerRow.innerHTML = `<td colspan=2>Разом</td><td>${totalStartDebt.toFixedWithComma()}</td>`;
 
 if (displayMode === "summarized") {
   for (const serviceId of servicesWithCharges) {

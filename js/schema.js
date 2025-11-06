@@ -315,7 +315,7 @@ function createFloorsForPod(lsList, pod, podDiv, opts) {
 
   const standsLabel = document.createElement("div");
   standsLabel.classList.add("floor-number");
-  standsLabel.textContent = "Ітог";
+  standsLabel.textContent = "Разом";
 
   const standsContainer = document.createElement("div");
   standsContainer.classList.add("floor-item-container");
