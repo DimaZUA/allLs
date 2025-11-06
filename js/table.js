@@ -593,7 +593,19 @@ function applyColumnFilter() {
 
       } else if (colIndex === 1) {
         // --- 2-й столбец: текст без регистра ---
-        if (!text.toLowerCase().includes(filter.toLowerCase())) visible = false;
+  // --- 2-й столбец: текстовый фильтр с гибким поиском ---
+  let pattern = filter
+    .replace(/\s+/g, ".*") // пробел → любой промежуток
+    .replace(/[IiиИїЇІіыЫ]/g, "[IiиИїЇІіыЫ]+") // варианты I / И / ї / ы
+    .replace(/[ЕеЭэєЄ]/g, "[ЕеЭэєЄ]+"); // варианты Е / Э / є
+  
+  try {
+    const regex = new RegExp(pattern, "i");
+    if (!regex.test(text)) visible = false;
+  } catch {
+    // если фильтр содержит недопустимые символы, fallback
+    if (!text.toLowerCase().includes(filter.toLowerCase())) visible = false;
+  }
 
       } else {
         // --- остальные: дробные числа ---
