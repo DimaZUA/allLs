@@ -380,24 +380,6 @@ function generateTable() {
   }
   thead.innerHTML = headerRow;
 
-  // ===== Добавляем строку фильтров =====
-  const headerCells = thead.querySelectorAll("th");
-  const filterRow = document.createElement("tr");
-  filterRow.classList.add("filter-row");
-
-  headerCells.forEach((th, colIndex) => {
-    const td = document.createElement("td");
-    const input = document.createElement("input");
-    input.type = "text";
-    input.placeholder = "Фільтр…";
-    input.style.width = "95%";
-    input.style.boxSizing = "border-box";
-    input.addEventListener("input", () => applyColumnFilter(colIndex, input.value));
-    td.appendChild(input);
-    filterRow.appendChild(td);
-  });
-  thead.appendChild(filterRow);
-
   // Данные
   let totalStartDebt = 0,
       totalEndDebt = 0,
@@ -408,10 +390,10 @@ function generateTable() {
 
   for (const accountId in nach) {
     const monthData = [];
-    let totalChargesSum = 0;
-    let totalPaymentsSum = 0;
-    let totalChargesSumFull = 0;
-    let totalPaymentsSumFull = 0;
+    let totalChargesSum = 0;      // для отображения в таблице
+    let totalPaymentsSum = 0;     // для отображения в таблице
+    let totalChargesSumFull = 0;  // для расчета конечного долга
+    let totalPaymentsSumFull = 0; // для расчета конечного долга
 
     for (const year in nach[accountId]) {
       for (const month in nach[accountId][year]) {
@@ -451,21 +433,30 @@ function generateTable() {
 
     const row = document.createElement("tr");
     row.setAttribute("data-kv", ls[accountId].kv);
-    row.addEventListener("click", (e) => {
-      const kv = e.currentTarget.dataset.kv;
-      const homeCode = getParam("homeCode");
-      if (!homeCode) return console.warn("homeCode не найден");
-      const actionLink = Array.from(
-        document.querySelectorAll(`.menu-item[data-code="${homeCode}"] ul span`)
-      ).find(span => span.textContent.trim() === "Особові рахунки");
-      if (!actionLink) {
-        console.warn('Не найден пункт меню "Особові рахунки" для', homeCode);
-        return;
-      }
-      setParam("kv", kv);
-      handleMenuClick(homeCode, "accounts", actionLink);
-    });
+row.addEventListener("click", (e) => {
+  const kv = e.currentTarget.dataset.kv;
+  const homeCode = getParam("homeCode");
+  if (!homeCode) return console.warn("homeCode не найден");
 
+  // Ищем span с текстом "Особові рахунки" в нужном блоке меню
+  const actionLink = Array.from(
+    document.querySelectorAll(`.menu-item[data-code="${homeCode}"] ul span`)
+  ).find(span => span.textContent.trim() === "Особові рахунки");
+
+  if (!actionLink) {
+    console.warn('Не найден пункт меню "Особові рахунки" для', homeCode);
+    return;
+  }
+  // Сохраняем выбранный лицевой счёт
+  setParam("kv", kv);
+
+  // Переходим в раздел лицевых счетов
+  handleMenuClick(homeCode, "accounts", actionLink);
+
+});
+
+
+    
     row.appendChild(generateLsCell(accountId));
     row.innerHTML += `<td>${ls[accountId].fio}</td>`;
     row.innerHTML += `<td>${debitStart.toFixedWithComma()}</td>`;
@@ -480,12 +471,13 @@ function generateTable() {
       const paymentsSumRow = monthData.reduce((s, m) => s + m.paymentsSum, 0);
       totalPayments["all"] = (totalPayments["all"] || 0) + paymentsSumRow;
       row.innerHTML += `<td>${paymentsSumRow.toFixedWithComma()}</td>`;
-      row.innerHTML += `<td>${debitEnd.toFixedWithComma()}</td>`;
+      row.innerHTML += `<td>${debitEnd.toFixedWithComma()}</td>`; // всегда один и тот же долг
       row.innerHTML += `<td>${debtMonths}</td>`;
       totalEndDebt += debitEnd;
       totalDebtMonths += debtMonths;
       rowCount++;
     } else {
+      // Отображение детально или по услуге
       monthData.forEach(m => {
         let chargesAll;
         if (displayMode.startsWith("service-")) {
@@ -507,46 +499,48 @@ function generateTable() {
         totalPayments[monthKey] = (totalPayments[monthKey] || 0) + m.paymentsSum;
       });
 
-      totalEndDebt += debitEnd;
+      totalEndDebt += debitEnd; // всегда используем один и тот же долг
       totalDebtMonths += debtMonths;
       rowCount++;
-      row.innerHTML += `<td>${debitEnd.toFixedWithComma()}</td>`;
+      row.innerHTML += `<td>${debitEnd.toFixedWithComma()}</td>`; // всегда один и тот же долг
       row.innerHTML += `<td>${debtMonths}</td>`;
     }
 
     tbody.appendChild(row);
   }
 
-  // Итоговая строка
-  const footerRow = document.createElement("tr");
-  footerRow.classList.add("itog");
-  footerRow.innerHTML = `<td colspan=2>Разом</td><td>${totalStartDebt.toFixedWithComma()}</td>`;
+// Итоговая строка
+const footerRow = document.createElement("tr");
+footerRow.classList.add("itog");
+footerRow.innerHTML = `<td colspan=2>Разом</td><td>${totalStartDebt.toFixedWithComma()}</td>`;
 
-  if (displayMode === "summarized") {
-    for (const serviceId of servicesWithCharges) {
-      footerRow.innerHTML += `<td>${(totalCharges[serviceId] || 0).toFixedWithComma()}</td>`;
-    }
-    const totalPaymentsSumAll = totalPayments["all"] || 0;
-    footerRow.innerHTML += `<td>${totalPaymentsSumAll.toFixedWithComma()}</td>`;
-    footerRow.innerHTML += `<td>${totalEndDebt.toFixedWithComma()}</td>`;
-    footerRow.innerHTML += `<td>${rowCount ? (totalDebtMonths / rowCount).toFixed(1) : "–"}</td>`;
-  } else {
-    const monthKeys = Object.keys(totalCharges).sort();
-    monthKeys.forEach(k => {
-      if (displayMode !== "payments-only") {
-        const charges = totalCharges[k] || 0;
-        footerRow.innerHTML += `<td>${charges ? charges.toFixedWithComma() : "–"}</td>`;
-      }
-      if (displayMode !== "charges-only" && !displayMode.startsWith("service-")) {
-        const payments = totalPayments[k] || 0;
-        footerRow.innerHTML += `<td>${payments ? payments.toFixedWithComma() : "–"}</td>`;
-      }
-    });
-    footerRow.innerHTML += `<td>${totalEndDebt.toFixedWithComma()}</td>`;
-    footerRow.innerHTML += `<td>${rowCount ? (totalDebtMonths / rowCount).toFixed(1) : "–"}</td>`;
+if (displayMode === "summarized") {
+  for (const serviceId of servicesWithCharges) {
+    footerRow.innerHTML += `<td>${(totalCharges[serviceId] || 0).toFixedWithComma()}</td>`;
   }
+  const totalPaymentsSumAll = totalPayments["all"] || 0;
+  footerRow.innerHTML += `<td>${totalPaymentsSumAll.toFixedWithComma()}</td>`;
+  footerRow.innerHTML += `<td>${totalEndDebt.toFixedWithComma()}</td>`; // всегда один и тот же долг
+  footerRow.innerHTML += `<td>${rowCount ? (totalDebtMonths / rowCount).toFixed(1) : "–"}</td>`;
+} else {
+  const monthKeys = Object.keys(totalCharges).sort();
 
-  tbody.appendChild(footerRow);
+  monthKeys.forEach(k => {
+    if (displayMode !== "payments-only") {
+      const charges = totalCharges[k] || 0;
+      footerRow.innerHTML += `<td>${charges ? charges.toFixedWithComma() : "–"}</td>`;
+    }
+    if (displayMode !== "charges-only" && !displayMode.startsWith("service-")) {
+      const payments = totalPayments[k] || 0;
+      footerRow.innerHTML += `<td>${payments ? payments.toFixedWithComma() : "–"}</td>`;
+    }
+  });
+
+  footerRow.innerHTML += `<td>${totalEndDebt.toFixedWithComma()}</td>`; // всегда один и тот же долг
+  footerRow.innerHTML += `<td>${rowCount ? (totalDebtMonths / rowCount).toFixed(1) : "–"}</td>`;
+}
+
+tbody.appendChild(footerRow);
 
   // Клонируем заголовок
   Array.from(thead.querySelectorAll("tr")).forEach(r => {
@@ -565,101 +559,6 @@ function generateTable() {
   setParam("end", document.getElementById("end-date").value);
   setParam("preset", document.getElementById("preset-select").value);
 }
-
-
-// ======= ФУНКЦИЯ ФИЛЬТРАЦИИ =======
-function applyColumnFilter() {
-  const table = document.querySelector("#table-container table.main");
-  if (!table) return;
-
-  const rows = table.querySelectorAll("tbody tr:not(.itog):not(.header-row-clone)");
-  const filters = Array.from(table.querySelectorAll(".filter-row input")).map(inp => inp.value.trim());
-
-  rows.forEach(row => {
-    const cells = row.querySelectorAll("td");
-    let visible = true;
-
-    filters.forEach((filter, colIndex) => {
-      if (!filter || !visible) return; // уже скрыт или пустой фильтр
-
-      const cell = cells[colIndex];
-      if (!cell) return;
-
-      const text = cell.textContent.trim();
-      if (colIndex === 0) {
-        // --- 1-й столбец: номера квартир ---
-        const value = parseInt(text.replace(/\s+/g, ""), 10);
-        if (!matchNumberFilter(value, filter, true)) visible = false;
-
-      } else if (colIndex === 1) {
-        // --- 2-й столбец: текст без регистра ---
-        if (!text.toLowerCase().includes(filter.toLowerCase())) visible = false;
-
-      } else {
-        // --- остальные: дробные числа ---
-        // убираем пробелы и заменяем запятую на точку
-        const normalized = text.replace(/\s+/g, "").replace(",", ".");
-        const num = parseFloat(normalized);
-        if (!matchNumberFilter(num, filter)) visible = false;
-      }
-    });
-
-    row.style.display = visible ? "" : "none";
-  });
-}
-
-
-// ======= ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ: Сравнение числовых фильтров =======
-function matchNumberFilter(value, filter, allowMulti = false) {
-  if (isNaN(value)) return false;
-  if (!filter) return true;
-
-  filter = filter.replace(/\s+/g, "");
-
-  const parts = allowMulti
-    ? filter.replace(",", ";").split(";") // для первого столбца: множественные фильтры
-    : [filter.replace(",", ".")];         // для остальных: запятая = десятичный разделитель
-
-  return parts.some(part => {
-    if (!part) return false;
-    const subparts = allowMulti ? part.split(",") : [part];
-
-    return subparts.some(p => {
-      if (!p) return false;
-      let m;
-
-      // >= и <=
-      if ((m = p.match(/^>=(\-?\d+(?:\.\d+)?)$/))) return value >= parseFloat(m[1]);
-      if ((m = p.match(/^<=(\-?\d+(?:\.\d+)?)$/))) return value <= parseFloat(m[1]);
-
-      // строго > и <
-      if ((m = p.match(/^>(\-?\d+(?:\.\d+)?)$/))) return value > parseFloat(m[1]);
-      if ((m = p.match(/^<(\-?\d+(?:\.\d+)?)$/))) return value < parseFloat(m[1]);
-
-      // не равно: <>, !=, ≠
-      if ((m = p.match(/^((?:<>|!=|≠))(\-?\d+(?:\.\d+)?)$/))) {
-        return value !== parseFloat(m[2]);
-      }
-
-      // диапазон X-Y (включительно)
-      if ((m = p.match(/^(-?\d+(?:\.\d+)?)[-–](-?\d+(?:\.\d+)?)$/))) {
-        const a = parseFloat(m[1]);
-        const b = parseFloat(m[2]);
-        const min = Math.min(a, b);
-        const max = Math.max(a, b);
-        return value >= min && value <= max;
-      }
-
-      // одиночное число
-      const num = parseFloat(p);
-      return !isNaN(num) && value === num;
-    });
-  });
-}
-
-
-
-
 
 
 
