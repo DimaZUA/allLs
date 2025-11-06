@@ -247,14 +247,19 @@ function addStuff(accountId) {
             }
         }
     }  
-  const link=homes.find(h => h.code == getParam(homeCode))?.token ?? "";
+  const link=homes.find(h => h.code == getParam('homeCode'))?.token ?? "";
   const adrLink=document.getElementById("adr")
   const currentKv=ls[accountId].kv;
-  if (link && currentKv && currentKv>0) {
-  	adrLink.href =`https://next.privat24.ua/payments/form/%7B%22token%22:%22${link}%22,%22personalAccount%22:%22${currentKv}%22%7D`
-  }else{
-  	adrLink.removeAttribute("href");
-  }
+if (link && currentKv && currentKv > 0) {
+  adrLink.href = `https://next.privat24.ua/payments/form/%7B%22token%22:%22${link}%22,%22personalAccount%22:%22${currentKv}%22%7D`;
+  adrLink.target = "_blank";       // открывать в новой вкладке
+  adrLink.rel = "noopener noreferrer"; // безопасное открытие
+} else {
+  adrLink.removeAttribute("href");
+  adrLink.removeAttribute("target");
+  adrLink.removeAttribute("rel");
+}
+
   var container = document.getElementById("din"); // Контейнер для таблицы
   container.innerHTML = ""; // Очищаем контейнер перед добавлением новой таблицы
   document.getElementById("fio").textContent = ls[accountId].fio;
@@ -920,7 +925,7 @@ const firstOfMonthStr = firstOfMonth.getFullYear() + '-' +
   const block2 = document.createElement('div');
   block2.className = 'modal-section modal-block-2';
   block2.innerHTML = `
-    <h4>Корекція по особовому рахунку</h4>
+    <h4>Корекція(списаня) по особовому рахунку</h4>
     <label>Місяць: <input type="month" name="correctionMonth" value="${monthStr}"></label>
     <label>Сума: <input type="number" name="correctionAmount" step="1" value=""></label>
     <label id="correctionTextLabel">Підстава для зміни боргу: <input type="text" name="correctionText"></label>
@@ -1227,7 +1232,6 @@ async function ShowHistory(accountId) {
 const { data, error } = await client
   .from('corrections')
   .select('*')
-  .eq('sender', sender)
   .eq('account_id', accountId)   // фильтр по accountId
   .order('submitted_at', { ascending: false });
 
@@ -1243,7 +1247,7 @@ const { data, error } = await client
       return showMessage("Неправильний формат історії");
     }
 
-    showHistoryModal(data);
+    showHistoryModal(data, sender);
 
   } catch (err) {
     loader.close();
@@ -1252,7 +1256,7 @@ const { data, error } = await client
   }
 }
 
-function showHistoryModal(data) {
+function showHistoryModal(data, sender) {
   const modal = document.createElement("div");
   modal.className = "modal-overlay";
   modal.style = `
@@ -1321,7 +1325,7 @@ function showHistoryModal(data) {
     `;
 
     // Крестик для удаления, только если статус "очікує обробки"
-    if (row.status?.includes("очікує")) {
+    if (row.status?.includes("очікує") && row.sender==sender) {
       const deleteBtn = document.createElement("button");
       deleteBtn.textContent = "✖";
       deleteBtn.style = `
@@ -1363,9 +1367,13 @@ function showHistoryModal(data) {
     // Даты
     const dateEntry = row.submitted_at ? new Date(row.submitted_at) : null;
     const dateChange = row.effective_date ? new Date(row.effective_date) : null;
-    const dateDiv = document.createElement("div");
-    dateDiv.style.fontWeight = "bold";
-    dateDiv.textContent = `${dateChange ? "зміни з: "+dateChange.toLocaleDateString("uk-UA") : ""} — ${dateEntry ? "внесено: "+dateEntry.toLocaleString("uk-UA") : ""}`;
+const dateDiv = document.createElement("div");
+dateDiv.style.fontWeight = "bold";
+
+const line1 = dateEntry ? sender+" "+dateEntry.toLocaleString("uk-UA") : "";
+const line2 = dateChange ? "зміни з: "+dateChange.toLocaleDateString("uk-UA") : "";
+
+dateDiv.innerHTML = [line1, line2].filter(x => x).join("<br>");
     contentDiv.appendChild(dateDiv);
 
 // Замена символов на текст
@@ -1406,7 +1414,10 @@ if (row.status?.toLowerCase().includes("внесено")) {
     // Коррекция
     if (row.correction_amount) {
       const corrDiv = document.createElement("div");
-      corrDiv.innerHTML = `Корекція: ${row.correction_amount} за ${row.correction_month ? new Date(row.correction_month).toLocaleDateString("uk-UA") : ""}<br>Підстава: ${row.correction_text || ""}`;
+      corrDiv.innerHTML = `Корекція: ${row.correction_amount} за ${row.correction_month ? new Date(row.correction_month).toLocaleDateString("uk-UA", {
+  month: "long",
+  year: "numeric"
+}) : ""}<br>Підстава: ${row.correction_text || ""}`;
       contentDiv.appendChild(corrDiv);
     }
 

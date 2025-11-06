@@ -186,19 +186,6 @@ async function handleMenuClick(homeCode, actionCode, actionLink, { fromHistory =
   us = home.us;
 
 
-  //
-  // --- ДЕЙСТВИЕ ---
-  //
-  switch (actionCode) {
-    case "accounts": fillMissingDates(nach); initLS(); break;
-    case "list":     fillMissingDates(nach); initTable(); break;
-    case "payments": initPayTable(); break;
-    case "bank":     initBankTable(); break;
-    case "reports":  reportsInit(homeCode); break;
-    case "info":     displayHomeInfo(homeCode); break;
-    case "schema":   initSchema(); break;
-    default: console.warn("Unknown action:", actionCode);
-  }
 
 
 //
@@ -235,6 +222,20 @@ else {
     history.pushState({ homeCode, actionCode }, title, newUrl);
   }
 }
+
+  //
+  // --- ДЕЙСТВИЕ ---
+  //
+  switch (actionCode) {
+    case "accounts": fillMissingDates(nach); initLS(); break;
+    case "list":     fillMissingDates(nach); initTable(); break;
+    case "payments": initPayTable(); break;
+    case "bank":     initBankTable(); break;
+    case "reports":  reportsInit(homeCode); break;
+    case "info":     displayHomeInfo(homeCode); break;
+    case "schema":   initSchema(); break;
+    default: console.warn("Unknown action:", actionCode);
+  }
 
 console.log(`Дом: ${homeCode}, действие: ${actionCode} (${fromHistory ? "history" : "click"})`);
 

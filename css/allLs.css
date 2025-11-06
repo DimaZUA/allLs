@@ -770,3 +770,16 @@ button:hover {
 .history-btn {
   white-space: nowrap;
 }
+/* если href есть */
+#adr:link,
+#adr:visited {
+  color: blue;
+  text-decoration: underline; /* убери если не нужно */
+}
+
+/* если href отсутствует */
+#adr:not([href]) {
+  color: black;
+  text-decoration: none;
+  cursor: default; /* чтобы не было вида ссылки */
+}
