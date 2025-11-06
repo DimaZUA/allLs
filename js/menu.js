@@ -196,14 +196,14 @@ const actionObj = actions.find(a => a.actionCode === actionCode);
 const title = `${homeObj?.name || ""} — ${actionObj?.name || ""}`;
 document.title = title;
 
-//const params = new URLSearchParams(window.location.search);
-//params.set("homeCode", homeCode);
-//params.set("actionCode", actionCode);
+const params = new URLSearchParams(window.location.search);
+params.set("homeCode", homeCode);
+params.set("actionCode", actionCode);
 setParam("homeCode", homeCode);
 setParam("actionCode", actionCode);
 
-//const newUrl = `${window.location.pathname}?${params.toString()}`;
-const newUrl = `${window.location.pathname}`;
+const newUrl = `${window.location.pathname}?${params.toString()}`;
+//const newUrl = `${window.location.pathname}`;
 
 // состояние, которое сейчас в history.state
 const prev = history.state || {};
