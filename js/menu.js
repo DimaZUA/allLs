@@ -295,7 +295,7 @@ document.addEventListener("DOMContentLoaded", async function () {
 
   if (homeCode && actionCode) {
     // Активируем меню через историю, чтобы всё подсветилось правильно
-    activateMenuFromParams();
+    //activateMenuFromParams();
   } else {
     console.log("Нет параметров — меню пока не выбрано");
   }

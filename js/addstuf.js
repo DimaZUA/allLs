@@ -1053,7 +1053,8 @@ document.getElementById('saveChanges').onclick = async function () {
   }
 
   if (Object.keys(payload).length <= 5) {
-    alert("Зміни відсутні");
+    //alert("Зміни відсутні");
+    showMessage("Зміни відсутні");
     //closeModal();
     return;
   }
