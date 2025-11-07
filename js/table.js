@@ -610,14 +610,52 @@ function applyColumnFilter() {
       } else {
         // --- остальные: дробные числа ---
         // убираем пробелы и заменяем запятую на точку
-        const normalized = text.replace(/\s+/g, "").replace(",", ".");
-        const num = parseFloat(normalized);
-        if (!matchNumberFilter(num, filter)) visible = false;
+const normalized = (text ?? "").replace(/[\s\u00A0]+/g, "").replace(",", ".");
+const num = parseFloat(normalized);
+const value = isNaN(num) ? 0 : num;
+        if (!matchNumberFilter(value, filter)) visible = false;
       }
     });
 
     row.style.display = visible ? "" : "none";
   });
+
+updateTotals(table);
+
+}
+function updateTotals(table) {
+  const footer = table.querySelector(".itog");
+  if (!footer) return;
+
+  const visibleRows = [...table.querySelectorAll("tbody tr")]
+    .filter(tr => tr.style.display !== "none" && !tr.classList.contains("itog") && !tr.classList.contains("header-row-clone"));
+
+  if (!visibleRows.length) return;
+
+  const colCount = footer.cells.length;
+  const totals = Array(colCount).fill(0);
+
+  visibleRows.forEach(row => {
+    for (let i = 2; i <= colCount; i++) { // начиная с 3-го столбца (индекс 2)
+      const text = row.cells[i]?.textContent.replace(",", ".").replace(/[\s\u00A0]+/g, "");
+      const val = parseFloat(text);
+      if (!isNaN(val)) totals[i-1] += val;
+    }
+  });
+
+  // Заполняем суммы
+  for (let i = 2; i < colCount; i++) { // все кроме последнего числового столбца
+    if (!isNaN(totals[i-1])) {
+      footer.cells[i - 1].textContent = totals[i-1].toFixed(2);
+    }
+  }
+
+  // Последний столбец — среднее значение
+  const avgCol = colCount;
+  if (!isNaN(totals[avgCol-1])) {
+    const avg = totals[avgCol-1] / visibleRows.length;
+    footer.cells[avgCol - 1].textContent = avg.toFixed(1);
+  }
 }
 
 
