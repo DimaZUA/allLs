@@ -315,6 +315,15 @@ root.appendChild(totalHouseDiv);
 
   initTooltips();
 }
+
+
+
+// ===================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =====================
+function isMobile() {
+  // Истинно мобильное устройство: есть touchpoints и небольшой экран
+  return ('ontouchstart' in window || navigator.maxTouchPoints > 0) && window.innerWidth < 1024;
+}
+
 // ===================== 3. СОЗДАНИЕ DOM =====================
 function createItemsForFloor(lsList, pod, et, container, opts) {
   const { displayKeys, displayKeysName, display, numericDisplays, avgValues, avgArea, isFloorTotal } = opts;
@@ -322,7 +331,7 @@ function createItemsForFloor(lsList, pod, et, container, opts) {
   const baseWidth = 60;
   const minWidth = 30;
   const maxWidth = 120;
-  const isTouch = 'ontouchstart' in window;
+  const isTouch = isMobile();
   let lastTappedId = null;
 
   if (!isFloorTotal) {
@@ -335,42 +344,44 @@ function createItemsForFloor(lsList, pod, et, container, opts) {
 
       // ====================== CLICK / TAP ======================
       if (!isTouch) {
-        // Десктоп: click сразу переходит
         div.addEventListener("click", () => goToAccount(item.id));
       } else {
-        // Мобильные: первый тап показывает info, второй — переход
         div.addEventListener("click", (e) => {
           const id = item.id;
-          const tooltip = document.querySelector(".fio-tooltip");
+          const tooltip = ensureTooltip();
 
           if (lastTappedId !== id) {
-            // первый тап — показать info
-            if (tooltip) {
-              tooltip.innerHTML = div.dataset.fio.replace(/\n/g, "<br>");
-              tooltip.style.display = "block";
-              tooltip.style.left = (e.pageX + 10) + "px";
-              tooltip.style.top = (e.pageY + 10) + "px";
-              tooltip.style.maxWidth = window.innerWidth * 0.8 + "px";
-            }
+            tooltip.innerHTML = div.dataset.fio.replace(/\n/g, "<br>");
+            tooltip.style.display = "block";
+
+            const tw = tooltip.offsetWidth, th = tooltip.offsetHeight;
+            let x = e.pageX + 10;
+            let y = e.pageY + 10;
+            if (x + tw > window.scrollX + window.innerWidth) x = e.pageX - tw - 10;
+            if (y + th > window.scrollY + window.innerHeight) y = e.pageY - th - 10;
+            if (x < window.scrollX) x = window.scrollX + 10;
+
+            tooltip.style.left = x + "px";
+            tooltip.style.top = y + "px";
+            tooltip.style.maxWidth = window.innerWidth * 0.8 + "px";
+
             lastTappedId = id;
           } else {
-            // второй тап — переход
-            if (tooltip) tooltip.style.display = "none";
+            tooltip.style.display = "none";
             goToAccount(id);
             lastTappedId = null;
           }
 
-          // сброс lastTappedId при тапе вне квартиры
           document.addEventListener("click", ev => {
             if (!ev.target.closest(".floor-item")) {
-              if (tooltip) tooltip.style.display = "none";
+              tooltip.style.display = "none";
               lastTappedId = null;
             }
           }, { once: true });
         });
       }
 
-      // ====================== Ширина ======================
+      // --- Ширина, номера квартир, значения, подсказки --- //
       let width;
       if (display === "dolg") {
         const dolgs = items.map(i => i.dolg || 0);
@@ -390,7 +401,6 @@ function createItemsForFloor(lsList, pod, et, container, opts) {
       div.style.transition = "width 0.5s ease, opacity 0.5s ease";
       div.style.height = "40px";
 
-      // ====================== Номер квартиры ======================
       const kvSpan = document.createElement("span");
       kvSpan.classList.add("kv-background");
       kvSpan.textContent = item.kv;
@@ -400,7 +410,6 @@ function createItemsForFloor(lsList, pod, et, container, opts) {
       else kvSpan.classList.add("black");
       div.appendChild(kvSpan);
 
-      // ====================== Значение ======================
       const valSpan = document.createElement("span");
       valSpan.classList.add("value-span");
       let val = ["ls","kv","pers"].includes(display)
@@ -408,16 +417,11 @@ function createItemsForFloor(lsList, pod, et, container, opts) {
         : (+item[display] || 0).toFixed(2);
       if(numericDisplays.includes(display) && +val === 0) val = "-";
       valSpan.textContent = val;
-
-      if(display === "dolg") {
-        if(item.dolg < 0) valSpan.style.color = "green";
-        else if(item.dolg > avgValues["dolg"]) valSpan.style.color = "red";
-        else valSpan.style.color = "black";
-      } else valSpan.style.color = "black";
-
+      valSpan.style.color = display === "dolg"
+        ? (item.dolg < 0 ? "green" : item.dolg > avgValues["dolg"] ? "red" : "black")
+        : "black";
       div.appendChild(valSpan);
 
-      // ====================== Всплывающая подсказка ======================
       const infoParts = [];
       for (const [key, name] of Object.entries(displayKeysName)) {
         let v = item[key] ?? "";
@@ -425,26 +429,19 @@ function createItemsForFloor(lsList, pod, et, container, opts) {
         if (v === "" || item.et === 0) continue;
         infoParts.push(`${name}: ${v}`);
       }
-
       if (item.tel) infoParts.push(`Телефон: ${item.tel}`);
       if (item.email) infoParts.push(`Електронна пошта: ${item.email}`);
-      if (item.note) {
-        const formattedNote = item.note.replace(/\n/g, "<br>");
-        infoParts.push(`Примітка: ${formattedNote}`);
-      }
-
+      if (item.note) infoParts.push(`Примітка: ${item.note.replace(/\n/g, "<br>")}`);
       div.dataset.fio = infoParts.join("\n");
+
       container.appendChild(div);
     });
   } else {
     // --- Итог по этажу ---
     const totalItem = { et, pod };
     displayKeys.forEach(key => {
-      if(["ls","kv"].includes(key)) {
-        totalItem[key] = key === "ls" ? countLs(items) : countUniqueKv(items);
-      } else {
-        totalItem[key] = items.reduce((s,i) => s + (+i[key]||0), 0);
-      }
+      if(["ls","kv"].includes(key)) totalItem[key] = key === "ls" ? countLs(items) : countUniqueKv(items);
+      else totalItem[key] = items.reduce((s,i) => s + (+i[key]||0), 0);
     });
 
     const div = document.createElement("div");
@@ -456,16 +453,12 @@ function createItemsForFloor(lsList, pod, et, container, opts) {
 
     const span = document.createElement("span");
     span.classList.add("value-span");
-    span.textContent = ["ls","kv"].includes(display)
-      ? totalItem[display]
-      : totalItem[display].toFixed(2);
-
+    span.textContent = ["ls","kv"].includes(display) ? totalItem[display] : totalItem[display].toFixed(2);
     if(display === "dolg") {
       const count = countUniqueKv(items) || 1;
       const avgDolg = totalItem.dolg / count;
       span.style.color = avgDolg < 0 ? "green" : avgDolg > avgValues["dolg"] ? "red" : "black";
     }
-
     div.appendChild(span);
     container.appendChild(div);
     requestAnimationFrame(() => { div.style.opacity = 1; });
@@ -474,17 +467,12 @@ function createItemsForFloor(lsList, pod, et, container, opts) {
 
 // ===================== 6. ПОДСКАЗКИ =====================
 function initTooltips() {
-  const isTouch = 'ontouchstart' in window;
-  if (isTouch) return; // на мобильных tooltip не используем, показываем через клик
-
-  let tooltip = document.querySelector(".fio-tooltip");
-  if (!tooltip) {
-    tooltip = document.createElement("div");
-    tooltip.classList.add("fio-tooltip");
-    document.body.appendChild(tooltip);
-  }
+  const tooltip = ensureTooltip();
+  const isTouch = isMobile();
 
   document.querySelectorAll(".floor-item").forEach(item => {
+    if (isTouch) return; // мобильные: обработка через click уже есть
+
     item.addEventListener("mouseenter", e => {
       const fio = item.dataset.fio;
       if (fio) {
@@ -492,23 +480,24 @@ function initTooltips() {
         tooltip.style.display = "block";
       }
     });
+
     item.addEventListener("mousemove", e => {
       const tw = tooltip.offsetWidth, th = tooltip.offsetHeight;
       let x = e.pageX + 10;
       let y = e.pageY + 10;
-
       tooltip.style.maxWidth = window.innerWidth * 0.8 + "px";
-
       if (x + tw > window.scrollX + window.innerWidth) x = e.pageX - tw - 10;
       if (y + th > window.scrollY + window.innerHeight) y = e.pageY - th - 10;
       if (x < window.scrollX) x = window.scrollX + 10;
-
       tooltip.style.left = x + "px";
       tooltip.style.top = y + "px";
     });
-    item.addEventListener("mouseleave", () => (tooltip.style.display = "none"));
+
+    item.addEventListener("mouseleave", () => tooltip.style.display = "none");
   });
 }
+
+
 
 // ===================== Вспомогательная функция для перехода =====================
 function goToAccount(accountId) {
@@ -531,6 +520,16 @@ function goToAccount(accountId) {
   handleMenuClick(homeCode, "accounts", actionLink);
 }
 
+// Создаём tooltip, если его ещё нет
+function ensureTooltip() {
+  let tooltip = document.querySelector(".fio-tooltip");
+  if (!tooltip) {
+    tooltip = document.createElement("div");
+    tooltip.classList.add("fio-tooltip");
+    document.body.appendChild(tooltip);
+  }
+  return tooltip;
+}
 // ===================== 7. ОБНОВЛЕНИЕ =====================
 function updateDisplay(newDisplay, state) {
   state.display = newDisplay;
