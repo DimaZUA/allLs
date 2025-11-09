@@ -517,7 +517,7 @@ function goToAccount(accountId) {
   let tooltip = document.querySelector(".fio-tooltip");
   if (tooltip) tooltip.style.display = "none";
 
-  handleMenuClick(homeCode, "accounts", actionLink);
+  //handleMenuClick(homeCode, "accounts", actionLink);
 }
 
 // Создаём tooltip, если его ещё нет
