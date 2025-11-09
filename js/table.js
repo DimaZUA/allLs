@@ -376,7 +376,7 @@ function generateTable() {
       }
       currentDate.setMonth(currentDate.getMonth() + 1);
     }
-    headerRow += '<th onclick="sortTable(this)">Борг кінцевий</th><th onclick="sortTable(this)">Місців боргу</th></tr>';
+    headerRow += '<th onclick="sortTable(this)">Борг кінцевий</th><th onclick="sortTable(this)">Місяців боргу</th></tr>';
   }
   thead.innerHTML = headerRow;
 
