@@ -139,7 +139,149 @@ function countLs(items) {
   return items.length;
 }
 
+// ===================== 3. СОЗДАНИЕ DOM =====================
+function createItemsForFloor(lsList, pod, et, container, opts) {
+  const { displayKeys, displayKeysName, display, numericDisplays, avgValues, avgArea, isFloorTotal } = opts;
+  const items = lsList.filter(i => i.pod === pod && i.et === et);
+  const baseWidth = 60;
+  const minWidth = 30;
+  const maxWidth = 120;
 
+  if (!isFloorTotal) {
+    items.sort((a, b) => parseKvNum(a.kv) - parseKvNum(b.kv));
+
+    items.forEach(item => {
+      const div = document.createElement("div");
+      div.classList.add("floor-item");
+      div.dataset.id = item.id;
+div.addEventListener("click", (e) => {
+  const accountId = e.currentTarget.dataset.id; // <-- твой id
+  const homeCode = getParam("homeCode");
+  if (!homeCode) return console.warn("homeCode не найден");
+
+  // Ищем пункт меню "Особові рахунки"
+  const actionLink = Array.from(
+    document.querySelectorAll(`.menu-item[data-code="${homeCode}"] ul span`)
+  ).find(span => span.textContent.trim() === "Особові рахунки");
+
+  if (!actionLink) {
+    console.warn('Не найден пункт меню "Особові рахунки" для', homeCode);
+    return;
+  }
+
+  setParam("kv", ls[accountId].kv);
+  let tooltip = document.querySelector(".fio-tooltip");
+  if(tooltip) tooltip.style.display = "none";
+  // Переходим в раздел лицевых счетов
+  handleMenuClick(homeCode, "accounts", actionLink);
+});
+
+      // --- Ширина ---
+      let width;
+      if (display === "dolg") {
+        const dolgs = items.map(i => i.dolg || 0);
+        const minDolg = Math.min(...dolgs);
+        const maxDolg = Math.max(...dolgs);
+        const val = item.dolg || 0;
+        const norm = (val - minDolg) / (maxDolg - minDolg || 1);
+        width = minWidth + norm * (maxWidth - minWidth);
+      } else {
+        const avg = avgValues[display] || avgArea;
+        const value = parseFloat(item[display]) || 0;
+        width = numericDisplays.includes(display)
+          ? Math.max(minWidth, Math.min((baseWidth * value) / avg, maxWidth))
+          : baseWidth;
+      }
+      div.style.width = width + "px";
+      div.style.transition = "width 0.5s ease, opacity 0.5s ease";
+      div.style.height = "40px";
+
+      // --- Номер квартиры ---
+      const kvSpan = document.createElement("span");
+      kvSpan.classList.add("kv-background");
+      kvSpan.textContent = item.kv;
+      kvSpan.classList.remove("green","red","black");
+      if(item.dolg < 0) kvSpan.classList.add("green");
+      else if(item.dolg > avgValues["dolg"]) kvSpan.classList.add("red");
+      else kvSpan.classList.add("black");
+      div.appendChild(kvSpan);
+
+      // --- Значение ---
+      const valSpan = document.createElement("span");
+      valSpan.classList.add("value-span");
+      let val = ["ls","kv","pers"].includes(display)
+        ? item[display]
+        : (+item[display] || 0).toFixed(2);
+      if(numericDisplays.includes(display) && +val === 0) val = "-";
+      valSpan.textContent = val;
+
+      if(display === "dolg") {
+        if(item.dolg < 0) valSpan.style.color = "green";
+        else if(item.dolg > avgValues["dolg"]) valSpan.style.color = "red";
+        else valSpan.style.color = "black";
+      } else valSpan.style.color = "black";
+
+      div.appendChild(valSpan);
+
+// --- Всплывающая подсказка ---
+const infoParts = [];
+
+// базовые поля из displayKeysName
+for (const [key, name] of Object.entries(displayKeysName)) {
+  let v = item[key] ?? "";
+  if (typeof v === "number") v = v.toLocaleString("ru-RU");
+  if (v === "" || item.et === 0) continue;
+  infoParts.push(`${name}: ${v}`);
+}
+
+// дополнительные поля
+if (item.tel) infoParts.push(`Телефон: ${item.tel}`);
+if (item.email) infoParts.push(`Електронна пошта: ${item.email}`);
+if (item.note) {
+  // заменяем \n на <br> при отображении
+  const formattedNote = item.note.replace(/\n/g, "<br>");
+  infoParts.push(`Примітка: ${formattedNote}`);
+}
+
+div.dataset.fio = infoParts.join("\n");
+
+      container.appendChild(div);
+    });
+  } else {
+    // --- Итог по этажу ---
+    const totalItem = { et, pod };
+    displayKeys.forEach(key => {
+      if(["ls","kv"].includes(key)) {
+        totalItem[key] = key === "ls" ? countLs(items) : countUniqueKv(items);
+      } else {
+        totalItem[key] = items.reduce((s,i) => s + (+i[key]||0), 0);
+      }
+    });
+
+    const div = document.createElement("div");
+    div.classList.add("floor-total");
+    div.dataset.id = `total-${pod}-${et}`;
+    div.style.width = "60px";
+    div.style.transition = "opacity 0.5s ease";
+    div.style.opacity = 0;
+
+    const span = document.createElement("span");
+    span.classList.add("value-span");
+    span.textContent = ["ls","kv"].includes(display)
+      ? totalItem[display]
+      : totalItem[display].toFixed(2);
+
+    if(display === "dolg") {
+      const count = countUniqueKv(items) || 1;
+      const avgDolg = totalItem.dolg / count;
+      span.style.color = avgDolg < 0 ? "green" : avgDolg > avgValues["dolg"] ? "red" : "black";
+    }
+
+    div.appendChild(span);
+    container.appendChild(div);
+    requestAnimationFrame(() => { div.style.opacity = 1; });
+  }
+}
 
 
 
@@ -232,7 +374,44 @@ function createFloorsForPod(lsList, pod, podDiv, opts) {
 }
 
 
+// ===================== 6. ПОДСКАЗКИ =====================
+function initTooltips() {
+  let tooltip = document.querySelector(".fio-tooltip");
+  if (!tooltip) {
+    tooltip = document.createElement("div");
+    tooltip.classList.add("fio-tooltip");
+    document.body.appendChild(tooltip);
+  }
 
+  document.querySelectorAll(".floor-item").forEach(item => {
+    item.addEventListener("mouseenter", e => {
+      const fio = item.dataset.fio;
+      if (fio) {
+        tooltip.innerHTML = fio.replace(/\n/g, "<br>");
+        tooltip.style.display = "block";
+      }
+    });
+item.addEventListener("mousemove", e => {
+  const tw = tooltip.offsetWidth, th = tooltip.offsetHeight;
+
+  // Используем pageX/pageY вместо clientX/clientY
+  let x = e.pageX + 10;
+  let y = e.pageY + 10;
+
+  tooltip.style.maxWidth = window.innerWidth * 0.8 + "px";
+
+  // Коррекция по видимой области окна
+  if (x + tw > window.scrollX + window.innerWidth) x = e.pageX - tw - 10;
+  if (y + th > window.scrollY + window.innerHeight) y = e.pageY - th - 10;
+  if (x < window.scrollX) x = window.scrollX + 10;
+
+  tooltip.style.left = x + "px";
+  tooltip.style.top = y + "px";
+});
+
+    item.addEventListener("mouseleave", () => (tooltip.style.display = "none"));
+  });
+}
 
 // ===================== 5. РЕНДЕР =====================
 function renderSchema(state) {
@@ -314,221 +493,6 @@ root.appendChild(totalHouseDiv);
   main.appendChild(root);
 
   initTooltips();
-}
-// ===================== 3. СОЗДАНИЕ DOM =====================
-function createItemsForFloor(lsList, pod, et, container, opts) {
-  const { displayKeys, displayKeysName, display, numericDisplays, avgValues, avgArea, isFloorTotal } = opts;
-  const items = lsList.filter(i => i.pod === pod && i.et === et);
-  const baseWidth = 60;
-  const minWidth = 30;
-  const maxWidth = 120;
-  const isTouch = 'ontouchstart' in window;
-  let lastTappedId = null;
-
-  if (!isFloorTotal) {
-    items.sort((a, b) => parseKvNum(a.kv) - parseKvNum(b.kv));
-
-    items.forEach(item => {
-      const div = document.createElement("div");
-      div.classList.add("floor-item");
-      div.dataset.id = item.id;
-
-      // ====================== CLICK / TAP ======================
-      if (!isTouch) {
-        // Десктоп: click сразу переходит
-        div.addEventListener("click", () => goToAccount(item.id));
-      } else {
-        // Мобильные: первый тап показывает info, второй — переход
-        div.addEventListener("click", (e) => {
-          const id = item.id;
-          const tooltip = document.querySelector(".fio-tooltip");
-
-          if (lastTappedId !== id) {
-            // первый тап — показать info
-            if (tooltip) {
-              tooltip.innerHTML = div.dataset.fio.replace(/\n/g, "<br>");
-              tooltip.style.display = "block";
-              tooltip.style.left = (e.pageX + 10) + "px";
-              tooltip.style.top = (e.pageY + 10) + "px";
-              tooltip.style.maxWidth = window.innerWidth * 0.8 + "px";
-            }
-            lastTappedId = id;
-          } else {
-            // второй тап — переход
-            if (tooltip) tooltip.style.display = "none";
-            goToAccount(id);
-            lastTappedId = null;
-          }
-
-          // сброс lastTappedId при тапе вне квартиры
-          document.addEventListener("click", ev => {
-            if (!ev.target.closest(".floor-item")) {
-              if (tooltip) tooltip.style.display = "none";
-              lastTappedId = null;
-            }
-          }, { once: true });
-        });
-      }
-
-      // ====================== Ширина ======================
-      let width;
-      if (display === "dolg") {
-        const dolgs = items.map(i => i.dolg || 0);
-        const minDolg = Math.min(...dolgs);
-        const maxDolg = Math.max(...dolgs);
-        const val = item.dolg || 0;
-        const norm = (val - minDolg) / (maxDolg - minDolg || 1);
-        width = minWidth + norm * (maxWidth - minWidth);
-      } else {
-        const avg = avgValues[display] || avgArea;
-        const value = parseFloat(item[display]) || 0;
-        width = numericDisplays.includes(display)
-          ? Math.max(minWidth, Math.min((baseWidth * value) / avg, maxWidth))
-          : baseWidth;
-      }
-      div.style.width = width + "px";
-      div.style.transition = "width 0.5s ease, opacity 0.5s ease";
-      div.style.height = "40px";
-
-      // ====================== Номер квартиры ======================
-      const kvSpan = document.createElement("span");
-      kvSpan.classList.add("kv-background");
-      kvSpan.textContent = item.kv;
-      kvSpan.classList.remove("green","red","black");
-      if(item.dolg < 0) kvSpan.classList.add("green");
-      else if(item.dolg > avgValues["dolg"]) kvSpan.classList.add("red");
-      else kvSpan.classList.add("black");
-      div.appendChild(kvSpan);
-
-      // ====================== Значение ======================
-      const valSpan = document.createElement("span");
-      valSpan.classList.add("value-span");
-      let val = ["ls","kv","pers"].includes(display)
-        ? item[display]
-        : (+item[display] || 0).toFixed(2);
-      if(numericDisplays.includes(display) && +val === 0) val = "-";
-      valSpan.textContent = val;
-
-      if(display === "dolg") {
-        if(item.dolg < 0) valSpan.style.color = "green";
-        else if(item.dolg > avgValues["dolg"]) valSpan.style.color = "red";
-        else valSpan.style.color = "black";
-      } else valSpan.style.color = "black";
-
-      div.appendChild(valSpan);
-
-      // ====================== Всплывающая подсказка ======================
-      const infoParts = [];
-      for (const [key, name] of Object.entries(displayKeysName)) {
-        let v = item[key] ?? "";
-        if (typeof v === "number") v = v.toLocaleString("ru-RU");
-        if (v === "" || item.et === 0) continue;
-        infoParts.push(`${name}: ${v}`);
-      }
-
-      if (item.tel) infoParts.push(`Телефон: ${item.tel}`);
-      if (item.email) infoParts.push(`Електронна пошта: ${item.email}`);
-      if (item.note) {
-        const formattedNote = item.note.replace(/\n/g, "<br>");
-        infoParts.push(`Примітка: ${formattedNote}`);
-      }
-
-      div.dataset.fio = infoParts.join("\n");
-      container.appendChild(div);
-    });
-  } else {
-    // --- Итог по этажу ---
-    const totalItem = { et, pod };
-    displayKeys.forEach(key => {
-      if(["ls","kv"].includes(key)) {
-        totalItem[key] = key === "ls" ? countLs(items) : countUniqueKv(items);
-      } else {
-        totalItem[key] = items.reduce((s,i) => s + (+i[key]||0), 0);
-      }
-    });
-
-    const div = document.createElement("div");
-    div.classList.add("floor-total");
-    div.dataset.id = `total-${pod}-${et}`;
-    div.style.width = "60px";
-    div.style.transition = "opacity 0.5s ease";
-    div.style.opacity = 0;
-
-    const span = document.createElement("span");
-    span.classList.add("value-span");
-    span.textContent = ["ls","kv"].includes(display)
-      ? totalItem[display]
-      : totalItem[display].toFixed(2);
-
-    if(display === "dolg") {
-      const count = countUniqueKv(items) || 1;
-      const avgDolg = totalItem.dolg / count;
-      span.style.color = avgDolg < 0 ? "green" : avgDolg > avgValues["dolg"] ? "red" : "black";
-    }
-
-    div.appendChild(span);
-    container.appendChild(div);
-    requestAnimationFrame(() => { div.style.opacity = 1; });
-  }
-}
-
-// ===================== 6. ПОДСКАЗКИ =====================
-function initTooltips() {
-  const isTouch = 'ontouchstart' in window;
-  if (isTouch) return; // на мобильных tooltip не используем, показываем через клик
-
-  let tooltip = document.querySelector(".fio-tooltip");
-  if (!tooltip) {
-    tooltip = document.createElement("div");
-    tooltip.classList.add("fio-tooltip");
-    document.body.appendChild(tooltip);
-  }
-
-  document.querySelectorAll(".floor-item").forEach(item => {
-    item.addEventListener("mouseenter", e => {
-      const fio = item.dataset.fio;
-      if (fio) {
-        tooltip.innerHTML = fio.replace(/\n/g, "<br>");
-        tooltip.style.display = "block";
-      }
-    });
-    item.addEventListener("mousemove", e => {
-      const tw = tooltip.offsetWidth, th = tooltip.offsetHeight;
-      let x = e.pageX + 10;
-      let y = e.pageY + 10;
-
-      tooltip.style.maxWidth = window.innerWidth * 0.8 + "px";
-
-      if (x + tw > window.scrollX + window.innerWidth) x = e.pageX - tw - 10;
-      if (y + th > window.scrollY + window.innerHeight) y = e.pageY - th - 10;
-      if (x < window.scrollX) x = window.scrollX + 10;
-
-      tooltip.style.left = x + "px";
-      tooltip.style.top = y + "px";
-    });
-    item.addEventListener("mouseleave", () => (tooltip.style.display = "none"));
-  });
-}
-
-// ===================== Вспомогательная функция для перехода =====================
-function goToAccount(accountId) {
-  const homeCode = getParam("homeCode");
-  if (!homeCode) return console.warn("homeCode не найден");
-
-  const actionLink = Array.from(
-    document.querySelectorAll(`.menu-item[data-code="${homeCode}"] ul span`)
-  ).find(span => span.textContent.trim() === "Особові рахунки");
-
-  if (!actionLink) {
-    console.warn('Не найден пункт меню "Особові рахунки" для', homeCode);
-    return;
-  }
-
-  setParam("kv", ls[accountId].kv);
-  let tooltip = document.querySelector(".fio-tooltip");
-  if (tooltip) tooltip.style.display = "none";
-
-  handleMenuClick(homeCode, "accounts", actionLink);
 }
 
 // ===================== 7. ОБНОВЛЕНИЕ =====================
