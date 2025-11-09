@@ -362,7 +362,7 @@ function generateTable() {
     for (const serviceId of servicesWithCharges) {
       headerRow += `<th onclick="sortTable(this)">${us[serviceId]}</th>`;
     }
-    headerRow += '<th onclick="sortTable(this)">Оплати</th><th onclick="sortTable(this)">Борг кінцевий</th><th onclick="sortTable(this)">Місців боргу</th></tr>';
+    headerRow += '<th onclick="sortTable(this)">Оплати</th><th onclick="sortTable(this)">Борг кінцевий</th><th onclick="sortTable(this)">Місяців боргу</th></tr>';
   } else {
     let currentDate = new Date(start);
     while (currentDate <= end) {

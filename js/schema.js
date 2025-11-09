@@ -318,11 +318,6 @@ root.appendChild(totalHouseDiv);
 
 
 
-// ===================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =====================
-function isMobile() {
-  // Истинно мобильное устройство: есть touchpoints и небольшой экран
-  return ('ontouchstart' in window || navigator.maxTouchPoints > 0) && window.innerWidth < 1024;
-}
 
 // ===================== 3. СОЗДАНИЕ DOM =====================
 function createItemsForFloor(lsList, pod, et, container, opts) {
@@ -344,21 +339,33 @@ function createItemsForFloor(lsList, pod, et, container, opts) {
 
       // ====================== CLICK / TAP ======================
       if (!isTouch) {
+        // Desktop: клик для перехода (подсказка через mouse events)
         div.addEventListener("click", () => goToAccount(item.id));
       } else {
-        div.addEventListener("click", (e) => {
+        // Touch: короткий тап — подсказка, долгий тап — переход
+        let longPressTimer = null;
+
+        div.addEventListener("touchstart", e => {
           const id = item.id;
           const tooltip = ensureTooltip();
 
+          // Запуск таймера долгого удержания (500ms)
+          longPressTimer = setTimeout(() => {
+            tooltip.style.display = "none"; // скрыть подсказку
+            goToAccount(id);
+            lastTappedId = null;
+          }, 500);
+
+          // Показываем подсказку при первом тапе
           if (lastTappedId !== id) {
             tooltip.innerHTML = div.dataset.fio.replace(/\n/g, "<br>");
             tooltip.style.display = "block";
 
             const tw = tooltip.offsetWidth, th = tooltip.offsetHeight;
-            let x = e.pageX + 10;
-            let y = e.pageY + 10;
-            if (x + tw > window.scrollX + window.innerWidth) x = e.pageX - tw - 10;
-            if (y + th > window.scrollY + window.innerHeight) y = e.pageY - th - 10;
+            let x = e.touches[0].pageX + 10;
+            let y = e.touches[0].pageY + 10;
+            if (x + tw > window.scrollX + window.innerWidth) x = e.touches[0].pageX - tw - 10;
+            if (y + th > window.scrollY + window.innerHeight) y = e.touches[0].pageY - th - 10;
             if (x < window.scrollX) x = window.scrollX + 10;
 
             tooltip.style.left = x + "px";
@@ -368,17 +375,22 @@ function createItemsForFloor(lsList, pod, et, container, opts) {
             lastTappedId = id;
           } else {
             tooltip.style.display = "none";
-            goToAccount(id);
             lastTappedId = null;
           }
-
-          document.addEventListener("click", ev => {
-            if (!ev.target.closest(".floor-item")) {
-              tooltip.style.display = "none";
-              lastTappedId = null;
-            }
-          }, { once: true });
         });
+
+        div.addEventListener("touchend", () => {
+          clearTimeout(longPressTimer); // отменяем долгий тап, если отпустили раньше
+        });
+
+        // Скрытие подсказки при тапе вне элемента
+        document.addEventListener("touchstart", ev => {
+          if (!ev.target.closest(".floor-item")) {
+            const tooltip = ensureTooltip();
+            tooltip.style.display = "none";
+            lastTappedId = null;
+          }
+        }, { passive: true });
       }
 
       // --- Ширина, номера квартир, значения, подсказки --- //
@@ -465,6 +477,7 @@ function createItemsForFloor(lsList, pod, et, container, opts) {
   }
 }
 
+
 // ===================== 6. ПОДСКАЗКИ =====================
 function initTooltips() {
   const tooltip = ensureTooltip();
@@ -517,7 +530,7 @@ function goToAccount(accountId) {
   let tooltip = document.querySelector(".fio-tooltip");
   if (tooltip) tooltip.style.display = "none";
 
-  //handleMenuClick(homeCode, "accounts", actionLink);
+  handleMenuClick(homeCode, "accounts", actionLink);
 }
 
 // Создаём tooltip, если его ещё нет

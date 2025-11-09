@@ -1690,6 +1690,11 @@ mainTable.querySelectorAll("td[rowspan]").forEach(td => {
   }
 }
 
+// ===================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =====================
+function isMobile() {
+  // Истинно мобильное устройство: есть touchpoints и небольшой экран
+  return ('ontouchstart' in window || navigator.maxTouchPoints > 0) //&& window.innerWidth < 1024;
+}
 
 
 
