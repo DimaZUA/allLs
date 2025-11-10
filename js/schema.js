@@ -327,7 +327,7 @@ function createItemsForFloor(lsList, pod, et, container, opts) {
   const minWidth = 30;
   const maxWidth = 120;
   const isTouch = isMobile();
-  let lastTappedId = null;
+  let lastTappedId = 0;
 
   if (!isFloorTotal) {
     items.sort((a, b) => parseKvNum(a.kv) - parseKvNum(b.kv));
@@ -353,7 +353,7 @@ function createItemsForFloor(lsList, pod, et, container, opts) {
           longPressTimer = setTimeout(() => {
             tooltip.style.display = "none"; // скрыть подсказку
             goToAccount(id);
-            lastTappedId = null;
+            lastTappedId = 0;
           }, 500);
 
           // Показываем подсказку при первом тапе
@@ -375,7 +375,7 @@ function createItemsForFloor(lsList, pod, et, container, opts) {
             lastTappedId = id;
           } else {
             tooltip.style.display = "none";
-            lastTappedId = null;
+            lastTappedId = 0;
           }
         });
 
@@ -388,7 +388,7 @@ function createItemsForFloor(lsList, pod, et, container, opts) {
           if (!ev.target.closest(".floor-item")) {
             const tooltip = ensureTooltip();
             tooltip.style.display = "none";
-            lastTappedId = null;
+            lastTappedId = 0;
           }
         }, { passive: true });
       }

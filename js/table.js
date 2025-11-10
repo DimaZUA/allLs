@@ -308,6 +308,7 @@ function calculateDebtMonthsFromCache(monthData, debtEnd, endDate) {
 }
 
 function generateTable() {
+  const isTouch=isMobile();
   const tableContainer = document.getElementById("table-container");
   tableContainer.innerHTML = "";
 
@@ -451,21 +452,51 @@ function generateTable() {
 
     const row = document.createElement("tr");
     row.setAttribute("data-kv", ls[accountId].kv);
-    row.addEventListener("click", (e) => {
-      const kv = e.currentTarget.dataset.kv;
-      const homeCode = getParam("homeCode");
-      if (!homeCode) return console.warn("homeCode не найден");
-      const actionLink = Array.from(
-        document.querySelectorAll(`.menu-item[data-code="${homeCode}"] ul span`)
-      ).find(span => span.textContent.trim() === "Особові рахунки");
-      if (!actionLink) {
-        console.warn('Не найден пункт меню "Особові рахунки" для', homeCode);
-        return;
-      }
-      setParam("kv", kv);
-      handleMenuClick(homeCode, "accounts", actionLink);
-    });
 
+function addRowHandler(row) {
+  const handleAction = (e) => {
+    const kv = e.currentTarget.dataset.kv;
+    const homeCode = getParam("homeCode");
+    if (!homeCode) return console.warn("homeCode не найден");
+    const actionLink = Array.from(
+      document.querySelectorAll(`.menu-item[data-code="${homeCode}"] ul span`)
+    ).find(span => span.textContent.trim() === "Особові рахунки");
+    if (!actionLink) {
+      console.warn('Не найден пункт меню "Особові рахунки" для', homeCode);
+      return;
+    }
+    setParam("kv", kv);
+    handleMenuClick(homeCode, "accounts", actionLink);
+  };
+
+  // проверка touch-устройства
+
+  if (!isTouch) {
+    // обычный клик для мыши
+    row.addEventListener("click", handleAction);
+  } else {
+    // longPress для touch
+    let pressTimer;
+    let pressed = false;
+
+    const start = (e) => {
+      pressed = false;
+      pressTimer = setTimeout(() => {
+        pressed = true;
+        handleAction(e);
+      }, 500); // время удержания (мс)
+    };
+
+    const cancel = () => clearTimeout(pressTimer);
+
+    row.addEventListener("touchstart", start);
+    row.addEventListener("touchend", cancel);
+    row.addEventListener("touchmove", cancel);
+    row.addEventListener("touchcancel", cancel);
+  }
+}    
+addRowHandler(row);    
+    
     row.appendChild(generateLsCell(accountId));
     row.innerHTML += `<td>${ls[accountId].fio}</td>`;
     row.innerHTML += `<td>${debitStart.toFixedWithComma()}</td>`;
@@ -477,9 +508,15 @@ function generateTable() {
         row.innerHTML += `<td>${chargesByServiceSum.toFixedWithComma()}</td>`;
         totalCharges[serviceId] = (totalCharges[serviceId] || 0) + chargesByServiceSum;
       }
-      const paymentsSumRow = monthData.reduce((s, m) => s + m.paymentsSum, 0);
-      totalPayments["all"] = (totalPayments["all"] || 0) + paymentsSumRow;
-      row.innerHTML += `<td>${paymentsSumRow.toFixedWithComma()}</td>`;
+  // собираем все оплаты всех месяцев в один массив
+  const allPayments = monthData.flatMap(m => m.paymentsArr || []);
+
+  const paymentsSumRow = monthData.reduce((s, m) => s + m.paymentsSum, 0);
+  totalPayments["all"] = (totalPayments["all"] || 0) + paymentsSumRow;
+
+  // создаем ячейку с подробностями оплат
+  const paymentCell = generatePaymentCell(allPayments);
+  row.appendChild(paymentCell);
       row.innerHTML += `<td>${debitEnd.toFixedWithComma()}</td>`;
       row.innerHTML += `<td>${debtMonths}</td>`;
       totalEndDebt += debitEnd;
