@@ -454,22 +454,23 @@ function generateTable() {
     row.setAttribute("data-kv", ls[accountId].kv);
 
 function addRowHandler(row) {
-  const handleAction = (e) => {
-    const kv = e.currentTarget.dataset.kv;
+  const handleAction = () => {
+    const kv = row.dataset.kv; // используем row напрямую
     const homeCode = getParam("homeCode");
     if (!homeCode) return console.warn("homeCode не найден");
+
     const actionLink = Array.from(
       document.querySelectorAll(`.menu-item[data-code="${homeCode}"] ul span`)
     ).find(span => span.textContent.trim() === "Особові рахунки");
+
     if (!actionLink) {
       console.warn('Не найден пункт меню "Особові рахунки" для', homeCode);
       return;
     }
+
     setParam("kv", kv);
     handleMenuClick(homeCode, "accounts", actionLink);
   };
-
-  // проверка touch-устройства
 
   if (!isTouch) {
     // обычный клик для мыши
@@ -477,14 +478,11 @@ function addRowHandler(row) {
   } else {
     // longPress для touch
     let pressTimer;
-    let pressed = false;
 
-    const start = (e) => {
-      pressed = false;
+    const start = () => {
       pressTimer = setTimeout(() => {
-        pressed = true;
-        handleAction(e);
-      }, 500); // время удержания (мс)
+        handleAction();
+      }, 500); // длительное удержание (мс)
     };
 
     const cancel = () => clearTimeout(pressTimer);
@@ -494,7 +492,8 @@ function addRowHandler(row) {
     row.addEventListener("touchmove", cancel);
     row.addEventListener("touchcancel", cancel);
   }
-}    
+}
+
 addRowHandler(row);    
     
     row.appendChild(generateLsCell(accountId));
