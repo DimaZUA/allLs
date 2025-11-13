@@ -294,7 +294,7 @@ function renderFilebar() {
         yearsDiv.style.margin = "10px 0";
         yearsDiv.style.overflowX = "auto";
 
-        rootDir.years.forEach(y => {
+        rootDir.years.slice().reverse().forEach(y => {
             const btn = document.createElement("button");
             btn.textContent = y;
             btn.className = "year-btn";
