@@ -696,6 +696,15 @@ font-size: 1rem;
   height: 50px;
   resize: vertical;
 }
+.modal-status {
+  padding: 4px;
+  border-radius: 4px;
+  font-weight: bold;
+  max-width: 100%;
+  white-space: normal;
+  word-break: break-word;
+  display: inline-block;
+}
 
 /* Адаптив */
 @media (max-width: 600px) {

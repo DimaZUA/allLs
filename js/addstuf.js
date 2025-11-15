@@ -1093,7 +1093,7 @@ async function sendCorrection(payload, accountId) {
     home_code: payload.homeCode || "",
     org: payload.org || "",
     sender:sender || "",
-    effective_date: payload.effectiveDate ? new Date(payload.effectiveDate) : null,
+    effective_date: payload.effectiveDate ? formatDate(new Date(payload.effectiveDate),"DD.MM.YYYY") : null,
     fio_old: payload.fio_old || "",
     fio_new: payload.fio_new || "",
     pl_old: payload.pl_old || null,
@@ -1136,6 +1136,7 @@ async function sendCorrection(payload, accountId) {
 
     // --- Формируем изменения как строку для EmailJS ---
     const changes = [];
+    if (finalData.effective_date) changes.push(`Дата змін: ${finalData.effective_date}`);
     if (finalData.fio_old !== finalData.fio_new) changes.push(`ФІО: ${finalData.fio_old} → ${finalData.fio_new}`);
     if (finalData.pl_old !== finalData.pl_new) changes.push(`Площа: ${finalData.pl_old} → ${finalData.pl_new}`);
     if (finalData.pers_old !== finalData.pers_new) changes.push(`Мешканців: ${finalData.pers_old} → ${finalData.pers_new}`);
@@ -1371,7 +1372,7 @@ function showHistoryModal(data, sender) {
 const dateDiv = document.createElement("div");
 dateDiv.style.fontWeight = "bold";
 
-const line1 = dateEntry ? sender+" "+dateEntry.toLocaleString("uk-UA") : "";
+const line1 = dateEntry ? row.sender+" "+dateEntry.toLocaleString("uk-UA") : "";
 const line2 = dateChange ? "зміни з: "+dateChange.toLocaleDateString("uk-UA") : "";
 
 dateDiv.innerHTML = [line1, line2].filter(x => x).join("<br>");
@@ -1424,7 +1425,10 @@ if (row.status?.toLowerCase().includes("внесено")) {
 
     // Статус
     const statusDiv = document.createElement("div");
-    statusDiv.style = `margin-top:4px;padding:4px;background:${statusColor};border-radius:4px;width:max-content;font-weight:bold`;
+    statusDiv.className = "modal-status";
+    statusDiv.style.background = statusColor;
+
+
     statusDiv.textContent = row.status;
     contentDiv.appendChild(statusDiv);
 

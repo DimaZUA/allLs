@@ -276,7 +276,7 @@ const keys = ["pl","ls","pers","kv","dolg","opl","nach"];
 keys.forEach(k => {
   const div = document.createElement("div");
   const spanLabel = document.createElement("span");
-  spanLabel.textContent = state.displayKeysName[k] + ": ";
+  spanLabel.textContent = state.itogKeysName[k] + ": ";
   div.appendChild(spanLabel);
 
   let val;
@@ -657,6 +657,16 @@ function initSchema() {
     opl: "Платіж",
     nach: "Нараховано",
   };
+  const itogKeysName = {
+    pl: "Площа всіх преміщень",
+    ls: "Кількість особових рахунків",
+    pers: "Прописано осіб",
+    kv: "Кількість приміщень",
+    dolg: "Загальний борг по особовим рахункам",
+    opl: "Сплачено в поточному місяці",
+    nach: "Нараховано за поточний місяць",
+  };
+
   const numericDisplays = ["opl","nach","dolg","pl"];
   let display = "pl";
 
@@ -664,6 +674,6 @@ function initSchema() {
   const { avgArea, avgValues } = calculateAverages(lsList, numericDisplays);
   const entrances = [...new Set(lsList.map(it=>+it.pod))].sort((a,b)=>a-b);
 
-  const state = { display, displayKeys, displayKeysName, numericDisplays, lsList, avgArea, avgValues, entrances };
+  const state = { display, displayKeys, displayKeysName, numericDisplays, lsList, avgArea, avgValues, entrances, itogKeysName };
   renderSchema(state);
 }
