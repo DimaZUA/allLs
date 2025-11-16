@@ -1148,6 +1148,19 @@ async function sendCorrection(payload, accountId) {
     const changesStr = changes.join("\r\n");
 
     // --- Отправка через EmailJS ---
+const isOlderThan90 = d => {
+    if (!d) return false;                     // не задано
+    const dt = new Date(d);
+    if (isNaN(dt)) return false;              // некорректная дата
+    const days = (Date.now() - dt.getTime()) / (1000 * 60 * 60 * 24);
+    return days > 90;
+};
+
+const uvaga =
+    (typeof finalData !== "undefined" && isOlderThan90(finalData.effective_date))
+        ? "УВАГА!!!"
+        : "";
+
     try {
       const templateParams = {
         name: finalData.sender,
@@ -1155,8 +1168,9 @@ async function sendCorrection(payload, accountId) {
         subject: "Зміни по "+ payload.org,
         address: finalData.address,
         changes: changesStr || "—",
-        correction: finalData.correction_amount || "—",
-        correctionText: finalData.correction_text || "—"
+        correction: finalData.correction_amount ? formatDate(finalData.correction_month,"MM.YYYY")+"  "+finalData.correction_amount+" грн." : "—",
+        correctionText: finalData.correction_text || "—",
+        uvaga: uvaga
       };
 
       await emailjs.send("service_ed425wm", "template_vcrj80e", templateParams, "GieX-9pNBnKJ0Z2HK");
