@@ -1092,16 +1092,16 @@ function generateLsCell(accountId) {
     ${curLS.kv} <!-- Номер квартиры -->
     <div class="descr">
       <div>
-        ЛС: ${curLS.ls}<br> <!-- Лицевой счет -->
-        ФИО: ${curLS.fio}<br> <!-- ФИО -->
-        ${curLS.pl ? `Площадь: ${curLS.pl} м²<br>` : ""} <!-- Площадь -->
-        ${curLS.pers ? `Жильцов: ${curLS.pers}<br>` : ""} <!-- Количество жильцов -->
-        ${curLS.komn ? `Комнат: ${curLS.komn}<br>` : ""} <!-- Количество комнат -->
-        ${curLS.et ? `Этаж: ${curLS.et}<br>` : ""} <!-- Этаж -->
-        ${curLS.pod ? `Подъезд: ${curLS.pod}<br>` : ""} <!-- Подъезд -->
-        ${curLS.lgota ? `Льготник: ${curLS.lgota}<br>` : ""} <!-- Льготник -->
+        Ос.рах: ${curLS.ls}<br> <!-- Лицевой счет -->
+        Власник: ${curLS.fio}<br> <!-- ФИО -->
+        ${curLS.pl ? `Площа: ${curLS.pl} м²<br>` : ""} <!-- Площадь -->
+        ${curLS.pers ? `Мешканців: ${curLS.pers}<br>` : ""} <!-- Количество жильцов -->
+        ${curLS.komn ? `Кімнат: ${curLS.komn}<br>` : ""} <!-- Количество комнат -->
+        ${curLS.et ? `Поверх: ${curLS.et}<br>` : ""} <!-- Этаж -->
+        ${curLS.pod ? `Під'їзд: ${curLS.pod}<br>` : ""} <!-- Подъезд -->
+        ${curLS.lgota ? `Пільга: ${curLS.lgota}<br>` : ""} <!-- Льготник -->
         ${curLS.tel ? `Телефон: ${curLS.tel}<br>` : ""} <!-- Телефон -->
-        ${curLS.note ? `Примечание: ${curLS.note}<br>` : ""} <!-- Примечание -->
+        ${curLS.note ? `Примітка: ${curLS.note}<br>` : ""} <!-- Примечание -->
         ${curLS.email ? `e-mail: ${curLS.email}<br>` : ""} <!-- Email -->
       </div>
     </div>

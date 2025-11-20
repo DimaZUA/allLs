@@ -441,6 +441,7 @@ function createItemsForFloor(lsList, pod, et, container, opts) {
         if (v === "" || item.et === 0) continue;
         infoParts.push(`${name}: ${v}`);
       }
+      if (item.fio) infoParts.push(`Власник: ${item.fio}`);
       if (item.tel) infoParts.push(`Телефон: ${item.tel}`);
       if (item.email) infoParts.push(`Електронна пошта: ${item.email}`);
       if (item.note) infoParts.push(`Примітка: ${item.note.replace(/\n/g, "<br>")}`);
