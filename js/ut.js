@@ -1088,7 +1088,7 @@ function isElementVisible(el) {
   }
   return true;
 }
-function parseCellValue(value) {
+function parseCellValue2(value) {
   var trimmedValue = value.replace(/\u00A0/g, " ").trim();
 
   // Списки месяцев
@@ -1305,170 +1305,109 @@ function handleHeaders(tableCopy, ws) {
     });
   }
 }
-function exportTableToExcel() {
-  return _exportTableToExcel.apply(this, arguments);
-}
-function _exportTableToExcel() {
-  _exportTableToExcel = _asyncToGenerator(
-    /*#__PURE__*/ _regeneratorRuntime().mark(function _callee() {
-      var action,
-        mainContainer,
-        tables,
-        wb,
-        ws,
-        buffer,
-        blob,
-        link,
-        homeCode,
-        actionCode,
-        home,
-        fileName,
-        clipboardData,
-        rows,
-        _args = arguments;
-      return _regeneratorRuntime().wrap(
-        function _callee$(_context) {
-          while (1)
-            switch ((_context.prev = _context.next)) {
-              case 0:
-                action =
-                  _args.length > 0 && _args[0] !== undefined
-                    ? _args[0]
-                    : "download";
-                mainContainer = document.getElementById("maincontainer");
-                if (mainContainer) {
-                  _context.next = 5;
-                  break;
-                }
-                showMessage("Контейнер с id='maincontainer' не найден");
-                return _context.abrupt("return");
-              case 5:
-                // Ищем все видимые таблицы
-                tables = Array.from(
-                  mainContainer.querySelectorAll(
-                    "#banktable, #paytable, .main, #main, .analiz-table"
-                  )
-                ).filter(function (el) {
-                  while (el) {
-                    var style = window.getComputedStyle(el);
-                    if (
-                      style.display === "none" ||
-                      style.visibility === "hidden" ||
-                      style.opacity === "0"
-                    ) {
-                      return false;
-                    }
-                    el = el.parentElement;
-                  }
-                  return true;
-                });
-                if (!(tables.length === 0)) {
-                  _context.next = 9;
-                  break;
-                }
-                showMessage("Нет видимых таблиц");
-                return _context.abrupt("return");
-              case 9:
-                wb = new ExcelJS.Workbook();
-                ws = wb.addWorksheet("Sheet1"); // Обрабатываем таблицы
-                tables.forEach(function (table) {
-                  // Создаем копию таблицы, чтобы не модифицировать оригинальную
-                  var tableCopy = table.cloneNode(true);
+async function exportTableToExcel(action = "download") {
+    const mainContainer = document.getElementById("maincontainer");
 
-                  // Удаляем все элементы .descr из копии
-                  var descrElements = tableCopy.querySelectorAll(".descr");
-                  descrElements.forEach(function (el) {
-                    return el.remove();
-                  });
+    if (!mainContainer) {
+        showMessage("Контейнер с id='maincontainer' не найден");
+        return;
+    }
 
-                  // Обработка заголовков таблицы с учетом colspan и rowspan
-                  handleHeaders(tableCopy, ws);
+    // Находим все видимые таблицы
+    const tableSelectors = "#banktable, #paytable, .main, #main, .analiz-table";
+    const allTables = [...mainContainer.querySelectorAll(tableSelectors)];
 
-                  // Извлекаем данные из строк таблицы
-                  handleRows(tableCopy, ws);
-                });
-                if (!(action === "download")) {
-                  _context.next = 28;
-                  break;
-                }
-                _context.next = 15;
-                return wb.xlsx.writeBuffer();
-              case 15:
-                buffer = _context.sent;
-                blob = new Blob([buffer], {
-                  type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                });
-                link = document.createElement("a");
-                link.href = URL.createObjectURL(blob);
-
-                // Получаем код дома и код действия
-                homeCode = getParam("homeCode");
-                actionCode = getParam("actionCode");
-                home = homes.find(function (home) {
-                  return home.code === homeCode;
-                });
-                fileName = generateFileName(home, actionCode);
-                link.download = fileName;
-                link.click();
-                showMessage(
-                  "\u0424\u0430\u0439\u043B ".concat(
-                    fileName,
-                    " \u0441\u043E\u0445\u0440\u0430\u043D\u0435\u043D \u0432 \u043F\u0430\u043F\u043A\u0443 \u0417\u0430\u0433\u0440\u0443\u0437\u043A\u0438"
-                  )
-                );
-                _context.next = 41;
-                break;
-              case 28:
-                if (!(action === "clipboard")) {
-                  _context.next = 41;
-                  break;
-                }
-                // Копирование данных в буфер обмена
-                clipboardData = ""; // Получаем данные из строк рабочего листа (ws)
-                rows = ws.getRows(1, ws.rowCount); // Получаем все строки из листа
-                rows.forEach(function (row) {
-                  var rowData = [];
-
-                  // Проходим по каждой ячейке в строке
-                  row.eachCell(function (cell, colNumber) {
-                    // Проверяем, является ли ячейка объединенной
-                    if (cell.isMerged) {
-                      // Для объединенных ячеек добавляем пустые значения в остальные ячейки объединенной области
-                      if (rowData[colNumber - 1] === undefined) {
-                        rowData[colNumber - 1] = parseCellValue1(cell.text);
-                      }
-                    } else {
-                      rowData[colNumber - 1] = parseCellValue1(cell.text || ""); // Добавляем обработанное значение ячейки
-                    }
-                  });
-
-                  // Формируем строку для буфера обмена
-                  clipboardData += rowData.join("\t") + "\n"; // Разделение ячеек табуляцией
-                });
-                _context.prev = 32;
-                _context.next = 35;
-                return navigator.clipboard.writeText(clipboardData);
-              case 35:
-                showMessage("Данные скопированы в буфер обмена!");
-                _context.next = 41;
-                break;
-              case 38:
-                _context.prev = 38;
-                _context.t0 = _context["catch"](32);
-                showMessage("Не удалось скопировать данные в буфер обмена.");
-              case 41:
-              case "end":
-                return _context.stop();
+    const tables = allTables.filter(el => {
+        let node = el;
+        while (node) {
+            const style = getComputedStyle(node);
+            if (style.display === "none" ||
+                style.visibility === "hidden" ||
+                style.opacity === "0") {
+                return false;
             }
-        },
-        _callee,
-        null,
-        [[32, 38]]
-      );
-    })
-  );
-  return _exportTableToExcel.apply(this, arguments);
+            node = node.parentElement;
+        }
+        return true;
+    });
+
+    if (tables.length === 0) {
+        showMessage("Нет видимых таблиц");
+        return;
+    }
+
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet("Sheet1");
+
+    // Обрабатываем таблицы
+    for (const table of tables) {
+        // Копия таблицы
+        const tableCopy = table.cloneNode(true);
+
+        // Удаляем .descr
+        tableCopy.querySelectorAll(".descr").forEach(el => el.remove());
+
+        // Обработка заголовков
+        handleHeaders(tableCopy, ws);
+
+        // Обработка данных
+        handleRows(tableCopy, ws);
+    }
+
+    // === Скачивание файла ===
+    if (action === "download") {
+        const buffer = await wb.xlsx.writeBuffer();
+
+        const blob = new Blob([buffer], {
+            type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        });
+
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+
+        // имя файла
+        const homeCode = getParam("homeCode");
+        const actionCode = getParam("actionCode");
+        const home = homes.find(h => h.code === homeCode);
+        const fileName = generateFileName(home, actionCode);
+
+        link.download = fileName;
+        link.click();
+
+        showMessage(`Файл ${fileName} сохранён в папку Загрузки`);
+        return;
+    }
+
+    // === Копирование в буфер обмена ===
+    if (action === "clipboard") {
+        let clipboardData = "";
+        const rows = ws.getRows(1, ws.rowCount);
+
+        for (const row of rows) {
+            const rowData = [];
+
+            row.eachCell((cell, colNumber) => {
+                if (cell.isMerged) {
+                    if (rowData[colNumber - 1] === undefined) {
+                        rowData[colNumber - 1] = parseCellValue1(cell.text);
+                    }
+                } else {
+                    rowData[colNumber - 1] = parseCellValue1(cell.text || "");
+                }
+            });
+
+            clipboardData += rowData.join("\t") + "\n";
+        }
+
+        try {
+            await navigator.clipboard.writeText(clipboardData);
+            showMessage("Данные скопированы в буфер обмена!");
+        } catch (e) {
+            showMessage("Не удалось скопировать данные в буфер обмена.");
+        }
+    }
 }
+
 function handleRows(tableCopy, ws) {
   var tbody = tableCopy.querySelector("tbody");
   if (tbody) {
@@ -1524,7 +1463,7 @@ function handleRows(tableCopy, ws) {
       if (rowData.length) {
         // Обрабатываем основную строку
         var excelRow = rowData.map(function (cell) {
-          return parseCellValue(cell);
+          return parseCellValue2(cell);
         });
         ws.addRow(excelRow);
         rowIndex++;
@@ -1532,7 +1471,7 @@ function handleRows(tableCopy, ws) {
         // Обрабатываем все строки из nextRowDataArray
         nextRowDataArray.forEach(function (nextRowData) {
           var excelNextRowData = nextRowData.map(function (cell) {
-            return parseCellValue(cell);
+            return parseCellValue2(cell);
           });
           ws.addRow(excelNextRowData);
           rowIndex++;
@@ -1698,11 +1637,6 @@ function isMobile() {
 
 
 
-
-
-
-
-
-function nocache(url) {
+ function nocache(url) {
     return url + (url.includes("?") ? "&" : "?") + "t=" + Date.now();
 }
