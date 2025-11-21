@@ -1703,3 +1703,6 @@ function isMobile() {
 
 
 
+function nocache(url) {
+    return url + (url.includes("?") ? "&" : "?") + "t=" + Date.now();
+}

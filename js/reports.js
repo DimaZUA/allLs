@@ -461,7 +461,7 @@ function openFile(f) {
     if (f.match(/\.pdf$/i)) {
         const pngBtn = document.createElement("button");
         pngBtn.textContent = "🖼 Скачать как фото (для Viber/Telegram)";
-        pngBtn.onclick = () => downloadPdfAsPng(BASE_URL + f);
+        pngBtn.onclick = () => downloadPdfAsPng(nocache(BASE_URL + f));
         btnContainer.appendChild(pngBtn);
     }
 
@@ -472,7 +472,7 @@ function openFile(f) {
 
     if (f.match(/\.pdf$/i)) {
         const iframe = document.createElement("iframe");
-        iframe.src = BASE_URL + f;
+        iframe.src = nocache(BASE_URL + f);
         iframe.width = "100%";
         iframe.height = "100%";
         iframe.frameBorder = "0";
