@@ -728,12 +728,15 @@ function okon(number, form1, form2, form3) {
 // Функция для вычисления времени "сколько времени назад"
 function timeAgo(dateString) {
   var now = new Date(); // Текущая дата и время
-  var pastDate = new Date(
-    dateString.replace(
-      /(\d{2})\.(\d{2})\.(\d{4}) (\d{2}):(\d{2}):(\d{2})/,
-      "$3-$2-$1T$4:$5:$6"
-    )
-  ); // Преобразуем строку в формат ISO 8601
+var iso = dateString.replace(
+  /(\d{2})\.(\d{2})\.(\d{4}) (\d{1,2}):(\d{1,2}):(\d{1,2})/,
+  (m, d, mo, y, h, mi, s) =>
+    `${y}-${mo}-${d}T${h.padStart(2, "0")}:${mi.padStart(2, "0")}:${s.padStart(2, "0")}`
+);
+
+var pastDate = new Date(iso);
+
+// Преобразуем строку в формат ISO 8601
 
   var diffInMs = now - pastDate; // Разница в миллисекундах
   var diffInSeconds = Math.floor(diffInMs / 1000); // Переводим в секунды
