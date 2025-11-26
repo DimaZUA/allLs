@@ -987,14 +987,14 @@ function doRed() {
       const colspan = parseInt(cell.getAttribute("colspan") || "1", 10);
 
       // 1️⃣ Третий визуальный столбец (индекс 2) — начальный долг
-      if (visualIndex <= 2 && visualIndex + colspan > 2) {
+      if (visualIndex <= 4 && visualIndex + colspan > 4) {
         const value = parseFloat(cell.textContent);
         if (value > 0) cell.classList.add("red");
       }
 
       // 2️⃣ Столбцы между 4 и предпоследним визуальным — отрицательные суммы
-      for (let v = 3; v < totalVisualCols - 2; v++) {
-        if (visualIndex <= v && visualIndex + colspan > v) {
+      for (let v = 2; v < totalVisualCols - 2; v++) {
+        if (visualIndex!=4 && visualIndex <= v && visualIndex + colspan > v) {
           const value = parseFloat(cell.textContent);
           if (value < 0) cell.classList.add("red");
         }
