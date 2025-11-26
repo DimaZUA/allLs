@@ -357,7 +357,7 @@ function generateTable() {
   table.appendChild(tbody);
 
   // Заголовок
-  let headerRow = '<tr><th onclick="sortTable(this)">Квартира</th><th onclick="sortTable(this)">П.І. по Б.</th><th onclick="sortTable(this)">Борг початковий</th>';
+  let headerRow = '<tr><th onclick="sortTable(this)">Квартира</th><th onclick="sortTable(this)">П.І. по Б.</th></th><th onclick="sortTable(this)">Площа</th></th><th onclick="sortTable(this)">Мешк</th><th onclick="sortTable(this)">Борг початковий</th>';
 
   if (displayMode === "summarized") {
     for (const serviceId of servicesWithCharges) {
@@ -498,6 +498,8 @@ addRowHandler(row);
     
     row.appendChild(generateLsCell(accountId));
     row.innerHTML += `<td>${ls[accountId].fio}</td>`;
+    row.innerHTML += `<td>${ls[accountId].pl||0}</td>`;
+    row.innerHTML += `<td>${ls[accountId].pers||0}</td>`;
     row.innerHTML += `<td>${debitStart.toFixedWithComma()}</td>`;
     totalStartDebt += debitStart;
 
@@ -555,8 +557,13 @@ addRowHandler(row);
 
   // Итоговая строка
   const footerRow = document.createElement("tr");
+const totalPl = Object.values(ls)
+  .reduce((sum, item) => sum + (item.pl || 0), 0);
+const totalPers = Object.values(ls)
+  .reduce((sum, item) => sum + (item.pers || 0), 0);
+
   footerRow.classList.add("itog");
-  footerRow.innerHTML = `<td colspan=2>Разом</td><td>${totalStartDebt.toFixedWithComma()}</td>`;
+  footerRow.innerHTML = `<td colspan=2>Разом</td><td>${totalPl.toFixedWithComma()}</td><td>${totalPers}</td><td>${totalStartDebt.toFixedWithComma()}</td>`;
 
   if (displayMode === "summarized") {
     for (const serviceId of servicesWithCharges) {
@@ -663,8 +670,12 @@ function updateTotals(table) {
   const footer = table.querySelector(".itog");
   if (!footer) return;
 
-  const visibleRows = [...table.querySelectorAll("tbody tr")]
-    .filter(tr => tr.style.display !== "none" && !tr.classList.contains("itog") && !tr.classList.contains("header-row-clone"));
+const visibleRows = [...table.tBodies[0].rows]
+  .filter(tr =>
+    tr.style.display !== "none" &&
+    !tr.classList.contains("itog") &&
+    !tr.classList.contains("header-row-clone")
+  );
 
   if (!visibleRows.length) return;
 
