@@ -1093,7 +1093,7 @@ async function sendCorrection(payload, accountId) {
     home_code: payload.homeCode || "",
     org: payload.org || "",
     sender:sender || "",
-    effective_date: payload.effectiveDate ? formatDate(new Date(payload.effectiveDate),"DD.MM.YYYY") : null,
+    effective_date: payload.effectiveDate || null,
     fio_old: payload.fio_old || "",
     fio_new: payload.fio_new || "",
     pl_old: payload.pl_old || null,
@@ -1136,7 +1136,7 @@ async function sendCorrection(payload, accountId) {
 
     // --- Формируем изменения как строку для EmailJS ---
     const changes = [];
-    if (finalData.effective_date) changes.push(`Дата змін: ${finalData.effective_date}`);
+    if (finalData.effective_date) changes.push(`Дата змін: ${formatDate(finalData.effective_date,"DD.MM.YYYY")}`);
     if (finalData.fio_old !== finalData.fio_new) changes.push(`ФІО: ${finalData.fio_old} → ${finalData.fio_new}`);
     if (finalData.pl_old !== finalData.pl_new) changes.push(`Площа: ${finalData.pl_old} → ${finalData.pl_new}`);
     if (finalData.pers_old !== finalData.pers_new) changes.push(`Мешканців: ${finalData.pers_old} → ${finalData.pers_new}`);
