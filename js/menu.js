@@ -1,4 +1,4 @@
-﻿﻿// Список доступных действий (например, для каждого дома)
+﻿// Список доступных действий (например, для каждого дома)
 const actions = [
   { name: "Особові рахунки", actionCode: "accounts" },
   { name: "Перелік", actionCode: "list" },
@@ -345,20 +345,7 @@ document.addEventListener("webkitfullscreenchange", checkFullscreenMode);
 document.addEventListener("mozfullscreenchange", checkFullscreenMode);
 document.addEventListener("MSFullscreenChange", checkFullscreenMode);
 window.addEventListener("resize", checkFullscreenMode);
-document.addEventListener("DOMContentLoaded", function () {
-  var searchInput = document.getElementById("searchHomes");
 
-  // Восстанавливаем значение из localStorage
-  if (localStorage.getItem("searchHomes")) {
-    searchInput.value = localStorage.getItem("searchHomes");
-    filterHomes(searchInput.value);
-  }
-  searchInput.addEventListener("input", function () {
-    var filter = this.value.trim();
-    localStorage.setItem("searchHomes", filter); // Сохраняем в localStorage
-    filterHomes(filter);
-  });
-});
 function filterHomes(filter) {
   var regexPattern = filter
     .replace(/\s+/g, ".*") // Пробелы заменяем на .*
@@ -580,7 +567,16 @@ settingsItem.appendChild(settingsLink);
 menu.appendChild(settingsItem);
 menu.appendChild(logoutItem);
 
-
+  // Восстанавливаем значение из localStorage
+  if (localStorage.getItem("searchHomes")) {
+    searchInput.value = localStorage.getItem("searchHomes");
+    filterHomes(searchInput.value);
+  }
+  searchInput.addEventListener("input", function () {
+    var filter = this.value.trim();
+    localStorage.setItem("searchHomes", filter); // Сохраняем в localStorage
+    filterHomes(filter);
+  });
 
 }
 // Инициализация
