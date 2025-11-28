@@ -566,7 +566,7 @@ settingsItem.appendChild(settingsLink);
 // Добавляем в меню
 menu.appendChild(settingsItem);
 menu.appendChild(logoutItem);
-
+  if (homes.length > 5) {
   // Восстанавливаем значение из localStorage
   if (localStorage.getItem("searchHomes")) {
     searchInput.value = localStorage.getItem("searchHomes");
@@ -577,6 +577,7 @@ menu.appendChild(logoutItem);
     localStorage.setItem("searchHomes", filter); // Сохраняем в localStorage
     filterHomes(filter);
   });
+}
 
 }
 // Инициализация
