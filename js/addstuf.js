@@ -604,7 +604,7 @@ container.innerHTML = content;
 initPosters();
 setParam("kv", ls[accountId].kv);
 
-lastRow.scrollIntoView({ behavior: "smooth", block: "end" });
+//lastRow.scrollIntoView({ behavior: "smooth", block: "end" });
 
 container.addEventListener("click", function () {
   handleChangeRequest(accountId);
