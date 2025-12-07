@@ -246,66 +246,168 @@ function sortTable(header) {
 
 
 
-function calculateDebtMonthsFromCache(monthData, debtEnd, endDate) {
-  if (!monthData || monthData.length === 0) return 0;
+function calculateDebtMonthsFromCache(accountId, debtEnd, endDate) {
+    if (!nach[accountId]) return 0;
 
-  // Обрезаем endDate если он позже текущего месяца
-  const now = new Date();
-  const currentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  if (endDate > currentMonth) endDate = currentMonth;
+    const EPS = 0.004;
+    let remaining = debtEnd;
+    let months = 0;
 
-  // Сортируем по дате
-  monthData.sort((a, b) => a.date - b.date);
+    let currentYear = endDate.getFullYear();
+    let currentMonth = endDate.getMonth() + 1;
 
-  let remainingDebt = debtEnd;
-  let months = 0;
-
-  // --- Переплата ---
-  if (debtEnd < 0) {
-    const lastNonZero = [...monthData].reverse().find(c => c.chargesSum > 0);
-    if (!lastNonZero) return 0;
-    const result = -(Math.abs(debtEnd) / lastNonZero.chargesSum);
-    return +result.toFixed(1);
-  }
-
-  let currentDate = new Date(endDate);
-  currentDate.setHours(12);
-
-  const firstDate = monthData[0].date;
-
-  while (remainingDebt > 0) {
-    if (!(currentDate instanceof Date) || isNaN(currentDate)) break;
-
-    const y = currentDate.getFullYear();
-    const m = currentDate.getMonth() + 1;
-    const chargeObj = monthData.find(c => c.date.getFullYear() === y && c.date.getMonth() + 1 === m);
-    const sum = chargeObj ? chargeObj.chargesSum : 0;
-
-    if (sum > 0) {
-      if (remainingDebt >= sum) {
-        remainingDebt -= sum;
-        months += 1;
-      } else {
-        months += remainingDebt / sum;
-        remainingDebt = 0;
-      }
-    }
-
-    currentDate.setMonth(currentDate.getMonth() - 1);
-
-    if (currentDate < firstDate) {
-      if (remainingDebt > 0) {
-        const firstNonZero = monthData.find(c => c.chargesSum > 0);
-        if (firstNonZero) {
-          months += remainingDebt / firstNonZero.chargesSum;
+    // Собираем все месяцы с начислениями
+    const years = Object.keys(nach[accountId]).map(Number).sort((a,b)=>a-b);
+    const allMonths = [];
+    for (const y of years) {
+        for (let m = 1; m <= 12; m++) {
+            if (nach[accountId][y] && nach[accountId][y][m]) {
+                allMonths.push({year: y, month: m});
+            }
         }
-      }
-      break;
     }
-  }
 
-  return +months.toFixed(1);
+    // Первые 3 реально существующих месяца с начислениями (НЕ исключая код 13)
+    const firstThreeMonths = [];
+    for (const {year: y, month: m} of allMonths) {
+        const monthCharges = nach[accountId][y][m];
+        const monthSum = Object.values(monthCharges).reduce((s, v) => s + v, 0);
+        if (monthSum > EPS) {
+            firstThreeMonths.push({year: y, month: m});
+            if (firstThreeMonths.length >= 3) break;
+        }
+    }
+    const firstThreeSet = new Set(firstThreeMonths.map(x => x.year + "-" + x.month));
+
+    const debugLog = [];
+    if (accountId == 503031680) {
+        debugLog.push("=== Расчет долга для accountId 503031680 ===");
+        debugLog.push(`Исходный долг: ${remaining}, endDate: ${currentYear}-${currentMonth}`);
+        debugLog.push(`Первые 3 месяца для исключения кода 13: ${[...firstThreeSet].join(", ")}`);
+        debugLog.push("Все месяцы с начислениями:");
+        for (const {year: y, month: m} of allMonths) {
+            debugLog.push(`  ${y}-${m}: ${JSON.stringify(nach[accountId][y][m])}`);
+        }
+    }
+
+    // --- ДОЛГ ---
+    if (remaining > EPS) {
+        // Самый ранний месяц с ненулевым начислением
+        let earliestNonZeroSum = 0;
+        for (const {year: y, month: m} of allMonths) {
+            let monthCharges = {...nach[accountId][y][m]};
+            if (firstThreeSet.has(y + "-" + m)) delete monthCharges[13];
+            if (firstThreeSet.has(y + "-" + m)) delete monthCharges[10];
+            const monthSum = Object.values(monthCharges).reduce((a,b)=>a+b,0);
+            if (monthSum > EPS) {
+                earliestNonZeroSum = monthSum;
+                break;
+            }
+        }
+
+        while (remaining > EPS) {
+            let monthSum = 0;
+            let chargesUsed = false;
+
+            if (nach[accountId][currentYear] && nach[accountId][currentYear][currentMonth]) {
+                let monthCharges = {...nach[accountId][currentYear][currentMonth]};
+                debugLog.push(`Месяц ${currentYear}-${currentMonth}: исходные начисления: ${JSON.stringify(monthCharges)}`);
+                if (firstThreeSet.has(currentYear + "-" + currentMonth)) {
+                    delete monthCharges[13];
+                    debugLog.push(`Месяц ${currentYear}-${currentMonth}: после удаления кода 13: ${JSON.stringify(monthCharges)}`);
+                } else {
+                    debugLog.push(`Месяц ${currentYear}-${currentMonth}: код 13 НЕ удаляется, т.к. месяц не в первых трёх`);
+                }
+                monthSum = Object.values(monthCharges).reduce((a,b)=>a+b,0);
+                chargesUsed = true;
+            }
+
+            if (monthSum > EPS) {
+                if (remaining >= monthSum) {
+                    remaining -= monthSum;
+                    months += 1;
+                } else {
+                    months += remaining / monthSum;
+                    remaining = 0;
+                }
+            } else if (earliestNonZeroSum > EPS) {
+                months += remaining / earliestNonZeroSum;
+                debugLog.push(`Прогнозный месяц: ${currentYear}-${currentMonth}, сумма: ${earliestNonZeroSum}, остаток: ${remaining}`);
+                remaining = 0;
+            } else {
+                months += 1;
+                remaining = 0;
+            }
+
+            if (accountId == 503031680 && chargesUsed) {
+                debugLog.push(`Месяц ${currentYear}-${currentMonth}, начислено: ${monthSum}, остаток: ${remaining.toFixed(2)}, накопленные месяцы: ${months.toFixed(2)}`);
+            }
+
+            currentMonth -= 1;
+            if (currentMonth < 1) {
+                currentYear -= 1;
+                currentMonth = 12;
+                if (currentYear < years[0]) break;
+            }
+        }
+
+        if (accountId == 503031680) console.log(debugLog.join("\n"));
+        return +months.toFixed(1);
+    }
+
+    // --- ПЕРЕПЛАТА ---
+    if (remaining < -EPS) {
+        remaining = -remaining;
+        let lastNonZeroSum = 0;
+
+        for (const y of Object.keys(nach[accountId]).sort((a,b)=>a-b)) {
+            for (let m = 1; m <= 12; m++) {
+                if (nach[accountId][y] && nach[accountId][y][m]) {
+                    const monthSum = Object.values(nach[accountId][y][m]).reduce((a,b)=>a+b,0);
+                    if (monthSum > EPS) lastNonZeroSum = monthSum;
+                }
+            }
+        }
+
+        while (remaining > EPS) {
+            let monthSum = 0;
+            if (nach[accountId][currentYear] && nach[accountId][currentYear][currentMonth]) {
+                monthSum = Object.values(nach[accountId][currentYear][currentMonth]).reduce((a,b)=>a+b,0);
+            }
+
+            if (monthSum > EPS) {
+                if (remaining >= monthSum) {
+                    remaining -= monthSum;
+                    months += 1;
+                } else {
+                    months += remaining / monthSum;
+                    remaining = 0;
+                }
+            } else if (lastNonZeroSum > EPS) {
+                months += remaining / lastNonZeroSum;
+                remaining = 0;
+            }
+
+            currentMonth += 1;
+            if (currentMonth > 12) {
+                currentYear += 1;
+                currentMonth = 1;
+            }
+        }
+
+        return -parseFloat(months.toFixed(1));
+    }
+
+    return 0;
 }
+
+
+
+
+
+
+
+
 
 function generateTable() {
   const isTouch=isMobile();
@@ -442,7 +544,7 @@ function generateTable() {
 
     const debitStart = calculateInitialDebit(accountId, start);
     const debitEnd = debitStart + totalChargesSumFull - totalPaymentsSumFull;
-    const debtMonths = calculateDebtMonthsFromCache(monthData, debitEnd, end);
+    const debtMonths = calculateDebtMonthsFromCache(accountId, debitEnd, end);
 
     // Фильтр
     if ((filterValue === "paid-or-low-debt" && !(totalPaymentsSum > 0 || debitEnd < totalChargesSum * 3)) ||
