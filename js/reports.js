@@ -119,23 +119,33 @@ async function downloadFile(f) {
 // --- Скачать PDF как PNG ---
 async function downloadPdfAsPng(pdfUrl) {
     const pdf = await pdfjsLib.getDocument(pdfUrl).promise;
-    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+    const totalPages = pdf.numPages;
+    const needPageSuffix = totalPages > 1;
+
+    for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
         const page = await pdf.getPage(pageNum);
         const viewport = page.getViewport({ scale: 2 });
+
         const canvas = document.createElement("canvas");
         const ctx = canvas.getContext("2d");
         canvas.width = viewport.width;
         canvas.height = viewport.height;
+
         await page.render({ canvasContext: ctx, viewport }).promise;
 
         const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
         let bottom = canvas.height;
-        outer: for (let y = canvas.height - 1; y >= 0; y--) {
+
+        outer:
+        for (let y = canvas.height - 1; y >= 0; y--) {
             for (let x = 0; x < canvas.width; x++) {
                 const idx = (y * canvas.width + x) * 4;
-                if (imgData.data[idx] < 250 || imgData.data[idx+1] < 250 || imgData.data[idx+2] < 250) {
-                    bottom = y + 1 + BOTTOM_MARGIN_PX;
-                    if (bottom > canvas.height) bottom = canvas.height;
+                if (
+                    imgData.data[idx] < 250 ||
+                    imgData.data[idx + 1] < 250 ||
+                    imgData.data[idx + 2] < 250
+                ) {
+                    bottom = Math.min(y + 1 + BOTTOM_MARGIN_PX, canvas.height);
                     break outer;
                 }
             }
@@ -144,17 +154,27 @@ async function downloadPdfAsPng(pdfUrl) {
         const croppedCanvas = document.createElement("canvas");
         croppedCanvas.width = canvas.width;
         croppedCanvas.height = bottom;
-        croppedCanvas.getContext("2d").drawImage(canvas, 0, 0, canvas.width, bottom, 0, 0, canvas.width, bottom);
+        croppedCanvas
+            .getContext("2d")
+            .drawImage(canvas, 0, 0, canvas.width, bottom, 0, 0, canvas.width, bottom);
 
         const link = document.createElement("a");
         link.href = croppedCanvas.toDataURL("image/png");
+
         const baseName = getDownloadName(pdfUrl).replace(/\.pdf$/i, '');
-        link.download = `${baseName}-p${pageNum}.png`;
+
+        const pageSuffix = needPageSuffix
+            ? `-${String(pageNum).padStart(2, '0')}`
+            : '';
+
+        link.download = `${baseName}${pageSuffix}.png`;
+
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
     }
 }
+
 
 // --- Отображение структуры файлов ---
 function listDir(path) {
