@@ -161,7 +161,7 @@ async function downloadPdfAsPng(pdfUrl) {
         const link = document.createElement("a");
         link.href = croppedCanvas.toDataURL("image/png");
 
-        const baseName = getDownloadName(pdfUrl).replace(/\.pdf$/i, '');
+        const baseName = getCleanPdfBaseName(pdfUrl);
 
         const pageSuffix = needPageSuffix
             ? `-${String(pageNum).padStart(2, '0')}`
@@ -175,6 +175,11 @@ async function downloadPdfAsPng(pdfUrl) {
     }
 }
 
+function getCleanPdfBaseName(pdfUrl) {
+    const url = new URL(pdfUrl, location.href);
+    const fileName = url.pathname.split('/').pop(); // Ф20_25_11_Квітанц-всі.pdf
+    return fileName.replace(/\.pdf$/i, '');
+}
 
 // --- Отображение структуры файлов ---
 function listDir(path) {
