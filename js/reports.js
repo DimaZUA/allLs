@@ -81,6 +81,7 @@ function getFileClass(name) {
 
 // --- Формирование имени для скачивания ---
 function getDownloadName(f) {
+    f = f.replace(/([?_])t=\d+$/, "");
     const parts = f.split("/");
     let year = null;
     let month = null;
