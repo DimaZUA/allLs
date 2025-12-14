@@ -120,44 +120,79 @@ async function downloadFile(f) {
 // --- Скачать PDF как PNG ---
 async function downloadPdfAsPng(pdfUrl) {
     const pdf = await pdfjsLib.getDocument(pdfUrl).promise;
-    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-        const page = await pdf.getPage(pageNum);
-        const viewport = page.getViewport({ scale: 2 });
-        const canvas = document.createElement("canvas");
-        const ctx = canvas.getContext("2d");
-        canvas.width = viewport.width;
-        canvas.height = viewport.height;
-        await page.render({ canvasContext: ctx, viewport }).promise;
+    const baseName = getDownloadName(pdfUrl).replace(/\.pdf$/i, '');
 
-        const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        let bottom = canvas.height;
-        outer: for (let y = canvas.height - 1; y >= 0; y--) {
-            for (let x = 0; x < canvas.width; x++) {
-                const idx = (y * canvas.width + x) * 4;
-                if (imgData.data[idx] < 250 || imgData.data[idx+1] < 250 || imgData.data[idx+2] < 250) {
-                    bottom = y + 1 + BOTTOM_MARGIN_PX;
-                    if (bottom > canvas.height) bottom = canvas.height;
-                    break outer;
-                }
-            }
+    if (pdf.numPages <= 5) {
+        // Скачивание отдельных файлов
+        for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+            const canvas = await renderPdfPage(pdf, pageNum);
+            const link = document.createElement("a");
+            const pageStr = String(pageNum).padStart(2, '0');
+            link.href = canvas.toDataURL("image/png");
+            link.download = `${baseName}-${pageStr}.png`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            // минимальная пауза для браузера
+            await new Promise(r => setTimeout(r, 50));
+        }
+    } else {
+        // Скачивание в ZIP
+        const zip = new JSZip();
+        for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+            const canvas = await renderPdfPage(pdf, pageNum);
+            const pageStr = String(pageNum).padStart(2, '0');
+
+            const blob = await new Promise(resolve =>
+                canvas.toBlob(resolve, "image/png")
+            );
+            zip.file(`${baseName}-${pageStr}.png`, blob);
         }
 
+        const zipBlob = await zip.generateAsync({ type: "blob" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(zipBlob);
+        a.download = `${baseName}.zip`;
+        a.click();
+    }
+}
+
+// Вспомогательная функция: рендер страницы и обрезка
+async function renderPdfPage(pdf, pageNum) {
+    const page = await pdf.getPage(pageNum);
+    const viewport = page.getViewport({ scale: 2 });
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+
+    await page.render({ canvasContext: ctx, viewport }).promise;
+
+    // Обрезка по нижнему краю
+    const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    let bottom = canvas.height;
+    outer: for (let y = canvas.height - 1; y >= 0; y--) {
+        for (let x = 0; x < canvas.width; x++) {
+            const idx = (y * canvas.width + x) * 4;
+            if (imgData.data[idx] < 250 || imgData.data[idx+1] < 250 || imgData.data[idx+2] < 250) {
+                bottom = y + 1 + BOTTOM_MARGIN_PX;
+                if (bottom > canvas.height) bottom = canvas.height;
+                break outer;
+            }
+        }
+    }
+
+    if (bottom < canvas.height) {
         const croppedCanvas = document.createElement("canvas");
         croppedCanvas.width = canvas.width;
         croppedCanvas.height = bottom;
         croppedCanvas.getContext("2d").drawImage(canvas, 0, 0, canvas.width, bottom, 0, 0, canvas.width, bottom);
-
-        const link = document.createElement("a");
-        link.href = croppedCanvas.toDataURL("image/png");
-        const baseName = getDownloadName(pdfUrl).replace(/\.pdf$/i, '');
-        const pageStr = String(pageNum).padStart(2, '0');
-        link.download = `${baseName}-${pageStr}.png`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        await new Promise(r => setTimeout(r, 1500));
+        return croppedCanvas;
     }
+
+    return canvas;
 }
+
 
 
 // --- Отображение структуры файлов ---
