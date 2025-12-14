@@ -120,7 +120,7 @@ async function downloadFile(f) {
 // --- Скачать PDF как PNG ---
 async function downloadPdfAsPng(pdfUrl) {
     const pdf = await pdfjsLib.getDocument(pdfUrl).promise;
-    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+    for (let pageNum = pdf.numPages; pageNum >=1; pageNum--) {
         const page = await pdf.getPage(pageNum);
         const viewport = page.getViewport({ scale: 2 });
         const canvas = document.createElement("canvas");
@@ -155,7 +155,7 @@ async function downloadPdfAsPng(pdfUrl) {
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        await new Promise(r => setTimeout(r, 300));
+        await new Promise(r => setTimeout(r, 500));
     }
 }
 
