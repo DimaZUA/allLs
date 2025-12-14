@@ -155,7 +155,7 @@ async function downloadPdfAsPng(pdfUrl) {
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        await new Promise(r => setTimeout(r, 50));
+        await new Promise(r => setTimeout(r, 300));
     }
 }
 
