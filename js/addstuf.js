@@ -416,7 +416,7 @@ if (cumulativeBalance !== 0) {
           cell.className = "poster"; // Добавляем класс оформления
           cell.innerHTML = "".concat(
             charge.toFixedWithComma(),
-            '<div class="descr">' + noteText + '</div>'
+            '<div class="descr">' + noteText.replace(/\n/g, '<br>') + '</div>'
           );
         }
         }
