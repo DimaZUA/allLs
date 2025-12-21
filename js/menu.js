@@ -8,7 +8,7 @@ const actions = [
   { name: "Інформація", actionCode: "info" },
   { name: "Схема будинку", actionCode: "schema" }
 ];
-var homes, ls, nach, files, adr, dt, org, b, what, kto, oplat, plat, us;
+var homes, ls, nach, files, adr, dt, org, b, what, kto, oplat, plat, us, nachnote;
 
 
 function activateMenuFromParams() {
@@ -95,6 +95,7 @@ function parseHomeRow(row) {
     what: tryParse(row.what, {}),
     kto: tryParse(row.kto, {}),
     nach: tryParse(row.nach, {}),
+    nachnote: tryParse(row.nachnote, {}),
     oplat: tryParse(row.oplat, {}),
     ls: tryParse(row.ls, {}),
     plat: tryParse(row.plat, {}),
@@ -156,7 +157,7 @@ async function handleMenuClick(homeCode, actionCode, actionLink, { fromHistory =
     try {
       const { data, error } = await client
         .from("homes")
-        .select("us, b, org, adr, dt, what, kto, nach, oplat, ls, plat, files")
+        .select("us, b, org, adr, dt, what, kto, nach, oplat, ls, plat, files, nachnote")
         .eq("code", homeCode)
         .single();
 
@@ -174,6 +175,7 @@ async function handleMenuClick(homeCode, actionCode, actionLink, { fromHistory =
   // --- GLOBALS ---
   ls = home.ls;
   nach = home.nach;
+  nachnote=home.nachnote;
   files = home.files;
   adr = home.adr;
   dt = home.dt;

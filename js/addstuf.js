@@ -404,6 +404,22 @@ if (cumulativeBalance !== 0) {
               " грн.</div>"
           );
         }
+        if (serviceId == 13){
+        const val = nachnote?.[accountId]?.[year]?.[_month]?.[13];
+
+        const noteText = Array.isArray(val)
+	  ? val.join('\n')
+	  : (val ?? '');
+
+        if (noteText) {
+          console.log(noteText);
+          cell.className = "poster"; // Добавляем класс оформления
+          cell.innerHTML = "".concat(
+            charge.toFixedWithComma(),
+            '<div class="descr">' + noteText + '</div>'
+          );
+        }
+        }
         if (serviceId != 7) row.appendChild(cell);
       });
       var cur = _month == currentMonth + 1 && year == currentYear;
