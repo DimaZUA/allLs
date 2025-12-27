@@ -6,7 +6,8 @@ const actions = [
   { name: "Банк", actionCode: "bank" },
   { name: "Документи", actionCode: "reports" },
   { name: "Інформація", actionCode: "info" },
-  { name: "Схема будинку", actionCode: "schema" }
+  { name: "Схема будинку", actionCode: "schema" },
+  { name: "Заборгованість", actionCode: "debitorka" }
 ];
 var homes, ls, nach, files, adr, dt, org, b, what, kto, oplat, plat, us, nachnote;
 
@@ -240,6 +241,7 @@ else {
     case "reports":  reportsInit(homeCode); break;
     case "info":     displayHomeInfo(homeCode); break;
     case "schema":   initSchema(); break;
+    case "debitorka":   initDashboard(); break;
     default: console.warn("Unknown action:", actionCode);
   }
 
