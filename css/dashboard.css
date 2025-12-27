@@ -135,3 +135,355 @@
 .liab-cat:hover {
     background: #f1f5f9;
 }
+
+.hist-bar {
+    transform-origin: bottom;
+    transform: scaleY(0);
+    transition: transform 1s ease-out;
+}
+.hist-bar.animate {
+    transform: scaleY(1);
+}
+.dash-subtitle {
+    font-size: 12px;
+    color: #6b7280;
+    margin-top: 2px;
+}
+.liab-block {
+    margin-top: 10px;
+}
+
+.liab-block-title {
+    font-weight: 600;
+    margin-bottom: 4px;
+    color: #374151;
+}
+
+
+/* ================================
+   СТРАНИЦА СВЕРКИ / ЗАРПЛАТЫ
+================================ */
+
+.liab-history-page {
+    background: #ffffff;
+    padding: 24px 28px;
+    min-height: 100%;
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+}
+
+/* ================================
+   ЗАГОЛОВОК
+================================ */
+
+.liab-header {
+    margin-bottom: 18px;
+}
+
+.liab-header h2 {
+    margin: 8px 0 6px;
+    font-size: 26px;
+    font-weight: 600;
+    color: #111827;
+}
+
+.liab-subtitle {
+    color: #374151;
+    font-size: 14px;
+    line-height: 1.4;
+    margin-bottom: 14px;
+}
+
+.liab-header button {
+    background: #f3f4f6;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.liab-header button:hover {
+    background: #e5e7eb;
+}
+
+/* ================================
+   ПЕРИОД (input date)
+================================ */
+
+.liab-subtitle input[type="date"] {
+    padding: 4px 6px;
+    font-size: 13px;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    margin: 0 4px;
+}
+
+.liab-subtitle button {
+    margin-left: 8px;
+    padding: 4px 10px;
+    font-size: 13px;
+    border-radius: 5px;
+    border: 1px solid #9ca3af;
+    background: #f9fafb;
+    cursor: pointer;
+}
+
+.liab-subtitle button:hover {
+    background: #f3f4f6;
+}
+
+/* ================================
+   ТАБЛИЦЫ
+================================ */
+
+.liab-table,
+.salary-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+    font-size: 14px;
+}
+
+/* Заголовок таблицы */
+.liab-table thead th,
+.salary-table thead th {
+    text-align: left;
+    padding: 10px 8px;
+    border-bottom: 2px solid #e5e7eb;
+    color: #374151;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+/* Строки */
+.liab-table tbody td,
+.salary-table tbody td {
+    padding: 8px 8px;
+    border-bottom: 1px solid #f0f0f0;
+    vertical-align: middle;
+}
+
+/* Чередование строк */
+.liab-table tbody tr:nth-child(even),
+.salary-table tbody tr:nth-child(even) {
+    background: #fafafa;
+}
+
+/* Наведение */
+.liab-table tbody tr:hover,
+.salary-table tbody tr:hover {
+    background: #f3f4f6;
+}
+
+/* ================================
+   ВХОДЯЩЕЕ САЛЬДО
+================================ */
+
+.liab-table tr.opening td,
+.salary-table tr.opening td {
+    background: #f8fafc;
+    font-weight: 600;
+    border-bottom: 2px solid #e5e7eb;
+    color: #1f2937;
+}
+
+/* ================================
+   ЧИСЛА И СТАТУСЫ
+================================ */
+
+.positive {
+    color: #047857; /* зелёный, но спокойный */
+    font-weight: 600;
+}
+
+.negative {
+    color: #b91c1c;
+    font-weight: 600;
+}
+
+/* Выравнивание чисел */
+.liab-table td:nth-child(n+2),
+.salary-table td:nth-child(n+2) {
+    text-align: right;
+    white-space: nowrap;
+}
+
+/* ================================
+   ПУСТОЕ СОСТОЯНИЕ
+================================ */
+
+.empty {
+    padding: 20px;
+    color: #6b7280;
+    font-size: 14px;
+    background: #f9fafb;
+    border: 1px dashed #d1d5db;
+    border-radius: 6px;
+    margin-top: 10px;
+}
+
+/* ================================
+   КЛИКАБЕЛЬНЫЕ СТРОКИ В КАРТОЧКАХ
+================================ */
+
+.liab-item {
+    cursor: pointer;
+}
+
+.liab-item:hover {
+    background: #eef2ff;
+}
+
+/* =====================================
+   ВЫРАВНИВАНИЕ ЗАГОЛОВКОВ КАК У ЧИСЕЛ
+===================================== */
+
+/* все числовые колонки — вправо */
+.liab-table th:nth-child(n+2),
+.liab-table td:nth-child(n+2),
+.salary-table th:nth-child(n+2),
+.salary-table td:nth-child(n+2) {
+    text-align: right;
+}
+
+/* первая колонка (Період / Місяць) — влево */
+.liab-table th:first-child,
+.liab-table td:first-child,
+.salary-table th:first-child,
+.salary-table td:first-child {
+    text-align: left;
+}
+.salary-table thead th:nth-child(n+2),
+.liab-table thead th:nth-child(n+2) {
+    border-bottom: 2px solid #d1d5db;
+}
+
+/* Контейнер услуг */
+.liab-what-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 8px;
+    margin-top: 4px;
+}
+
+/* label = визуальный тег */
+.liab-what-list label {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 14px;
+    font-size: 13px;
+    line-height: 1.4;
+    cursor: pointer;
+    user-select: none;
+
+    background: #f2f4f7;
+    border: 1px solid #d0d7de;
+    color: #333;
+
+    transition:
+        background-color 0.15s ease,
+        border-color 0.15s ease,
+        color 0.15s ease;
+}
+
+/* скрываем реальный checkbox */
+.liab-what-list input[type="checkbox"] {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* hover */
+.liab-what-list label:hover {
+    background: #e8edf5;
+    border-color: #94a3b8;
+}
+.liab-what-list label:hover span {
+    color: #374151;          /* чуть темнее серого */
+}
+
+/* активное нажатие */
+.liab-what-list label:active {
+    transform: translateY(1px);
+}
+
+/* базовый (выключено) */
+.liab-what-list label span {
+    color: #9ca3af;          /* серый текст */
+}
+/* включено */
+.liab-what-list input[type="checkbox"]:checked + span {
+    color: #111827;          /* почти чёрный */
+    font-weight: 500;
+}
+
+
+
+.liab-what-list label {
+    background: #f9fafb;
+}
+
+.liab-what-list input[type="checkbox"]:checked + span {
+    text-decoration: none;
+}
+
+.liab-what-list input[type="checkbox"]:not(:checked) + span {
+    text-decoration: line-through;
+    opacity: 0.7;
+}
+
+
+/* =========================================
+   ДЕТАЛИЗАЦИЯ ТОЛЬКО В СВЕРКЕ
+========================================= */
+
+.liab-table .poster {
+    cursor: default;
+}
+
+.liab-table .poster .descr {
+    display: block;          /* управляем только opacity */
+    opacity: 0;
+    pointer-events: none;
+
+    padding: 10px;
+    background: #f3f3f3;
+    box-shadow: 0 5px 5px rgba(0, 0, 0, 0.3);
+
+    text-align: left;
+    max-width: calc(100vw - 80px) !important;
+
+    position: fixed;
+    max-height: 80vh;
+    overflow-y: auto;
+    z-index: 105;
+
+    transition: opacity 0.15s ease;
+}
+
+/* hover ТОЛЬКО внутри сверки */
+.liab-table .poster:hover .descr {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* твой кейс с серыми строками */
+.liab-table tr.grey .descr {
+    color: #000 !important;
+}
+.liab-summary {
+    margin-top: 12px;
+    padding-top: 8px;
+    border-top: 1px solid #e5e7eb;
+    font-size: 14px;
+}
+
+.liab-summary div {
+    margin: 4px 0;
+}
+
+.liab-final {
+    margin-top: 6px;
+    font-weight: 600;
+}
