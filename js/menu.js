@@ -7,7 +7,7 @@ const actions = [
   { name: "Документи", actionCode: "reports" },
   { name: "Інформація", actionCode: "info" },
   { name: "Схема будинку", actionCode: "schema" },
-//  { name: "Заборгованість", actionCode: "debitorka" }
+  { name: "Заборгованість", actionCode: "debitorka" }
 ];
 var homes, ls, nach, files, adr, dt, org, b, what, kto, oplat, plat, us, nachnote, allnach;
 
