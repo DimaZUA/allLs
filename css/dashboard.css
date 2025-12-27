@@ -122,3 +122,16 @@
     background-size: 100% 25%;
     pointer-events: none;
 }
+
+.dash-table.inner {
+    margin-top: 6px;
+    background: #fafafa;
+}
+
+.liab-cat {
+    cursor: pointer;
+}
+
+.liab-cat:hover {
+    background: #f1f5f9;
+}
