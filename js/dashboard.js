@@ -1,4 +1,6 @@
-let servicesInitialized631 = false;
+// для 631 — последний контрагент, по которому инициализировались услуги
+let last631Who = null;
+
 const TODAY = new Date();
 const CUR_YEAR  = TODAY.getFullYear();
 const CUR_MONTH = TODAY.getMonth() + 1; // 1..12
@@ -207,9 +209,19 @@ function renderHistogram(values, months) {
             <!-- Поле графика -->
             <div class="hist-plot">
                 ${values.map((v, i) => {
-                    const height = (top > min)
-                        ? Math.round((Math.abs(v) - min) / (top - min) * 100)
-                        : 0;
+const value = Math.abs(v);
+
+let height = 0;
+
+if (top > min && value >= min) {
+    height = Math.round(
+        Math.min(
+            1,
+            Math.max(0, (value - min) / (top - min))
+        ) * 100
+    );
+}
+
 
                     const isCurrent = i === values.length - 1;
                     const m = months[i].month - 1;
@@ -1300,12 +1312,20 @@ totalPaid    += sem.paid;
 let accruedDetails = [];
 let paidDetails    = [];
 
-if (LIABILITY_ACCOUNTS[account]?.type === 'passive') {
-    // пассивные: начислено = Кт, оплачено = Дт
+if (account === '372') {
+    // Підзвітні особи:
+    // Дт — видано
+    // Кт — відзвітувався
+    accruedDetails = debitDetails;
+    paidDetails    = creditDetails;
+
+} else if (LIABILITY_ACCOUNTS[account]?.type === 'passive') {
+
     accruedDetails = creditDetails;
     paidDetails    = debitDetails;
+
 } else {
-    // активные / special: начислено = Дт, оплачено = Кт
+
     accruedDetails = debitDetails;
     paidDetails    = creditDetails;
 }
@@ -1399,7 +1419,7 @@ const saldoOwner = getSaldoOwner(
         : (account=='482'?'Звірка розрахунків по пільгам ХМР':'Звірка розрахунків за рахунком');
 
 if (account === '631') {
-    servicesInitialized631 = false;
+    last631Who = null; // ⬅️ важно
 }
 const actPartiesText = `Ми, що нижче підписалися, представники <b>${org}</b>` +
     (who
@@ -1499,16 +1519,16 @@ const actPartiesText = `Ми, що нижче підписалися, предс
 </div>
 </div>
 
-            ${renderReconciliationTable(rows, totals, saldoOwner, dateTo)}
+            ${renderReconciliationTable(rows, totals, saldoOwner, dateTo,account)}
 <div class="print-act-sign">
     <div>
         Від ${org}:<br><br>
-        _______________________ / _______________________
+        ___________________ / ___________________
     </div>
 
     <div>
         Від ${who ? `${kto[who] || who}` : `${getAccountTitle(account)}`}:<br><br>
-        _______________________ / _______________________
+        ___________________ / ___________________
     </div>
 </div>
 
@@ -1554,117 +1574,118 @@ document
 // ТАБЛИЦА
 // ===========================================
 
-function renderReconciliationTable(rows, totals = null, saldoOwner = null, dateTo = null) {
+function renderReconciliationTable(
+    rows,
+    totals = null,
+    saldoOwner = null,
+    dateTo = null,
+    account = null
+) {
 
-function renderPoster(sum, details) {
-    if (!sum) sum = 0;
+    // === UI-семантика колонок ===
+    const is372 = account === '372';
 
-    const files = (details || [])
-        .map(d => d.fileUrl)
-        .filter(Boolean);
+    const colAccruedTitle = is372
+        ? 'Видано під звіт'
+        : 'Нараховано';
 
-    const hasFiles = files.length > 0;
-    const hasDescr = details && details.length;
+    const colPaidTitle = is372
+        ? 'Відзвітувався'
+        : 'Оплачено';
 
-    return `
-        <span class="poster"
-              ${hasFiles ? `
-                  data-files='${JSON.stringify(files)}'
-                  data-file-index="0"
-              ` : ''}>
+    const colSaldoTitle = is372
+        ? 'Залишок під звітом'
+        : 'Борг';
 
-            ${sum.toFixedWithComma(2)} ₴
-            ${hasFiles ? `<span class="act-icon">📄</span>` : ''}
+    function renderPoster(sum, details) {
+        if (!sum) sum = 0;
 
-            ${hasDescr ? `
-                <div class="descr">
-                    ${details.map(d =>
-                        `${d.title}: ${d.sum.toFixedWithComma(2)} грн`
-                        + (d.info ? `<br><small>${d.info}</small>` : '')
-                    ).join('<br>')}
-                </div>
-            ` : ''}
+        const files = (details || [])
+            .map(d => d.fileUrl)
+            .filter(Boolean);
 
-        </span>
-    `;
-}
+        const hasFiles = files.length > 0;
+        const hasDescr = details && details.length;
 
+        return `
+            <span class="poster"
+                  ${hasFiles ? `
+                      data-files='${JSON.stringify(files)}'
+                      data-file-index="0"
+                  ` : ''}>
+                ${sum.toFixedWithComma(2)} ₴
+                ${hasFiles ? `<span class="act-icon">📄</span>` : ''}
+                ${hasDescr ? `
+                    <div class="descr">
+                        ${details.map(d =>
+                            `${d.title}: ${d.sum.toFixedWithComma(2)} грн`
+                            + (d.info ? `<br><small>${d.info}</small>` : '')
+                        ).join('<br>')}
+                    </div>
+                ` : ''}
+            </span>
+        `;
+    }
 
-    return `
-        <table class="dash-table liab-table">
-            <thead>
+return `
+<table class="dash-table liab-table">
+    <thead>
+        <tr>
+            <th>Період</th>
+            <th>${colAccruedTitle}</th>
+            <th>${colPaidTitle}</th>
+            <th>${colSaldoTitle}</th>
+        </tr>
+    </thead>
+
+    <tbody>
+        ${rows.map(r => {
+
+            if (r.type === 'opening') {
+                return `
+                    <tr class="opening">
+                        <td colspan="3">${r.label}</td>
+                        <td>${r.saldo.toFixedWithComma(2)} ₴</td>
+                    </tr>
+                `;
+            }
+
+            return `
                 <tr>
-                    <th>Період</th>
-                    <th>Нараховано</th>
-                    <th>Оплачено</th>
-                    <th>Борг</th>
+                    <td>${MONTH_NAMES_UA_SHORT[r.month - 1]} ${r.year}</td>
+                    <td class="poster-cell">
+                        ${renderPoster(r.accrued, r.accruedDetails)}
+                    </td>
+                    <td class="poster-cell">
+                        ${renderPoster(r.paid, r.paidDetails)}
+                    </td>
+                    <td>${r.saldo.toFixedWithComma(2)} ₴</td>
                 </tr>
-            </thead>
+            `;
+        }).join('')}
+    </tbody>
 
-            <tbody>
-                ${rows.map(r => {
-
-                    if (r.type === 'opening') {
-                        return `
-                            <tr class="opening">
-                                <td colspan="3">${r.label}</td>
-                                <td>${r.saldo.toFixedWithComma(2)} ₴</td>
-                            </tr>
-                        `;
-                    }
-
-                    return `
-                        <tr>
-                            <td>${MONTH_NAMES_UA_SHORT[r.month - 1]} ${r.year}</td>
-
-                            <td class="poster-cell">
-                                ${renderPoster(r.accrued, r.accruedDetails)}
-                            </td>
-
-                            <td class="poster-cell">
-                                ${renderPoster(r.paid, r.paidDetails)}
-                            </td>
-
-                            <td>${r.saldo.toFixedWithComma(2)} ₴</td>
-                        </tr>
-                    `;
-                }).join('')}
-            </tbody>
-
-${totals ? `
+    ${totals ? `
     <tfoot>
         <tr class="liab-total">
             <td><b>Всього</b></td>
-
-            <td>
-                <b>${totals.accrued.toFixedWithComma(2)} ₴</b>
-            </td>
-
-            <td>
-                <b>${totals.paid.toFixedWithComma(2)} ₴</b>
-            </td>
-
+            <td><b>${totals.accrued.toFixedWithComma(2)} ₴</b></td>
+            <td><b>${totals.paid.toFixedWithComma(2)} ₴</b></td>
             <td>
                 <b>${Math.abs(totals.saldo).toFixedWithComma(2)} ₴</b><br>
-
-                ${saldoOwner ? `
-                    <small>
-                        станом на ${toDMY(dateTo)}<br>
-                        на користь <b>${saldoOwner.name}</b>
-                    </small>
-                ` : `
-                    <small>
-                        станом на ${toDMY(dateTo)}<br>
-                        заборгованість відсутня
-                    </small>
-                `}
+                ${saldoOwner
+                    ? `<small> станом на ${toDMY(dateTo)}<br> на користь <b>${saldoOwner.name}</b></small>`
+                    : `<small>заборгованість відсутня</small>`
+                }
             </td>
         </tr>
     </tfoot>
-` : ''}
-        </table>
-    `;
+    ` : ''}
+</table>
+`;
+
 }
+
 
 // ===========================================
 // СПЕЦ-ЭКРАН ЗАРПЛАТА (661)
@@ -1887,7 +1908,7 @@ function reloadLiabAdvanced() {
     rows,
     totals,
     saldoOwner,
-    dateTo
+    dateTo,account
     );
 
     }
@@ -2027,21 +2048,26 @@ function update631ServicesByWho() {
     // определяем, какие услуги включать
     let checkedSet;
 
-    if (!servicesInitialized631) {
-        // первый рендер — включаем всё
-        checkedSet = new Set(availableWhat);
-        servicesInitialized631 = true;
-    } else {
-        // оставляем только пересечение
-        checkedSet = new Set(
-            availableWhat.filter(w => prevChecked.has(w))
-        );
+// если контрагент сменился — считаем это первым рендером
+const isFirstForWho = (who !== last631Who);
 
-        // если пересечения нет — включаем всё
-        if (checkedSet.size === 0) {
-            checkedSet = new Set(availableWhat);
-        }
+
+if (isFirstForWho) {
+    // первый заход для этого контрагента — включаем всё
+    checkedSet = new Set(availableWhat);
+    last631Who = who;
+} else {
+    // сохраняем пересечение
+    checkedSet = new Set(
+        availableWhat.filter(w => prevChecked.has(w))
+    );
+
+    // если ничего не осталось — включаем всё
+    if (checkedSet.size === 0) {
+        checkedSet = new Set(availableWhat);
     }
+}
+
 
     whatContainer.innerHTML = `
         Послуги:
@@ -2120,7 +2146,6 @@ function mapAccountSemantics(account, debit, credit) {
     switch (acc.type) {
 
         case 'active':
-        case 'special':
             return {
                 accrued: debit,   // Дт
                 paid: credit      // Кт
@@ -2131,7 +2156,11 @@ function mapAccountSemantics(account, debit, credit) {
                 accrued: credit,  // Кт
                 paid: debit       // Дт
             };
-
+case 'special': // 372
+    return {
+        accrued: debit,   // видано під звіт
+        paid: credit      // відзвітувався
+    };
         default:
             return {
                 accrued: debit,
