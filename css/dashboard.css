@@ -1,3 +1,7 @@
+/* ================================
+   DASHBOARD GRID
+================================ */
+
 #dashboard {
     display: grid;
     min-width: 600px;
@@ -7,13 +11,16 @@
     font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
 }
 
+/* ================================
+   CARDS
+================================ */
+
 .dash-card {
     border: 1px solid #dcdcdc;
     border-radius: 8px;
-    background: #fff;
+    background: #ffffff;
     padding: 16px 18px;
     box-shadow: 0 1px 3px rgba(0,0,0,.06);
-
     display: flex;
     flex-direction: column;
 }
@@ -24,14 +31,24 @@
     margin-bottom: 10px;
 }
 
+.dash-subtitle {
+    font-size: 12px;
+    color: #6b7280;
+    margin-top: 2px;
+}
+
 .dash-total {
     font-size: 32px;
     font-weight: 700;
     margin: 10px 0 18px;
 }
 
-.positive { color: #1b7f3b; }
-.negative { color: #a83232; }
+.positive { color: #047857; }
+.negative { color: #b91c1c; }
+
+/* ================================
+   TABLES
+================================ */
 
 .dash-table {
     width: 100%;
@@ -52,19 +69,22 @@
     font-weight: 600;
 }
 
-.dash-footer {
-    margin-top: 10px;
-    font-weight: 700;
-    border-top: 2px solid #ddd;
-    padding-top: 8px;
+.dash-table.inner {
+    margin-top: 6px;
+    background: #fafafa;
 }
+
+/* ================================
+   HISTOGRAM
+================================ */
+
 .dash-histogram {
     margin-top: 14px;
     flex: 1;
     display: grid;
-    grid-template-columns: 48px 1fr; /* Y-ось + график */
+    grid-template-columns: 48px 1fr;
     gap: 6px;
-    min-height: 160px;              /* ← ВАЖНО */
+    min-height: 160px;
 }
 
 .hist-y {
@@ -72,45 +92,18 @@
     flex-direction: column;
     justify-content: space-between;
     font-size: 11px;
-    color: #666;
-    padding-bottom: 18px; /* чтобы совпало с подписями месяцев */
+    color: #6b7280;
+    padding-bottom: 18px;
 }
 
 .hist-plot {
     position: relative;
-    flex: 1;
     display: flex;
-    align-items: stretch;
     gap: 10px;
-
     border-left: 1px solid #e5e7eb;
     border-bottom: 1px solid #e5e7eb;
-
     padding-left: 10px;
-    padding-bottom: 26px; /* место под месяцы */
-}
-
-.hist-col {
-    flex: 1;
-    position: relative;
-}
-
-.hist-bar {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-
-    display: flex;
-    align-items: flex-end;
-    justify-content: center;
-
-    color: #fff;
-    font-size: 11px;
-    font-weight: 600;
-
-    border-radius: 4px 4px 0 0;
-    padding-bottom: 4px;
+    padding-bottom: 26px;
 }
 
 .hist-plot::before {
@@ -123,10 +116,94 @@
     pointer-events: none;
 }
 
-.dash-table.inner {
-    margin-top: 6px;
-    background: #fafafa;
+/* ================================
+   COLUMNS
+================================ */
+
+.hist-col {
+    flex: 1;
+    position: relative;
 }
+
+/* СТОЛБЕЦ */
+.hist-bar {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+
+    /* 👇 ВАЖНО */
+    color: #111827;               /* тёмный текст */
+    font-size: 11px;
+    font-weight: 600;
+
+    border-radius: 4px 4px 0 0;
+    padding-bottom: 4px;
+
+    /* плашка под текстом */
+    background-clip: padding-box;
+}
+
+/* ПЛАШКА ПОД ЧИСЛОМ */
+.hist-bar::after {
+    content: "";
+    position: absolute;
+    left: 6px;
+    right: 6px;
+    bottom: 2px;
+    height: 16px;
+
+    background: rgba(255,255,255,0.75);
+    border-radius: 4px;
+    z-index: -1;
+}
+
+/* ================================
+   CURRENT MONTH (ПОСЛЕДНИЙ)
+================================ */
+
+.hist-col:last-child .hist-bar {
+    color: #0f172a;
+}
+
+.hist-col:last-child .hist-bar::after {
+    background: rgba(255,255,255,0.85);
+}
+
+/* ================================
+   MONTH LABELS
+================================ */
+
+.hist-col > div:last-child {
+    position: absolute;
+    bottom: -22px;
+    width: 100%;
+    text-align: center;
+    font-size: 11px;
+    color: #6b7280;
+}
+
+/* ================================
+   ANIMATION
+================================ */
+
+.hist-bar {
+    transform-origin: bottom;
+    transform: scaleY(0);
+    transition: transform 1s ease-out;
+}
+
+.hist-bar.animate {
+    transform: scaleY(1);
+}
+
+/* ================================
+   LIABILITIES
+================================ */
 
 .liab-cat {
     cursor: pointer;
@@ -136,196 +213,6 @@
     background: #f1f5f9;
 }
 
-.hist-bar {
-    transform-origin: bottom;
-    transform: scaleY(0);
-    transition: transform 1s ease-out;
-}
-.hist-bar.animate {
-    transform: scaleY(1);
-}
-.dash-subtitle {
-    font-size: 12px;
-    color: #6b7280;
-    margin-top: 2px;
-}
-.liab-block {
-    margin-top: 10px;
-}
-
-.liab-block-title {
-    font-weight: 600;
-    margin-bottom: 4px;
-    color: #374151;
-}
-
-
-/* ================================
-   СТРАНИЦА СВЕРКИ / ЗАРПЛАТЫ
-================================ */
-
-.liab-history-page {
-    background: #ffffff;
-    padding: 24px 28px;
-    min-height: 100%;
-    font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-}
-
-/* ================================
-   ЗАГОЛОВОК
-================================ */
-
-.liab-header {
-    margin-bottom: 18px;
-}
-
-.liab-header h2 {
-    margin: 8px 0 6px;
-    font-size: 26px;
-    font-weight: 600;
-    color: #111827;
-}
-
-.liab-subtitle {
-    color: #374151;
-    font-size: 14px;
-    line-height: 1.4;
-    margin-bottom: 14px;
-}
-
-.liab-header button {
-    background: #f3f4f6;
-    border: 1px solid #d1d5db;
-    border-radius: 6px;
-    padding: 6px 12px;
-    font-size: 14px;
-    cursor: pointer;
-}
-
-.liab-header button:hover {
-    background: #e5e7eb;
-}
-
-/* ================================
-   ПЕРИОД (input date)
-================================ */
-
-.liab-subtitle input[type="date"] {
-    padding: 4px 6px;
-    font-size: 13px;
-    border: 1px solid #d1d5db;
-    border-radius: 4px;
-    margin: 0 4px;
-}
-
-.liab-subtitle button {
-    margin-left: 8px;
-    padding: 4px 10px;
-    font-size: 13px;
-    border-radius: 5px;
-    border: 1px solid #9ca3af;
-    background: #f9fafb;
-    cursor: pointer;
-}
-
-.liab-subtitle button:hover {
-    background: #f3f4f6;
-}
-
-/* ================================
-   ТАБЛИЦЫ
-================================ */
-
-.liab-table,
-.salary-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 10px;
-    font-size: 14px;
-}
-
-/* Заголовок таблицы */
-.liab-table thead th,
-.salary-table thead th {
-    text-align: left;
-    padding: 10px 8px;
-    border-bottom: 2px solid #e5e7eb;
-    color: #374151;
-    font-weight: 600;
-    white-space: nowrap;
-}
-
-/* Строки */
-.liab-table tbody td,
-.salary-table tbody td {
-    padding: 8px 8px;
-    border-bottom: 1px solid #f0f0f0;
-    vertical-align: middle;
-}
-
-/* Чередование строк */
-.liab-table tbody tr:nth-child(even),
-.salary-table tbody tr:nth-child(even) {
-    background: #fafafa;
-}
-
-/* Наведение */
-.liab-table tbody tr:hover,
-.salary-table tbody tr:hover {
-    background: #f3f4f6;
-}
-
-/* ================================
-   ВХОДЯЩЕЕ САЛЬДО
-================================ */
-
-.liab-table tr.opening td,
-.salary-table tr.opening td {
-    background: #f8fafc;
-    font-weight: 600;
-    border-bottom: 2px solid #e5e7eb;
-    color: #1f2937;
-}
-
-/* ================================
-   ЧИСЛА И СТАТУСЫ
-================================ */
-
-.positive {
-    color: #047857; /* зелёный, но спокойный */
-    font-weight: 600;
-}
-
-.negative {
-    color: #b91c1c;
-    font-weight: 600;
-}
-
-/* Выравнивание чисел */
-.liab-table td:nth-child(n+2),
-.salary-table td:nth-child(n+2) {
-    text-align: right;
-    white-space: nowrap;
-}
-
-/* ================================
-   ПУСТОЕ СОСТОЯНИЕ
-================================ */
-
-.empty {
-    padding: 20px;
-    color: #6b7280;
-    font-size: 14px;
-    background: #f9fafb;
-    border: 1px dashed #d1d5db;
-    border-radius: 6px;
-    margin-top: 10px;
-}
-
-/* ================================
-   КЛИКАБЕЛЬНЫЕ СТРОКИ В КАРТОЧКАХ
-================================ */
-
 .liab-item {
     cursor: pointer;
 }
@@ -333,6 +220,7 @@
 .liab-item:hover {
     background: #eef2ff;
 }
+
 
 /* =====================================
    ВЫРАВНИВАНИЕ ЗАГОЛОВКОВ КАК У ЧИСЕЛ

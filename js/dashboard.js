@@ -893,6 +893,7 @@ function calcLiabilitiesFromAllnachAndPlat(allnach, plat) {
                 ) continue;
 
                 const sum    = Number(row[1]) || 0;
+                if (Math.abs(sum) < 0.02) continue;
                 const who    = String(row[2]);
                 const credit = normAcc(row[4]); // КРЕДИТ
                 const debit  = normAcc(row[5]); // ДЕБЕТ
@@ -1021,6 +1022,19 @@ for (const acc in saldo) {
 function parseDt(dt) {
     const [d, m, y] = dt.split(' ')[0].split('.').map(Number);
     return new Date(y, m - 1, d);
+}
+
+function toDMY(value) {
+    if (!value) return '';
+
+    const d = value instanceof Date ? value : new Date(value);
+    if (isNaN(d)) return '';
+
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const yyyy = d.getFullYear();
+
+    return `${dd}.${mm}.${yyyy}`;
 }
 
 function toISO(d) {
@@ -1159,7 +1173,7 @@ let totalPaid    = 0;
 
     const rows = [{
         type: 'opening',
-        label: `Сальдо на ${toISO(dateFrom)}`,
+        label: `Сальдо на ${toDMY(dateFrom)}`,
         saldo
     }];
 
@@ -1392,7 +1406,7 @@ const actPartiesText = `Ми, що нижче підписалися, предс
         ? ` та <b>${kto[who] || who}</b>`
         : ` та <b>${getAccountTitle(account)}</b>`
     ) +
-    `, склали цей акт про те, що станом на <b>${toISO(dateTo)}</b> взаємні розрахунки між сторонами мають наступний стан:`;
+    `, склали цей акт про те, що станом на <b>${toDMY(dateTo)}</b> взаємні розрахунки між сторонами мають наступний стан:`;
 
     // === РЕНДЕР ===
     maincontainer.innerHTML = `
@@ -1617,29 +1631,37 @@ function renderPoster(sum, details) {
                 }).join('')}
             </tbody>
 
-            ${totals && saldoOwner ? `
-                <tfoot>
-                    <tr class="liab-total">
-                        <td><b>Всього</b></td>
+${totals ? `
+    <tfoot>
+        <tr class="liab-total">
+            <td><b>Всього</b></td>
 
-                        <td>
-                            <b>${totals.accrued.toFixedWithComma(2)} ₴</b>
-                        </td>
+            <td>
+                <b>${totals.accrued.toFixedWithComma(2)} ₴</b>
+            </td>
 
-                        <td>
-                            <b>${totals.paid.toFixedWithComma(2)} ₴</b>
-                        </td>
+            <td>
+                <b>${totals.paid.toFixedWithComma(2)} ₴</b>
+            </td>
 
-                        <td>
-                            <b>${Math.abs(totals.saldo).toFixedWithComma(2)} ₴</b><br>
-                            <small>
-                                станом на ${toISO(dateTo)}<br>
-                                на користь <b>${saldoOwner.name}</b>
-                            </small>
-                        </td>
-                    </tr>
-                </tfoot>
-            ` : ''}
+            <td>
+                <b>${Math.abs(totals.saldo).toFixedWithComma(2)} ₴</b><br>
+
+                ${saldoOwner ? `
+                    <small>
+                        станом на ${toDMY(dateTo)}<br>
+                        на користь <b>${saldoOwner.name}</b>
+                    </small>
+                ` : `
+                    <small>
+                        станом на ${toDMY(dateTo)}<br>
+                        заборгованість відсутня
+                    </small>
+                `}
+            </td>
+        </tr>
+    </tfoot>
+` : ''}
         </table>
     `;
 }
@@ -1675,7 +1697,7 @@ function calcSalaryReconciliation({ dateFrom, dateTo }) {
 
     const rows = [{
         type: 'opening',
-        label: `Сальдо на ${toISO(dateFrom)}`,
+        label: `Сальдо на ${toDMY(dateFrom)}`,
         saldo: openingSaldo
     }];
 
@@ -1861,36 +1883,13 @@ function reloadLiabAdvanced() {
     // === ТАБЛИЦА ===
     const table = document.querySelector('.liab-history-page table');
     if (table) {
-        table.outerHTML = renderReconciliationTable(rows);
-    }
+        table.outerHTML = renderReconciliationTable(
+    rows,
+    totals,
+    saldoOwner,
+    dateTo
+    );
 
-    // === SUMMARY (итоги) ===
-    const oldSummary = document.querySelector('.liab-summary');
-
-    const summaryHTML = saldoOwner ? `
-        <div class="liab-summary">
-            <div>
-                Всього нараховано:
-                <b>${totals.accrued.toFixedWithComma(2)} ₴</b>
-            </div>
-            <div>
-                Всього оплачено:
-                <b>${totals.paid.toFixedWithComma(2)} ₴</b>
-            </div>
-            <div class="liab-final">
-                Всього станом на ${toISO(dateTo)}:
-                <b>${Math.abs(totals.saldo).toFixedWithComma(2)} ₴</b>
-                на користь <b>${saldoOwner.name}</b>
-            </div>
-        </div>
-    ` : '';
-
-    if (oldSummary) {
-        oldSummary.outerHTML = summaryHTML;
-    } else if (summaryHTML) {
-        // если summary ещё не было — вставляем после таблицы
-        const page = document.querySelector('.liab-history-page');
-        page.insertAdjacentHTML('beforeend', summaryHTML);
     }
 
     // === ЗАГОЛОВОК ===
