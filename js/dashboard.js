@@ -1087,7 +1087,7 @@ function calcOpeningSaldo({ account, who, whatSet, dateFrom }) {
                 if (!before(d)) continue;
 
                 const sum = Number(r[1]) || 0;
-                if (sum <= 0.019) continue;
+                if (sum <= 0.019 || >-0.005) continue;
                 const whoCod = String(r[2]);
                 const what = String(r[3]);
                 const credit = String(r[4]);
@@ -1181,7 +1181,7 @@ let totalPaid    = 0;
             if (d < dateFrom || d > dateTo) continue;
 
             const sum = Number(r[1]) || 0;
-            if (sum <= 0.019) continue;
+            if (sum <= 0.019 || >-0.005) continue;
 
             const whoCod  = String(r[2] || '');
             const whatCod = String(r[3] || '');
