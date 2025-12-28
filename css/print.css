@@ -1,4 +1,5 @@
-﻿  body * {
+﻿@media print {
+  body * {
         visibility: hidden;
         font-size: 14px !important;
     }
@@ -7,9 +8,15 @@
         border: none;
     }
 
-    #maincontainer, #maincontainer *, #header, #header * {
-        visibility: visible;
-    }
+#maincontainer,
+#header {
+    visibility: visible;
+}
+
+#maincontainer *:not(.descr),
+#header *:not(.descr) {
+    visibility: visible;
+}
 
     .box[style*="block"] {
         display: block !important;
@@ -31,8 +38,9 @@
         margin-bottom: 10px;
     }
 
-    #preview, #filebar, .buttons-container, .sidebar, .hamburger, .preloader, input, .descr, #datetime, #filter-container,.compare-row {
-        display: none;
+    .liab-header, #preview, #filebar, .buttons-container, .sidebar, .hamburger, .preloader, input, #datetime, .descr, #filter-container,.compare-row {
+       display: none !important;
+        visibility: hidden !important;
     }
 
     .toggle-box:not(:checked) + label {
@@ -48,10 +56,66 @@
         max-width: 95% !important;
     }
     @page {
-        margin: 0;
+        margin: 0.1;
     }
 
     .box {
         page-break-inside: avoid;
         -webkit-column-break-inside: avoid;
     }
+    .print-act-header, {
+        display: block;
+        margin-bottom: 20px;
+        font-size: 14px;
+    }
+
+    .print-act-header .act-title {
+        text-align: center;
+        font-weight: bold;
+        font-size: 16px;
+        margin-bottom: 10px;
+    }
+
+    .print-act-header .act-meta {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 10px;
+    }
+
+    .print-act-header .act-text {
+        text-align: justify;
+        margin-bottom: 15px;
+        line-height: 1.4;
+    }
+    .print-act-sign {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 40px;
+        font-size: 14px;
+    }
+
+    .print-act-sign div {
+        width: 45%;
+    }
+    .print-act-header,
+    .print-act-header * {
+        visibility: visible !important;
+        display: block !important;
+    }
+    .act-preview-row {
+        display: none !important;
+        visibility: hidden !important;
+    }
+    .act-icon {
+        display: none !important;
+        visibility: hidden !important;
+    }
+    .print-act-sign,
+    .print-act-sign * {
+        visibility: visible !important;
+        display: flex !important;
+    }
+}
+
+
+

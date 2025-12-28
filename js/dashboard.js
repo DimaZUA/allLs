@@ -1460,8 +1460,37 @@ if (account === '631') {
 
                 </div>
             </div>
+<div class="print-act-header">
+    <div class="act-title">
+        АКТ ЗВІРКИ ВЗАЄМНИХ РОЗРАХУНКІВ
+    </div>
+
+    <div class="act-meta">
+        <div>
+            м. _____________
+        </div>
+        <div>
+            «___» ____________ 20__ р.
+        </div>
+    </div>
+
+    <div class="act-text">
+        Ми, що нижче підписалися, представники <b>${org}</b> та <b>${saldoOwner ? saldoOwner.name : '____________________'}</b>, склали цей акт про те, що станом на <b>${toISO(dateTo)}</b> взаємні розрахунки між сторонами мають наступний стан:
+    </div>
+</div>
 
             ${renderReconciliationTable(rows, totals, saldoOwner, dateTo)}
+<div class="print-act-sign">
+    <div>
+        Від ${org}:<br><br>
+        _______________________ / _______________________
+    </div>
+
+    <div>
+        Від контрагента:<br><br>
+        _______________________ / _______________________
+    </div>
+</div>
 
         </div>
     `;
@@ -1525,7 +1554,7 @@ function renderPoster(sum, details) {
               ` : ''}>
 
             ${sum.toFixedWithComma(2)} ₴
-            ${hasFiles ? `<span class="act-icon">📄 акт</span>` : ''}
+            ${hasFiles ? `<span class="act-icon">📄</span>` : ''}
 
             ${hasDescr ? `
                 <div class="descr">
