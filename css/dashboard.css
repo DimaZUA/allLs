@@ -487,3 +487,39 @@
     margin-top: 6px;
     font-weight: 600;
 }
+.poster {
+    position: relative;
+    cursor: pointer;
+}
+
+.act-icon {
+    margin-left: 6px;
+    font-size: 13px;
+    opacity: 0.8;
+}
+
+.act-preview {
+    margin-top: 8px;
+    border: 1px solid #ddd;
+    height: 400px;
+}
+
+.act-preview iframe {
+    width: 100%;
+    height: 100%;
+    border: 0;
+}
+.liab-table tfoot tr {
+    background: #f7f7f7;
+    border-top: 2px solid #999;
+}
+
+.liab-table tfoot td {
+    padding-top: 8px;
+    padding-bottom: 8px;
+}
+
+.liab-table tfoot small {
+    color: #555;
+    line-height: 1.3;
+}

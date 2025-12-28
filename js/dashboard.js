@@ -1087,6 +1087,7 @@ function calcOpeningSaldo({ account, who, whatSet, dateFrom }) {
                 if (!before(d)) continue;
 
                 const sum = Number(r[1]) || 0;
+                if (sum <= 0.019) continue;
                 const whoCod = String(r[2]);
                 const what = String(r[3]);
                 const credit = String(r[4]);
@@ -1180,7 +1181,7 @@ let totalPaid    = 0;
             if (d < dateFrom || d > dateTo) continue;
 
             const sum = Number(r[1]) || 0;
-            if (!sum) continue;
+            if (sum <= 0.019) continue;
 
             const whoCod  = String(r[2] || '');
             const whatCod = String(r[3] || '');
@@ -1192,21 +1193,35 @@ let totalPaid    = 0;
 
             const title = what[whatCod] || 'Нарахування';
 
-            if (db === account) {
-                debit += sum;
-                debitDetails.push({
-                    title,
-                    sum
-                });
-            }
+const fileBase = r[6] ? String(r[6]).trim() : '';
 
-            if (cr === account) {
-                credit += sum;
-                creditDetails.push({
-                    title,
-                    sum
-                });
-            }
+const fileUrl = fileBase
+    ? buildActPdfUrl({
+          year,
+          month,
+          fileBase
+      })
+    : null;
+
+
+if (db === account) {
+    debit += sum;
+    debitDetails.push({
+        title,
+        sum,
+        fileUrl
+    });
+}
+
+if (cr === account) {
+    credit += sum;
+    creditDetails.push({
+        title,
+        sum,
+        fileUrl
+    });
+}
+
         }
 
         // =========================
@@ -1446,24 +1461,7 @@ if (account === '631') {
                 </div>
             </div>
 
-            ${renderReconciliationTable(rows)}
-${saldoOwner ? `
-<div class="liab-summary">
-    <div>
-        Всього нараховано:
-        <b>${totals.accrued.toFixedWithComma(2)} ₴</b>
-    </div>
-    <div>
-        Всього оплачено:
-        <b>${totals.paid.toFixedWithComma(2)} ₴</b>
-    </div>
-    <div class="liab-final">
-        Всього станом на ${toISO(dateTo)}:
-        <b>${Math.abs(totals.saldo).toFixedWithComma(2)} ₴</b>
-        на користь <b>${saldoOwner.name}</b>
-    </div>
-</div>
-` : ''}
+            ${renderReconciliationTable(rows, totals, saldoOwner, dateTo)}
 
         </div>
     `;
@@ -1507,27 +1505,41 @@ document
 // ТАБЛИЦА
 // ===========================================
 
-function renderReconciliationTable(rows) {
+function renderReconciliationTable(rows, totals = null, saldoOwner = null, dateTo = null) {
 
-    function renderPoster(sum, details) {
-        if (!sum) sum = 0;
+function renderPoster(sum, details) {
+    if (!sum) sum = 0;
 
-        if (!details || !details.length) {
-            return `${sum.toFixedWithComma(2)} ₴`;
-        }
+    const files = (details || [])
+        .map(d => d.fileUrl)
+        .filter(Boolean);
 
-        return `
-            <span class="poster">
-                ${sum.toFixedWithComma(2)} ₴
+    const hasFiles = files.length > 0;
+    const hasDescr = details && details.length;
+
+    return `
+        <span class="poster"
+              ${hasFiles ? `
+                  data-files='${JSON.stringify(files)}'
+                  data-file-index="0"
+              ` : ''}>
+
+            ${sum.toFixedWithComma(2)} ₴
+            ${hasFiles ? `<span class="act-icon">📄 акт</span>` : ''}
+
+            ${hasDescr ? `
                 <div class="descr">
                     ${details.map(d =>
                         `${d.title}: ${d.sum.toFixedWithComma(2)} грн`
                         + (d.info ? `<br><small>${d.info}</small>` : '')
                     ).join('<br>')}
                 </div>
-            </span>
-        `;
-    }
+            ` : ''}
+
+        </span>
+    `;
+}
+
 
     return `
         <table class="dash-table liab-table">
@@ -1539,6 +1551,7 @@ function renderReconciliationTable(rows) {
                     <th>Борг</th>
                 </tr>
             </thead>
+
             <tbody>
                 ${rows.map(r => {
 
@@ -1568,9 +1581,34 @@ function renderReconciliationTable(rows) {
                     `;
                 }).join('')}
             </tbody>
+
+            ${totals && saldoOwner ? `
+                <tfoot>
+                    <tr class="liab-total">
+                        <td><b>Всього</b></td>
+
+                        <td>
+                            <b>${totals.accrued.toFixedWithComma(2)} ₴</b>
+                        </td>
+
+                        <td>
+                            <b>${totals.paid.toFixedWithComma(2)} ₴</b>
+                        </td>
+
+                        <td>
+                            <b>${Math.abs(totals.saldo).toFixedWithComma(2)} ₴</b><br>
+                            <small>
+                                станом на ${toISO(dateTo)}<br>
+                                на користь <b>${saldoOwner.name}</b>
+                            </small>
+                        </td>
+                    </tr>
+                </tfoot>
+            ` : ''}
         </table>
     `;
 }
+
 // ===========================================
 // СПЕЦ-ЭКРАН ЗАРПЛАТА (661)
 // ===========================================
@@ -2091,4 +2129,112 @@ function getSaldoOwner(account, saldo, who = null) {
             ? org
             : (who ? (kto[who] || who) : acc.title)
     };
+}
+// ===========================================
+// ГЛОБАЛЬНЫЙ КЛИК ПО ЯЧЕЙКАМ С PDF
+// ===========================================
+document.addEventListener('click', e => {
+
+    // не реагируем на hover-детализацию
+    if (e.target.closest('.descr')) return;
+
+    const cell = e.target.closest('.poster-cell');
+    if (!cell) return;
+
+    const poster = cell.querySelector('.poster');
+    if (!poster) return;
+
+    const filesJson = poster.dataset.files;
+    if (!filesJson) return;
+
+    let files;
+    try {
+        files = JSON.parse(filesJson);
+    } catch {
+        return;
+    }
+    if (!files.length) return;
+
+    const isOpen = poster.dataset.previewOpen === '1';
+    const idx    = Number(poster.dataset.fileIndex || 0);
+    const last   = files.length - 1;
+
+    // === СЛУЧАЙ: предпросмотр открыт ===
+    if (isOpen) {
+
+        // если файл последний (или единственный) — закрываем
+        if (idx === 0 || idx > last) {
+            closeActPreview();
+            poster.dataset.previewOpen = '0';
+            poster.dataset.fileIndex = '0';
+            return;
+        }
+    }
+
+    // === ОТКРЫВАЕМ / ПЕРЕКЛЮЧАЕМ ===
+    const file = files[idx];
+
+    showActPreview(cell, file);
+
+    poster.dataset.previewOpen = '1';
+
+    // следующий индекс
+    if (idx === last) {
+        // следующий клик будет закрывать
+        poster.dataset.fileIndex = '0';
+    } else {
+        poster.dataset.fileIndex = String(idx + 1);
+    }
+});
+
+
+function buildActPdfUrl({ year, month, fileBase }) {
+
+
+    if (!fileBase) return null;
+
+    const rootPath = files?.files?.[0]?.split("/")?.[0];
+    if (!rootPath) return null;
+
+    const mm = String(month).padStart(2, '0');
+
+    return (
+        BASE_URL +
+        rootPath + '/' +
+        year + '/' +
+        mm + '/' +
+        'Вхідні/' +
+        fileBase + '.pdf' +
+        '?t=' + Date.now()
+    );}
+function showActPreview(cell, fileUrl) {
+
+    // закрываем предыдущий предпросмотр
+    document
+        .querySelectorAll('.act-preview-row')
+        .forEach(r => r.remove());
+
+    // строка таблицы
+    const tr = cell.closest('tr');
+    if (!tr) return;
+
+    const colCount = tr.children.length;
+
+    const previewRow = document.createElement('tr');
+    previewRow.className = 'act-preview-row';
+
+    previewRow.innerHTML = `
+        <td colspan="${colCount}">
+            <div class="act-preview">
+                <iframe src="${fileUrl}" loading="lazy"></iframe>
+            </div>
+        </td>
+    `;
+
+    tr.after(previewRow);
+}
+function closeActPreview() {
+    document
+        .querySelectorAll('.act-preview-row')
+        .forEach(r => r.remove());
 }
