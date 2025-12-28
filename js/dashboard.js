@@ -1387,6 +1387,12 @@ const saldoOwner = getSaldoOwner(
 if (account === '631') {
     servicesInitialized631 = false;
 }
+const actPartiesText = `Ми, що нижче підписалися, представники <b>${org}</b>` +
+    (who
+        ? ` та <b>${kto[who] || who}</b>`
+        : ` та <b>${getAccountTitle(account)}</b>`
+    ) +
+    `, склали цей акт про те, що станом на <b>${toISO(dateTo)}</b> взаємні розрахунки між сторонами мають наступний стан:`;
 
     // === РЕНДЕР ===
     maincontainer.innerHTML = `
@@ -1474,9 +1480,9 @@ if (account === '631') {
         </div>
     </div>
 
-    <div class="act-text">
-        Ми, що нижче підписалися, представники <b>${org}</b> та <b>${saldoOwner ? saldoOwner.name : '____________________'}</b>, склали цей акт про те, що станом на <b>${toISO(dateTo)}</b> взаємні розрахунки між сторонами мають наступний стан:
-    </div>
+<div class="act-text">
+    ${actPartiesText}
+</div>
 </div>
 
             ${renderReconciliationTable(rows, totals, saldoOwner, dateTo)}
@@ -1487,7 +1493,7 @@ if (account === '631') {
     </div>
 
     <div>
-        Від контрагента:<br><br>
+        Від ${who ? `${kto[who] || who}` : `${getAccountTitle(account)}`}:<br><br>
         _______________________ / _______________________
     </div>
 </div>

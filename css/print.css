@@ -1,51 +1,60 @@
 ﻿@media print {
-  body * {
-        visibility: hidden;
+
+    /* ===============================
+       БАЗОВЫЕ НАСТРОЙКИ ПЕЧАТИ
+       =============================== */
+
+    body {
         font-size: 14px !important;
     }
 
-    #number {
-        border: none;
+    body * {
+        visibility: hidden;
     }
 
-#maincontainer,
-#header {
-    visibility: visible;
-}
-
-#maincontainer *:not(.descr),
-#header *:not(.descr) {
-    visibility: visible;
-}
-
-    .box[style*="block"] {
-        display: block !important;
+    @page {
+        margin: 0.1cm;
     }
 
-    table {
-        width: 95%;
-        border-collapse: collapse;
-        padding: 0px !important;
+    /* ===============================
+       ЧТО ПОКАЗЫВАЕМ
+       =============================== */
+
+    #maincontainer,
+    #maincontainer * {
+        visibility: visible;
     }
 
-    th, td {
-        padding: 0px 10px 0px 10px !important;
-        text-align: center;
+    #header,
+    #header * {
+        visibility: visible;
     }
 
-    #header {
-        display: block;
-        margin-bottom: 10px;
-    }
+    /* ===============================
+       ЧТО СКРЫВАЕМ ПРИНУДИТЕЛЬНО
+       =============================== */
 
-    .liab-header, #preview, #filebar, .buttons-container, .sidebar, .hamburger, .preloader, input, #datetime, .descr, #filter-container,.compare-row {
-       display: none !important;
+    .liab-header,
+    #preview,
+    #filebar,
+    .buttons-container,
+    .sidebar,
+    .hamburger,
+    .preloader,
+    input,
+    #datetime,
+    .descr,
+    #filter-container,
+    .compare-row,
+    .act-preview-row,
+    .act-icon {
+        display: none !important;
         visibility: hidden !important;
     }
 
-    .toggle-box:not(:checked) + label {
-        display: none;
-    }
+    /* ===============================
+       КОНТЕНТ
+       =============================== */
 
     .content {
         margin-left: 0 !important;
@@ -55,21 +64,41 @@
         width: 95% !important;
         max-width: 95% !important;
     }
-    @page {
-        margin: 0.1;
-    }
 
     .box {
         page-break-inside: avoid;
         -webkit-column-break-inside: avoid;
     }
-    .print-act-header, {
-        display: block;
+
+    /* ===============================
+       ТАБЛИЦЫ
+       =============================== */
+
+    table {
+        width: 95%;
+        border-collapse: collapse;
+        margin: 0 auto;
+    }
+
+    th,
+    td {
+        padding: 4px 10px !important;
+        text-align: center;
+    }
+
+    /* ===============================
+       АКТ ЗВІРКИ — ШАПКА
+       =============================== */
+
+    .print-act-header {
+        display: block !important;
+        visibility: visible !important;
         margin-bottom: 20px;
         font-size: 14px;
     }
 
     .print-act-header .act-title {
+        display: block;
         text-align: center;
         font-weight: bold;
         font-size: 16px;
@@ -83,39 +112,32 @@
     }
 
     .print-act-header .act-text {
+        display: block;
         text-align: justify;
-        margin-bottom: 15px;
         line-height: 1.4;
+        white-space: normal;   /* ⬅️ КРИТИЧЕСКИ ВАЖНО */
     }
+
+    /* ❗ НИКАКИХ * ДЛЯ print-act-header */
+
+    /* ===============================
+       ПОДПИСИ
+       =============================== */
+
     .print-act-sign {
-        display: flex;
+        display: flex !important;
+        visibility: visible !important;
         justify-content: space-between;
         margin-top: 40px;
         font-size: 14px;
     }
 
-    .print-act-sign div {
+    .print-act-sign > div {
         width: 45%;
+        display: block;
+        visibility: visible;
     }
-    .print-act-header,
-    .print-act-header * {
-        visibility: visible !important;
-        display: block !important;
-    }
-    .act-preview-row {
-        display: none !important;
-        visibility: hidden !important;
-    }
-    .act-icon {
-        display: none !important;
-        visibility: hidden !important;
-    }
-    .print-act-sign,
-    .print-act-sign * {
-        visibility: visible !important;
-        display: flex !important;
-    }
+
+    /* ❗ НИКАКИХ * ДЛЯ print-act-sign */
+
 }
-
-
-
