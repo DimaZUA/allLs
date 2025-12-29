@@ -354,6 +354,27 @@ function renderFilebar() {
     if (selectedYear) {
         const yearPath = rootPath + "/" + selectedYear;
         const yearDir = listDir(yearPath);
+    // --- ПАПКИ ГОДА (НЕ МЕСЯЦЫ) ---
+    if (yearDir.folders.length) {
+        const ulYearFolders = document.createElement("ul");
+        ulYearFolders.className = "file-list year-folders";
+
+        yearDir.folders.forEach(f => {
+            const li = document.createElement("li");
+            li.textContent = f;
+            li.className = "folder";
+            li.onclick = () => {
+                currentFolderPath = yearPath + "/" + f;
+                renderFilebar();
+                const subDir = listDir(currentFolderPath);
+                const fileToOpen = getFileToOpen(subDir.files);
+                if (fileToOpen) openFile(fileToOpen);
+            };
+            ulYearFolders.appendChild(li);
+        });
+
+        filebar.appendChild(ulYearFolders);
+    }
 
         // --- Файлы года вне месяцев ---
         const yearFiles = yearDir.files.filter(f => !/^(0[1-9]|1[0-2])\//.test(f.substring((yearPath + "/").length)));
