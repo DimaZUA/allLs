@@ -422,7 +422,7 @@ function generateTable() {
   end.setHours(23, 59, 59, 999);
 
   const displayMode = document.getElementById("display-mode").value;
-  const filterValue = document.getElementById("record-filter").value;
+  //const filterValue = document.getElementById("record-filter").value;
   setParam("displayMode", displayMode);
   if (displayMode === "analiz") {
   	tableContainer.appendChild(generateAnaliz(start,end));
@@ -547,10 +547,10 @@ function generateTable() {
     const debtMonths = calculateDebtMonthsFromCache(accountId, debitEnd, end);
 
     // Фильтр
-    if ((filterValue === "paid-or-low-debt" && !(totalPaymentsSum > 0 || debitEnd < totalChargesSum * 3)) ||
-        (filterValue === "paid" && totalPaymentsSum === 0) ||
-        (filterValue === "overpaid" && debitEnd > 0) ||
-        (filterValue === "debtors" && (totalPaymentsSum > 0 || debitEnd <= totalChargesSum * 3))) continue;
+//    if ((filterValue === "paid-or-low-debt" && !(totalPaymentsSum > 0 || debitEnd < totalChargesSum * 3)) ||
+//        (filterValue === "paid" && totalPaymentsSum === 0) ||
+//        (filterValue === "overpaid" && debitEnd > 0) ||
+//        (filterValue === "debtors" && (totalPaymentsSum > 0 || debitEnd <= totalChargesSum * 3))) continue;
 
     const row = document.createElement("tr");
     row.setAttribute("data-kv", ls[accountId].kv);
@@ -1032,7 +1032,7 @@ function initTable() {
 
       <!-- Третья колонка: фильтр -->
       <div class="column">
-        <label>
+        <!-- <label>
           Фильтр:
           <select id="record-filter">
             <option value="all">Показать всё</option>
@@ -1041,7 +1041,7 @@ function initTable() {
             <option value="overpaid">С переплатой</option>
             <option value="debtors">Должники</option>
           </select>
-        </label>
+        </label>-->
         ${buttons}
       </div>
     </div>
@@ -1059,14 +1059,14 @@ function initTable() {
   const presetSelect = document.getElementById("preset-select");
   const startDateInput = document.getElementById("start-date");
   const endDateInput = document.getElementById("end-date");
-  const recordFilter = document.getElementById("record-filter");
+//  const recordFilter = document.getElementById("record-filter");
   const displayMode = document.getElementById("display-mode");
   if (getParam("displayMode")) displayMode.value = getParam("displayMode");
   handlePeriodChange();
   presetSelect.addEventListener("change", handlePeriodChange);
   startDateInput.addEventListener("change", () => handlePeriodChange("start"));
   endDateInput.addEventListener("change", () => handlePeriodChange("end"));
-  recordFilter.addEventListener("change", generateTable);
+  //recordFilter.addEventListener("change", generateTable);
   displayMode.addEventListener("change", generateTable);
 
 
