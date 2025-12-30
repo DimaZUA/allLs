@@ -905,11 +905,10 @@ function calcLiabilitiesFromAllnachAndPlat(allnach, plat) {
                 ) continue;
 
                 const sum    = Number(row[1]) || 0;
-                if (Math.abs(sum) < 0.02) continue;
                 const who    = String(row[2]);
                 const credit = normAcc(row[4]); // КРЕДИТ
                 const debit  = normAcc(row[5]); // ДЕБЕТ
-
+                if (Math.abs(sum) < 0.02 && (debit==3771||debit==631||credit==3771||credit==631)) continue;
                 if (isTrackedAccount(debit)) {
                     applyPosting(debit, who, sum, 'debit');
                 }
@@ -1113,7 +1112,7 @@ function calcOpeningSaldo({ account, who, whatSet, dateFrom }) {
                 if (!before(d)) continue;
 
                 const sum = Number(r[1]) || 0;
-                if (sum <= 0.019 && sum >-0.005) continue;
+                if (Math.abs(sum) < 0.02 && (account==3771||account==631)) continue;
                 const whoCod = String(r[2]);
                 const what = String(r[3]);
                 const credit = String(r[4]);
@@ -1207,7 +1206,7 @@ let totalPaid    = 0;
             if (d < dateFrom || d > dateTo) continue;
 
             const sum = Number(r[1]) || 0;
-            if (sum <= 0.019 && sum >-0.005) continue;
+            if (Math.abs(sum) < 0.02 && (account==3771||account==631)) continue;
 
             const whoCod  = String(r[2] || '');
             const whatCod = String(r[3] || '');
