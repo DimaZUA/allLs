@@ -183,3 +183,6 @@ li.folder {
 .file-list li.other::before   { content: "📦"; }
 
 
+.year-folders {
+    margin-bottom: 6px;
+}
