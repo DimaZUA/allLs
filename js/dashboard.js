@@ -1,4 +1,5 @@
 // для 631 — последний контрагент, по которому инициализировались услуги
+const HIST_MONTHS = 12;
 let last631Who = null;
 
 const TODAY = new Date();
@@ -209,42 +210,43 @@ function renderHistogram(values, months) {
             <!-- Поле графика -->
             <div class="hist-plot">
                 ${values.map((v, i) => {
-const value = Math.abs(v);
 
-let height = 0;
+                    const value = Math.abs(v);
+                    let height = 0;
 
-if (top > min && value >= min) {
-    height = Math.round(
-        Math.min(
-            1,
-            Math.max(0, (value - min) / (top - min))
-        ) * 100
-    );
-}
-
+                    if (top > min && value >= min) {
+                        height = Math.round(
+                            Math.min(
+                                1,
+                                Math.max(0, (value - min) / (top - min))
+                            ) * 100
+                        );
+                    }
 
                     const isCurrent = i === values.length - 1;
                     const m = months[i].month - 1;
 
+                    // минимальная видимая высота столбца
+                    const barHeight = Math.max(height, 2);
+
                     return `
                         <div class="hist-col">
 
+                            <!-- столбец (только визуал) -->
                             <div class="hist-bar"
                                  style="
-                                    height:${height}%;
+                                    height:${barHeight}%;
                                     background:${isCurrent ? '#2563eb' : '#94a3b8'};
                                  ">
+                            </div>
+
+                            <!-- значение (всегда вертикально, от низа) -->
+                            <div class="hist-value">
                                 ${v.toFixedWithComma(0)}
                             </div>
 
-                            <div style="
-                                position:absolute;
-                                bottom:-22px;
-                                width:100%;
-                                text-align:center;
-                                font-size:11px;
-                                color:#555;
-                            ">
+                            <!-- месяц -->
+                            <div class="hist-month">
                                 ${MONTH_NAMES_UA_SHORT[m]}
                             </div>
 
@@ -256,6 +258,8 @@ if (top > min && value >= min) {
         </div>
     `;
 }
+
+
 
 function detectScaleStep(minVal, maxVal) {
     const range = maxVal - minVal;
@@ -772,7 +776,7 @@ function animateNumber(el, target, duration = 300) {
 // ===============================
 function initDashboard() {
 
-    const months = getLastMonths(CUR_YEAR, CUR_MONTH, 6);
+    const months = getLastMonths(CUR_YEAR, CUR_MONTH, HIST_MONTHS);
     // история оборотов по деньгам
     const cashIncomeHistory = months.map(m =>
     calcCashTurnoverMonth(plat, m.year, m.month).income

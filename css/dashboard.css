@@ -116,90 +116,14 @@
     pointer-events: none;
 }
 
-/* ================================
-   COLUMNS
-================================ */
 
-.hist-col {
-    flex: 1;
-    position: relative;
-}
 
-/* СТОЛБЕЦ */
-.hist-bar {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-
-    display: flex;
-    align-items: flex-end;
-    justify-content: center;
-
-    /* 👇 ВАЖНО */
-    color: #111827;               /* тёмный текст */
-    font-size: 11px;
-    font-weight: 600;
-
-    border-radius: 4px 4px 0 0;
-    padding-bottom: 4px;
-
-    /* плашка под текстом */
-    background-clip: padding-box;
-}
-
-/* ПЛАШКА ПОД ЧИСЛОМ */
-.hist-bar::after {
-    content: "";
-    position: absolute;
-    left: 6px;
-    right: 6px;
-    bottom: 2px;
-    height: 16px;
-
-    background: rgba(255,255,255,0.75);
-    border-radius: 4px;
-    z-index: -1;
-}
 
 /* ================================
    CURRENT MONTH (ПОСЛЕДНИЙ)
 ================================ */
 
-.hist-col:last-child .hist-bar {
-    color: #0f172a;
-}
 
-.hist-col:last-child .hist-bar::after {
-    background: rgba(255,255,255,0.85);
-}
-
-/* ================================
-   MONTH LABELS
-================================ */
-
-.hist-col > div:last-child {
-    position: absolute;
-    bottom: -22px;
-    width: 100%;
-    text-align: center;
-    font-size: 11px;
-    color: #6b7280;
-}
-
-/* ================================
-   ANIMATION
-================================ */
-
-.hist-bar {
-    transform-origin: bottom;
-    transform: scaleY(0);
-    transition: transform 1s ease-out;
-}
-
-.hist-bar.animate {
-    transform: scaleY(1);
-}
 
 /* ================================
    LIABILITIES
@@ -412,5 +336,82 @@
     line-height: 1.3;
 }
 .print-act-header, .print-act-sign {
+    display: none;
+}
+
+/* ================================
+   HISTOGRAM
+================================ */
+
+.hist-col {
+    position: relative;
+    flex: 1;
+}
+
+/* столбец — только визуал */
+.hist-bar {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+
+    border-radius: 4px 4px 0 0;
+
+    transform-origin: bottom;
+    transform: scaleY(0);
+    transition: transform 1s ease-out;
+}
+
+.hist-bar.animate {
+    transform: scaleY(1);
+}
+
+/* значение — всегда от низа */
+.hist-value {
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+
+    transform:
+        translateX(-50%)
+        rotate(180deg);
+
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1;
+
+    padding: 4px 3px;
+    border-radius: 4px;
+
+    background: rgba(255,255,255,0.65);
+    color: #111827;
+
+    white-space: nowrap;
+    user-select: none;
+    pointer-events: none;
+}
+
+/* последний месяц */
+.hist-col:last-child .hist-value {
+    background: rgba(255,255,255,0.85);
+}
+
+/* подпись месяца */
+.hist-month {
+    position: absolute;
+    bottom: -22px;
+    width: 100%;
+    text-align: center;
+    font-size: 11px;
+    color: #6b7280;
+}
+
+.hist-plot {
+    overflow: hidden; /* или visible — если хочешь видеть всё */
+}
+.hist-value:empty {
     display: none;
 }
