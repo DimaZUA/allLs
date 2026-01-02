@@ -97,32 +97,29 @@
     );
 
     // Инициализация: проверяем сессию
-    (async () => {
-      let {
-        data: { session },
-      } = await client.auth.getSession();
-      if (!session){
-      let {
-        data: { session },
-      } = await client.auth.refreshSession();      
-      }
-      client.auth.refreshSession() 
-      if (session) {
-        // Пользователь авторизован — показываем меню и контент, скрываем форму
-        document.getElementById("auth-section").style.display = "none";
-        document.querySelector(".sidebar").style.display = "block";
-        document.querySelector(".content").style.display = "block";
-        document.getElementById("hamburger-logo").style.display = "flex";
+(async () => {
+  let { data: { session } } = await client.auth.getSession();
 
-        await loadHomesAndBuildMenu();
-      } else {
-        // Пользователь не авторизован — показываем форму, скрываем меню и контент
-        document.getElementById("auth-section").style.display = "block";
-        document.querySelector(".sidebar").style.display = "none";
-        document.querySelector(".content").style.display = "none";
-        document.getElementById("hamburger-logo").style.display = "none";
-      }
-    })();
+  if (!session) {
+    const res = await client.auth.refreshSession();
+    session = res.data.session;
+  }
+
+  if (session) {
+    document.getElementById("auth-section").style.display = "none";
+    document.querySelector(".sidebar").style.display = "block";
+    document.querySelector(".content").style.display = "block";
+    document.getElementById("hamburger-logo").style.display = "flex";
+
+    await loadHomesAndBuildMenu();
+  } else {
+    document.getElementById("auth-section").style.display = "block";
+    document.querySelector(".sidebar").style.display = "none";
+    document.querySelector(".content").style.display = "none";
+    document.getElementById("hamburger-logo").style.display = "none";
+  }
+})();
+
 
     // Переключение форм
     document.getElementById("show-signup").addEventListener("click", () => {

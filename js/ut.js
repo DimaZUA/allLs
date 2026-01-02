@@ -1643,3 +1643,32 @@ function isMobile() {
  function nocache(url) {
     return url + (url.includes("?") ? "&" : "?") + "t=" + Date.now();
 }
+
+async function loadHomeRoles() {
+  // 1. Текущий пользователь
+  const { data: { user }, error: userError } = await client.auth.getUser();
+  if (userError || !user) {
+    console.error('User not authorized');
+    return null;
+  }
+
+  // 2. Запрос только из user_homes
+  const { data, error } = await client
+    .from('user_homes')
+    .select('home_code, role')
+    .eq('user_id', user.id);
+
+  if (error) {
+    console.error('Failed to load user_homes:', error);
+    return null;
+  }
+
+  // 3. Преобразование в объект { home_code: role }
+  const homeRoles = {};
+
+  for (const row of data) {
+    homeRoles[row.home_code] = row.role;
+  }
+
+  return homeRoles;
+}

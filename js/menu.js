@@ -1,4 +1,5 @@
 ﻿// Список доступных действий (например, для каждого дома)
+let rolse={};
 const actions = [
   { name: "Особові рахунки", actionCode: "accounts" },
   { name: "Перелік", actionCode: "list" },
@@ -190,6 +191,9 @@ async function handleMenuClick(homeCode, actionCode, actionLink, { fromHistory =
   plat = home.plat;
   us = home.us;
 
+
+const role = roles?.[homeCode] || 'Правление';
+files = filterFilesByRole(files, role);
 
 
 
@@ -488,7 +492,7 @@ async function loadHomesAndBuildMenu() {
 
   // Преобразуем данные и сохраняем в глобальную переменную
   homes = data.map(row => JSON.parse(row.data));
-
+  roles=await loadHomeRoles();
   if (!homes || homes.length === 0) {
     alert('Нет доступных домов для пользователя');
     return;
@@ -604,3 +608,50 @@ window.addEventListener("popstate", (event) => {
 
 
 
+function filterFilesByRole(filesObj, role) {
+  if (!filesObj || !Array.isArray(filesObj.files)) return filesObj;
+
+  const fullAccessRoles = [
+    "Администратор",
+    "Бухгалтер",
+    "Председатель"
+  ];
+
+  if (fullAccessRoles.includes(role)) return filesObj;
+
+  const excludeMasks = [
+    "*/ОР за боргом*",
+    "*/ОР передоплата*",
+    "*/Льгота*",
+    "*/ЗП_Табель*",
+    "*/ЗП_Наказ_*",
+    "*/ЗП_Звіт_*",
+    "*компенсац*",
+    "*коменсац*",
+    "*Авансов*",
+    "*Зарплата*",
+    "*ЗП_Штатний*",
+    "*Заліки*",
+    "*Витрати коштів з січня*",
+    "*Рух коштів з січня*",
+    "*ОР по квартирам з січня*",
+    "*Оплата співвлаників з січня*",
+  ];
+
+  const excludeRegexes = excludeMasks.map(wildcardToRegExp);
+
+  return {
+    ...filesObj,
+    files: filesObj.files.filter(path =>
+      !excludeRegexes.some(rx => rx.test(path))
+    )
+  };
+}
+
+function wildcardToRegExp(pattern) {
+  const escaped = pattern
+    .replace(/[.+^${}()|[\]\\]/g, "\\$&") // экранируем спецсимволы RegExp
+    .replace(/\*/g, ".*")
+    .replace(/\?/g, ".");
+  return new RegExp(escaped, "i");
+}
