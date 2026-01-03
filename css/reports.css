@@ -1,7 +1,7 @@
 ﻿/* Общий контейнер панели файлов */
 #filebar {
     padding: 10px;
-    width: 280px;
+    width: 240px;
     height: 100%; /* полностью по высоте окна */
     overflow: hidden auto; /* горизонтальная скрыта, вертикальная auto */
     background: #f7f7f7;
@@ -13,7 +13,6 @@
 
 /* Панель предпросмотра */
 #preview {
-    margin-left: 290px;
     padding: 1px;
     height: calc(100vh);
     box-sizing: border-box;
@@ -26,6 +25,7 @@
     list-style: none;
     margin: 0;
     padding: 0;
+    color: black;
 }
 
 .file-list li {

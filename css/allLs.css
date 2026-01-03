@@ -792,3 +792,26 @@ button:hover {
   text-decoration: none;
   cursor: default; /* чтобы не было вида ссылки */
 }
+
+.buttons-container {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+
+  /* КРИТИЧНО */
+  flex-wrap: nowrap;
+}
+.buttons-container .xls-button {
+  width: 40px !important;
+  min-width: 40px;
+  max-width: 40px;
+
+  height: 40px;
+
+  padding: 0;
+  flex: 0 0 auto;
+}
+.buttons-container button {
+  width: auto !important;
+}

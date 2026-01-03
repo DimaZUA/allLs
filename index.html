@@ -58,20 +58,32 @@
     </form>
   </div>
 
-  <!-- Иконка "гамбургера" -->
-<div id="hamburger-logo" class="hamburger logo" onclick="toggleMenu()" style="display:none;">
-  <img src="img/AllLs.png" alt="Logo" />
+
+
+<div class="topbar" id="topbar">
+  <button id="hamburger" class="hamburger" type="button" onclick="toggleMenu()">☰</button>
+  <button id="backFromFiles"
+          class="topbar-back"
+          onclick="exitFilesMode()">
+    ← Повернутися до головного меню
+  </button>
+  <div class="topbar-title" id="topbar-title"></div>
 </div>
 
+
   <!-- Боковая панель с меню -->
-  <nav class="sidebar" id="sidebar" style="display:none;">
+  <nav class="sidebar" id="sidebar">
+   <div class="sidebar-menu">
     <input type="text" id="searchHomes" placeholder="Поиск дома..." />
     <ul class="menu" id="menu"></ul>
     <br /><br /><br /><br />
+   </div>
+   <div class="sidebar-files" id="filebar"></div>
   </nav>
+  
 
   <!-- Основной контент -->
-  <div class="content" style="display:none;">
+  <div class="content">
     <div id="preloader" class="preloader">
       <div class="spinner"></div>
     </div>
@@ -107,16 +119,15 @@
 
   if (session) {
     document.getElementById("auth-section").style.display = "none";
-    document.querySelector(".sidebar").style.display = "block";
-    document.querySelector(".content").style.display = "block";
-    document.getElementById("hamburger-logo").style.display = "flex";
+    document.body.classList.add('authenticated');
+    document.getElementById("hamburger").style.display = "flex";
 
     await loadHomesAndBuildMenu();
   } else {
     document.getElementById("auth-section").style.display = "block";
     document.querySelector(".sidebar").style.display = "none";
     document.querySelector(".content").style.display = "none";
-    document.getElementById("hamburger-logo").style.display = "none";
+    document.getElementById("hamburger").style.display = "none";
   }
 })();
 

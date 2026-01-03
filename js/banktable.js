@@ -32,9 +32,8 @@ document.getElementById('maincontainer').innerHTML =
         '</div>' +
 
         '<!-- Обертка для текстового фильтра и кнопки -->' +
-        '<div class="full-span" style="display: flex; align-items: center; gap: 10px;">' +
+                    buttons +'<div class="full-span" style="display: flex; align-items: center; gap: 10px;">' +
             '<input type="text" id="textFilter" placeholder="Введіть текст для фільтрації" style="flex: 1; min-width: 200px;">' +
-            buttons +
         '</div>' +
 
     '</div>' +

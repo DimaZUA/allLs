@@ -1,5 +1,30 @@
-﻿// Список доступных действий (например, для каждого дома)
-let rolse={};
+﻿// ================================
+// НАСТРОЙКИ РЕЖИМОВ ЭКРАНА
+// ================================
+const SCREEN = {
+  MOBILE_MAX: 640,
+  TABLET_MAX: 1199
+};
+
+function getScreenMode() {
+  const w = window.innerWidth;
+  if (w <= SCREEN.MOBILE_MAX) return 'mobile';
+  if (w <= SCREEN.TABLET_MAX) return 'tablet';
+  return 'desktop';
+}
+
+// ================================
+// СТЕЙТ САЙДБАРА
+// ================================
+const sidebarState = {
+  open: false,
+  mode: getScreenMode()
+};
+
+// ================================
+// Список доступных действий
+// ================================
+let rolse = {};
 const actions = [
   { name: "Особові рахунки", actionCode: "accounts" },
   { name: "Перелік", actionCode: "list" },
@@ -10,71 +35,65 @@ const actions = [
   { name: "Схема будинку", actionCode: "schema" },
   { name: "Заборгованість", actionCode: "debitorka" }
 ];
+
 var homes, ls, nach, files, adr, dt, org, b, what, kto, oplat, plat, us, nachnote, allnach;
 
-
+// ================================
+// АКТИВАЦИЯ ИЗ URL
+// ================================
 function activateMenuFromParams() {
   const homeCode = getParam("homeCode");
   const actionCode = getParam("actionCode");
-
   if (!homes || homes.length === 0) return;
   if (!homeCode || !actionCode) return;
 
-  // Находим span действия в меню (который нужен handleMenuClick)
   const actionSpan = document.querySelector(
     `[data-code="${homeCode}"] ul span[data-action="${actionCode}"]`
   );
 
-  // Вызываем так, как будто это клик, но с отметкой что восстанавливаем историю
   handleMenuClick(homeCode, actionCode, actionSpan, { fromHistory: true, initial: true });
 }
 
-
-
-// Переключение подменю и установка активного дома
+// ================================
+// ПОДМЕНЮ ДОМА
+// ================================
 function toggleSubMenu(homeItem, homeCode) {
   var previousActionCode = getParam("actionCode");
-  document.querySelectorAll(".menu-item").forEach(function (item) {
+
+  document.querySelectorAll(".menu-item").forEach(item => {
     item.classList.remove("active");
-    var actionList = item.querySelector("ul");
-    if (actionList) {
-      actionList.style.display = "none";
-    }
+    const ul = item.querySelector("ul");
+    if (ul) ul.style.display = "none";
   });
+
   homeItem.classList.add("active");
-  var actionList = homeItem.querySelector("ul");
-  if (actionList) {
-    actionList.style.display = "block";
-  }
-  var actionItem = Array.from(actionList.querySelectorAll("li")).find(function (
-    item
-  ) {
-    var actionLink = item.querySelector("span");
-    return actions.some(function (action) {
-      return (
-        action.actionCode === previousActionCode &&
-        action.name === actionLink.textContent
-      );
-    });
+  const actionList = homeItem.querySelector("ul");
+  if (actionList) actionList.style.display = "block";
+
+  let actionItem = Array.from(actionList.querySelectorAll("li")).find(item => {
+    const span = item.querySelector("span");
+    return actions.some(a =>
+      a.actionCode === previousActionCode &&
+      a.name === span.textContent
+    );
   });
-  if (!actionItem) {
-    actionItem = actionList.querySelector("li"); // Берем первый пункт меню
-  }
+
+  if (!actionItem) actionItem = actionList.querySelector("li");
+
   if (actionItem) {
-    var actionLink = actionItem.querySelector("span");
+    const actionLink = actionItem.querySelector("span");
     actionLink.classList.add("active-action");
     handleMenuClick(
       homeCode,
-      actions.find(function (a) {
-        return a.name === actionLink.textContent;
-      }).actionCode,
+      actions.find(a => a.name === actionLink.textContent).actionCode,
       actionLink
     );
   }
 }
 
-// Обработчик клика на пункт подменю
-// Универсальный парсер строки/объекта jsonb
+// ================================
+// JSON HELPERS
+// ================================
 function tryParse(value, fallback) {
   if (value === null || value === undefined) return fallback;
   if (typeof value === "object") return value;
@@ -86,7 +105,6 @@ function tryParse(value, fallback) {
   }
 }
 
-// Парсит одну строку из таблицы homes
 function parseHomeRow(row) {
   return {
     us: tryParse(row.us, {}),
@@ -106,19 +124,20 @@ function parseHomeRow(row) {
   };
 }
 
+// ================================
+// КЛИК МЕНЮ
+// ================================
 async function handleMenuClick(homeCode, actionCode, actionLink, { fromHistory = false, initial = false } = {}) {
 
-  // --- мобильное меню ---
-  if (window.innerWidth <= 768) toggleMenu();
+  // --- MOBILE / TABLET: закрываем меню ---
+  if (sidebarState.mode !== 'desktop' && sidebarState.open) {
+    closeSidebar();
+  }
 
-
-  //
-  // --- ПОДСВЕТКА / РАСКРЫТИЕ МЕНЮ ---
-  //
+  // --- ПОДСВЕТКА ---
   document.querySelectorAll(".menu-item > span").forEach(el => el.classList.remove("active-home"));
   document.querySelectorAll(".menu-item ul span").forEach(el => el.classList.remove("active-action"));
 
-  // закрываем все дома
   document.querySelectorAll(".menu-item").forEach(li => {
     li.classList.remove("open");
     const ul = li.querySelector("ul");
@@ -128,7 +147,6 @@ async function handleMenuClick(homeCode, actionCode, actionLink, { fromHistory =
   let homeEl, actionEl;
 
   if (fromHistory || !actionLink) {
-    // ищем элементы по data-атрибутам
     homeEl = document.querySelector(`[data-code="${homeCode}"] > span`);
     actionEl = document.querySelector(
       `[data-code="${homeCode}"] ul span[data-action="${actionCode}"]`
@@ -141,7 +159,6 @@ async function handleMenuClick(homeCode, actionCode, actionLink, { fromHistory =
   if (homeEl) homeEl.classList.add("active-home");
   if (actionEl) actionEl.classList.add("active-action");
 
-  // раскрываем дом
   const homeLi = document.querySelector(`[data-code="${homeCode}"]`);
   if (homeLi) {
     homeLi.classList.add("open");
@@ -149,38 +166,27 @@ async function handleMenuClick(homeCode, actionCode, actionLink, { fromHistory =
     if (ul) ul.style.display = "block";
   }
 
-
-  //
-  // --- ЗАГРУЗКА ДАННЫХ ДОМА ---
-  //
+  // --- ДАННЫЕ ДОМА ---
   window.homeData = window.homeData || {};
   let home = window.homeData[homeCode];
 
   if (!home) {
-    try {
-      const { data, error } = await client
-        .from("homes")
-        .select("us, b, org, adr, dt, what, kto, nach, oplat, ls, plat, files, nachnote, allnach")
-        .eq("code", homeCode)
-        .single();
+    const { data, error } = await client
+      .from("homes")
+      .select("us, b, org, adr, dt, what, kto, nach, oplat, ls, plat, files, nachnote, allnach")
+      .eq("code", homeCode)
+      .single();
 
-      if (error || !data) { console.error(error); return; }
-
-      home = parseHomeRow(data);
-      window.homeData[homeCode] = home;
-
-    } catch (err) {
-      console.error("Ошибка загрузки дома:", err);
-      return;
-    }
+    if (error || !data) return;
+    home = parseHomeRow(data);
+    window.homeData[homeCode] = home;
   }
 
-  // --- GLOBALS ---
   ls = home.ls;
   nach = home.nach;
-  nachnote=home.nachnote;
-  allnach=home.allnach;
-  files = home.files;
+  nachnote = home.nachnote;
+  allnach = home.allnach;
+  files = filterFilesByRole(home.files, roles?.[homeCode] || 'Правление');
   adr = home.adr;
   dt = home.dt;
   org = home.org;
@@ -191,282 +197,131 @@ async function handleMenuClick(homeCode, actionCode, actionLink, { fromHistory =
   plat = home.plat;
   us = home.us;
 
+  // --- HISTORY ---
+  const homeObj = homes.find(h => h.code === homeCode);
+  const actionObj = actions.find(a => a.actionCode === actionCode);
+  document.title = `${homeObj?.name || ""} — ${actionObj?.name || ""}`;
 
-const role = roles?.[homeCode] || 'Правление';
-files = filterFilesByRole(files, role);
+  const params = new URLSearchParams();
+  params.set("homeCode", homeCode);
+  params.set("actionCode", actionCode);
+  const url = `${location.pathname}?${params}`;
 
-
-
-//
-// --- HISTORY + TITLE ---
-//
-const homeObj = homes.find(h => h.code === homeCode);
-const actionObj = actions.find(a => a.actionCode === actionCode);
-const title = `${homeObj?.name || ""} — ${actionObj?.name || ""}`;
-document.title = title;
-
-const params = new URLSearchParams(window.location.search);
-params.set("homeCode", homeCode);
-params.set("actionCode", actionCode);
-setParam("homeCode", homeCode);
-setParam("actionCode", actionCode);
-
-const newUrl = `${window.location.pathname}?${params.toString()}`;
-//const newUrl = `${window.location.pathname}`;
-
-// состояние, которое сейчас в history.state
-const prev = history.state || {};
-const same = prev.homeCode === homeCode && prev.actionCode === actionCode;
-
-if (initial) {
-  // первый запуск страницы — только replace
-  history.replaceState({ homeCode, actionCode }, title, newUrl);
-}
-else if (fromHistory) {
-  // двигаемся по истории — всегда replace (не плодим записи)
-  history.replaceState({ homeCode, actionCode }, title, newUrl);
-}
-else {
-  // обычный клик
-  if (same) {
-    // повторный клик на тот же пункт — НЕ push, только replace
-    history.replaceState({ homeCode, actionCode }, title, newUrl);
+  if (initial || fromHistory) {
+    history.replaceState({ homeCode, actionCode }, document.title, url);
   } else {
-    history.pushState({ homeCode, actionCode }, title, newUrl);
+    history.pushState({ homeCode, actionCode }, document.title, url);
   }
-}
 
-  //
   // --- ДЕЙСТВИЕ ---
-  //
   switch (actionCode) {
     case "accounts": fillMissingDates(nach); initLS(); break;
-    case "list":     fillMissingDates(nach); initTable(); break;
+    case "list": fillMissingDates(nach); initTable(); break;
     case "payments": initPayTable(); break;
-    case "bank":     initBankTable(); break;
-    case "reports":  reportsInit(homeCode); break;
-    case "info":     displayHomeInfo(homeCode); break;
-    case "schema":   initSchema(); break;
-    case "debitorka":   initDashboard(); break;
-    default: console.warn("Unknown action:", actionCode);
+    case "bank": initBankTable(); break;
+    case "reports": reportsInit(homeCode); break;
+    case "info": displayHomeInfo(homeCode); break;
+    case "schema": initSchema(); break;
+    case "debitorka": initDashboard(); break;
   }
-
-console.log(`Дом: ${homeCode}, действие: ${actionCode} (${fromHistory ? "history" : "click"})`);
+  updateTopbarTitle(homeCode);
 
 }
 
+// ================================
+// SIDEBAR CONTROL
+// ================================
+function openSidebar() {
+  sidebarState.open = true;
+  document.body.classList.add('sidebar-open');
+}
 
-// Функция для переключения бокового меню
+function closeSidebar() {
+  sidebarState.open = false;
+  document.body.classList.remove('sidebar-open');
+}
+
 function toggleMenu() {
-  var logo = document.querySelector(".logo");
-
-  // Вращение логотипа
-  logo.classList.add("spin");
-  setTimeout(function () {
-    return logo.classList.remove("spin");
-  }, 1000);
-
-  // Переключаем класс "open" для боковой панели
-  sidebar.classList.toggle("open");
-  checkMenu();
+  sidebarState.open ? closeSidebar() : openSidebar();
 }
-function checkMenu() {
-  var sidebar = document.getElementById("sidebar");
-  var content = document.querySelector(".content");
 
-  // Логика для компьютеров
-  if (window.innerWidth > 768) {
-    if (sidebar.classList.contains("open")) {
-      content.classList.add("open"); // Панель открыта, сдвигаем контент
-    } else {
-      content.classList.remove("open"); // Панель закрыта, контент занимает все место
-    }
-  } else {
-    // Для мобильных устройств
-    if (sidebar.classList.contains("open")) {
-      //      content.style.marginLeft = '0'; // На мобильных устройствах контент занимает весь экран
-      content.classList.remove("open");
-    } else {
-      //      content.style.marginLeft = '0'; // На мобильных устройствах контент также не сдвигается
-      content.classList.remove("open");
-    }
+// ================================
+// RESIZE HANDLER
+// ================================
+function handleResize() {
+  const newMode = getScreenMode();
+  if (newMode !== sidebarState.mode) {
+    sidebarState.mode = newMode;
+    closeSidebar();
   }
 }
-document.addEventListener("DOMContentLoaded", async function () {
-  // Загружаем дома и строим меню
+window.addEventListener('resize', handleResize);
+
+// ================================
+// INIT
+// ================================
+document.addEventListener("DOMContentLoaded", async () => {
   await loadHomesAndBuildMenu();
-
-  // Открываем мобильное меню на старте (если нужно)
-  toggleMenu();
-
-  // Пытаемся восстановить состояние из URL
-  const homeCode = getParam("homeCode");
-  const actionCode = getParam("actionCode");
-
-  if (homeCode && actionCode) {
-    // Активируем меню через историю, чтобы всё подсветилось правильно
-    //activateMenuFromParams();
-  } else {
-    console.log("Нет параметров — меню пока не выбрано");
+  handleResize();
+  if (sidebarState.mode === 'desktop') {
+    openSidebar();
   }
 });
-;
-function toggleSidebarBasedOnScreenSize() {
-  var sidebar = document.querySelector(".sidebar");
-  //    if ((window.innerWidth > 768 && !sidebar.classList.contains('open')) || (window.innerWidth <= 768 && sidebar.classList.contains('open')))
-  if (window.innerWidth <= 768 && sidebar.classList.contains("open"))
-    toggleMenu();
-}
-window.addEventListener("resize", toggleSidebarBasedOnScreenSize);
-function checkFullscreenMode() {
-  var fullscreenApi =
-    document.fullscreenElement ||
-    document.webkitFullscreenElement ||
-    document.mozFullScreenElement ||
-    document.msFullscreenElement;
-  var scaleFactor = window.devicePixelRatio || 1;
-  var fullscreenWidth = Math.round(screen.width / scaleFactor);
-  var fullscreenHeight = Math.round(screen.height / scaleFactor);
-  var isF11Fullscreen =
-    Math.abs(window.innerWidth - fullscreenWidth) < 1 &&
-    Math.abs(window.innerHeight - fullscreenHeight) < 1;
-  console.log(
-    "window.innerWidth: " +
-      window.innerWidth +
-      "\nwindow.innerHeight: " +
-      window.innerHeight +
-      "\nfullscreenWidth: " +
-      fullscreenWidth +
-      "\nfullscreenHeight: " +
-      fullscreenHeight
-  );
-  if (fullscreenApi || isF11Fullscreen) {
-    document.body.classList.add("fullscreen");
-    console.log("Полноэкранный режим активирован");
-  } else {
-    document.body.classList.remove("fullscreen");
-    console.log("Полноэкранный режим выключен");
+
+// ================================
+// POPSTATE
+// ================================
+window.addEventListener("popstate", e => {
+  if (e.state) {
+    handleMenuClick(e.state.homeCode, e.state.actionCode, null, { fromHistory: true });
   }
+});
+
+// ================================
+// ФИЛЬТРАЦИЯ ФАЙЛОВ
+// ================================
+function filterFilesByRole(filesObj, role) {
+  if (!filesObj || !Array.isArray(filesObj.files)) return filesObj;
+
+  const fullAccessRoles = ["Администратор", "Бухгалтер", "Председатель"];
+  if (fullAccessRoles.includes(role)) return filesObj;
+
+const excludeMasks = [
+  "*/ОР за боргом*",
+  "*/ОР передоплата*",
+  "*/Льгот*",
+  "*/Пільг**",
+  "*/ЗП_Табель*",
+  "*/ЗП_Наказ_*",
+  "*/ЗП_Звіт_*",
+  "*/Наказ*",
+  "*компенсац*",
+  "*коменсац*",
+  "*Авансов*",
+  "*Зарплата*",
+  "*ЗП_Штатний*",
+  "*Заліки*",
+  "*Б-Витрати коштів з рахунку з січня.pdf",
+  "*Рух коштів з січня*",
+  "*ОР по квартирам з січня*",
+  "*Оплата співвласників з січня.pdf",
+];
+
+  const excludeRegexes = excludeMasks.map(wildcardToRegExp);
+
+  return {
+    ...filesObj,
+    files: filesObj.files.filter(p => !excludeRegexes.some(rx => rx.test(p)))
+  };
 }
 
-// Обработчики событий
-document.addEventListener("fullscreenchange", checkFullscreenMode);
-document.addEventListener("webkitfullscreenchange", checkFullscreenMode);
-document.addEventListener("mozfullscreenchange", checkFullscreenMode);
-document.addEventListener("MSFullscreenChange", checkFullscreenMode);
-window.addEventListener("resize", checkFullscreenMode);
-
-function filterHomes(filter) {
-  var regexPattern = filter
-    .replace(/\s+/g, ".*") // Пробелы заменяем на .*
-    .replace(/\*/g, ".*") // '*' заменяем на .*
-    .replace(/\?/g, "."); // '?' заменяем на .
-
-  var regex = new RegExp(regexPattern, "i"); // Создаем регистронезависимый RegExp
-
-  document.querySelectorAll(".menu-item").forEach(function (item) {
-    var homeCode = item.getAttribute("data-code"); // Получаем код дома
-    var home = homes.find(function (h) {
-      return h.code === homeCode;
-    }); // Находим объект дома
-
-    if (home) {
-      var matches = Object.values(home).some(function (value) {
-        return typeof value === "string" && regex.test(value);
-      });
-      item.style.display = matches ? "" : "none";
-    }
-  });
-}
-
-function userSettings() {
-  // Получаем элементы
-  const settingsLink = document.getElementById('settingsLink'); // Ссылка "Настройки"
-  const settingsModal = document.getElementById('settings-modal');
-  const settingsForm = document.getElementById('settings-form');
-  const settingsOldPassword = document.getElementById('old-password');
-  const settingsNewPassword = document.getElementById('new-password');
-  const settingsConfirmPassword = document.getElementById('confirm-password');
-  const settingsCancel = document.getElementById('settings-cancel');
-  const settingsStatus = document.getElementById('settings-status');
-
-  // Показать модальное окно при клике
-  settingsLink.onclick = () => {
-    settingsForm.reset();
-    settingsStatus.textContent = '';
-    settingsModal.style.display = 'flex';
-  };
-
-  // Закрыть модальное окно при отмене
-  settingsCancel.onclick = () => {
-    settingsModal.style.display = 'none';
-    settingsStatus.textContent = '';
-  };
-
-  // Обработка отправки формы
-  settingsForm.onsubmit = async (e) => {
-    e.preventDefault();
-    settingsStatus.style.color = 'red';
-    settingsStatus.textContent = '';
-
-    const oldPassword = settingsOldPassword.value;
-    const newPassword = settingsNewPassword.value;
-    const confirmPassword = settingsConfirmPassword.value;
-
-    if (!oldPassword) {
-      settingsStatus.textContent = 'Введіть старий пароль';
-      return;
-    }
-    if (!newPassword) {
-      settingsStatus.textContent = 'Введіть новий пароль';
-      return;
-    }
-    if (newPassword.length < 6) {
-      settingsStatus.textContent = 'Новий пароль повинен містити не меньш 6 символів';
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      settingsStatus.textContent = 'Новий пароль та підтвердження не збігаються';
-      return;
-    }
-
-    try {
-      // Получаем текущего пользователя
-      const { data: { user }, error: userError } = await client.auth.getUser();
-      if (userError || !user) {
-        settingsStatus.textContent = 'Не удалось получить текущего пользователя';
-        return;
-      }
-
-      // Проверяем старый пароль — пробуем повторно войти
-      const { error: signInError } = await client.auth.signInWithPassword({
-        email: user.email,
-        password: oldPassword,
-      });
-      if (signInError) {
-        settingsStatus.textContent = 'Старый пароль неверный';
-        return;
-      }
-
-      // Обновляем пароль
-      const { error: updateError } = await client.auth.updateUser({ password: newPassword });
-      if (updateError) {
-        settingsStatus.textContent = 'Ошибка обновления пароля: ' + updateError.message;
-        return;
-      }
-
-      settingsStatus.style.color = 'green';
-      settingsStatus.textContent = 'Пароль успешно обновлен';
-
-      setTimeout(() => {
-        settingsModal.style.display = 'none';
-        settingsStatus.textContent = '';
-        settingsForm.reset();
-      }, 2000);
-    } catch (err) {
-      settingsStatus.textContent = 'Ошибка: ' + err.message;
-    }
-  };
+function wildcardToRegExp(pattern) {
+  return new RegExp(
+    pattern.replace(/[.+^${}()|[\]\\]/g, "\\$&")
+           .replace(/\*/g, ".*")
+           .replace(/\?/g, "."),
+    "i"
+  );
 }
 async function loadHomesAndBuildMenu() {
   // Получаем пользователя
@@ -590,70 +445,121 @@ menu.appendChild(logoutItem);
 }
 
 }
-// Инициализация
-checkFullscreenMode();
+function filterHomes(filter) {
+  var regexPattern = filter
+    .replace(/\s+/g, ".*") // Пробелы заменяем на .*
+    .replace(/\*/g, ".*") // '*' заменяем на .*
+    .replace(/\?/g, "."); // '?' заменяем на .
 
-window.addEventListener("popstate", (event) => {
-  const state = event.state;
-  if (state && state.homeCode && state.actionCode) {
-    handleMenuClick(state.homeCode, state.actionCode, null, { fromHistory: true });
-  } else {
-    const homeCode = getParam("homeCode");
-    const actionCode = getParam("actionCode");
-    if (homeCode && actionCode) {
-      handleMenuClick(homeCode, actionCode, null, { fromHistory: true });
+  var regex = new RegExp(regexPattern, "i"); // Создаем регистронезависимый RegExp
+
+  document.querySelectorAll(".menu-item").forEach(function (item) {
+    var homeCode = item.getAttribute("data-code"); // Получаем код дома
+    var home = homes.find(function (h) {
+      return h.code === homeCode;
+    }); // Находим объект дома
+
+    if (home) {
+      var matches = Object.values(home).some(function (value) {
+        return typeof value === "string" && regex.test(value);
+      });
+      item.style.display = matches ? "" : "none";
     }
-  }
-});
+  });
+}
+function userSettings() {
+  // Получаем элементы
+  const settingsLink = document.getElementById('settingsLink'); // Ссылка "Настройки"
+  const settingsModal = document.getElementById('settings-modal');
+  const settingsForm = document.getElementById('settings-form');
+  const settingsOldPassword = document.getElementById('old-password');
+  const settingsNewPassword = document.getElementById('new-password');
+  const settingsConfirmPassword = document.getElementById('confirm-password');
+  const settingsCancel = document.getElementById('settings-cancel');
+  const settingsStatus = document.getElementById('settings-status');
 
+  // Показать модальное окно при клике
+  settingsLink.onclick = () => {
+    settingsForm.reset();
+    settingsStatus.textContent = '';
+    settingsModal.style.display = 'flex';
+  };
 
+  // Закрыть модальное окно при отмене
+  settingsCancel.onclick = () => {
+    settingsModal.style.display = 'none';
+    settingsStatus.textContent = '';
+  };
 
-function filterFilesByRole(filesObj, role) {
-  if (!filesObj || !Array.isArray(filesObj.files)) return filesObj;
+  // Обработка отправки формы
+  settingsForm.onsubmit = async (e) => {
+    e.preventDefault();
+    settingsStatus.style.color = 'red';
+    settingsStatus.textContent = '';
 
-  const fullAccessRoles = [
-    "Администратор",
-    "Бухгалтер",
-    "Председатель"
-  ];
+    const oldPassword = settingsOldPassword.value;
+    const newPassword = settingsNewPassword.value;
+    const confirmPassword = settingsConfirmPassword.value;
 
-  if (fullAccessRoles.includes(role)) return filesObj;
+    if (!oldPassword) {
+      settingsStatus.textContent = 'Введіть старий пароль';
+      return;
+    }
+    if (!newPassword) {
+      settingsStatus.textContent = 'Введіть новий пароль';
+      return;
+    }
+    if (newPassword.length < 6) {
+      settingsStatus.textContent = 'Новий пароль повинен містити не меньш 6 символів';
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      settingsStatus.textContent = 'Новий пароль та підтвердження не збігаються';
+      return;
+    }
 
-  const excludeMasks = [
-    "*/ОР за боргом*",
-    "*/ОР передоплата*",
-    "*/Льгот*",
-    "*/Пільг**",
-    "*/ЗП_Табель*",
-    "*/ЗП_Наказ_*",
-    "*/ЗП_Звіт_*",
-    "*/Наказ*",
-    "*компенсац*",
-    "*коменсац*",
-    "*Авансов*",
-    "*Зарплата*",
-    "*ЗП_Штатний*",
-    "*Заліки*",
-    "*Б-Витрати коштів з рахунку з січня.pdf",
-    "*Рух коштів з січня*",
-    "*ОР по квартирам з січня*",
-    "*Оплата співвласників з січня.pdf",
-  ];
+    try {
+      // Получаем текущего пользователя
+      const { data: { user }, error: userError } = await client.auth.getUser();
+      if (userError || !user) {
+        settingsStatus.textContent = 'Не удалось получить текущего пользователя';
+        return;
+      }
 
-  const excludeRegexes = excludeMasks.map(wildcardToRegExp);
+      // Проверяем старый пароль — пробуем повторно войти
+      const { error: signInError } = await client.auth.signInWithPassword({
+        email: user.email,
+        password: oldPassword,
+      });
+      if (signInError) {
+        settingsStatus.textContent = 'Старый пароль неверный';
+        return;
+      }
 
-  return {
-    ...filesObj,
-    files: filesObj.files.filter(path =>
-      !excludeRegexes.some(rx => rx.test(path))
-    )
+      // Обновляем пароль
+      const { error: updateError } = await client.auth.updateUser({ password: newPassword });
+      if (updateError) {
+        settingsStatus.textContent = 'Ошибка обновления пароля: ' + updateError.message;
+        return;
+      }
+
+      settingsStatus.style.color = 'green';
+      settingsStatus.textContent = 'Пароль успешно обновлен';
+
+      setTimeout(() => {
+        settingsModal.style.display = 'none';
+        settingsStatus.textContent = '';
+        settingsForm.reset();
+      }, 2000);
+    } catch (err) {
+      settingsStatus.textContent = 'Ошибка: ' + err.message;
+    }
   };
 }
+function updateTopbarTitle(homeCode) {
+  const el = document.getElementById('topbar-title');
+  if (!el) return;
 
-function wildcardToRegExp(pattern) {
-  const escaped = pattern
-    .replace(/[.+^${}()|[\]\\]/g, "\\$&") // экранируем спецсимволы RegExp
-    .replace(/\*/g, ".*")
-    .replace(/\?/g, ".");
-  return new RegExp(escaped, "i");
+  const home = homes?.find(h => h.code === homeCode);
+  el.textContent = home ? home.name : '';
 }
