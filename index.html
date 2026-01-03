@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Учет в ОСББ/ЖК</title>
 
-  <!-- Основные стили -->
+  <!-- Styles -->
   <link rel="stylesheet" href="css/schema.css" />
   <link rel="stylesheet" href="css/menu.css" />
   <link rel="stylesheet" href="css/allLs.css" />
@@ -14,273 +14,191 @@
   <link rel="stylesheet" href="css/print.css" media="print">
   <link rel="stylesheet" href="css/analiz.css">
   <link rel="stylesheet" href="css/dashboard.css">
-  
-  <link rel="icon" type="image/png" href="favicon.png" />
 
+  <link rel="icon" type="image/png" href="favicon.png" />
 </head>
+
 <body>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
-<!-- pdf.js core -->
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<!-- pdf.js worker -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 
+<!-- ================= AUTH ================= -->
 
-  <div id="auth-section">
-    <!-- Форма входа -->
-    <form id="login-form">
-      <h2>Вход</h2>
-      <input type="email" id="email" placeholder="Email" required />
-      <input type="password" id="password" placeholder="Пароль" required />
-      <button type="submit">Увійти</button>
-      <div id="login-status"></div>
-      <div id="auth-toggle"><span id="show-signup" style="color:#007bff; cursor:pointer;">Нет аккаунта? Зарегистрироваться</span>
-      </div>
-    </form>
+<div id="auth-section">
+  <form id="login-form">
+    <h2>Вход</h2>
+    <input type="email" id="email" placeholder="Email" required />
+    <input type="password" id="password" placeholder="Пароль" required />
+    <button type="submit">Увійти</button>
+    <div id="login-status"></div>
+    <div id="auth-toggle">
+      <span id="show-signup" style="color:#007bff; cursor:pointer;">
+        Нет аккаунта? Зарегистрироваться
+      </span>
+    </div>
+  </form>
 
-    <!-- Форма регистрации -->
-    <form id="signup-form" style="display:none;">
-      <h2>Регистрация</h2>
-      <input type="email" id="signup-email" placeholder="Email" required />
-      <input type="password" id="signup-password" placeholder="Пароль" required minlength="6" />
-      <input
-        type="password"
-        id="signup-password-confirm"
-        placeholder="Подтвердите пароль"
-        required
-        minlength="6"
-      />
-      <button type="submit">Зарегистрироваться</button>
-      <div id="signup-status"></div>
-      <div id="auth-toggle"><span id="show-login" style="color:#007bff; cursor:pointer;">Уже есть аккаунт? Войти</span>
-      </div>
-    </form>
-  </div>
+  <form id="signup-form" style="display:none;">
+    <h2>Регистрация</h2>
+    <input type="email" id="signup-email" placeholder="Email" required />
+    <input type="password" id="signup-password" placeholder="Пароль" required minlength="6" />
+    <input type="password" id="signup-password-confirm" placeholder="Подтвердите пароль" required minlength="6" />
+    <button type="submit">Зарегистрироваться</button>
+    <div id="signup-status"></div>
+    <div id="auth-toggle">
+      <span id="show-login" style="color:#007bff; cursor:pointer;">
+        Уже есть аккаунт? Войти
+      </span>
+    </div>
+  </form>
+</div>
 
-
+<!-- ================= TOPBAR ================= -->
 
 <div class="topbar" id="topbar">
   <button id="hamburger" class="hamburger" type="button" onclick="toggleMenu()">☰</button>
-  <button id="backFromFiles"
-          class="topbar-back"
-          onclick="exitFilesMode()">
+  <button id="backFromFiles" class="topbar-back" onclick="exitFilesMode()">
     ← Повернутися до головного меню
   </button>
   <div class="topbar-title" id="topbar-title"></div>
 </div>
 
+<!-- ================= SIDEBAR ================= -->
 
-  <!-- Боковая панель с меню -->
-  <nav class="sidebar" id="sidebar">
-   <div class="sidebar-menu">
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar-menu">
     <input type="text" id="searchHomes" placeholder="Поиск дома..." />
     <ul class="menu" id="menu"></ul>
-    <br /><br /><br /><br />
-   </div>
-   <div class="sidebar-files" id="filebar"></div>
-  </nav>
-  
-
-  <!-- Основной контент -->
-  <div class="content">
-    <div id="preloader" class="preloader">
-      <div class="spinner"></div>
-    </div>
-
-    <div id="maincontainer"></div>
   </div>
+  <div class="sidebar-files" id="filebar"></div>
+</nav>
 
-  <script src="js/ut.js"></script>
-  <script src="js/addstuf.js"></script>
-  <script src="js/analiz.js"></script>
-  <script src="js/table.js"></script>
-  <script src="js/paytable.js"></script>
-  <script src="js/banktable.js"></script>
-  <script src="js/menu.js"></script>
-  <script src="js/homeinfo.js"></script>
-  <script src="js/schema.js"></script>
-  <script src="js/reports.js"></script>
-  <script src="js/dashboard.js"></script>
-  <script>
-    const client = window.supabase.createClient(
-      "https://bollarpnewbhziwldzjn.supabase.co",
-      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJvbGxhcnBuZXdiaHppd2xkempuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTEzNjY4MjYsImV4cCI6MjA2Njk0MjgyNn0.KhmT9U5wKm0irQbidZjZXCSOfzfr1gYYmo_21VL1JPw"
-    );
+<!-- ================= CONTENT ================= -->
 
-    // Инициализация: проверяем сессию
-(async () => {
-  let { data: { session } } = await client.auth.getSession();
+<div class="content">
+  <div id="preloader" class="preloader">
+    <div class="spinner"></div>
+  </div>
+  <div id="maincontainer"></div>
+</div>
 
-  if (!session) {
-    const res = await client.auth.refreshSession();
-    session = res.data.session;
-  }
+<!-- ================= APP SCRIPTS ================= -->
 
-  if (session) {
+<script src="js/ut.js"></script>
+<script src="js/addstuf.js"></script>
+<script src="js/analiz.js"></script>
+<script src="js/table.js"></script>
+<script src="js/paytable.js"></script>
+<script src="js/banktable.js"></script>
+<script src="js/menu.js"></script>
+<script src="js/homeinfo.js"></script>
+<script src="js/schema.js"></script>
+<script src="js/reports.js"></script>
+<script src="js/dashboard.js"></script>
+
+<script>
+  const client = window.supabase.createClient(
+    "https://bollarpnewbhziwldzjn.supabase.co",
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJvbGxhcnBuZXdiaHppd2xkempuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTEzNjY4MjYsImV4cCI6MjA2Njk0MjgyNn0.KhmT9U5wKm0irQbidZjZXCSOfzfr1gYYmo_21VL1JPw"
+  );
+
+  async function enterAppMode() {
     document.getElementById("auth-section").style.display = "none";
-    document.body.classList.add('authenticated');
+
+    document.body.classList.add("authenticated", "app");
+    document.body.classList.remove("files-mode");
+    document.body.classList.add("sidebar-open");
+
+    document.querySelector(".sidebar").style.display = "block";
+    document.querySelector(".content").style.display = "block";
     document.getElementById("hamburger").style.display = "flex";
 
     await loadHomesAndBuildMenu();
-  } else {
+  }
+
+  async function enterAuthMode() {
     document.getElementById("auth-section").style.display = "block";
+
+    document.body.classList.remove(
+      "authenticated",
+      "app",
+      "files-mode",
+      "sidebar-open"
+    );
+
     document.querySelector(".sidebar").style.display = "none";
     document.querySelector(".content").style.display = "none";
     document.getElementById("hamburger").style.display = "none";
   }
-})();
 
+  // ===== INITIAL SESSION CHECK =====
+  (async () => {
+    let { data: { session } } = await client.auth.getSession();
+    if (!session) {
+      const res = await client.auth.refreshSession();
+      session = res.data.session;
+    }
+    if (session) await enterAppMode();
+    else enterAuthMode();
+  })();
 
-    // Переключение форм
-    document.getElementById("show-signup").addEventListener("click", () => {
-      document.getElementById("login-form").style.display = "none";
-      document.getElementById("signup-form").style.display = "block";
-      clearStatuses();
-    });
-    document.getElementById("show-login").addEventListener("click", () => {
-      document.getElementById("signup-form").style.display = "none";
-      document.getElementById("login-form").style.display = "block";
-      clearStatuses();
-    });
+  // ===== FORM TOGGLES =====
+  document.getElementById("show-signup").onclick = () => {
+    document.getElementById("login-form").style.display = "none";
+    document.getElementById("signup-form").style.display = "block";
+  };
 
-    function clearStatuses() {
-      document.getElementById("login-status").textContent = "";
-      document.getElementById("signup-status").textContent = "";
+  document.getElementById("show-login").onclick = () => {
+    document.getElementById("signup-form").style.display = "none";
+    document.getElementById("login-form").style.display = "block";
+  };
+
+  // ===== LOGIN =====
+  document.getElementById("login-form").addEventListener("submit", async e => {
+    e.preventDefault();
+
+    const email = document.getElementById("email").value;
+    const password = document.getElementById("password").value;
+    const statusEl = document.getElementById("login-status");
+
+    const { error } = await client.auth.signInWithPassword({ email, password });
+
+    if (error) {
+      statusEl.textContent = "❌ Помилка входу: " + error.message;
+      return;
     }
 
-    // Вход
-    document.getElementById("login-form").addEventListener("submit", async (e) => {
-      e.preventDefault();
+    statusEl.textContent = "✅ Успішний вхід";
+    await enterAppMode();
+  });
 
-      const email = document.getElementById("email").value;
-      const password = document.getElementById("password").value;
+  // ===== SIGNUP =====
+  document.getElementById("signup-form").addEventListener("submit", async e => {
+    e.preventDefault();
 
-      const { data, error } = await client.auth.signInWithPassword({
-        email,
-        password,
-      });
+    const email = document.getElementById("signup-email").value;
+    const password = document.getElementById("signup-password").value;
+    const confirm = document.getElementById("signup-password-confirm").value;
+    const statusEl = document.getElementById("signup-status");
 
-      if (error) {
-        document.getElementById("login-status").textContent =
-          "❌ Помилка входу: " + error.message;
-      } else {
-        document.getElementById("login-status").textContent = "✅ Успішний вхід";
-        console.log("Logged in as:", data.user);
-        await loadHomesAndBuildMenu();
+    if (password !== confirm) {
+      statusEl.textContent = "❌ Пароли не совпадают";
+      return;
+    }
 
-        // Скрываем форму и показываем меню/контент:
-        document.getElementById("auth-section").style.display = "none";
-        document.querySelector(".sidebar").style.display = "block";
-        document.querySelector(".content").style.display = "block";
-      }
-    });
+    const { error } = await client.auth.signUp({ email, password });
 
-    // Регистрация
-    document
-      .getElementById("signup-form")
-      .addEventListener("submit", async (e) => {
-        e.preventDefault();
-
-        const email = document.getElementById("signup-email").value;
-        const password = document.getElementById("signup-password").value;
-        const passwordConfirm =
-          document.getElementById("signup-password-confirm").value;
-
-        if (password !== passwordConfirm) {
-          document.getElementById("signup-status").textContent =
-            "❌ Пароли не совпадают";
-          return;
-        }
-
-        const { data, error } = await client.auth.signUp({ email, password });
-
-        if (error) {
-          document.getElementById("signup-status").textContent =
-            "❌ Ошибка регистрации: " + error.message;
-        } else {
-          document.getElementById("signup-status").style.color = "green";
-          document.getElementById("signup-status").textContent =
-            "✅ Регистрация успешна! Проверьте почту для подтверждения.";
-        }
-      });
-
-  </script>
-
-  <!-- Подключение скриптов -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/core-js/3.32.1/minified.js"></script>
-
-  <!-- Подключаем библиотеки -->
-  <script src="https://cdn.jsdelivr.net/npm/exceljs@4.3.0/dist/exceljs.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/0.4.1/html2canvas.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
-
-<!-- Модальное окно настроек пользователя -->
-<div id="settings-modal" style="
-  display: none;
-  position: fixed;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
-  background: rgba(0,0,0,0.5);
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-">
-  <div style="
-    background: #fff;
-    padding: 20px;
-    border-radius: 5px;
-    max-width: 400px;
-    width: 90%;
-    box-sizing: border-box;
-  ">
-    <h3>Настройки пользователя</h3>
-<form id="settings-form">
-  <label>Старый пароль:</label>
-  <input type="password" id="old-password" required minlength="6" style="width: 100%;" /><br /><br />
-
-  <label>Новый пароль:</label>
-  <input type="password" id="new-password" required minlength="6" style="width: 100%;" /><br /><br />
-
-  <label>Подтвердите новый пароль:</label>
-  <input type="password" id="confirm-password" required minlength="6" style="width: 100%;" /><br /><br />
-
-  <button type="submit">Сохранить</button>
-  <button type="button" id="settings-cancel" style="margin-left: 10px;">Отмена</button>
-  <div id="settings-status" style="margin-top: 10px; color: red;"></div>
-</form>
-
-      <div id="settings-status" style="margin-top: 10px; color: red;"></div>
-    </form>
-  </div>
-</div>
-
-<script type="text/javascript" src="https://cdn.emailjs.com/dist/email.min.js"></script>
-
-
-<script type="text/javascript"
-        src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js">
+    if (error) {
+      statusEl.textContent = "❌ Ошибка регистрации: " + error.message;
+    } else {
+      statusEl.style.color = "green";
+      statusEl.textContent = "✅ Регистрация успешна! Проверьте почту.";
+    }
+  });
 </script>
-
-<script type="text/javascript"
-        src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js">
-</script>
-  <div
-    id="message"
-    style="
-      display: none;
-      position: fixed;
-      top: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      background-color: rgba(0, 128, 0, 0.8);
-      color: white;
-      padding: 10px;
-      border-radius: 5px;
-      font-size: 2rem;
-      z-index:99999;
-    "
-  ></div>
 
 </body>
 </html>
