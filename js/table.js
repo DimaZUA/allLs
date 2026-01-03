@@ -495,7 +495,7 @@ function generateTable() {
     input.placeholder = "Фільтр…";
     input.style.width = "95%";
     input.style.boxSizing = "border-box";
-    input.addEventListener("input", () => applyColumnFilter(colIndex, input.value));
+    input.addEventListener("input", applyColumnFilter);
     td.appendChild(input);
     filterRow.appendChild(td);
   });
@@ -694,11 +694,13 @@ const totalPers = Object.values(ls)
   tbody.appendChild(footerRow);
 
   // Клонируем заголовок
-  Array.from(thead.querySelectorAll("tr")).forEach(r => {
-    const clone = r.cloneNode(true);
-    clone.classList.add("header-row-clone");
-    tbody.appendChild(clone);
-  });
+const headerOnly = thead.querySelector("tr:not(.filter-row)");
+if (headerOnly) {
+  const clone = headerOnly.cloneNode(true);
+  clone.classList.add("header-row-clone");
+  tbody.appendChild(clone);
+}
+
 
   tableContainer.appendChild(table);
 
@@ -718,56 +720,85 @@ function applyColumnFilter() {
   if (!table) return;
 
   const rows = table.querySelectorAll("tbody tr:not(.itog):not(.header-row-clone)");
-  const filters = Array.from(table.querySelectorAll(".filter-row input")).map(inp => inp.value.trim());
+  const filterInputs = Array.from(
+    table.querySelectorAll("thead .filter-row input")
+  );
 
-  rows.forEach(row => {
-    const cells = row.querySelectorAll("td");
+  const filters = filterInputs.map(inp => inp.value.trim());
+
+  console.clear();
+  console.log("=== APPLY COLUMN FILTER ===");
+  console.log("Filters:", filters);
+
+  rows.forEach((row, rowIndex) => {
+    const cells = Array.from(row.children).filter(el => el.tagName === "TD");
     let visible = true;
 
     filters.forEach((filter, colIndex) => {
-      if (!filter || !visible) return; // уже скрыт или пустой фильтр
+      if (!filter || !visible) return;
 
       const cell = cells[colIndex];
-      if (!cell) return;
+
+      console.log(
+        `[row ${rowIndex}] col ${colIndex}`,
+        {
+          filter,
+          cellExists: !!cell,
+          cellText: cell?.textContent?.trim(),
+          cellsCount: cells.length
+        }
+      );
+
+      if (!cell) {
+        visible = false;
+        return;
+      }
 
       const text = cell.textContent.trim();
+
       if (colIndex === 0) {
-        // --- 1-й столбец: номера квартир ---
         const value = parseInt(text.replace(/\s+/g, ""), 10);
         if (!matchNumberFilter(value, filter, true)) visible = false;
 
       } else if (colIndex === 1) {
-        // --- 2-й столбец: текст без регистра ---
-  // --- 2-й столбец: текстовый фильтр с гибким поиском ---
-  let pattern = filter
-    .replace(/\s+/g, ".*") // пробел → любой промежуток
-    .replace(/[IiиИїЇІіыЫ]/g, "[IiиИїЇІіыЫ]+") // варианты I / И / ї / ы
-    .replace(/[ЕеЭэєЄ]/g, "[ЕеЭэєЄ]+"); // варианты Е / Э / є
-  
-  try {
-    const regex = new RegExp(pattern, "i");
-    if (!regex.test(text)) visible = false;
-  } catch {
-    // если фильтр содержит недопустимые символы, fallback
-    if (!text.toLowerCase().includes(filter.toLowerCase())) visible = false;
-  }
+        let pattern = filter
+          .replace(/\s+/g, ".*")
+          .replace(/[IiиИїЇІіыЫ]/g, "[IiиИїЇІіыЫ]+")
+          .replace(/[ЕеЭэєЄ]/g, "[ЕеЭэєЄ]+");
+
+        try {
+          const regex = new RegExp(pattern, "i");
+          if (!regex.test(text)) visible = false;
+        } catch {
+          if (!text.toLowerCase().includes(filter.toLowerCase())) visible = false;
+        }
 
       } else {
-        // --- остальные: дробные числа ---
-        // убираем пробелы и заменяем запятую на точку
-const normalized = (text ?? "").replace(/[\s\u00A0]+/g, "").replace(",", ".");
-const num = parseFloat(normalized);
-const value = isNaN(num) ? 0 : num;
-        if (!matchNumberFilter(value, filter)) visible = false;
+        const normalized = text.replace(/[\s\u00A0]+/g, "").replace(",", ".");
+        const num = parseFloat(normalized);
+
+        console.log(
+          `   parsed num =`,
+          num,
+          ` from `,
+          `"${normalized}"`
+        );
+
+        if (isNaN(num)) {
+          visible = false;
+          return;
+        }
+
+        if (!matchNumberFilter(num, filter)) visible = false;
       }
     });
 
     row.style.display = visible ? "" : "none";
   });
 
-updateTotals(table);
-
+  updateTotals(table);
 }
+
 function updateTotals(table) {
   const footer = table.querySelector(".itog");
   if (!footer) return;
