@@ -1,5 +1,5 @@
 // для 631 — последний контрагент, по которому инициализировались услуги
-const HIST_MONTHS = 6;
+const HIST_MONTHS = 12;
 let last631Who = null;
 
 const TODAY = new Date();
@@ -1380,7 +1380,7 @@ window.currentLiabAccount = account;
     const taxAccounts = isTax ? getTaxAccounts() : [];
 
     const dateTo   = parseDt(dt);
-    const dateFrom = new Date(dateTo.getFullYear(), 0, 1);
+    const dateFrom = new Date(dateTo.getFullYear(), 0, 1,12,0,0);
 
     // === НАЧАЛЬНЫЙ РАСЧЁТ ===
 const result = calcReconciliation({
@@ -1411,11 +1411,11 @@ const saldoOwner = getSaldoOwner(
 
     // === ДАННЫЕ ДЛЯ ФИЛЬТРОВ ===
     const whoList = showWhoSelect
-        ? collectWhoList(account, dateFrom, dateTo)
+        ? collectWhoListWithOpeningSaldo(account, dateFrom, dateTo)
         : [];
 
     const whatList = showWhatSelect
-        ? collectWhatList631(dateFrom, dateTo, who)
+        ? collectWhatList631Safe(dateFrom, dateTo, who)
         : [];
     const titleText = who
         ? 'Звірка розрахунків з контрагентом'
@@ -1696,7 +1696,7 @@ return `
 function openSalaryHistory() { 
 	const account = '661'; 
 	const dateTo = parseDt(dt); 
-	const dateFrom = new Date(dateTo.getFullYear(), 0, 1); 
+	const dateFrom = new Date(dateTo.getFullYear(), 0, 1,12,0,0); 
 	const rows = calcSalaryReconciliation({ dateFrom, dateTo }); 
 	maincontainer.innerHTML = `<div class="liab-history-page"> <div class="liab-header"> <button onclick="initDashboard()">← Назад</button> <h2>Заробітна плата</h2> <div class="liab-subtitle"> Рахунок 661 — розрахунки з працівниками<br> Період: <input type="date" id="salaryFrom" value="${toISO(dateFrom)}"> — <input type="date" id="salaryTo" value="${toISO(dateTo)}"> <button onclick="reloadSalary()">Перерахувати</button> </div> </div> ${renderSalaryTable(rows)} </div>` ; }
 
@@ -1926,6 +1926,32 @@ function reloadLiabAdvanced() {
 
 
 
+function collectWhoListWithOpeningSaldo(account, dateFrom, dateTo) {
+
+    const whoSet = new Set(
+        collectWhoList(account, dateFrom, dateTo)
+    );
+
+    if (whoSet.size > 0) {
+        return [...whoSet];
+    }
+
+    // 🔹 добираем из входящего сальдо
+    for (const who in kto) {
+
+        const saldo = calcOpeningSaldo({
+            account,
+            who,
+            dateFrom
+        });
+
+        if (Math.abs(saldo) >= 0.01) {
+            whoSet.add(who);
+        }
+    }
+
+    return [...whoSet].sort();
+}
 
 
 
@@ -2025,6 +2051,61 @@ function collectWhatList631(dateFrom, dateTo, who = null) {
     return [...set].sort();
 }
 
+function collectWhatList631Safe(dateFrom, dateTo, who = null) {
+
+    const hasMoves = hasMovements('631', dateFrom, dateTo);
+
+    // если есть движения — оставляем старую логику
+    if (hasMoves) {
+        return collectWhatList631(dateFrom, dateTo, who);
+    }
+
+    // иначе — берём услуги из истории ДО dateFrom
+    const set = new Set();
+
+    function scan(rows, getDate, getWho, getWhat, getCredit, getDebit) {
+        for (const y in rows) {
+            for (const m in rows[y]) {
+                for (const r of rows[y][m]) {
+
+                    const d = getDate(r, y, m);
+                    if (d >= dateFrom) continue;
+
+                    if (
+                        getCredit(r) !== '631' &&
+                        getDebit(r) !== '631'
+                    ) continue;
+
+                    const rowWho = getWho(r);
+                    if (who && rowWho !== who) continue;
+
+                    const what = getWhat(r);
+                    if (what) set.add(what);
+                }
+            }
+        }
+    }
+
+    scan(
+        allnach,
+        (r, y, m) => new Date(y, m - 1, r[0] || 1),
+        r => String(r[2] || ''),
+        r => String(r[3] || ''),
+        r => String(r[4] || ''),
+        r => String(r[5] || '')
+    );
+
+    scan(
+        plat,
+        (r, y, m) => new Date(y, m - 1, r[0] || 1),
+        r => String(r[2] || ''),
+        r => String(r[3] || ''),
+        r => String(r[6] || ''),
+        r => String(r[7] || '')
+    );
+
+    return [...set].sort();
+}
 
 function update631ServicesByWho() {
 
@@ -2303,4 +2384,43 @@ function closeActPreview() {
     document
         .querySelectorAll('.act-preview-row')
         .forEach(r => r.remove());
+}
+
+function hasMovements(account, dateFrom, dateTo) {
+    let found = false;
+
+    function scan(rows, getDate, getCredit, getDebit) {
+        for (const y in rows) {
+            for (const m in rows[y]) {
+                for (const r of rows[y][m]) {
+                    const d = getDate(r, y, m);
+                    if (d < dateFrom || d > dateTo) continue;
+
+                    if (
+                        getCredit(r) === account ||
+                        getDebit(r) === account
+                    ) {
+                        found = true;
+                        return;
+                    }
+                }
+            }
+        }
+    }
+
+    scan(
+        allnach,
+        (r, y, m) => new Date(y, m - 1, r[0] || 1),
+        r => String(r[4] || ''),
+        r => String(r[5] || '')
+    );
+
+    scan(
+        plat,
+        (r, y, m) => new Date(y, m - 1, r[0] || 1),
+        r => String(r[6] || ''),
+        r => String(r[7] || '')
+    );
+
+    return found;
 }

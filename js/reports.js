@@ -215,6 +215,34 @@ async function renderPdfPage(pdf, pageNum) {
     return canvas;
 }
 
+async function renderPdfPreview(container, pdfUrl) {
+  container.innerHTML = "";
+
+  const pdf = await pdfjsLib.getDocument(pdfUrl).promise;
+  const page = await pdf.getPage(1);
+
+  const viewport = page.getViewport({
+    scale: Math.min(2, window.innerWidth / page.getViewport({ scale: 1 }).width)
+  });
+
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+
+  canvas.width  = viewport.width;
+  canvas.height = viewport.height;
+  canvas.style.maxWidth = "100%";
+  canvas.style.display = "block";
+  canvas.style.margin = "0 auto";
+
+  container.appendChild(canvas);
+
+  await page.render({
+    canvasContext: ctx,
+    viewport
+  }).promise;
+}
+
+
 
 
 // --- Отображение структуры файлов ---
@@ -549,12 +577,32 @@ function openFile(f, { userClick = false } = {}) {
     downloadBtn.onclick = () => downloadFile(f);
     btnContainer.appendChild(downloadBtn);
 
-    if (f.match(/\.pdf$/i)) {
-        const pngBtn = document.createElement("button");
-        pngBtn.textContent = "🖼 Скачать как фото (для Viber/Telegram)";
-        pngBtn.onclick = () => downloadPdfAsPng(nocache(BASE_URL + f));
-        btnContainer.appendChild(pngBtn);
+if (f.match(/\.pdf$/i)) {
+    const pdfUrl = nocache(BASE_URL + f);
+
+    if (isMobile()) {
+        // 📱 MOBILE — pdf.js
+        const pdfContainer = document.createElement("div");
+        pdfContainer.style.width = "100%";
+        pdfContainer.style.overflow = "auto";
+        content.appendChild(pdfContainer);
+
+        renderPdfPreview(pdfContainer, pdfUrl).catch(err => {
+            console.error("PDF preview error:", err);
+            pdfContainer.textContent =
+              "Не удалось открыть PDF. Используйте кнопку «Скачать файл».";
+        });
+
+    } else {
+        // 🖥 DESKTOP — iframe
+        const iframe = document.createElement("iframe");
+        iframe.src = pdfUrl;
+        iframe.style.width = "100%";
+        iframe.style.height = "100%";
+        iframe.style.border = "0";
+        content.appendChild(iframe);
     }
+}
 
     const content = document.createElement("div");
     content.style.width = "100%";

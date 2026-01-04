@@ -11,6 +11,13 @@
     font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
 }
 
+/* планшеты / десктоп */
+@media (min-width: 768px) {
+    #dashboard {
+        grid-template-columns: repeat(auto-fill, minmax(600px, 1fr));
+    }
+}
+
 /* ================================
    CARDS
 ================================ */
