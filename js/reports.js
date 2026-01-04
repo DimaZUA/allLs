@@ -614,8 +614,7 @@ function openFile(f, { userClick = false } = {}) {
     // ==================================================
     const content = document.createElement("div");
     content.style.width = "100%";
-    content.style.height = "calc(100vh - 80px)";
-    content.style.overflow = "auto";
+    content.style.height = "calc(100vh - 115px)";
     preview.appendChild(content);
 
     // ==================================================
@@ -677,10 +676,12 @@ function openFile(f, { userClick = false } = {}) {
 
         // ---------- DESKTOP ----------
         const iframe = document.createElement("iframe");
-        iframe.src = pdfUrl;
+        iframe.src = pdfUrl+ "#page=1&zoom=page-width";;
         iframe.style.width = "100%";
-        iframe.style.height = "100%";
+        iframe.style.height = "99%";
         iframe.style.border = "0";
+        iframe.style.overflow = "hidden";
+        iframe.setAttribute("scrolling", "no");
         content.appendChild(iframe);
         return;
     }

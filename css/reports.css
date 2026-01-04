@@ -14,7 +14,7 @@
 /* Панель предпросмотра */
 #preview {
     padding: 1px;
-    height: calc(100vh);
+    height: 50%;
     box-sizing: border-box;
     background: #fff;
     border: 1px solid #ddd;
