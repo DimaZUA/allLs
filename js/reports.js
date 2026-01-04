@@ -558,15 +558,22 @@ function getFileToOpen(fileList) {
 
 // --- Открытие файла ---
 function openFile(f, { userClick = false } = {}) {
- if (userClick && window.innerWidth <= 640) {
-    document.body.classList.remove("sidebar-open");
-  }
-    
+
+    // === закрываем сайдбар на мобильном ===
+    if (userClick && window.innerWidth <= 640) {
+        document.body.classList.remove("sidebar-open");
+    }
+
     const preview = document.getElementById("preview");
+    if (!preview) return;
+
     preview.innerHTML = "";
     selectedFile = f;
     highlightFileInPanel(f);
 
+    // ==================================================
+    // КНОПКИ
+    // ==================================================
     const btnContainer = document.createElement("div");
     btnContainer.style.marginBottom = "10px";
     preview.appendChild(btnContainer);
@@ -577,110 +584,118 @@ function openFile(f, { userClick = false } = {}) {
     downloadBtn.onclick = () => downloadFile(f);
     btnContainer.appendChild(downloadBtn);
 
-if (f.match(/\.pdf$/i)) {
-    const pdfUrl = nocache(BASE_URL + f);
+    // ==================================================
+    // ОСНОВНОЙ КОНТЕЙНЕР (ВАЖНО: СОЗДАЁТСЯ СРАЗУ)
+    // ==================================================
+    const content = document.createElement("div");
+    content.style.width = "100%";
+    content.style.height = "calc(100vh - 80px)";
+    content.style.overflow = "auto";
+    preview.appendChild(content);
 
-    if (isMobile()) {
+    // ==================================================
+    // PDF
+    // ==================================================
+    if (f.match(/\.pdf$/i)) {
+        const pdfUrl = nocache(BASE_URL + f);
 
-        // === Контейнер PDF + логов ===
-        const pdfContainer = document.createElement("div");
-        pdfContainer.style.width = "100%";
-        pdfContainer.style.fontSize = "12px";
-        pdfContainer.style.lineHeight = "1.4";
-        content.appendChild(pdfContainer);
+        // ---------- MOBILE ----------
+        if (isMobile()) {
 
-        // === ЛОГГЕР В DOM ===
-        const log = (msg) => {
-            const line = document.createElement("div");
-            line.textContent = msg;
-            line.style.color = "#444";
-            pdfContainer.appendChild(line);
-        };
+            const pdfContainer = document.createElement("div");
+            pdfContainer.style.fontSize = "12px";
+            pdfContainer.style.lineHeight = "1.4";
+            pdfContainer.style.padding = "4px";
+            content.appendChild(pdfContainer);
 
-        const logError = (msg) => {
-            const line = document.createElement("div");
-            line.textContent = "❌ " + msg;
-            line.style.color = "#b91c1c";
-            pdfContainer.appendChild(line);
-        };
+            // --- логгер прямо в DOM ---
+            const log = (msg) => {
+                const d = document.createElement("div");
+                d.textContent = msg;
+                d.style.color = "#444";
+                pdfContainer.appendChild(d);
+            };
 
-        log("📄 PDF mobile preview");
-        log("URL: " + pdfUrl);
-        log("isMobile(): true");
+            const logError = (msg) => {
+                const d = document.createElement("div");
+                d.textContent = "❌ " + msg;
+                d.style.color = "#b91c1c";
+                pdfContainer.appendChild(d);
+            };
 
-        // === ПРОВЕРКИ ===
-        if (typeof pdfjsLib === "undefined") {
-            logError("pdfjsLib не загружен");
-            return;
-        }
-        log("pdfjsLib OK");
+            log("📄 PDF mobile preview");
+            log("URL: " + pdfUrl);
 
-        if (typeof renderPdfPreview !== "function") {
-            logError("renderPdfPreview не определена");
-            return;
-        }
-        log("renderPdfPreview OK");
+            if (typeof pdfjsLib === "undefined") {
+                logError("pdfjsLib не загружен");
+                return;
+            }
 
-        // === РЕНДЕР ===
-        try {
-            log("Начинаем renderPdfPreview...");
-            Promise
-                .resolve(renderPdfPreview(pdfContainer, pdfUrl))
+            if (typeof renderPdfPreview !== "function") {
+                logError("renderPdfPreview не определена");
+                return;
+            }
+
+            log("Запуск renderPdfPreview…");
+
+            renderPdfPreview(pdfContainer, pdfUrl)
                 .then(() => {
-                    log("✔ PDF успешно отрендерен");
+                    log("✔ PDF отрендерен");
                 })
                 .catch(err => {
-                    logError("Ошибка в renderPdfPreview");
+                    logError("Ошибка PDF");
                     logError(err?.message || String(err));
                 });
-        } catch (e) {
-            logError("Исключение до Promise");
-            logError(e?.message || String(e));
+
+            return;
         }
 
-    } else {
-        // 🖥 DESKTOP — iframe
+        // ---------- DESKTOP ----------
         const iframe = document.createElement("iframe");
         iframe.src = pdfUrl;
         iframe.style.width = "100%";
         iframe.style.height = "100%";
         iframe.style.border = "0";
         content.appendChild(iframe);
+        return;
     }
-}
 
-    const content = document.createElement("div");
-    content.style.width = "100%";
-    content.style.height = "calc(100vh - 80px)";
-    preview.appendChild(content);
-
-    if (f.match(/\.pdf$/i)) {
-        const iframe = document.createElement("iframe");
-        iframe.src = nocache(BASE_URL + f);
-        iframe.width = "100%";
-        iframe.height = "100%";
-        iframe.frameBorder = "0";
-        content.appendChild(iframe);
-    } else if (f.match(/\.(jpg|png|gif)$/i)) {
+    // ==================================================
+    // ИЗОБРАЖЕНИЯ
+    // ==================================================
+    if (f.match(/\.(jpg|jpeg|png|gif)$/i)) {
         const img = document.createElement("img");
         img.src = BASE_URL + f;
         img.style.maxWidth = "100%";
-        img.style.height = "100%";
+        img.style.display = "block";
         content.appendChild(img);
-    } else if (f.match(/\.(xls|xlsx)$/i)) {
-        const viewerUrl = `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(BASE_URL + f)}`;
-        const iframe = document.createElement("iframe");
-        iframe.src = viewerUrl;
-        iframe.width = "100%";
-        iframe.height = "100%";
-        iframe.frameBorder = "0";
-        content.appendChild(iframe);
-    } else {
-        const msg = document.createElement("div");
-        msg.textContent = "Файл не поддерживается для предпросмотра. Используйте кнопку скачать.";
-        content.appendChild(msg);
+        return;
     }
+
+    // ==================================================
+    // EXCEL
+    // ==================================================
+    if (f.match(/\.(xls|xlsx)$/i)) {
+        const iframe = document.createElement("iframe");
+        iframe.src =
+            `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(BASE_URL + f)}`;
+        iframe.style.width = "100%";
+        iframe.style.height = "100%";
+        iframe.style.border = "0";
+        content.appendChild(iframe);
+        return;
+    }
+
+    // ==================================================
+    // НЕПОДДЕРЖИВАЕМЫЙ ФОРМАТ
+    // ==================================================
+    const msg = document.createElement("div");
+    msg.textContent =
+        "Файл не поддерживается для предпросмотра. Используйте кнопку скачать.";
+    content.appendChild(msg);
 }
+
+
 function exitFilesMode() {
   document.body.classList.remove("files-mode");
 
