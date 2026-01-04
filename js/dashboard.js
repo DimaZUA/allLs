@@ -1,5 +1,5 @@
 // для 631 — последний контрагент, по которому инициализировались услуги
-const HIST_MONTHS = 12;
+const HIST_MONTHS = 6;
 let last631Who = null;
 
 const TODAY = new Date();
