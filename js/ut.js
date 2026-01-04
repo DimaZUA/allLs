@@ -1468,6 +1468,7 @@ async function exportTableToExcel(action = "download") {
     for (const table of tables) {
         // Копия таблицы
         const tableCopy = table.cloneNode(true);
+        tableCopy.querySelectorAll("tr[data-hidden-by-filter='1']").forEach(tr => tr.remove());
 
         // Удаляем .descr
         tableCopy.querySelectorAll(".descr").forEach(el => el.remove());
@@ -1536,7 +1537,9 @@ async function exportTableToExcel(action = "download") {
 function handleRows(tableCopy, ws) {
   var tbody = tableCopy.querySelector("tbody");
   if (tbody) {
-    var rows = Array.from(tbody.querySelectorAll("tr")); // Массив строк из tbody
+  var rows = Array.from(tbody.querySelectorAll("tr")).filter(row => row.dataset.hiddenByFilter !== "1");
+
+
     var colorIndex = 0; // Индекс для смены цветов
     var colors = [
       "FFFF99",

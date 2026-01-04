@@ -793,7 +793,9 @@ function applyColumnFilter() {
       }
     });
 
+    row.dataset.hiddenByFilter = visible ? "0" : "1";
     row.style.display = visible ? "" : "none";
+
   });
 
   updateTotals(table);
