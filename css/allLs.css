@@ -3,6 +3,19 @@ html {
 	    background-color: #f4f4f9;
 	    font-size:20px;
 }
+.box table#main tbody td {
+    font-size: 1.2rem;
+}
+
+.box table#main tbody .paysubtable td {
+    font-size: 1.5rem; /* или нужный размер */
+}
+.box table#main tbody .paysubtable td:nth-child(1),
+.box table#main tbody .paysubtable td:nth-child(3){
+  vertical-align: bottom;
+  font-size: small;
+}
+
 tr.grey {
     color: #aaa; /* Полупрозрачность */
 }
@@ -59,25 +72,11 @@ tr.grey .descr {
         transform: translateY(0);
     }
 }
-.toggle-box:checked+label+div {
-	display: block;
-	animation: fadeIn 0.3s ease-in-out;
-		
-}
-
-.toggle-box+label+div {
-	display: none;
-    border-radius: 10px; /* Скругление углов */
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2); /* Тень */
-    background: #fff; /* Фон для контента */
-    padding: 5px; /* Отступы внутри div */
-    margin-top: 0px; /* Отступ сверху */
-		
-}
 
 
 .toggle-box+label {
-	float: left;
+	display: inline-block;
+	margin: 4px 6px;
 	color: #444;
 	border-radius: 40px;
 	border: 1px solid #CCC;
@@ -90,6 +89,8 @@ tr.grey .descr {
 	font-size: 1.5rem;
 		
 }
+
+
 
 td[v^='-']:not(.green) {
     color: red;
@@ -120,10 +121,14 @@ table#main td {
 	border: 1px solid black;
 }
 
-table#main {
+.box table#main {
 	border-collapse: collapse;
 	text-align: right !important;
-	width: 100%;
+	width: 50%;
+	max-width: 100%;
+}
+.box table#main td:first-child {
+    white-space: nowrap;
 }
 
 
@@ -914,4 +919,22 @@ table#main thead  {
 
 @keyframes spin {
   to { transform: rotate(360deg); }
+}
+
+/* таблицы годов по умолчанию скрыты */
+.box.year-table {
+    display: none;
+    width: 100%;
+}
+
+/* активная таблица */
+.box.year-table.active {
+    display: block;
+}
+.box.year-table.active {
+    margin-bottom: 24px;   /* расстояние между таблицами */
+}
+
+.paysubtable td:nth-child(3) {
+    white-space: nowrap;
 }

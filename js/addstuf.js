@@ -310,9 +310,9 @@ if (link && currentKv && currentKv > 0) {
       );
 
     // Добавляем обработчик кликов к заголовкам
-    Array.from(headerRow.children).forEach(function (header, index) {
-      header.addEventListener("click", handleHeaderClick);
-    });
+    //Array.from(headerRow.children).forEach(function (header, index) {
+    //  header.addEventListener("click", handleHeaderClick);
+    //});
     thead.appendChild(headerRow);
 
     // Второй ряд заголовка с названиями услуг
@@ -328,7 +328,7 @@ if (link && currentKv && currentKv > 0) {
         serviceHeader.classList.add("clickable"); // Добавляем класс
 
         // Навешиваем обработчик клика
-        serviceHeader.addEventListener("click", handleHeaderClick);
+        //serviceHeader.addEventListener("click", handleHeaderClick);
         servicesRow.appendChild(serviceHeader);
       }
     });
@@ -578,18 +578,39 @@ if (cumulativeBalance !== 0) {
     table.appendChild(thead);
     table.appendChild(tbody);
     yearContent.appendChild(table);
-    yearDiv.appendChild(yearToggle);
-    yearDiv.appendChild(yearLabel);
-    yearDiv.appendChild(yearContent);
-    container.appendChild(yearDiv);
+    yearContent.dataset.id = "block-" + year;
+
+yearsBar.appendChild(yearToggle);
+yearsBar.appendChild(yearLabel);
+
+yearContent.classList.add("year-table");
+container.appendChild(yearContent);
+
     lastYearToggle = yearToggle; // Сохраняем чекбокс последнего года
   };
+var yearsBar = document.createElement("div");
+yearsBar.id = "years-bar";
+container.appendChild(yearsBar);
+
   for (var year in accountData) {
     _loop();
   }
-  if (lastYearToggle) {
+if (lastYearToggle) {
     lastYearToggle.checked = true;
-  }
+
+    const id = lastYearToggle.id;
+    const table = document.querySelector(`.year-table[data-id="${id}"]`);
+    if (table) {
+        table.classList.add("active");
+    }
+
+    // (опционально) подсветка кнопки года
+    const label = document.querySelector(`label[for="${id}"]`);
+    if (label) {
+        label.classList.add("active");
+    }
+}
+
   var curLS = ls[accountId];
 container = document.getElementById("datetime");
 container.style.cursor = "pointer";
@@ -1499,3 +1520,19 @@ function updateStickyTop() {
 // fallback
 window.addEventListener("load", updateStickyTop);
 window.addEventListener("resize", updateStickyTop);
+document.addEventListener("click", function (e) {
+    const label = e.target.closest("label[for^='block-']");
+    if (!label) return;
+
+    const id = label.getAttribute("for");
+    const table = document.querySelector(`.year-table[data-id="${id}"]`);
+    if (!table) return;
+
+    // переключаем только ЭТУ таблицу
+    table.classList.toggle("active");
+
+    // (опционально) подсветка активной кнопки
+    label.classList.toggle("active", table.classList.contains("active"));
+});
+
+
