@@ -626,7 +626,7 @@ container.addEventListener("click", function () {
   handleChangeRequest(accountId);
 });
 
-
+  updateStickyTop(); 
 }
 function createPaymentCell(row, monthlyPayments, accountId) {
   var paymentCell = document.createElement("td");
@@ -1070,7 +1070,7 @@ document.getElementById('saveChanges').onclick = async function () {
 
   if (Object.keys(payload).length <= 5) {
     //alert("Зміни відсутні");
-    showMessage("Зміни відсутні");
+    showMessage("Зміни відсутні","warn");
     //closeModal();
     return;
   }
@@ -1095,7 +1095,7 @@ document.getElementById('saveChanges').onclick = async function () {
 async function sendCorrection(payload, accountId) {
   const { data: { user }, error: userError } = await client.auth.getUser();
   if (userError || !user) {
-    showMessage("Потрібно увійти в систему");
+    showMessage("Потрібно увійти в систему","err");
     return;
   }
 
@@ -1143,7 +1143,7 @@ async function sendCorrection(payload, accountId) {
 
     if (insertError) {
       console.error("Supabase insert error:", insertError);
-      showMessage("Помилка при відправці даних.");
+      showMessage("Помилка при відправці даних.","err");
       return;
     }
 
@@ -1200,7 +1200,7 @@ const uvaga =
   } catch (err) {
     loader.close();
     console.error("Помилка мережі:", err);
-    showMessage("Не вдалося відправити дані.");
+    showMessage("Не вдалося відправити дані.","err");
   }
 }
 
@@ -1253,7 +1253,7 @@ function showLoader(message = "Завантаження...", cancelCallback) {
 // --- Получение истории из Supabase ---
 async function ShowHistory(accountId) {
   const { data: { user } } = await client.auth.getUser();
-  if (!user) return showMessage("Потрібно увійти в систему");
+  if (!user) return showMessage("Потрібно увійти в систему","warn");
 
   const senderName = user?.user_metadata?.full_name || "";
   const senderEmail = user?.email || "";
@@ -1271,12 +1271,12 @@ const { data, error } = await client
 
     if (error) {
       console.error(error);
-      return showMessage("Помилка отримання історії");
+      return showMessage("Помилка отримання історії","err");
     }
 
     if (!Array.isArray(data)) {
       console.error("Supabase returned data is not an array", data);
-      return showMessage("Неправильний формат історії");
+      return showMessage("Неправильний формат історії","err");
     }
 
     showHistoryModal(data, sender);
@@ -1284,7 +1284,7 @@ const { data, error } = await client
   } catch (err) {
     loader.close();
     console.error(err);
-    showMessage("Помилка отримання історії");
+    showMessage("Помилка отримання історії","err");
   }
 }
 
@@ -1471,3 +1471,31 @@ if (row.status?.toLowerCase().includes("внесено")) {
     if (e.target === modal) modal.remove();
   });
 }
+
+let headerResizeObserver = null;
+
+function updateStickyTop() {
+  const header = document.getElementById("header");
+  if (!header) return;
+
+  const rect = header.getBoundingClientRect();
+  const stickyTop = Math.ceil(48 + rect.height);
+
+
+  document.documentElement.style.setProperty(
+    "--header-height",
+    `${stickyTop}px`
+  );
+
+  // Подключаем ResizeObserver ТОЛЬКО ОДИН РАЗ
+  if ("ResizeObserver" in window && !headerResizeObserver) {
+    headerResizeObserver = new ResizeObserver(() => {
+      updateStickyTop();
+    });
+    headerResizeObserver.observe(header);
+  }
+}
+
+// fallback
+window.addEventListener("load", updateStickyTop);
+window.addEventListener("resize", updateStickyTop);

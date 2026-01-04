@@ -977,16 +977,78 @@ function debounce(func, delay) {
     }, delay);
   };
 }
-function showMessage(messageText) {
-  var messageElement = document.getElementById("message");
-  messageElement.textContent = messageText; // Устанавливаем текст сообщения
-  messageElement.style.display = "block"; // Показываем сообщение
+function showMessage(text, type = "inf", duration = 5000) {
+  let container = document.getElementById("message-container");
 
-  // Через 3 секунды скрываем сообщение
-  setTimeout(function () {
-    messageElement.style.display = "none";
-  }, 3000);
+  // === контейнер сообщений ===
+  if (!container) {
+    container = document.createElement("div");
+    container.id = "message-container";
+    container.style.position = "fixed";
+    container.style.bottom = "20px";
+    container.style.right = "20px";
+    container.style.display = "flex";
+    container.style.flexDirection = "column-reverse"; // новые снизу
+    container.style.gap = "8px";
+    container.style.zIndex = "9999";
+    container.style.pointerEvents = "none";
+    document.body.appendChild(container);
+  }
+
+  // === сообщение ===
+  const msg = document.createElement("div");
+  msg.textContent = text;
+
+  msg.style.padding = "10px 14px";
+  msg.style.borderRadius = "6px";
+  msg.style.color = "#fff";
+  msg.style.fontSize = "14px";
+  msg.style.maxWidth = "360px";
+  msg.style.boxShadow = "0 4px 12px rgba(0,0,0,0.25)";
+  msg.style.opacity = "0";
+  msg.style.transform = "translateY(10px)";
+  msg.style.transition = "opacity 0.3s ease, transform 0.3s ease";
+  msg.style.pointerEvents = "none";
+
+  // === типы ===
+  const colors = {
+    inf:    "#333",
+    suc: "#2e7d32",
+    warn: "#ed6c02",
+    err:   "#d32f2f"
+  };
+
+  msg.style.background = colors[type] || colors.info;
+
+  // === добавляем ===
+  container.appendChild(msg);
+
+  // принудительный reflow
+  requestAnimationFrame(() => {
+    msg.style.opacity = "1";
+    msg.style.transform = "translateY(0)";
+  });
+
+  // === индивидуальный таймер ===
+  setTimeout(() => {
+    msg.style.opacity = "0";
+    msg.style.transform = "translateY(10px)";
+
+    msg.addEventListener(
+      "transitionend",
+      () => {
+        msg.remove();
+        // если сообщений больше нет — убираем контейнер
+        if (!container.children.length) {
+          container.remove();
+        }
+      },
+      { once: true }
+    );
+  }, duration);
 }
+
+
 function copyToClipboard(text) {
   navigator.clipboard
     .writeText(text)
@@ -1312,7 +1374,7 @@ async function exportTableToExcel(action = "download") {
     const mainContainer = document.getElementById("maincontainer");
 
     if (!mainContainer) {
-        showMessage("Контейнер с id='maincontainer' не найден");
+        showMessage("Контейнер с id='maincontainer' не найден","err");
         return;
     }
 
@@ -1335,7 +1397,7 @@ async function exportTableToExcel(action = "download") {
     });
 
     if (tables.length === 0) {
-        showMessage("Нет видимых таблиц");
+        showMessage("Нет видимых таблиц","warn");
         return;
     }
 
@@ -1406,7 +1468,7 @@ async function exportTableToExcel(action = "download") {
             await navigator.clipboard.writeText(clipboardData);
             showMessage("Данные скопированы в буфер обмена!");
         } catch (e) {
-            showMessage("Не удалось скопировать данные в буфер обмена.");
+            showMessage("Не удалось скопировать данные в буфер обмена.","err");
         }
     }
 }
@@ -1579,21 +1641,26 @@ mainTable.querySelectorAll("td[rowspan]").forEach(td => {
       console.log("isFirefox:", isFirefox);
       console.log("Clipboard API доступен:", supportsClipboard);
 
-      if (supportsClipboard) {
-        canvas.toBlob(function (blob) {
-          navigator.clipboard
-            .write([new ClipboardItem({ "image/png": blob })])
-            .then(function () {
-              showMessage("Скриншот таблицы скопирован в буфер обмена");
-            })
-            .catch(function (err) {
-              console.error("Ошибка при копировании в буфер", err);
-              fallbackDownload(canvas);
-            });
-        });
-      } else {
-        fallbackDownload(canvas);
-      }
+if (supportsClipboard) {
+  canvas.toBlob(function (blob) {
+    navigator.clipboard
+      .write([new ClipboardItem({ "image/png": blob })])
+      .then(function () {
+        showMessage("Скриншот таблицы скопирован в буфер обмена");
+        // ❗ ничего не скачиваем
+      })
+      .catch(function (err) {
+        console.error("Ошибка при копировании в буфер", err);
+        fallbackDownload(canvas); // ✅ скачиваем ТОЛЬКО здесь
+        showMessage("Не удалось скопировать, файл сохранён","warn");
+      });
+  });
+} else {
+  // ❗ буфер обмена недоступен — считаем, что скопировать нельзя
+  fallbackDownload(canvas); // ✅ скачиваем
+  showMessage("Буфер обмена недоступен, файл сохранён","warn");
+}
+
 
       setTimeout(function () {
         document.querySelectorAll("label").forEach((label) => {
@@ -1628,7 +1695,7 @@ mainTable.querySelectorAll("td[rowspan]").forEach(td => {
     link.download = "screenshot.png";
     link.href = canvas.toDataURL("image/png");
     link.click();
-    showMessage("Скриншот сохранён как файл (буфер обмена недоступен)");
+    showMessage("Скриншот сохранён как файл (буфер обмена недоступен)","warn");
   }
 }
 
