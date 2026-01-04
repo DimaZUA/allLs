@@ -584,7 +584,7 @@ function addRowHandler(row) {
     const start = () => {
       pressTimer = setTimeout(() => {
         handleAction();
-      }, 500); // длительное удержание (мс)
+      }, 1000); // длительное удержание (мс)
     };
 
     const cancel = () => clearTimeout(pressTimer);
@@ -1160,6 +1160,7 @@ const getTotalVisualColumns = (row) =>
   );
  
 function generateServiceSummaryCell(accountId, chargesByService, totalAmount) {
+  //функция не используется
   const cell = document.createElement("td");
   cell.classList.add("poster");
 

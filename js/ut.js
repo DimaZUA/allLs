@@ -565,33 +565,90 @@ var monthNames = [
   "дек"
 ];
 function initPosters() {
-  var sidebar = document.querySelector(".sidebar"); // Предположим, что у панели есть класс 'sidebar'
+  const sidebar = document.querySelector(".sidebar");
+  const HOVER_DELAY = 700;
+  const LONGPRESS_DELAY = 750;
 
-  document.querySelectorAll(".poster").forEach(function (cell) {
-    var tooltip = cell.querySelector(".descr");
-    var hideTimeout;
-    cell.addEventListener("mouseenter", function (event) {
-      if (!isCursorOverSidebar(event, sidebar)) {
-        clearTimeout(hideTimeout);
-        tooltip.style.display = "block";
-        positionTooltip(event, tooltip);
+  const isTouch =
+    "ontouchstart" in window ||
+    navigator.maxTouchPoints > 0;
+
+  document.querySelectorAll(".poster").forEach(cell => {
+    const tooltip = cell.querySelector(".descr");
+    if (!tooltip) return;
+
+    let hoverTimer = null;
+    let longPressTimer = null;
+    let longPressFired = false;
+
+    // ====== DESKTOP ======
+    if (!isTouch) {
+      cell.addEventListener("mouseenter", e => {
+        if (isCursorOverSidebar(e, sidebar)) return;
+
+        hoverTimer = setTimeout(() => {
+          tooltip.style.display = "block";
+          positionTooltip(e, tooltip);
+        }, HOVER_DELAY);
+      });
+
+      cell.addEventListener("mousemove", e => {
+        if (tooltip.style.display === "block") {
+          positionTooltip(e, tooltip);
+        }
+      });
+
+      cell.addEventListener("mouseleave", () => {
+        clearTimeout(hoverTimer);
+        tooltip.style.display = "none";
+      });
+
+      return;
+    }
+
+    // ====== TOUCH ======
+
+    // Обычный tap — показать descr сразу
+    cell.addEventListener("touchstart", e => {
+      longPressFired = false;
+
+      longPressTimer = setTimeout(() => {
+        longPressFired = true;
+
+        // Эмулируем desktop-клик
+        cell.dispatchEvent(
+          new MouseEvent("click", { bubbles: true })
+        );
+      }, LONGPRESS_DELAY);
+
+      tooltip.style.display = "block";
+      positionTooltip(e.touches[0], tooltip);
+    });
+
+    cell.addEventListener("touchmove", () => {
+      clearTimeout(longPressTimer);
+    });
+
+    cell.addEventListener("touchend", () => {
+      clearTimeout(longPressTimer);
+
+      // если был long-press — tooltip не нужен
+      if (longPressFired) {
+        tooltip.style.display = "none";
       }
     });
-    cell.addEventListener("mousemove", function (event) {
-      if (!isCursorOverSidebar(event, sidebar)) {
-        tooltip.style.display = "block";
-        positionTooltip(event, tooltip);
-      } else {
-        tooltip.style.display = "none"; // Прячем подсказку, если над панелью
+
+    // тап вне — закрыть
+    document.addEventListener("touchstart", e => {
+      if (!cell.contains(e.target)) {
+        tooltip.style.display = "none";
       }
-    });
-    cell.addEventListener("mouseleave", function () {
-      hideTimeout = setTimeout(function () {
-        return (tooltip.style.display = "none");
-      }, 200);
     });
   });
 }
+
+
+
 
 // Функция для проверки, находится ли курсор над боковой панелью
 function isCursorOverSidebar(event, sidebar) {

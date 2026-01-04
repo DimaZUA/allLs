@@ -15,27 +15,7 @@ tr.grey .descr {
     color: #000 !important; /* Сбрасываем полупрозрачность для .descr */
 }
 
-.poster {
-    position: relative;
-    cursor: pointer;
-}
 
-.descr {
-    display: none;
-    opacity: 0; /* начальная непрозрачность */
-    padding: 10px;
-    background: #f3f3f3;
-    box-shadow: 0 5px 5px rgba(0, 0, 0, 0.3);
-    text-align: left;
-    max-width: calc(100vw - 80px)!important;
-    position: fixed; /* фиксированное положение */
-    max-height: 80vh;
-    overflow-y: auto;
-    z-index: 105;
-}
-.poster:hover .descr {
-    opacity: 1 !important;
-}
 
 /* Основной стиль для таблицы */
 .subtable {
@@ -888,4 +868,50 @@ table#main thead  {
   top: var(--header-height);
   z-index: 5;
   background: #eee;
+}
+
+
+/* ===== POSTER ===== */
+.poster {
+  position: relative;
+  cursor: pointer;
+}
+
+/* ===== SPINNER ===== */
+.poster .spinner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 18px;
+  height: 18px;
+  margin: -9px 0 0 -9px;
+
+  border-radius: 50%;
+  border: 2px solid #999;
+  border-top-color: transparent;
+  animation: spin 0.8s linear infinite;
+
+  display: none;
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* ===== TOOLTIP ===== */
+.poster .descr {
+  position: fixed;
+  z-index: 6000;
+
+  display: none;        /* ВАЖНО */
+  padding: 10px;
+  background: #f3f3f3;
+  box-shadow: 0 5px 12px rgba(0,0,0,0.3);
+  text-align: left;
+
+  max-width: calc(100vw - 80px);
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }

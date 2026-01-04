@@ -354,7 +354,7 @@ function createItemsForFloor(lsList, pod, et, container, opts) {
             tooltip.style.display = "none"; // скрыть подсказку
             goToAccount(id);
             lastTappedId = 0;
-          }, 500);
+          }, 1000);
 
           // Показываем подсказку при первом тапе
           if (lastTappedId !== id) {
