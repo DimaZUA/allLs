@@ -216,31 +216,51 @@ async function renderPdfPage(pdf, pageNum) {
 }
 
 async function renderPdfPreview(container, pdfUrl) {
-  container.innerHTML = "";
+    container.innerHTML = "";
 
-  const pdf = await pdfjsLib.getDocument(pdfUrl).promise;
-  const page = await pdf.getPage(1);
+    const pdf = await pdfjsLib.getDocument(pdfUrl).promise;
 
-  const viewport = page.getViewport({
-    scale: Math.min(2, window.innerWidth / page.getViewport({ scale: 1 }).width)
-  });
+    const dpr = window.devicePixelRatio || 1;
+    const maxCssWidth = window.innerWidth - 16;
 
-  const canvas = document.createElement("canvas");
-  const ctx = canvas.getContext("2d");
+    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
 
-  canvas.width  = viewport.width;
-  canvas.height = viewport.height;
-  canvas.style.maxWidth = "100%";
-  canvas.style.display = "block";
-  canvas.style.margin = "0 auto";
+        const page = await pdf.getPage(pageNum);
 
-  container.appendChild(canvas);
+        // CSS viewport
+        const cssViewport = page.getViewport({ scale: 1 });
+        const cssScale = maxCssWidth / cssViewport.width;
 
-  await page.render({
-    canvasContext: ctx,
-    viewport
-  }).promise;
+        // РЕАЛЬНЫЙ viewport (с учётом DPR)
+        const renderViewport = page.getViewport({
+            scale: cssScale * dpr
+        });
+
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+
+        // ФИЗИЧЕСКОЕ разрешение
+        canvas.width  = Math.floor(renderViewport.width);
+        canvas.height = Math.floor(renderViewport.height);
+
+        // CSS-размер
+        canvas.style.width  = Math.floor(renderViewport.width / dpr) + "px";
+        canvas.style.height = Math.floor(renderViewport.height / dpr) + "px";
+
+        canvas.style.display = "block";
+        canvas.style.margin = "0 auto 12px";
+        canvas.style.background = "#fff";
+
+        container.appendChild(canvas);
+
+        await page.render({
+            canvasContext: ctx,
+            viewport: renderViewport
+        }).promise;
+    }
 }
+
+
 
 
 
@@ -623,8 +643,8 @@ function openFile(f, { userClick = false } = {}) {
                 pdfContainer.appendChild(d);
             };
 
-            log("📄 PDF mobile preview");
-            log("URL: " + pdfUrl);
+            //log("📄 PDF mobile preview");
+            //log("URL: " + pdfUrl);
 
             if (typeof pdfjsLib === "undefined") {
                 logError("pdfjsLib не загружен");
@@ -636,11 +656,11 @@ function openFile(f, { userClick = false } = {}) {
                 return;
             }
 
-            log("Запуск renderPdfPreview…");
+            //log("Запуск renderPdfPreview…");
 
             renderPdfPreview(pdfContainer, pdfUrl)
                 .then(() => {
-                    log("✔ PDF отрендерен");
+                    //log("✔ PDF отрендерен");
                 })
                 .catch(err => {
                     logError("Ошибка PDF");
