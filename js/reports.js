@@ -49,13 +49,6 @@ restoreStateFromLastFile();
 }
 
 
-// --- Восстановление файла в текущем контексте ---
-function getFileToOpen(fileList) {
-    if (!fileList || fileList.length === 0) return null;
-    if (lastFileData.path && fileList.includes(lastFileData.path)) return lastFileData.path;
-    return fileList[0]; // первый файл в списке
-}
-
 // --- Выделение файла в панели ---
 function highlightFileInPanel(f) {
     document.querySelectorAll("#filebar ul li.file").forEach(li => {
@@ -73,24 +66,30 @@ function addFileLi(ul, f) {
     if (selectedFile === f) li.classList.add("active-file");
     if (localStorage.getItem("viewed:" + f)) li.classList.add("viewed");
 
-li.onclick = () => {
-  selectedFile = f;
-  highlightFileInPanel(f);
+    li.onclick = () => {
+        if (selectedFile === f) return;
+        selectedFile = f;
+        highlightFileInPanel(f);
+        localStorage.setItem("viewed:" + f, "1");
+        li.classList.add("viewed");
 
-  localStorage.setItem("viewed:" + f, "1");
-  li.classList.add("viewed");
+        localStorage.setItem("lastViewedFile", JSON.stringify({ path: f, timestamp: Date.now() }));
+        lastFileData = JSON.parse(localStorage.getItem("lastViewedFile") || "{}");
 
-  localStorage.setItem(
-    "lastViewedFile",
-    JSON.stringify({ path: f, timestamp: Date.now() })
-  );
-  lastFileData = JSON.parse(localStorage.getItem("lastViewedFile") || "{}");
+        openFile(f);
+    };
+if (files._restrictedFiles?.includes(f)) {
+    li.classList.add("restricted");
 
-  openFile(f, { userClick: true });
-};
+    const lock = document.createElement("span");
+    lock.className = "lock";
+    lock.textContent = "🔒";
+    li.appendChild(lock);
+}
 
     ul.appendChild(li);
 }
+
 
 // --- Класс по расширению ---
 function getFileClass(name) {
@@ -512,13 +511,19 @@ if (!selectedYear || !rootDir.years.includes(selectedYear)) {
 
     if (availableMonths.length) filebar.appendChild(monthDiv);
 
-    if (!selectedMonth) {
-        const now = String(new Date().getMonth() + 1).padStart(2, "0");
-        selectedMonth =
-            availableMonths.includes(now)
-                ? now
-                : availableMonths[availableMonths.length - 1];
+if (!selectedMonth) {
+    const now = new Date();
+    const currentYear  = String(now.getFullYear());
+    const currentMonth = String(now.getMonth() + 1).padStart(2, "0");
+
+    if (selectedYear === currentYear && availableMonths.includes(currentMonth)) {
+        // текущий месяц ТОЛЬКО если год совпадает
+        selectedMonth = currentMonth;
+    } else {
+        // иначе — последний доступный месяц выбранного года
+        selectedMonth = availableMonths[availableMonths.length - 1];
     }
+}
 
     filebar.querySelectorAll(".month-btn").forEach(btn => {
         const idx = monthLabels.indexOf(btn.textContent);
@@ -737,4 +742,7 @@ function restoreStateFromLastFile() {
   if (month) selectedMonth = month;
 
   selectedFile = lastFileData.path;
+}
+function getPath(f) {
+    return typeof f === "object" ? f.path : f;
 }

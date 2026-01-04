@@ -284,36 +284,54 @@ function filterFilesByRole(filesObj, role) {
   if (!filesObj || !Array.isArray(filesObj.files)) return filesObj;
 
   const fullAccessRoles = ["Администратор", "Бухгалтер", "Председатель"];
-  if (fullAccessRoles.includes(role)) return filesObj;
 
-const excludeMasks = [
-  "*/ОР за боргом*",
-  "*/ОР передоплата*",
-  "*/Льгот*",
-  "*/Пільг**",
-  "*/ЗП_Табель*",
-  "*/ЗП_Наказ_*",
-  "*/ЗП_Звіт_*",
-  "*/Наказ*",
-  "*компенсац*",
-  "*коменсац*",
-  "*Авансов*",
-  "*Зарплата*",
-  "*ЗП_Штатний*",
-  "*Заліки*",
-  "*Б-Витрати коштів з рахунку з січня.pdf",
-  "*Рух коштів з січня*",
-  "*ОР по квартирам з січня*",
-  "*Оплата співвласників з січня.pdf",
-];
+  const excludeMasks = [
+    "*/ОР за боргом*",
+    "*/ОР передоплата*",
+    "*/Льгот*",
+    "*/Пільг**",
+    "*/ЗП_Табель*",
+    "*/ЗП_Наказ_*",
+    "*/ЗП_Звіт_*",
+    "*/Наказ*",
+    "*компенсац*",
+    "*коменсац*",
+    "*Авансов*",
+    "*Зарплата*",
+    "*ЗП_Штатний*",
+    "*Заліки*",
+    "*Б-Витрати коштів з рахунку з січня.pdf",
+    "*Рух коштів з січня*",
+    "*ОР по квартирам з січня*",
+    "*Оплата співвласників з січня.pdf",
+  ];
 
   const excludeRegexes = excludeMasks.map(wildcardToRegExp);
 
+  // --- вычисляем "запрещённые" файлы ОДИН РАЗ ---
+  const restricted = filesObj.files.filter(p =>
+    excludeRegexes.some(rx => rx.test(p))
+  );
+
+  // --- если НЕ полный доступ — режем как раньше ---
+  if (!fullAccessRoles.includes(role)) {
+    return {
+      ...filesObj,
+      files: filesObj.files.filter(p =>
+        !excludeRegexes.some(rx => rx.test(p))
+      )
+    };
+  }
+
+  // --- полный доступ: ничего не режем ---
+  // --- но сохраняем список restricted отдельно ---
   return {
     ...filesObj,
-    files: filesObj.files.filter(p => !excludeRegexes.some(rx => rx.test(p)))
+    _restrictedFiles: restricted   // ← НОВОЕ ПОЛЕ
   };
 }
+
+
 
 function wildcardToRegExp(pattern) {
   return new RegExp(

@@ -576,6 +576,8 @@ function initPosters() {
   document.querySelectorAll(".poster").forEach(cell => {
     const tooltip = cell.querySelector(".descr");
     if (!tooltip) return;
+    tooltip.addEventListener("click", e => e.stopPropagation());
+    tooltip.addEventListener("mousedown", e => e.stopPropagation());
 
     let hoverTimer = null;
     let longPressTimer = null;
@@ -594,7 +596,8 @@ function initPosters() {
 
       cell.addEventListener("mousemove", e => {
         if (tooltip.style.display === "block") {
-          positionTooltip(e, tooltip);
+          clearTimeout(longPressTimer);
+          // positionTooltip(e, tooltip);
         }
       });
 

@@ -16,6 +16,56 @@
   <link rel="stylesheet" href="css/dashboard.css">
 
   <link rel="icon" type="image/png" href="favicon.png" />
+<style>
+  body:not(.auth-checked) #auth-section,
+  body:not(.auth-checked) .sidebar,
+  body:not(.auth-checked) .content,
+  body:not(.auth-checked) .topbar {
+    display: none !important;
+  }
+
+  /* ===== INITIAL SESSION PRELOADER ===== */
+
+  .preloader {
+    position: fixed;
+    inset: 0;
+    background: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+  }
+
+  .preloader.hidden {
+    display: none;
+  }
+
+  .session-check {
+    display: inline-flex;
+    gap: 6px;
+  }
+
+  .session-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #666;
+    opacity: 0;
+    animation: sessionPulse 1.4s infinite;
+  }
+
+  .session-dot:nth-child(2) { animation-delay: .2s; }
+  .session-dot:nth-child(3) { animation-delay: .4s; }
+
+  @keyframes sessionPulse {
+    0%   { opacity: 0; }
+    30%  { opacity: 1; }
+    60%  { opacity: 0; }
+    100% { opacity: 0; }
+  }
+
+</style>
+
 </head>
 
 <body>
@@ -78,10 +128,15 @@
 
 <!-- ================= CONTENT ================= -->
 
-<div class="content">
-  <div id="preloader" class="preloader">
-    <div class="spinner"></div>
+<div id="preloader" class="preloader">
+  <div class="session-check">
+    <span class="session-dot"></span>
+    <span class="session-dot"></span>
+    <span class="session-dot"></span>
   </div>
+</div>
+
+<div class="content">
   <div id="maincontainer"></div>
 </div>
 
@@ -136,14 +191,30 @@
 
   // ===== INITIAL SESSION CHECK =====
   (async () => {
-    let { data: { session } } = await client.auth.getSession();
-    if (!session) {
-      const res = await client.auth.refreshSession();
-      session = res.data.session;
+    const preloader = document.getElementById("preloader");
+
+    try {
+      let { data: { session } } = await client.auth.getSession();
+
+      if (!session) {
+        const res = await client.auth.refreshSession();
+        session = res.data.session;
+      }
+
+      if (session) {
+        await enterAppMode();
+      } else {
+        enterAuthMode();
+      }
+    } finally {
+      // снимаем блокировку интерфейса
+      document.body.classList.add("auth-checked");
+
+      // убираем прелоадер
+      if (preloader) preloader.classList.add("hidden");
     }
-    if (session) await enterAppMode();
-    else enterAuthMode();
   })();
+
 
   // ===== FORM TOGGLES =====
   document.getElementById("show-signup").onclick = () => {

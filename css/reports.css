@@ -1,6 +1,6 @@
 ﻿/* Общий контейнер панели файлов */
 #filebar {
-    padding: 10px;
+    padding: 1px;
     width: 240px;
     height: 100%; /* полностью по высоте окна */
     overflow: hidden auto; /* горизонтальная скрыта, вертикальная auto */
@@ -8,7 +8,7 @@
     border-right: 1px solid #ddd;
     box-sizing: border-box;
     font-family: sans-serif;
-    font-size: 14px;
+    font-size: 16px;
 }
 
 /* Панель предпросмотра */
@@ -121,9 +121,6 @@ li.folder {
 }
 
 /* Просмотренные файлы */
-.viewed {
-    color: #2F4F4F;
-}
 
 /* --- иконки --- */
 
@@ -133,10 +130,6 @@ li.folder {
     margin-right: 6px;
 }
 
-/* Родительская папка .. */
-.file-list li.folder:first-child::before {
-    content: "⬆️";
-}
 /* Сбрасываем стандартные маркеры и отступы */
 .file-list {
     list-style: none;
@@ -169,10 +162,11 @@ li.folder {
     content: "📁";
 }
 
-/* Родительская папка .. */
+/* Родительская папка .. 
 .file-list li.folder.first::before {
     content: "⬆️";
 }
+*/
 
 /* Файлы по типу */
 .file-list li.pdf::before     { content: "📄"; }
@@ -185,4 +179,108 @@ li.folder {
 
 .year-folders {
     margin-bottom: 6px;
+}
+
+/* ===== FILEBAR ===== */
+
+#filebar {
+    position: relative;
+    overflow-x: hidden;          /* КРИТИЧНО */
+    scrollbar-gutter: stable;
+}
+
+/* ===== СПИСОК ===== */
+
+
+/* базовый li */
+.file-list li {
+    position: relative;
+    box-sizing: border-box;      /* КРИТИЧНО */
+    max-width: 100%;             /* КРИТИЧНО */
+    overflow: hidden;            /* КРИТИЧНО */
+}
+
+/* ===== FILE ===== */
+
+.file-list li.file {
+    padding-right: 28px;         /* место под замок */
+}
+
+/* ===== LOCK ===== */
+
+.file-list li.file .lock {
+    position: absolute;
+    right: 4px;                  /* внутрь панели */
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 14px;
+    opacity: 0.75;
+    cursor: help;
+    z-index: 2;
+}
+
+/* restricted — заметнее */
+.file-list li.restricted .lock {
+    opacity: 0.9;
+}
+
+/* tooltip — ТОЛЬКО от замка */
+.file-list li.file .lock::after {
+    content: "доступно лише адміністрації";
+    position: absolute;
+    right: 100%;
+    margin-right: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: #333;
+    color: #fff;
+    font-size: 11px;
+    padding: 3px 6px;
+    border-radius: 3px;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s;
+    z-index: 50;
+}
+
+.file-list li.file .lock:hover::after {
+    opacity: 1;
+}
+
+/* ===== VIEWED ===== */
+
+.file-list li.viewed {
+    padding-left: 22px;
+}
+
+.file-list li.viewed::before {
+    content: "✔";
+    position: absolute;
+    left: 4px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #16a34a;
+    opacity: 0.5;
+    font-size: 12px;
+}
+
+/* ===== SCROLLBAR ===== */
+
+#filebar {
+    scrollbar-width: thin;
+    scrollbar-color: #bbb transparent;
+}
+
+#filebar::-webkit-scrollbar {
+    width: 4px;
+}
+
+#filebar::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+#filebar::-webkit-scrollbar-thumb {
+    background-color: rgba(0,0,0,.35);
+    border-radius: 4px;
 }
