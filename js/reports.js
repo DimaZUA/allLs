@@ -581,17 +581,62 @@ if (f.match(/\.pdf$/i)) {
     const pdfUrl = nocache(BASE_URL + f);
 
     if (isMobile()) {
-        // 📱 MOBILE — pdf.js
+
+        // === Контейнер PDF + логов ===
         const pdfContainer = document.createElement("div");
         pdfContainer.style.width = "100%";
-        pdfContainer.style.overflow = "auto";
+        pdfContainer.style.fontSize = "12px";
+        pdfContainer.style.lineHeight = "1.4";
         content.appendChild(pdfContainer);
 
-        renderPdfPreview(pdfContainer, pdfUrl).catch(err => {
-            console.error("PDF preview error:", err);
-            pdfContainer.textContent =
-              "Не удалось открыть PDF. Используйте кнопку «Скачать файл».";
-        });
+        // === ЛОГГЕР В DOM ===
+        const log = (msg) => {
+            const line = document.createElement("div");
+            line.textContent = msg;
+            line.style.color = "#444";
+            pdfContainer.appendChild(line);
+        };
+
+        const logError = (msg) => {
+            const line = document.createElement("div");
+            line.textContent = "❌ " + msg;
+            line.style.color = "#b91c1c";
+            pdfContainer.appendChild(line);
+        };
+
+        log("📄 PDF mobile preview");
+        log("URL: " + pdfUrl);
+        log("isMobile(): true");
+
+        // === ПРОВЕРКИ ===
+        if (typeof pdfjsLib === "undefined") {
+            logError("pdfjsLib не загружен");
+            return;
+        }
+        log("pdfjsLib OK");
+
+        if (typeof renderPdfPreview !== "function") {
+            logError("renderPdfPreview не определена");
+            return;
+        }
+        log("renderPdfPreview OK");
+
+        // === РЕНДЕР ===
+        try {
+            log("Начинаем renderPdfPreview...");
+            Promise
+                .resolve(renderPdfPreview(pdfContainer, pdfUrl))
+                .then(() => {
+                    log("✔ PDF успешно отрендерен");
+                })
+                .catch(err => {
+                    logError("Ошибка в renderPdfPreview");
+                    logError(err?.message || String(err));
+                });
+        } catch (e) {
+            logError("Исключение до Promise");
+            logError(e?.message || String(e));
+        }
 
     } else {
         // 🖥 DESKTOP — iframe
