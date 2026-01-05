@@ -635,9 +635,22 @@ function toggleMenuFiles(homeCode) {
     return window.innerWidth <= 640;
   }
 
+  function sidebarIsOpen() {
+    return document.body.classList.contains("sidebar-open");
+  }
+
+  function isInsideSidebar(target) {
+    return target.closest && target.closest(".sidebar");
+  }
+
+  // === START ===
   document.addEventListener("touchstart", e => {
     if (!isMobile()) return;
+    if (!sidebarIsOpen()) return;
     if (e.touches.length !== 1) return;
+
+    // жест ТОЛЬКО внутри sidebar
+    if (!isInsideSidebar(e.target)) return;
 
     const t = e.touches[0];
     startX = t.clientX;
@@ -645,6 +658,7 @@ function toggleMenuFiles(homeCode) {
     tracking = true;
   }, { passive: true });
 
+  // === MOVE ===
   document.addEventListener("touchmove", e => {
     if (!tracking) return;
 
@@ -658,18 +672,18 @@ function toggleMenuFiles(homeCode) {
     }
   }, { passive: true });
 
+  // === END ===
   document.addEventListener("touchend", e => {
     if (!tracking) return;
     tracking = false;
 
     if (!isMobile()) return;
+    if (!sidebarIsOpen()) return;
 
     const t = e.changedTouches[0];
     const dx = t.clientX - startX;
     const dy = t.clientY - startY;
 
-    // === ВОТ СЮДА ===
-    // любой горизонтальный свайп → toggle
     if (Math.abs(dx) > SWIPE_THRESHOLD && Math.abs(dy) < MAX_VERTICAL) {
       toggleMenuFiles(getParam("homeCode"));
     }
