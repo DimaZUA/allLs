@@ -1042,7 +1042,7 @@ function debounce(func, delay) {
     }, delay);
   };
 }
-function showMessage(text, type = "inf", duration = 5000) {
+function showMessage(text, type = "inf", duration = 15000) {
   let container = document.getElementById("message-container");
 
   // === контейнер сообщений ===
@@ -1053,7 +1053,7 @@ function showMessage(text, type = "inf", duration = 5000) {
     container.style.bottom = "20px";
     container.style.right = "20px";
     container.style.display = "flex";
-    container.style.flexDirection = "column-reverse"; // новые снизу
+    container.style.flexDirection = "column-reverse";
     container.style.gap = "8px";
     container.style.zIndex = "9999";
     container.style.pointerEvents = "none";
@@ -1064,7 +1064,8 @@ function showMessage(text, type = "inf", duration = 5000) {
   const msg = document.createElement("div");
   msg.textContent = text;
 
-  msg.style.padding = "10px 14px";
+  msg.style.position = "relative"; // важно для крестика
+  msg.style.padding = "10px 28px 10px 14px"; // место под крестик
   msg.style.borderRadius = "6px";
   msg.style.color = "#fff";
   msg.style.fontSize = "14px";
@@ -1073,29 +1074,49 @@ function showMessage(text, type = "inf", duration = 5000) {
   msg.style.opacity = "0";
   msg.style.transform = "translateY(10px)";
   msg.style.transition = "opacity 0.3s ease, transform 0.3s ease";
-  msg.style.pointerEvents = "none";
+  msg.style.pointerEvents = "auto"; // разрешаем клик внутри сообщения
 
   // === типы ===
   const colors = {
-    inf:    "#333",
-    suc: "#2e7d32",
+    inf:  "#333",
+    suc:  "#2e7d32",
     warn: "#ed6c02",
-    err:   "#d32f2f"
+    err:  "#d32f2f"
   };
 
-  msg.style.background = colors[type] || colors.info;
+  msg.style.background = colors[type] || colors.inf;
+
+  // === крестик ===
+  const close = document.createElement("span");
+  close.textContent = "×";
+  close.style.position = "absolute";
+  close.style.top = "6px";
+  close.style.right = "8px";
+  close.style.cursor = "pointer";
+  close.style.fontSize = "16px";
+  close.style.lineHeight = "1";
+  close.style.opacity = "0.8";
+  close.style.userSelect = "none";
+
+  close.onmouseenter = () => close.style.opacity = "1";
+  close.onmouseleave = () => close.style.opacity = "0.8";
+
+  close.onclick = () => hide();
+
+  msg.appendChild(close);
 
   // === добавляем ===
   container.appendChild(msg);
 
-  // принудительный reflow
   requestAnimationFrame(() => {
     msg.style.opacity = "1";
     msg.style.transform = "translateY(0)";
   });
 
-  // === индивидуальный таймер ===
-  setTimeout(() => {
+  let timer = setTimeout(hide, duration);
+
+  function hide() {
+    clearTimeout(timer);
     msg.style.opacity = "0";
     msg.style.transform = "translateY(10px)";
 
@@ -1103,15 +1124,15 @@ function showMessage(text, type = "inf", duration = 5000) {
       "transitionend",
       () => {
         msg.remove();
-        // если сообщений больше нет — убираем контейнер
         if (!container.children.length) {
           container.remove();
         }
       },
       { once: true }
     );
-  }, duration);
+  }
 }
+
 
 
 function copyToClipboard(text) {

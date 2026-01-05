@@ -363,7 +363,7 @@ function renderDashboard(data) {
                 <div id="cash-title" class="dash-title">ЗАЛИШОК КОШТІВ</div>
 
                 <div id="cash-total"
-                     class="dash-total ${data.cashBalance >= 0 ? 'positive' : 'negative'}">
+                     class="dash-total ${data.cashBalance >= 0 ? 'green' : 'red'}">
                     ${data.cashBalance.toFixedWithComma(2)} ₴
                 </div>
 
@@ -390,7 +390,7 @@ function renderDashboard(data) {
                 </div>
 
                 <div id="residents-total"
-                     class="dash-total ${data.residentsDebt >= 0 ? 'positive' : 'negative'}">
+                     class="dash-total ${data.residentsDebt >= 0 ? 'green' : 'red'}">
                     ${data.residentsDebt.toFixedWithComma(2)} ₴
                 </div>
 
@@ -724,7 +724,7 @@ ${details.map(d => {
                     </div>
                 </div>
 
-                <div class="dash-total ${title === 'НАМ ВИННІ' ? 'positive' : 'negative'}">
+                <div class="dash-total ${title === 'НАМ ВИННІ' ? 'green' : 'red'}">
                     ${side.total.toFixedWithComma(2)} ₴
                 </div>
 
@@ -1836,7 +1836,7 @@ function renderSalaryTable(rows) {
                             <td class="positive">
                                 ${debt ? debt.toFixedWithComma(2) : '0,00'} ₴
                             </td>
-                            <td class="negative">
+                            <td class="red">
                                 ${overpaid ? overpaid.toFixedWithComma(2) : '0,00'} ₴
                             </td>
                         </tr>

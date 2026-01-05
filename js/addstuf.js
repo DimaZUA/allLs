@@ -301,13 +301,20 @@ if (link && currentKv && currentKv > 0) {
 
     // Заголовок таблицы
     var headerRow = document.createElement("tr");
-    headerRow.innerHTML =
-      '\n    <td rowspan="2" align="CENTER" class="clickable">\u041C\u0456\u0441\u044F\u0446\u044C</td>\n    <td colspan="'.concat(
-        _toConsumableArray(services).filter(function (n) {
-          return n !== "7";
-        }).length,
-        '" align="CENTER" class="clickable">\u041D\u0430\u0440\u0430\u0445\u043E\u0432\u0430\u043D\u043E \u0437\u0430 \u043C\u0456\u0441\u044F\u0446\u044C</td>\n    <td rowspan="2" align="CENTER" class="clickable">\u041E\u043F\u043B\u0430\u0447\u0435\u043D\u043E \u0432 \u043C\u0456\u0441\u044F\u0446\u0456<br>(\u0447\u0438\u0441\u043B\u043E, \u0441\u0443\u043C\u0430, \u043F\u0435\u0440\u0456\u043E\u0434)</td>\n    <td rowspan="2" align="CENTER" class="clickable">\u0411\u043E\u0440\u0433(+) \u041F\u0435\u0440\u0435\u043F\u043B\u0430\u0442\u0430(-) \u043D\u0430 \u043A\u0456\u043D\u0435\u0446\u044C \u043C\u0456\u0441\u044F\u0446\u044F</td>\n'
-      );
+const servicesCount = [...services].filter(n => n !== "7").length;
+
+headerRow.innerHTML = `
+  <td rowspan="2" align="center" class="clickable">Місяць</td>
+  <td colspan="${servicesCount}" align="center" class="clickable">
+    Нараховано за місяць
+  </td>
+  <td rowspan="2" align="center" class="clickable">
+    Оплачено в місяці<br>(число, сума, період)
+  </td>
+  <td rowspan="2" align="center" class="clickable">
+    Борг(+) Переплата(-) на кінець місяця
+  </td>
+`;
 
     // Добавляем обработчик кликов к заголовкам
     //Array.from(headerRow.children).forEach(function (header, index) {
@@ -319,9 +326,7 @@ if (link && currentKv && currentKv > 0) {
     var servicesRow = document.createElement("tr");
     services.forEach(function (serviceId) {
       if (serviceId != 7) {
-        var serviceName =
-          us[serviceId] ||
-          "\u0423\u0441\u043B\u0443\u0433\u0430 ".concat(serviceId);
+      	var serviceName = us[serviceId] || `Услуга ${serviceId}`;
         var serviceHeader = document.createElement("td");
         serviceHeader.setAttribute("align", "CENTER");
         serviceHeader.textContent = serviceName;
@@ -412,7 +417,7 @@ if (cumulativeBalance !== 0) {
 	  : (val ?? '');
 
         if (noteText) {
-          console.log(noteText);
+          //console.log(noteText);
           cell.className = "poster"; // Добавляем класс оформления
           cell.innerHTML = "".concat(
             charge.toFixedWithComma(),
@@ -476,11 +481,7 @@ if (cumulativeBalance !== 0) {
       // Если несколько услуг
       var totalRow = document.createElement("tr");
       totalRow.classList.add("itog");
-      totalRow.innerHTML =
-        '<td rowspan="2" align="CENTER">\u041F\u0456\u0434\u0441\u0443\u043C\u043E\u043A \u0437\u0430 '.concat(
-          year,
-          " \u0440\u0456\u043A</td>"
-        );
+totalRow.innerHTML =`<td rowspan="2" align="center">Разом за ${year} рік</td>`;
 
       // Итог по каждой услуге
       services.forEach(function (serviceId) {
@@ -514,25 +515,23 @@ if (cumulativeBalance !== 0) {
       ).reduce(function (sum, value) {
         return sum + value;
       }, 0);
-      chargesSummaryRow.innerHTML = '<td colspan="'
-        .concat(
-          _toConsumableArray(services).filter(function (n) {
-            return n !== "7";
-          }).length,
-          '" ALIGN="center">\u0423\u0441\u044C\u043E\u0433\u043E \u043D\u0430\u0440\u0430\u0445\u043E\u0432\u0430\u043D\u043E: '
-        )
-        .concat(totalChargeForAllServices.toFixedWithComma(), "</td>");
+const servicesCount = Array.from(services).filter(n => n !== "7").length;
+
+
+chargesSummaryRow.innerHTML =
+  `<td colspan="${servicesCount}" align="center">
+     Усього нараховано: ${totalChargeForAllServices.toFixedWithComma()}
+   </td>`;
+
       tbody.appendChild(chargesSummaryRow);
     } else {
       var _Object$values$;
       // Если одна услуга
       var _totalRow = document.createElement("tr");
       _totalRow.classList.add("itog");
-      _totalRow.innerHTML =
-        '<td align="LEFT">\u041F\u0456\u0434\u0441\u0443\u043C\u043E\u043A \u0437\u0430 '.concat(
-          year,
-          " \u0440\u0456\u043A</td>"
-        );
+_totalRow.innerHTML =
+  `<td align="left">Разом за ${year} рік</td>`;
+
 
       // Итог начислений по единственной услуге
       var totalChargeForOneService =
@@ -786,29 +785,16 @@ function createPaymentCell_old(row, monthlyPayments) {
     paymentCell.className = "poster"; // Добавляем класс оформления
     // Одна оплата — отображаем простую строку
     var payment = monthlyPayments[0];
-    paymentCell.innerHTML = ""
-      .concat(
-        totalPayments.toFixedWithComma(),
-        '\n            <div class="descr">\n                <div class="big">\u041E\u043F\u043B\u0430\u0447\u0435\u043D\u043E '
-      )
-      .concat(payment.date, " \u0447\u0435\u0440\u0435\u0437 ")
-      .concat(b[payment.yur])
-      .concat(
-        payment.kvit
-          ? "<br>\u041A\u0432\u0456\u0442\u0430\u043D\u0446\u0456\u044F: ".concat(
-              payment.kvit
-            )
-          : "",
-        " "
-      )
-      .concat(
-        payment.nazn
-          ? "<br>\u041F\u0440\u0438\u0437\u043D\u0430\u0447\u0435\u043D\u043D\u044F: ".concat(
-              payment.nazn
-            )
-          : "",
-        " </div>\n            </div>\n        "
-      );
+paymentCell.innerHTML = `
+  ${totalPayments.toFixedWithComma()}
+  <div class="descr">
+    <div class="big">
+      Оплачено ${payment.date} через ${b[payment.yur]}
+      ${payment.kvit ? `<br>Квітанція: ${payment.kvit}` : ``}
+      ${payment.nazn ? `<br>Призначення: ${payment.nazn}` : ``}
+    </div>
+  </div>
+`;
   } else if (monthlyPayments.length > 1) {
     paymentCell.className = "poster"; // Добавляем класс оформления
     // Несколько оплат — отображаем таблицу с деталями
@@ -821,20 +807,15 @@ function createPaymentCell_old(row, monthlyPayments) {
     });
 
     // Настраиваем строку заголовка таблицы
-    var headerRow =
-      "\n    <tr>\n        <th>\u0414\u0430\u0442\u0430</th>\n        <th>\u041E\u043F\u043B\u0430\u0447\u0435\u043D\u043E \u0447\u0435\u0440\u0435\u0437</th>\n        "
-        .concat(
-          hasKvit
-            ? "<th>\u041A\u0432\u0456\u0442\u0430\u043D\u0446\u0456\u044F</th>"
-            : "",
-          "\n        <th>\u0421\u0443\u043C\u0430</th>\n        "
-        )
-        .concat(
-          hasNazn
-            ? "<th>\u041F\u0440\u0438\u0437\u043D\u0430\u0447\u0435\u043D\u043D\u044F</th>"
-            : "",
-          "\n    </tr>\n"
-        );
+var headerRow = `
+  <tr>
+    <th>Дата</th>
+    <th>Оплачено через</th>
+    ${hasKvit ? `<th>Квітанція</th>` : ``}
+    <th>Сума</th>
+    ${hasNazn ? `<th>Призначення</th>` : ``}
+  </tr>
+`;
     // Формируем строки с данными платежей
     var tableRows = monthlyPayments
       .map(function (payment) {
@@ -870,11 +851,29 @@ function createPaymentCell_old(row, monthlyPayments) {
   return totalPayments;
 }
 function initLS() {
-  document.getElementById("maincontainer").innerHTML =
-    '\n    <div id="header">\n        <table width="100%">\n            <tr>\n                <td align="right"><b>\u0410\u0434\u0440\u0435\u0441\u0430:</b></td>\n                <td class="big" align="left"><u><i><a id="adr">adr</a></i></u><select class="big" id="number"></select></td>\n                <td rowspan="2"> '.concat(
-      buttons,
-      '\n                </td>\n                <td rowspan="2"><div id="org" align="right"></div></td>\n\n\n            </tr>\n            <tr>\n                <td align="right"><b>\u041F.\u0406.\u0411.:</b></td>\n                <td align="left"><u><i><div class="big" id="fio"></div></i></u></td>\n            </tr>\n        </table>\n    </div>\n    <div id="din"></div>\n    <div id="datetime"></div>\n'
-    );
+document.getElementById("maincontainer").innerHTML = `
+  <div id="header">
+    <table width="100%">
+      <tr>
+        <td align="right"><b>Адреса:</b></td>
+        <td class="big" align="left">
+          <u><i><a id="adr">adr</a></i></u>
+          <select class="big" id="number"></select>
+        </td>
+        <td rowspan="2">${buttons}</td>
+        <td rowspan="2"><div id="org" align="right"></div></td>
+      </tr>
+      <tr>
+        <td align="right"><b>П.І.Б.:</b></td>
+        <td align="left">
+          <u><i><div class="big" id="fio"></div></i></u>
+        </td>
+      </tr>
+    </table>
+  </div>
+  <div id="din"></div>
+  <div id="datetime"></div>
+`;
   document.getElementById("number").addEventListener("change", function () {
     addStuff(this.value);
   });

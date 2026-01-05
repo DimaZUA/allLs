@@ -158,9 +158,6 @@ body {
 }
 
 /* === Цвет долга для итогов и номеров квартир === */
-.green { color: green !important; }
-.red { color: red !important; }
-.black { color: black !important; }
 #root button:nth-child(2) {
     display: none;
 }
