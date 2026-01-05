@@ -895,34 +895,39 @@ function getMonthName(month) {
   ];
   return monthNames[month - 1];
 }
-function formatDate(date, format) {
-  if (!format) format = "YYYY-MM-DD";
-  var day = String(date.getDate());
-  var month = String(date.getMonth() + 1);
-  var year = date.getFullYear();
-  var yearShort = String(year).slice(-2); // Последние две цифры года
+function formatDate(date, format = "YYYY-MM-DD") {
 
-  // Заменяем в строке формата соответствующие компоненты
+  if (!(date instanceof Date)) {
+    date = new Date(date);
+    if (isNaN(date)) return ""; // защита от мусора
+  }
+
+  const day = String(date.getDate());
+  const month = String(date.getMonth() + 1);
+  const year = date.getFullYear();
+  const yearShort = String(year).slice(-2);
+
   return format
-    .replace("dd", day.padStart(2, "0")) // Двузначный день
-    .replace("d", day) // Одиночный день
-    .replace("mmmm", monthNames[month - 1])
-    .replace("mmm", monthNames[month * 1 + 11])
-    .replace("mm", month.padStart(2, "0"))
-    .replace("m", month)
-    .replace("yyyy", year)
-    .replace("yy", yearShort)
-    .replace("y", yearShort)
-    .replace("DD", day.padStart(2, "0")) // Двузначный день
-    .replace("D", day) // Одиночный день
-    .replace("MMMM", monthNames[month - 1])
-    .replace("MMM", monthNames[month * 1 + 11])
-    .replace("MM", month.padStart(2, "0"))
-    .replace("M", month)
-    .replace("YYYY", year)
-    .replace("YY", yearShort)
-    .replace("Y", yearShort);
+    .replace(/dd/g, day.padStart(2, "0"))
+    .replace(/d/g, day)
+    .replace(/mmmm/g, monthNames[month - 1])
+    .replace(/mmm/g, monthNames[month * 1 + 11])
+    .replace(/mm/g, month.padStart(2, "0"))
+    .replace(/m/g, month)
+    .replace(/yyyy/g, year)
+    .replace(/yy/g, yearShort)
+    .replace(/y/g, yearShort)
+    .replace(/DD/g, day.padStart(2, "0"))
+    .replace(/D/g, day)
+    .replace(/MMMM/g, monthNames[month - 1])
+    .replace(/MMM/g, monthNames[month * 1 + 11])
+    .replace(/MM/g, month.padStart(2, "0"))
+    .replace(/M/g, month)
+    .replace(/YYYY/g, year)
+    .replace(/YY/g, yearShort)
+    .replace(/Y/g, yearShort);
 }
+
 function fillMissingDates(nach) {
   for (var id in nach) {
     var years = [];
