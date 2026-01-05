@@ -1672,6 +1672,403 @@ function parseCellValue1(value) {
 }
 
 
+// ===================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =====================
+function isMobile() {
+  // Истинно мобильное устройство: есть touchpoints и небольшой экран
+  return ('ontouchstart' in window || navigator.maxTouchPoints > 0) //&& window.innerWidth < 1024;
+}
+
+
+
+ function nocache(url) {
+    return url + (url.includes("?") ? "&" : "?") + "t=" + Date.now();
+}
+
+async function loadHomeRoles() {
+  // 1. Текущий пользователь
+  const { data: { user }, error: userError } = await client.auth.getUser();
+  if (userError || !user) {
+    console.error('User not authorized');
+    return null;
+  }
+
+  // 2. Запрос только из user_homes
+  const { data, error } = await client
+    .from('user_homes')
+    .select('home_code, role')
+    .eq('user_id', user.id);
+
+  if (error) {
+    console.error('Failed to load user_homes:', error);
+    return null;
+  }
+
+  // 3. Преобразование в объект { home_code: role }
+  const homeRoles = {};
+
+  for (const row of data) {
+    homeRoles[row.home_code] = row.role;
+  }
+
+  return homeRoles;
+}
+
+
+
+
+function captureAndCopyOld() {
+  console.log("Начинаем выполнение captureAndCopy");
+
+  const mainContainer = document.getElementById("maincontainer");
+  if (!mainContainer) {
+    console.warn("maincontainer не найден");
+    return;
+  }
+
+  // === ищем видимую таблицу ===
+  const tables = Array.from(
+    mainContainer.querySelectorAll("#banktable, #paytable, .main, #main")
+  ).filter(el => {
+    let cur = el;
+    while (cur) {
+      const cs = window.getComputedStyle(cur);
+      if (
+        cs.display === "none" ||
+        cs.visibility === "hidden" ||
+        cs.opacity === "0"
+      ) {
+        return false;
+      }
+      cur = cur.parentElement;
+    }
+    return true;
+  });
+
+  if (!tables.length) {
+    console.warn("Нет таблиц для обработки");
+    showMessage("Нет таблиц для обработки","warn")
+    return;
+  }
+
+  const originalTable = tables[0];
+  console.log("Найдена основная таблица", originalTable);
+
+  // =========================================================
+  // 1. СОЗДАЁМ ИЗОЛИРОВАННЫЙ WRAPPER (вне экрана)
+  // =========================================================
+  const wrapper = document.createElement("div");
+  wrapper.style.position = "absolute";
+  wrapper.style.left = "-100000px";
+  wrapper.style.top = "-100000px";
+  wrapper.style.background = "#fff";
+  wrapper.style.margin = "0";
+  wrapper.style.padding = "0";
+  wrapper.style.display = "inline-block";
+
+  // =========================================================
+  // 2. ДОБАВЛЯЕМ ЗАГОЛОВОК (адрес + квартира + ФИО)
+  // =========================================================
+  if (getParam("actionCode") === "accounts") {
+    const address = document.getElementById("adr")?.innerText || "";
+    const sel = document.getElementById("number");
+    const apartment =
+      sel?.options?.[sel.selectedIndex]?.text || "";
+    const fio = document.getElementById("fio")?.innerText || "";
+
+    const title = document.createElement("div");
+    title.textContent = `${address} ${apartment}, ${fio}`;
+    title.style.fontWeight = "600";
+    title.style.fontSize = "16px";
+    title.style.margin = "0 0 6px 0";
+    title.style.padding = "0";
+
+    wrapper.appendChild(title);
+
+    // временно скрываем label в оригинале
+    document.querySelectorAll("label").forEach(l => {
+      l.style.display = "none";
+    });
+  }
+
+  // =========================================================
+  // 3. КЛОНИРУЕМ ТАБЛИЦУ
+  // =========================================================
+const clone = originalTable.cloneNode(true);
+
+// --- убираем sticky у THEAD ---
+const thead = clone.querySelector("thead");
+const tbody = clone.querySelector("tbody");
+
+if (thead) {
+  thead.style.display = "table-header-group";
+  thead.style.position = "static";
+  thead.style.top = "auto";
+
+  thead.querySelectorAll("*").forEach(el => {
+    el.style.position = "static";
+    el.style.top = "auto";
+  });
+}
+
+if (tbody) {
+  tbody.style.display = "table-row-group";
+}
+
+// =========================================================
+// УДАЛЯЕМ tr.grey И СОХРАНЯЕМ ЕГО
+// =========================================================
+let greyRow = null;
+
+if (tbody) {
+  const foundGrey = tbody.querySelector("tr.grey");
+  if (foundGrey) {
+    greyRow = foundGrey;   // сохраняем ссылку
+    foundGrey.remove();   // удаляем из таблицы
+  }
+}
+
+
+// =========================================================
+// 4. НОРМАЛИЗАЦИЯ ИТОГОВ
+//    переносим в tfoot ТОЛЬКО если итоги реально внизу
+// =========================================================
+const cloneTbody = clone.querySelector("tbody");
+
+if (cloneTbody) {
+  const rows = Array.from(cloneTbody.children);
+
+  // индекс первой строки itog
+  const firstItogIndex = rows.findIndex(r =>
+    r.classList.contains("itog")
+  );
+
+  if (firstItogIndex !== -1) {
+    // есть ли строки данных после итогов
+    const hasRowsAfterItog = rows
+      .slice(firstItogIndex + 1)
+      .some(r => !r.classList.contains("itog"));
+
+    // переносим ТОЛЬКО если итоги в самом низу
+    if (!hasRowsAfterItog) {
+      let cloneTfoot = clone.querySelector("tfoot");
+      if (!cloneTfoot) {
+        cloneTfoot = document.createElement("tfoot");
+        clone.appendChild(cloneTfoot);
+      }
+
+      rows
+        .slice(firstItogIndex)
+        .forEach(tr => cloneTfoot.appendChild(tr));
+    }
+  }
+}
+
+
+
+  // =========================================================
+  // 5. FLATTEN ROWSPAN В TFOOT (html2canvas)
+  // =========================================================
+  const tfoot = clone.querySelector("tfoot");
+
+  if (tfoot) {
+    const rows = Array.from(tfoot.querySelectorAll("tr"));
+
+    for (let r = 0; r < rows.length; r++) {
+      const row = rows[r];
+      const cells = Array.from(row.children);
+
+      cells.forEach((cell, idx) => {
+        const rs = parseInt(cell.getAttribute("rowspan") || "1", 10);
+        if (rs > 1) {
+          cell.removeAttribute("rowspan");
+
+          for (let k = 1; k < rs; k++) {
+            const target = rows[r + k];
+            if (!target) continue;
+
+            const filler = document.createElement("td");
+            filler.innerHTML = "&nbsp;";
+            filler.style.border = cell.style.border;
+            filler.style.padding = cell.style.padding;
+            filler.style.textAlign = cell.style.textAlign;
+
+            target.insertBefore(
+              filler,
+              target.children[idx] || null
+            );
+          }
+        }
+      });
+    }
+  }
+
+// =========================================================
+// ЕСЛИ ЕСТЬ greyRow — ДОБАВЛЯЕМ ЕЁ В ОТДЕЛЬНУЮ ТАБЛИЦУ
+// =========================================================
+
+ 
+  // =========================================================
+  // 6. ФИКСИРУЕМ ШИРИНУ
+  // =========================================================
+  clone.style.width = originalTable.scrollWidth + "px";
+  clone.style.maxWidth = "none";
+  clone.style.margin = "0";
+  clone.style.padding = "0";
+  wrapper.appendChild(clone);
+
+
+if (greyRow) {
+const columnWidths = extractColumnWidths(clone);
+
+if (columnWidths.length) {
+  const cg = buildColGroup(columnWidths);
+  clone.insertBefore(cg, clone.firstChild);
+}
+
+function extractColumnWidths(table) {
+  const row =
+    table.querySelector("tbody tr:not(.itog):not(.balance-info)");
+
+  if (!row) return [];
+
+  return Array.from(row.children).map(td =>
+    td.getBoundingClientRect().width
+  );
+}
+
+function buildColGroup(widths) {
+  const colgroup = document.createElement("colgroup");
+
+  widths.forEach(w => {
+    const col = document.createElement("col");
+    col.style.width = w + "px";
+    colgroup.appendChild(col);
+  });
+
+  return colgroup;
+}
+
+ const greyTable = document.createElement("table");
+  const greyTbody = document.createElement("tbody");
+
+  greyTbody.appendChild(greyRow);
+  greyTable.appendChild(greyTbody);
+
+  greyTable.style.width = clone.style.width;
+  greyTable.style.maxWidth = "none";
+  greyTable.style.borderCollapse = "collapse";
+  greyTable.style.marginTop = "6px";
+
+
+  // colgroup — тот же самый
+  if (columnWidths.length) {
+    const cg = buildColGroup(columnWidths);
+    greyTable.insertBefore(cg, greyTable.firstChild);
+  }
+
+  wrapper.appendChild(greyTable);
+ }
+
+
+
+  document.body.appendChild(wrapper);
+
+  // =========================================================
+  // 7. КОПИРУЕМ СТИЛИ И ВЫРАВНИВАНИЯ
+  // =========================================================
+  applyBordersAndAlign(originalTable, clone);
+
+  // =========================================================
+  // 8. RENDER → CLIPBOARD
+  // =========================================================
+  html2canvas(wrapper, {
+    backgroundColor: "#ffffff",
+    scale: window.devicePixelRatio || 2
+  }).then(canvas => {
+
+    document.body.removeChild(wrapper);
+
+    const canClipboard =
+      navigator.clipboard && window.ClipboardItem;
+
+    if (canClipboard) {
+      canvas.toBlob(blob => {
+        navigator.clipboard.write([
+          new ClipboardItem({ "image/png": blob })
+        ]).then(() => {
+          showMessage("Скриншот таблицы скопирован в буфер обмена");
+        }).catch(err => {
+          console.error("Clipboard error", err);
+          fallbackDownload(canvas);
+          showMessage("Не удалось скопировать, файл сохранён", "warn");
+        });
+      });
+    } else {
+      fallbackDownload(canvas);
+      showMessage("Буфер обмена недоступен, файл сохранён", "warn");
+    }
+
+    // возвращаем label
+    setTimeout(() => {
+      document.querySelectorAll("label").forEach(l => {
+        l.style.display = "";
+      });
+    }, 300);
+  });
+
+  // =========================================================
+  // helpers
+  // =========================================================
+
+function applyBordersAndAlign(original, cloned) {
+  const origRows = original.querySelectorAll("tr");
+  const cloneRows = cloned.querySelectorAll("tr");
+
+  origRows.forEach((origRow, rIdx) => {
+    const cloneRow = cloneRows[rIdx];
+    if (!cloneRow) return;
+
+    // ❗ служебные строки не трогаем
+    if (
+      origRow.classList.contains("itog") ||
+      origRow.classList.contains("balance-info")
+    ) {
+      return;
+    }
+
+    const origCells = origRow.querySelectorAll("th, td");
+    const cloneCells = cloneRow.querySelectorAll("th, td");
+
+    origCells.forEach((orig, cIdx) => {
+      const c = cloneCells[cIdx];
+      if (!c) return;
+
+      const cs = window.getComputedStyle(orig);
+
+      c.style.border = "2px solid black";
+      c.style.padding = cs.padding || "4px";
+      c.style.textAlign = cs.textAlign;
+      c.style.verticalAlign = cs.verticalAlign;
+      c.style.fontWeight = cs.fontWeight;
+      c.style.whiteSpace = cs.whiteSpace;
+    });
+  });
+
+  cloned.style.borderCollapse = "collapse";
+  cloned.style.borderSpacing = "0";
+}
+
+
+  function fallbackDownload(canvas) {
+    const a = document.createElement("a");
+    a.download = "screenshot.png";
+    a.href = canvas.toDataURL("image/png");
+    a.click();
+  }
+}
+
+
+
 function captureAndCopy() {
   console.log("Начинаем выполнение captureAndCopy");
   var mainContainer = document.getElementById("maincontainer");
@@ -1694,6 +2091,7 @@ function captureAndCopy() {
 
   if (tables.length === 0) {
     console.warn("Нет таблиц для обработки");
+    showMessage("Нет таблиц для обработки","warn");
     return;
   }
 
@@ -1722,7 +2120,8 @@ mainTable.querySelectorAll("td[rowspan]").forEach(td => {
     });
   }
 
-  html2canvas(parentElement, {
+  //html2canvas(parentElement, {
+  html2canvas(mainTable, {
     onrendered: function (canvas) {
       console.log("html2canvas успешно отрендерил элемент");
       var isFirefox = navigator.userAgent.toLowerCase().includes("firefox");
@@ -1786,45 +2185,4 @@ if (supportsClipboard) {
     link.click();
     showMessage("Скриншот сохранён как файл (буфер обмена недоступен)","warn");
   }
-}
-
-// ===================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =====================
-function isMobile() {
-  // Истинно мобильное устройство: есть touchpoints и небольшой экран
-  return ('ontouchstart' in window || navigator.maxTouchPoints > 0) //&& window.innerWidth < 1024;
-}
-
-
-
- function nocache(url) {
-    return url + (url.includes("?") ? "&" : "?") + "t=" + Date.now();
-}
-
-async function loadHomeRoles() {
-  // 1. Текущий пользователь
-  const { data: { user }, error: userError } = await client.auth.getUser();
-  if (userError || !user) {
-    console.error('User not authorized');
-    return null;
-  }
-
-  // 2. Запрос только из user_homes
-  const { data, error } = await client
-    .from('user_homes')
-    .select('home_code, role')
-    .eq('user_id', user.id);
-
-  if (error) {
-    console.error('Failed to load user_homes:', error);
-    return null;
-  }
-
-  // 3. Преобразование в объект { home_code: role }
-  const homeRoles = {};
-
-  for (const row of data) {
-    homeRoles[row.home_code] = row.role;
-  }
-
-  return homeRoles;
 }
