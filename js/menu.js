@@ -620,11 +620,12 @@ function toggleMenuFiles(homeCode) {
 
 
 // ================================
-// MOBILE SWIPE: MENU ⇄ FILES
+// MOBILE SWIPE: SIDEBAR ⇄ FILES
 // ================================
 (function initMenuFilesSwipe() {
 
-  const SWIPE_THRESHOLD = 60; // px
+  const MOBILE_MAX = 640;
+  const SWIPE_THRESHOLD = 80; // px — безопасно для таблиц
   const MAX_VERTICAL = 40;    // px
 
   let startX = 0;
@@ -632,25 +633,23 @@ function toggleMenuFiles(homeCode) {
   let tracking = false;
 
   function isMobile() {
-    return window.innerWidth <= 640;
+    return window.innerWidth <= MOBILE_MAX;
   }
 
   function sidebarIsOpen() {
     return document.body.classList.contains("sidebar-open");
   }
 
-  function isInsideSidebar(target) {
-    return target.closest && target.closest(".sidebar");
-  }
+  const sidebar = document.querySelector(".sidebar");
+  if (!sidebar) return; // sidebar отсутствует — выходим
 
-  // === START ===
-  document.addEventListener("touchstart", e => {
+  // ====================
+  // TOUCH START
+  // ====================
+  sidebar.addEventListener("touchstart", e => {
     if (!isMobile()) return;
     if (!sidebarIsOpen()) return;
     if (e.touches.length !== 1) return;
-
-    // жест ТОЛЬКО внутри sidebar
-    if (!isInsideSidebar(e.target)) return;
 
     const t = e.touches[0];
     startX = t.clientX;
@@ -658,22 +657,26 @@ function toggleMenuFiles(homeCode) {
     tracking = true;
   }, { passive: true });
 
-  // === MOVE ===
-  document.addEventListener("touchmove", e => {
+  // ====================
+  // TOUCH MOVE
+  // ====================
+  sidebar.addEventListener("touchmove", e => {
     if (!tracking) return;
 
     const t = e.touches[0];
     const dx = t.clientX - startX;
     const dy = t.clientY - startY;
 
-    // если вертикальный скролл — отменяем жест
+    // если пользователь скроллит вертикально — отменяем жест
     if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 10) {
       tracking = false;
     }
   }, { passive: true });
 
-  // === END ===
-  document.addEventListener("touchend", e => {
+  // ====================
+  // TOUCH END
+  // ====================
+  sidebar.addEventListener("touchend", e => {
     if (!tracking) return;
     tracking = false;
 
@@ -684,7 +687,8 @@ function toggleMenuFiles(homeCode) {
     const dx = t.clientX - startX;
     const dy = t.clientY - startY;
 
-    if (Math.abs(dx) > SWIPE_THRESHOLD && Math.abs(dy) < MAX_VERTICAL) {
+    // чистый горизонтальный свайп
+    if (Math.abs(dx) >= SWIPE_THRESHOLD && Math.abs(dy) <= MAX_VERTICAL) {
       toggleMenuFiles(getParam("homeCode"));
     }
   });

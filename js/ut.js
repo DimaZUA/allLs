@@ -2101,7 +2101,7 @@ function captureAndCopy() {
   console.log("Найдена основная таблица", mainTable);
 
   // Добавляем стили непосредственно перед рендером
-  //applyBorders(mainTable);
+  applyBorders(mainTable);
 mainTable.querySelectorAll("td[rowspan]").forEach(td => {
   td.style.position = "relative";
 });
