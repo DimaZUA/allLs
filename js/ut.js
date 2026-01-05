@@ -2109,8 +2109,7 @@ mainTable.querySelectorAll("td[rowspan]").forEach(td => {
 if (getParam("actionCode") == "accounts") {
   var address = document.getElementById("adr")?.innerText || "";
   var selectElement = document.getElementById("number");
-  var apartmentNumber =
-    selectElement?.options[selectElement.selectedIndex]?.text || "";
+  var apartmentNumber = selectElement ? selectElement.value.trim() : "";
   var fio = document.getElementById("fio")?.innerText || "";
 
   var result = address + " " + apartmentNumber + ", " + fio;
@@ -2177,7 +2176,7 @@ if (supportsClipboard) {
     table.querySelectorAll("td").forEach((td, index) => {
       td.style.border = "2px solid black";  // Границы для всех ячеек
       td.style.padding = "4px";  // Для корректного отображения
-      console.log(`TD[${index}]: граница установлена`);
+      //console.log(`TD[${index}]: граница установлена`);
 
       // Пропускаем установку границ для вложенных таблиц
       if (td.querySelector("table")) {

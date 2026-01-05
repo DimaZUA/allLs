@@ -47,6 +47,7 @@
     #filter-container,
     .compare-row,
     .act-preview-row,
+    #years-bar,
     .act-icon {
         display: none !important;
         visibility: hidden !important;
@@ -61,7 +62,7 @@
         transform: none !important;
         position: relative !important;
         left: 0 !important;
-        width: 95% !important;
+        //width: 95% !important;
         max-width: 95% !important;
     }
 
@@ -75,9 +76,9 @@
        =============================== */
 
     table {
-        width: 95%;
+        width: auto;
         border-collapse: collapse;
-        margin: 0 auto;
+        margin: 0;
     }
 
     th,

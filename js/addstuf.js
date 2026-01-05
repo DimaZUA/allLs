@@ -852,43 +852,89 @@ var headerRow = `
 }
 function initLS() {
 document.getElementById("maincontainer").innerHTML = `
-  <div id="header">
-    <table width="100%">
-      <tr>
-        <td align="right"><b>Адреса:</b></td>
-        <td class="big" align="left">
-          <u><i><a id="adr">adr</a></i></u>
-          <select class="big" id="number"></select>
-        </td>
-        <td rowspan="2">${buttons}</td>
-        <td rowspan="2"><div id="org" align="right"></div></td>
-      </tr>
-      <tr>
-        <td align="right"><b>П.І.Б.:</b></td>
-        <td align="left">
-          <u><i><div class="big" id="fio"></div></i></u>
-        </td>
-      </tr>
-    </table>
+  <div id="header" class="header">
+
+    <div class="header-row">
+      <div class="header-left">
+
+        <div class="line">
+          <span class="label">Адреса:</span>
+          <span class="value">
+            <a id="adr"></a>
+<input id="number" list="number-list" inputmode="numeric" autocomplete="off">
+<datalist id="number-list"></datalist>
+
+          </span>
+        </div>
+
+        <div class="line">
+          <span class="label">П.І.Б.:</span>
+          <span class="value" id="fio"></span>
+        </div>
+
+      </div>
+
+      <div class="header-right">
+        <div class="buttons-container">
+          ${buttons}
+        </div>
+      </div>
+    </div>
+
   </div>
+
   <div id="din"></div>
   <div id="datetime"></div>
 `;
-  document.getElementById("number").addEventListener("change", function () {
-    addStuff(this.value);
+
+document.getElementById("number").addEventListener("input", function () {
+  const val = this.value.trim().toLowerCase();
+  if (!val) return;
+
+  let foundId = null;
+
+  Object.entries(ls).some(([accountId, data]) => {
+    const kv  = String(data.kv);
+    const fio = (data.fio || "").toLowerCase();
+
+    if (kv.startsWith(val) || fio.includes(val)) {
+      foundId = accountId;
+      return true;
+    }
+    return false;
   });
+
+  if (foundId) {
+    addStuff(foundId);
+    setParam("kv", ls[foundId].kv);
+  }
+});
+
   document.getElementById("adr").textContent = adr + " / ";
-  document.getElementById("org").textContent = org;
+  //document.getElementById("org").textContent = org;
   document.title = org + " " + adr;
-  Object.entries(ls).forEach(function (_ref) {
-    var _ref2 = _slicedToArray(_ref, 2),
-      index = _ref2[0],
-      value = _ref2[1];
-    var option = document.createElement("option");
-    option.value = index;
-    option.textContent = value.kv;
-    document.getElementById("number").appendChild(option);
-  });
+const input = document.getElementById("number");
+const list  = document.getElementById("number-list");
+
+list.innerHTML = "";
+
+Object.entries(ls).forEach(([accountId, data]) => {
+  const opt = document.createElement("option");
+
+  // то, что будет подставлено в input
+  opt.value = data.kv;
+
+  // текст подсказки (виден в выпадающем списке)
+  opt.label = `${data.fio}`;
+
+  // сохраняем для поиска
+  opt.dataset.id  = accountId;
+  opt.dataset.kv  = String(data.kv);
+  opt.dataset.fio = (data.fio || "").toLowerCase();
+
+  list.appendChild(opt);
+});
+
   var ind = getParam("kv");
   if (!ind) {
     ind = Object.keys(ls)[1];
@@ -900,8 +946,8 @@ document.getElementById("maincontainer").innerHTML = `
       ind = Object.keys(ls)[1];
     }
   }
-  addStuff(ind);
-  document.getElementById("number").value = ind;
+addStuff(ind);
+document.getElementById("number").value = ls[ind]?.kv || "";
 }
 
 
