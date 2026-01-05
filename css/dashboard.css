@@ -258,7 +258,7 @@
 ========================================= */
 
 .liab-table .poster {
-    cursor: default;
+    cursor: help;
 }
 
 .liab-table .poster .descr {
@@ -308,7 +308,7 @@
 }
 .poster {
     position: relative;
-    cursor: pointer;
+    cursor: help;
 }
 
 .act-icon {

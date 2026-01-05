@@ -203,8 +203,8 @@ async function handleMenuClick(homeCode, actionCode, actionLink, { fromHistory =
   document.title = `${homeObj?.name || ""} — ${actionObj?.name || ""}`;
 
   const params = new URLSearchParams();
-  params.set("homeCode", homeCode);
-  params.set("actionCode", actionCode);
+  setParam("homeCode", homeCode);
+  setParam("actionCode", actionCode);
   const url = `${location.pathname}?${params}`;
 
   if (initial || fromHistory) {
@@ -581,3 +581,98 @@ function updateTopbarTitle(homeCode) {
   const home = homes?.find(h => h.code === homeCode);
   el.textContent = home ? home.name : '';
 }
+
+function toggleMenuFiles(homeCode) {
+
+  if (window.innerWidth > 640) return;
+
+  const inFiles = document.body.classList.contains("files-mode");
+
+  // ============================
+  // МЫ В ДОКУМЕНТАХ → В МЕНЮ
+  // ============================
+  if (inFiles) {
+    document.body.classList.remove("files-mode");
+    openSidebar();              // ✅ вместо classList
+    return;
+  }
+
+  // ============================
+  // МЫ В МЕНЮ → В ДОКУМЕНТЫ
+  // ============================
+  if (!homeCode) return;
+
+  const homeEl = document.querySelector(`[data-code="${homeCode}"]`);
+  if (!homeEl) return;
+
+  const actionEl = homeEl.querySelector(`ul span[data-action="reports"]`);
+
+  // перед переходом в документы — считаем, что сайдбар открыт
+  sidebarState.open = true;     // ✅ синхронизация
+
+  handleMenuClick(
+    homeCode,
+    "reports",
+    actionEl,
+    { fromGesture: true }
+  );
+}
+
+
+// ================================
+// MOBILE SWIPE: MENU ⇄ FILES
+// ================================
+(function initMenuFilesSwipe() {
+
+  const SWIPE_THRESHOLD = 60; // px
+  const MAX_VERTICAL = 40;    // px
+
+  let startX = 0;
+  let startY = 0;
+  let tracking = false;
+
+  function isMobile() {
+    return window.innerWidth <= 640;
+  }
+
+  document.addEventListener("touchstart", e => {
+    if (!isMobile()) return;
+    if (e.touches.length !== 1) return;
+
+    const t = e.touches[0];
+    startX = t.clientX;
+    startY = t.clientY;
+    tracking = true;
+  }, { passive: true });
+
+  document.addEventListener("touchmove", e => {
+    if (!tracking) return;
+
+    const t = e.touches[0];
+    const dx = t.clientX - startX;
+    const dy = t.clientY - startY;
+
+    // если вертикальный скролл — отменяем жест
+    if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 10) {
+      tracking = false;
+    }
+  }, { passive: true });
+
+  document.addEventListener("touchend", e => {
+    if (!tracking) return;
+    tracking = false;
+
+    if (!isMobile()) return;
+
+    const t = e.changedTouches[0];
+    const dx = t.clientX - startX;
+    const dy = t.clientY - startY;
+
+    // === ВОТ СЮДА ===
+    // любой горизонтальный свайп → toggle
+    if (Math.abs(dx) > SWIPE_THRESHOLD && Math.abs(dy) < MAX_VERTICAL) {
+      toggleMenuFiles(getParam("homeCode"));
+    }
+  });
+
+})();

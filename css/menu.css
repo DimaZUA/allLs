@@ -48,8 +48,23 @@ body {
   text-overflow: ellipsis;
 }
 
+.topbar-back {
+  font-size: 20px;
+  padding: 6px 8px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #fff;
+  display: none;
+}
+
+body.sidebar-open.files-mode .topbar-back {
+  display: inline-flex;
+  align-items: center;
+}
+
 /* =====================================================
-   SIDEBAR (ЕДИНСТВЕННАЯ)
+   SIDEBAR (CONTAINER)
 ===================================================== */
 .sidebar {
   position: fixed;
@@ -75,17 +90,48 @@ body.sidebar-open .sidebar {
 }
 
 /* =====================================================
-   SIDEBAR CONTENT MODES
+   SIDEBAR CONTENT MODES (MENU / FILES)
 ===================================================== */
 .sidebar-menu,
 .sidebar-files {
+  position: absolute;
+  inset: 0;
+
   height: 100%;
   overflow-y: auto;
+
+  transform-origin: 50% 50%;
+  transition:
+    transform 0.24s ease,
+    opacity   0.12s linear;
+
+  will-change: transform, opacity;
 }
 
+/* ===== MENU (default) ===== */
+.sidebar-menu {
+  transform: scaleX(1);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.sidebar-files {
+  transform: scaleX(0.02);
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ===== FILES MODE ===== */
+body.files-mode .sidebar-menu {
+  transform: scaleX(0.02);
+  opacity: 0;
+  pointer-events: none;
+}
 
 body.files-mode .sidebar-files {
-  display: block;
+  transform: scaleX(1);
+  opacity: 1;
+  pointer-events: auto;
 }
 
 /* =====================================================
@@ -165,29 +211,32 @@ body.files-mode .sidebar-files {
   transition: margin-left 0.25s ease;
 }
 
-/* Desktop */
 @media (min-width: 1200px) {
   body.sidebar-open .content {
     margin-left: 240px;
   }
 }
 
-/* Tablet */
-@media (max-width: 1199px) {
-  .content {
-    margin-left: 0;
-  }
-}
-
-/* Mobile */
+/* =====================================================
+   MOBILE / TABLET
+===================================================== */
 @media (max-width: 640px) {
   .sidebar {
     width: 100vw;
     font-size: 18px;
   }
 
-  .content {
-    margin-left: 0;
+  .sidebar-menu,
+  .sidebar-files {
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .sidebar-files .file-list,
+  .sidebar-files .month-files,
+  .sidebar-files .year-files,
+  .sidebar-files .year-folders {
+    width: 99%;
   }
 }
 
@@ -224,98 +273,12 @@ body.files-mode .sidebar-files {
 .xls-icon {
   width: 24px;
   height: 24px;
-  max-width: 24px;
-  max-height: 24px;
   object-fit: contain;
 }
 
-.topbar-back {
-  font-size: 20px;
-  padding: 6px 8px;
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: #fff;
-  display: none;
-}
-
-/* показываем ТОЛЬКО когда:
-   - открыт sidebar
-   - активен files-mode */
-body.sidebar-open.files-mode .topbar-back {
-  display: inline-flex;
-  align-items: center;
-}
-
-/* =========================
-   SIDEBAR INNER ANIMATION — FIX
-========================= */
-
-.sidebar-menu,
-.sidebar-files {
-  position: absolute;
-  inset: 0;
-
-  transition:
-    transform 0.28s cubic-bezier(.4,0,.2,1),
-    opacity   0.18s ease;
-
-  will-change: transform, opacity;
-}
-
-/* --- меню по умолчанию --- */
-.sidebar-menu {
-  transform: translateX(0);
-  opacity: 1;
-  pointer-events: auto;
-}
-
-.sidebar-files {
-  transform: translateX(100%);
-  opacity: 0;
-  pointer-events: none;
-}
-
-/* --- режим документов --- */
-body.files-mode .sidebar-menu {
-  transform: translateX(-100%);
-  opacity: 0;
-  pointer-events: none;
-}
-
-body.files-mode .sidebar-files {
-  transform: translateX(0);
-  opacity: 1;
-  pointer-events: auto;
-}
-
-@media (max-width: 640px) {
-  .sidebar {
-    width: 100vw;
-  }
-
-  .sidebar-menu,
-  .sidebar-files {
-    width: 100%;
-    min-width: 100%;
-    box-sizing: border-box;
-  }
-
-  .sidebar-files .file-list,
-  .sidebar-files .month-files,
-  .sidebar-files .year-files,
-  .sidebar-files .year-folders {
-    width: 99%;
-  }
-}
-
-/* ================================
-   LOGIN MODE — FULL ISOLATION
-================================ */
-/* =========================
+/* =====================================================
    AUTH / LOGIN
-========================= */
-
+===================================================== */
 #auth-section {
   min-height: 100vh;
   display: flex;
@@ -336,15 +299,13 @@ body.files-mode .sidebar-files {
 }
 
 #auth-section h2 {
-  margin-top: 0;
-  margin-bottom: 12px;
+  margin: 0 0 12px;
   font-size: 20px;
   text-align: center;
 }
 
 #auth-section input {
   width: 100%;
-  box-sizing: border-box;
   margin-bottom: 10px;
   padding: 6px 8px;
   font-size: 14px;
@@ -357,13 +318,9 @@ body.files-mode .sidebar-files {
   cursor: pointer;
 }
 
-#auth-toggle {
-  margin-top: 10px;
-  text-align: center;
-  font-size: 14px;
-}
-
-
+/* =====================================================
+   SESSION CHECK
+===================================================== */
 .session-check {
   display: inline-flex;
   gap: 4px;
@@ -391,5 +348,13 @@ body.files-mode .sidebar-files {
 
 .session-text {
   opacity: .6;
-  animation: fade 1.2s infinite;
+}
+/* === FIX: mobile full-width for files mode === */
+@media (max-width: 640px) {
+
+  .sidebar-menu,
+  .sidebar-files {
+  width:100% !important;
+   }
+
 }

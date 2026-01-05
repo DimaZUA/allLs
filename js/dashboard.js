@@ -1053,8 +1053,12 @@ function toDMY(value) {
 }
 
 function toISO(d) {
-    return d.toISOString().slice(0, 10);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
 }
+
 
 // ===========================================
 // БУХ-ЭФФЕКТ ПРОВОДКИ
@@ -1380,7 +1384,9 @@ window.currentLiabAccount = account;
     const taxAccounts = isTax ? getTaxAccounts() : [];
 
     const dateTo   = parseDt(dt);
-    const dateFrom = new Date(dateTo.getFullYear(), 0, 1,12,0,0);
+    const dateFrom = new Date(dateTo.getFullYear(), 0, 1);
+    dateFrom.setHours(0, 0, 0, 0);
+
 
     // === НАЧАЛЬНЫЙ РАСЧЁТ ===
 const result = calcReconciliation({
@@ -1696,7 +1702,9 @@ return `
 function openSalaryHistory() { 
 	const account = '661'; 
 	const dateTo = parseDt(dt); 
-	const dateFrom = new Date(dateTo.getFullYear(), 0, 1,12,0,0); 
+	const dateFrom = new Date(dateTo.getFullYear(), 0, 1);
+	dateFrom.setHours(0, 0, 0, 0);
+
 	const rows = calcSalaryReconciliation({ dateFrom, dateTo }); 
 	maincontainer.innerHTML = `<div class="liab-history-page"> <div class="liab-header"> <button onclick="initDashboard()">← Назад</button> <h2>Заробітна плата</h2> <div class="liab-subtitle"> Рахунок 661 — розрахунки з працівниками<br> Період: <input type="date" id="salaryFrom" value="${toISO(dateFrom)}"> — <input type="date" id="salaryTo" value="${toISO(dateTo)}"> <button onclick="reloadSalary()">Перерахувати</button> </div> </div> ${renderSalaryTable(rows)} </div>` ; }
 

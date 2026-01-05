@@ -879,7 +879,7 @@ table#main thead  {
 /* ===== POSTER ===== */
 .poster {
   position: relative;
-  cursor: pointer;
+  cursor: help;
 }
 
 /* ===== SPINNER ===== */
