@@ -1098,7 +1098,7 @@ document.getElementById('saveChanges').onclick = async function () {
 
   await sendCorrection(payload, accountId);
 
-  console.log("Отправлено в Google Sheets:", payload);
+  console.log("Отправлено на почту:", payload);
   closeModal();
 };
 
