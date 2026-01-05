@@ -2101,26 +2101,34 @@ function captureAndCopy() {
   console.log("Найдена основная таблица", mainTable);
 
   // Добавляем стили непосредственно перед рендером
-  applyBorders(mainTable);
+  //applyBorders(mainTable);
 mainTable.querySelectorAll("td[rowspan]").forEach(td => {
   td.style.position = "relative";
 });
 
-  if (getParam("actionCode") == "accounts") {
-    var address = document.getElementById("adr")?.innerText || "";
-    var selectElement = document.getElementById("number");
-    var apartmentNumber = selectElement?.options[selectElement.selectedIndex]?.text || "";
-    var fio = document.getElementById("fio")?.innerText || "";
-    var result = address + " " + apartmentNumber + ", " + fio;
+if (getParam("actionCode") == "accounts") {
+  var address = document.getElementById("adr")?.innerText || "";
+  var selectElement = document.getElementById("number");
+  var apartmentNumber =
+    selectElement?.options[selectElement.selectedIndex]?.text || "";
+  var fio = document.getElementById("fio")?.innerText || "";
 
-    parentElement.insertAdjacentHTML("afterbegin", '<p class="tmp">' + result + "</p>");
+  var result = address + " " + apartmentNumber + ", " + fio;
 
-    document.querySelectorAll("label").forEach((label) => {
-      label.style.display = "none";
-    });
-  }
+  var caption = document.createElement("caption");
+  caption.className = "tmp";
+caption.style.captionSide = "top";
+caption.style.textAlign = "center";      // центр
+caption.style.fontSize = "18px";         // крупнее
+caption.style.fontWeight = "600";
+caption.style.padding = "8px 0 10px";
+caption.style.lineHeight = "1.3";
+  caption.innerText = result;
 
-  //html2canvas(parentElement, {
+  mainTable.insertBefore(caption, mainTable.firstChild);
+}
+
+  //parentElement
   html2canvas(mainTable, {
     onrendered: function (canvas) {
       console.log("html2canvas успешно отрендерил элемент");

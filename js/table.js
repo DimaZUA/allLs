@@ -280,15 +280,6 @@ function calculateDebtMonthsFromCache(accountId, debtEnd, endDate) {
     const firstThreeSet = new Set(firstThreeMonths.map(x => x.year + "-" + x.month));
 
     const debugLog = [];
-    if (accountId == 503031680) {
-        debugLog.push("=== Расчет долга для accountId 503031680 ===");
-        debugLog.push(`Исходный долг: ${remaining}, endDate: ${currentYear}-${currentMonth}`);
-        debugLog.push(`Первые 3 месяца для исключения кода 13: ${[...firstThreeSet].join(", ")}`);
-        debugLog.push("Все месяцы с начислениями:");
-        for (const {year: y, month: m} of allMonths) {
-            debugLog.push(`  ${y}-${m}: ${JSON.stringify(nach[accountId][y][m])}`);
-        }
-    }
 
     // --- ДОЛГ ---
     if (remaining > EPS) {
@@ -339,9 +330,6 @@ function calculateDebtMonthsFromCache(accountId, debtEnd, endDate) {
                 remaining = 0;
             }
 
-            if (accountId == 503031680 && chargesUsed) {
-                debugLog.push(`Месяц ${currentYear}-${currentMonth}, начислено: ${monthSum}, остаток: ${remaining.toFixed(2)}, накопленные месяцы: ${months.toFixed(2)}`);
-            }
 
             currentMonth -= 1;
             if (currentMonth < 1) {
@@ -351,7 +339,6 @@ function calculateDebtMonthsFromCache(accountId, debtEnd, endDate) {
             }
         }
 
-        if (accountId == 503031680) console.log(debugLog.join("\n"));
         return +months.toFixed(1);
     }
 
