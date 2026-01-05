@@ -76,7 +76,7 @@ tr.grey .descr {
 
 .toggle-box+label {
 	display: inline-block;
-	margin: 4px 6px;
+	margin: 1px 1px;
 	color: #444;
 	border-radius: 40px;
 	border: 1px solid #CCC;
@@ -127,7 +127,7 @@ table#main td {
 	width: 50%;
 	max-width: 100%;
 }
-.box table#main td:first-child {
+.box table#main tbody td:first-child {
     white-space: nowrap;
 }
 
