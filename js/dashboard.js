@@ -1387,7 +1387,7 @@ window.currentLiabAccount = account;
     const dateFrom = new Date(dateTo.getFullYear(), 0, 1);
     dateFrom.setHours(0, 0, 0, 0);
 
-
+const whoMeta = collectWhoMeta(account, dateFrom, dateTo);
     // === НАЧАЛЬНЫЙ РАСЧЁТ ===
 const result = calcReconciliation({
     account,
@@ -1472,11 +1472,20 @@ const actPartiesText = `Ми, що нижче підписалися, предс
                             Контрагент:
                             <select id="whoSelect">
                                 <option value="">— всі —</option>
-                                ${whoList.map(w => `
-                                    <option value="${w}" ${w === who ? 'selected' : ''}>
-                                        ${kto[w] || w}
-                                    </option>
-                                `).join('')}
+${whoList.map(w => {
+
+    const meta = whoMeta[w] || {};
+    const inactive = !meta.hasSaldo && !meta.hasMovement;
+
+    return `
+        <option value="${w}"
+                ${w === who ? 'selected' : ''}
+                ${inactive ? 'style="color:#999"' : ''}>
+            ${kto[w] || w}
+        </option>
+    `;
+}).join('')}
+
                             </select>
                         </div>
                     ` : ''}
@@ -1869,7 +1878,6 @@ function reloadLiabAdvanced() {
     const dateFrom = new Date(document.getElementById('dateFrom').value);
     const dateTo   = new Date(document.getElementById('dateTo').value);
 
-    // === СЧЁТ (обычный или налоговый) ===
     let account = window.currentLiabAccount;
 
     const taxSelect = document.getElementById('taxAccountSelect');
@@ -1878,23 +1886,32 @@ function reloadLiabAdvanced() {
         window.currentLiabAccount = account;
     }
 
-    // === КОНТРАГЕНТ ===
-    const whoSelect = document.getElementById('whoSelect');
-    const who = whoSelect && whoSelect.value
-        ? whoSelect.value
-        : null;
+    // 🔹 аккуратно обновляем список контрагентов
+    const showWhoSelect = ['631','3771','372'].includes(account);
+    let who = null;
 
-    // === УСЛУГИ ===
+    if (showWhoSelect) {
+        who = refreshWhoSelect({ account, dateFrom, dateTo });
+    }
+
+    // если селекта нет — читаем как раньше
+    if (!who) {
+        const whoSelectEl = document.getElementById('whoSelect');
+        who = whoSelectEl && whoSelectEl.value
+            ? whoSelectEl.value
+            : null;
+    }
+
+    // === услуги
     let whatList = null;
     const whatCheckboxes = document.querySelectorAll('.what-checkbox');
-
     if (whatCheckboxes.length) {
         whatList = [...whatCheckboxes]
             .filter(cb => cb.checked)
             .map(cb => cb.value);
     }
 
-    // === РАСЧЁТ ===
+    // === расчёт
     const result = calcReconciliation({
         account,
         who,
@@ -1906,25 +1923,19 @@ function reloadLiabAdvanced() {
     const rows   = result.rows;
     const totals = result.totals;
 
-    const saldoOwner = getSaldoOwner(
-        account,
-        totals.saldo,
-        who
-    );
+    const saldoOwner = getSaldoOwner(account, totals.saldo, who);
 
-    // === ТАБЛИЦА ===
     const table = document.querySelector('.liab-history-page table');
     if (table) {
         table.outerHTML = renderReconciliationTable(
-    rows,
-    totals,
-    saldoOwner,
-    dateTo,account
-    );
-
+            rows,
+            totals,
+            saldoOwner,
+            dateTo,
+            account
+        );
     }
 
-    // === ЗАГОЛОВОК ===
     const titleEl = document.getElementById('liabAccountTitle');
     if (titleEl) {
         titleEl.textContent =
@@ -1935,16 +1946,60 @@ function reloadLiabAdvanced() {
 
 
 function collectWhoListWithOpeningSaldo(account, dateFrom, dateTo) {
+    return Object.keys(
+        collectWhoMeta(account, dateFrom, dateTo)
+    ).sort();
+}
+function collectWhoMeta(account, dateFrom, dateTo) {
 
-    const whoSet = new Set(
-        collectWhoList(account, dateFrom, dateTo)
-    );
+    const result = {}; // who -> { hasSaldo, hasMovement }
 
-    if (whoSet.size > 0) {
-        return [...whoSet];
+    const today = new Date();
+    today.setHours(0,0,0,0);
+
+    const to = dateTo < today ? dateTo : today;
+
+    // --- движения в периоде сверки
+    function scan(rows, getDate, getWho, getCredit, getDebit) {
+        for (const y in rows) {
+            for (const m in rows[y]) {
+                for (const r of rows[y][m]) {
+
+                    const d = getDate(r, y, m);
+                    if (d < dateFrom || d > to) continue;
+
+                    if (
+                        getCredit(r) !== account &&
+                        getDebit(r)  !== account
+                    ) continue;
+
+                    const who = String(r[2] || '');
+                    if (!who) continue;
+
+                    result[who] ||= { hasSaldo: false, hasMovement: false };
+                    result[who].hasMovement = true;
+                }
+            }
+        }
     }
 
-    // 🔹 добираем из входящего сальдо
+    scan(
+        allnach,
+        (r, y, m) => new Date(y, m - 1, r[0] || 1),
+        r => r[2],
+        r => String(r[4]),
+        r => String(r[5])
+    );
+
+    scan(
+        plat,
+        (r, y, m) => new Date(y, m - 1, r[0] || 1),
+        r => r[2],
+        r => String(r[6]),
+        r => String(r[7])
+    );
+
+    // --- входящее сальдо
     for (const who in kto) {
 
         const saldo = calcOpeningSaldo({
@@ -1954,59 +2009,24 @@ function collectWhoListWithOpeningSaldo(account, dateFrom, dateTo) {
         });
 
         if (Math.abs(saldo) >= 0.01) {
-            whoSet.add(who);
+            result[who] ||= { hasSaldo: false, hasMovement: false };
+            result[who].hasSaldo = true;
         }
     }
 
-    return [...whoSet].sort();
+    return result;
 }
+
+
 
 
 
 function collectWhoList(account, dateFrom, dateTo) {
-    const set = new Set();
-
-    function scan(rows, getCredit, getDebit, getWho, getDate) {
-        for (const y in rows) {
-            for (const m in rows[y]) {
-                for (const r of rows[y][m]) {
-
-                    const d = getDate(r, y, m);
-                    if (d < dateFrom || d > dateTo) continue;
-
-                    const credit = getCredit(r);
-                    const debit  = getDebit(r);
-
-                    // ❗ ВАЖНО: только если счет участвует
-                    if (credit !== account && debit !== account) continue;
-
-                    const who = getWho(r);
-                    if (who) set.add(who);
-                }
-            }
-        }
-    }
-
-    // начисления
-    scan(
-        allnach,
-        r => String(r[4] || ''),
-        r => String(r[5] || ''),
-        r => String(r[2] || ''),
-        (r, y, m) => new Date(y, m - 1, r[0] || 1)
-    );
-
-    // платежи
-    scan(
-        plat,
-        r => String(r[6] || ''),
-        r => String(r[7] || ''),
-        r => String(r[2] || ''),
-        (r, y, m) => new Date(y, m - 1, r[0] || 1)
-    );
-
-    return [...set].sort();
+    return Object.keys(
+        collectWhoMeta(account, dateFrom, dateTo)
+    ).sort();
 }
+
 
 
 function collectWhatList631(dateFrom, dateTo, who = null) {
@@ -2431,4 +2451,57 @@ function hasMovements(account, dateFrom, dateTo) {
     );
 
     return found;
+}
+
+function collectLiabUIState() {
+
+    const whoSelect = document.getElementById('whoSelect');
+    const selectedWho = whoSelect && whoSelect.value
+        ? whoSelect.value
+        : null;
+
+    const selectedWhat = [...document.querySelectorAll('.what-checkbox')]
+        .filter(cb => cb.checked)
+        .map(cb => cb.value);
+
+    return {
+        selectedWho,
+        selectedWhat
+    };
+}
+function refreshWhoSelect({ account, dateFrom, dateTo }) {
+
+    const whoSelect = document.getElementById('whoSelect');
+    if (!whoSelect) return null;
+
+    // текущее значение ДО обновления
+    const prevWho = whoSelect.value || null;
+
+    const whoMeta = collectWhoMeta(account, dateFrom, dateTo);
+    const whoList = Object.keys(whoMeta).sort();
+
+    // пересобираем ТОЛЬКО options
+    whoSelect.innerHTML = `
+        <option value="">— всі —</option>
+        ${whoList.map(w => {
+            const meta = whoMeta[w];
+            const inactive = !meta.hasSaldo && !meta.hasMovement;
+
+            return `
+                <option value="${w}"
+                        ${w === prevWho ? 'selected' : ''}
+                        ${inactive ? 'style="color:#999"' : ''}>
+                    ${kto[w] || w}
+                </option>
+            `;
+        }).join('')}
+    `;
+
+    // если выбранный контрагент исчез — сбрасываем
+    if (prevWho && !whoMeta[prevWho]) {
+        whoSelect.value = '';
+        return null;
+    }
+
+    return prevWho;
 }
