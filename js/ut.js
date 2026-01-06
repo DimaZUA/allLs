@@ -543,14 +543,14 @@ var buttons =
   '  <button onclick="exportTableToExcel(\'clipboard\')" class="xls-button" title="Копировать">\n' +
   '    <img src="img/copy.svg" class="xls-icon">\n' +
   '  </button>\n' +
-  '  <button onclick="captureAndCopy()" class="xls-button" title="Скриншот таблицы">\n' +
-  '    <img src="img/screenshot.png" class="xls-icon">\n' +
-  '  </button>\n' +
   (isMobile() && navigator.share
     ? '  <button onclick="captureAndShare()" class="xls-button" title="Поделиться">\n' +
       '    <img src="img/share.png" class="xls-icon">\n' +
       '  </button>\n'
-    : '') +
+    :   '  <button onclick="captureAndCopy()" class="xls-button" title="Скриншот таблицы">\n' +
+  '    <img src="img/screenshot.png" class="xls-icon">\n' +
+  '  </button>\n' 
+    ) +
   '</div>\n';
 host = "data/";
 var monthNames = [

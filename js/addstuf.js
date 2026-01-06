@@ -851,104 +851,142 @@ var headerRow = `
   return totalPayments;
 }
 function initLS() {
-document.getElementById("maincontainer").innerHTML = `
-  <div id="header" class="header">
 
-    <div class="header-row">
-      <div class="header-left">
+  document.getElementById("maincontainer").innerHTML = `
+    <div id="header" class="header">
+      <div class="header-row">
+        <div class="header-left">
 
-        <div class="line">
-          <span class="label">Адреса:</span>
-          <span class="value">
-            <a id="adr"></a>
-<input id="number" list="number-list" inputmode="numeric" autocomplete="off">
-<datalist id="number-list"></datalist>
+          <div class="line">
+            <span class="label">Адреса:</span>
+            <span class="value">
+              <a id="adr"></a>
+              <input
+                id="number"
+                list="number-list"
+                type="text"
+                inputmode="search"
+                autocomplete="off">
+              <datalist id="number-list"></datalist>
+            </span>
+          </div>
 
-          </span>
+          <div class="line">
+            <span class="label">П.І.Б.:</span>
+            <span class="value" id="fio"></span>
+          </div>
+
         </div>
 
-        <div class="line">
-          <span class="label">П.І.Б.:</span>
-          <span class="value" id="fio"></span>
-        </div>
-
-      </div>
-
-      <div class="header-right">
-        <div class="buttons-container">
-          ${buttons}
+        <div class="header-right">
+          <div class="buttons-container">
+            ${buttons}
+          </div>
         </div>
       </div>
     </div>
 
-  </div>
-
-  <div id="din"></div>
-  <div id="datetime"></div>
-`;
-
-document.getElementById("number").addEventListener("input", function () {
-  const val = this.value.trim().toLowerCase();
-  if (!val) return;
-
-  let foundId = null;
-
-  Object.entries(ls).some(([accountId, data]) => {
-    const kv  = String(data.kv);
-    const fio = (data.fio || "").toLowerCase();
-
-    if (kv.startsWith(val) || fio.includes(val)) {
-      foundId = accountId;
-      return true;
-    }
-    return false;
-  });
-
-  if (foundId) {
-    addStuff(foundId);
-    setParam("kv", ls[foundId].kv);
-  }
-});
+    <div id="din"></div>
+    <div id="datetime"></div>
+  `;
 
   document.getElementById("adr").textContent = adr + " / ";
-  //document.getElementById("org").textContent = org;
   document.title = org + " " + adr;
-const input = document.getElementById("number");
-const list  = document.getElementById("number-list");
 
-list.innerHTML = "";
+  const input = document.getElementById("number");
+  const list  = document.getElementById("number-list");
 
-Object.entries(ls).forEach(([accountId, data]) => {
-  const opt = document.createElement("option");
+  // ================================
+  // datalist
+  // ================================
+  list.innerHTML = "";
 
-  // то, что будет подставлено в input
-  opt.value = data.kv;
+  Object.values(ls).forEach(data => {
+    const opt = document.createElement("option");
+    opt.value = data.kv;       // подставляется в input
+    opt.label = data.fio || ""; // подсказка
+    list.appendChild(opt);
+  });
 
-  // текст подсказки (виден в выпадающем списке)
-  opt.label = `${data.fio}`;
+  // ================================
+  // состояние
+  // ================================
+  let lastFoundId = null;
 
-  // сохраняем для поиска
-  opt.dataset.id  = accountId;
-  opt.dataset.kv  = String(data.kv);
-  opt.dataset.fio = (data.fio || "").toLowerCase();
+  // ================================
+  // поиск при вводе
+  // ================================
+  input.addEventListener("input", function () {
+    const val = this.value.trim().toLowerCase();
+    if (!val) {
+      lastFoundId = null;
+      return;
+    }
 
-  list.appendChild(opt);
-});
+    let foundId = null;
 
-  var ind = getParam("kv");
+    Object.entries(ls).some(([accountId, data]) => {
+      const kv  = String(data.kv);
+      const fio = (data.fio || "").toLowerCase();
+
+      if (kv === val) {
+        foundId = accountId;
+        return true; // точное совпадение — сразу
+      }
+      if (!foundId && kv.startsWith(val)) {
+        foundId = accountId;
+      }
+      if (!foundId && fio.includes(val)) {
+        foundId = accountId;
+      }
+    });
+
+    if (foundId) {
+      lastFoundId = foundId;
+      addStuff(foundId);
+      setParam("kv", ls[foundId].kv);
+    }
+  });
+
+  // ================================
+  // нормализация при выходе из поля
+  // ================================
+  input.addEventListener("blur", function () {
+    if (lastFoundId && ls[lastFoundId]) {
+      this.value = ls[lastFoundId].kv;
+    } else {
+      this.value = "";
+    }
+  });
+
+  // Enter = зафиксировать значение
+  input.addEventListener("keydown", function (e) {
+    if (e.key === "Enter") {
+      this.blur();
+    }
+  });
+
+  // ================================
+  // начальная инициализация
+  // ================================
+  let ind = getParam("kv");
+
   if (!ind) {
     ind = Object.keys(ls)[1];
   } else {
-    ind = Object.keys(ls).find(function (key) {
-      return ls[key].kv === ind || ls[key].ls === ind;
-    });
+    ind = Object.keys(ls).find(key =>
+      ls[key].kv === ind || ls[key].ls === ind
+    );
     if (ind === undefined) {
       ind = Object.keys(ls)[1];
     }
   }
-addStuff(ind);
-document.getElementById("number").value = ls[ind]?.kv || "";
+
+  lastFoundId = ind;
+  addStuff(ind);
+  input.value = ls[ind]?.kv || "";
 }
+
 
 
 // script.js
