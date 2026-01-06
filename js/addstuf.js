@@ -954,7 +954,7 @@ function initLS() {
   document.getElementById("maincontainer").innerHTML = `
   <div id="ls-picker" class="ls-picker hidden">
   <div class="ls-picker-header">
-    <input id="ls-picker-input" type="search" placeholder="Квартира або П.І.Б.">
+    <input id="ls-picker-input" type="text" placeholder="Квартира або П.І.Б.">
     <button id="ls-picker-close">✕</button>
   </div>
   <div id="ls-picker-list" class="ls-picker-list"></div>
