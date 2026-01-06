@@ -132,7 +132,7 @@ function parseHomeRow(row) {
 async function handleMenuClick(homeCode, actionCode, actionLink, { fromHistory = false, initial = false } = {}) {
 
   // --- MOBILE / TABLET: закрываем меню ---
-  if (sidebarState.mode !== 'desktop' && sidebarIsOpen()) {
+  if (sidebarState.mode !== 'desktop' && sidebarIsOpen() && actionCode !== 'reports') {
     closeSidebar();
   }
 
@@ -269,7 +269,36 @@ document.addEventListener("DOMContentLoaded", async () => {
   } else {
     closeSidebar();
   }
+
+  // ======================================
+  // TABLET: закрытие сайдбара по тапу вне
+  // ======================================
+  document.addEventListener('pointerdown', e => {
+    if (sidebarState.mode !== 'tablet') return;
+    if (!sidebarIsOpen()) return;
+
+    const sidebar = document.querySelector('.sidebar');
+    if (!sidebar) return;
+
+    // клик ВНУТРИ сайдбара — игнор
+    if (sidebar.contains(e.target)) return;
+
+    // клик по гамбургеру — тоже игнор
+    if (e.target.closest('.hamburger')) return;
+    if (e.target.closest('.topbar-back')) return;
+    closeSidebar();
+    blinkHamburger(); 
+  });
 });
+function blinkHamburger() {
+  const btn = document.querySelector('.topbar .hamburger');
+  if (!btn) return;
+
+  btn.classList.remove('blink'); // на случай повтора
+  btn.offsetWidth;               // форсируем reflow
+  btn.classList.add('blink');
+}
+
 
 // ================================
 // POPSTATE
@@ -464,6 +493,34 @@ menu.appendChild(logoutItem);
     filterHomes(filter);
   });
 }
+
+// ================================
+// AUTO-SELECT FIRST HOME (FIRST LOAD)
+// ================================
+const hasParams =
+  getParam("homeCode") && getParam("actionCode");
+
+if (!hasParams && homes.length > 0) {
+  const firstHome = homes[0];
+  const firstAction = actions[0];
+
+  const actionEl = document.querySelector(
+    `[data-code="${firstHome.code}"] ul span[data-action="${firstAction.actionCode}"]`
+  );
+
+  // на mobile / tablet — показать меню
+  if (sidebarState.mode !== 'desktop') {
+    document.body.classList.add("sidebar-open");
+  }
+
+  handleMenuClick(
+    firstHome.code,
+    firstAction.actionCode,
+    actionEl,
+    { initial: true }
+  );
+}
+
 
 }
 function filterHomes(filter) {

@@ -17,7 +17,7 @@ let homeCode = 0;
 function reportsInit(homeCodeParam = 0) {
   /* --- включаем режим документов --- */
   document.body.classList.add("files-mode");
-  document.body.classList.add("sidebar-open");
+
 
   /* --- сбрасываем состояние --- */
 currentFolderPath = null;
@@ -77,6 +77,10 @@ function addFileLi(ul, f) {
         lastFileData = JSON.parse(localStorage.getItem("lastViewedFile") || "{}");
 
         openFile(f);
+  // ================================
+  // AUTO-CLOSE SIDEBAR (file only)
+  // ================================
+  autoCloseSidebarOnFileClick();
     };
 if (files._restrictedFiles?.includes(f)) {
     li.classList.add("restricted");
@@ -584,10 +588,6 @@ function getFileToOpen(fileList) {
 // --- Открытие файла ---
 function openFile(f, { userClick = false } = {}) {
 
-    // === закрываем сайдбар на мобильном ===
-    if (userClick && window.innerWidth <= 640) {
-        document.body.classList.remove("sidebar-open");
-    }
 
     const preview = document.getElementById("preview");
     if (!preview) return;
@@ -747,4 +747,10 @@ function restoreStateFromLastFile() {
 }
 function getPath(f) {
     return typeof f === "object" ? f.path : f;
+}
+function autoCloseSidebarOnFileClick() {
+  if (sidebarState.mode === 'desktop') return;
+
+  closeSidebar();
+  blinkHamburger();
 }

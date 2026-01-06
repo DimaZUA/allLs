@@ -78,12 +78,27 @@
 <!-- ================= AUTH ================= -->
 
 <div id="auth-section">
+
+  <!-- ===== LOGIN FORM ===== -->
   <form id="login-form">
     <h2>Вход</h2>
-    <input type="email" id="email" placeholder="Email" required />
-    <input type="password" id="password" placeholder="Пароль" required />
+
+    <input type="email"
+           id="email"
+           placeholder="Email"
+           autocomplete="email"
+           required />
+
+    <input type="password"
+           id="password"
+           placeholder="Пароль"
+           autocomplete="current-password"
+           required />
+
     <button type="submit">Увійти</button>
+
     <div id="login-status"></div>
+
     <div id="auth-toggle">
       <span id="show-signup" style="color:#007bff; cursor:pointer;">
         Нет аккаунта? Зарегистрироваться
@@ -91,20 +106,43 @@
     </div>
   </form>
 
+  <!-- ===== SIGNUP FORM ===== -->
   <form id="signup-form" style="display:none;">
     <h2>Регистрация</h2>
-    <input type="email" id="signup-email" placeholder="Email" required />
-    <input type="password" id="signup-password" placeholder="Пароль" required minlength="6" />
-    <input type="password" id="signup-password-confirm" placeholder="Подтвердите пароль" required minlength="6" />
+
+    <input type="email"
+           id="signup-email"
+           placeholder="Email"
+           autocomplete="email"
+           required />
+
+    <input type="password"
+           id="signup-password"
+           placeholder="Пароль"
+           minlength="6"
+           autocomplete="new-password"
+           required />
+
+    <input type="password"
+           id="signup-password-confirm"
+           placeholder="Подтвердите пароль"
+           minlength="6"
+           autocomplete="new-password"
+           required />
+
     <button type="submit">Зарегистрироваться</button>
+
     <div id="signup-status"></div>
+
     <div id="auth-toggle">
       <span id="show-login" style="color:#007bff; cursor:pointer;">
         Уже есть аккаунт? Войти
       </span>
     </div>
   </form>
+
 </div>
+
 
 <!-- ================= TOPBAR ================= -->
 

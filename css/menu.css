@@ -39,6 +39,15 @@ body {
   color: #fff;
   z-index: 3005;
 }
+@keyframes hamburgerBlink {
+  0%   { opacity: 1; transform: scale(1); }
+  50%  { opacity: 0.4; transform: scale(1.15); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+.topbar .hamburger.blink {
+  animation: hamburgerBlink 0.3s ease-in-out 2;
+}
 
 .topbar-title {
   font-size: 16px;
