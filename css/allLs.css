@@ -4,7 +4,7 @@ html { font-family: Calibri, Arial, Helvetica, sans-serif; background-color: #f4
   position: absolute;
   background: #fff;
   border: 1px solid #ccc;
-  max-height: 240px;
+  /*max-height: 240px;*/
   overflow-y: auto;
   z-index: 1000;
 }
@@ -15,7 +15,7 @@ html { font-family: Calibri, Arial, Helvetica, sans-serif; background-color: #f4
   left: 0;
   right: 0;
   bottom: 0;
-  height: 55vh;
+  height: 100%;
   background: #fff;
   border-top-left-radius: 12px;
   border-top-right-radius: 12px;

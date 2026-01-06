@@ -876,7 +876,8 @@ function initLSAutocomplete(input, ls) {
         div.className = "ls-item";
         div.innerHTML = `
           <strong>Кв. ${kv}</strong>
-          <small>${data.fio || ""}</small>
+          ${data.fio || ""}
+          <small><br>Підїзд: ${data.pod || ""} Поверх: ${data.et || ""}</small>
         `;
         div.onclick = () => selectId(id);
         pickerList.appendChild(div);
