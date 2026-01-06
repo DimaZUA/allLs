@@ -1060,38 +1060,46 @@ function debounce(func, delay) {
 function showMessage(text, type = "inf", duration = 15000) {
   let container = document.getElementById("message-container");
 
-  // === контейнер сообщений ===
+  // === СОЗДАЁМ КОНТЕЙНЕР ===
   if (!container) {
     container = document.createElement("div");
     container.id = "message-container";
+
     container.style.position = "fixed";
-    container.style.bottom = "20px";
     container.style.right = "20px";
+    container.style.bottom = "20px";
     container.style.display = "flex";
     container.style.flexDirection = "column-reverse";
     container.style.gap = "8px";
+    container.style.maxWidth = "360px";
     container.style.zIndex = "9999";
     container.style.pointerEvents = "none";
+
     document.body.appendChild(container);
+
+    // === АВТО-АДАПТАЦИЯ ПОД МОБИЛЬНУЮ КЛАВИАТУРУ ===
+    initToastKeyboardSafeArea(container);
   }
 
-  // === сообщение ===
+  // === СООБЩЕНИЕ ===
   const msg = document.createElement("div");
   msg.textContent = text;
 
-  msg.style.position = "relative"; // важно для крестика
-  msg.style.padding = "10px 28px 10px 14px"; // место под крестик
+  msg.style.position = "relative"; // нужно для крестика
+  msg.style.padding = "10px 28px 10px 14px"; // отступ справа под крестик
   msg.style.borderRadius = "6px";
   msg.style.color = "#fff";
   msg.style.fontSize = "14px";
-  msg.style.maxWidth = "360px";
   msg.style.boxShadow = "0 4px 12px rgba(0,0,0,0.25)";
+  msg.style.maxWidth = "360px";
+
   msg.style.opacity = "0";
   msg.style.transform = "translateY(10px)";
   msg.style.transition = "opacity 0.3s ease, transform 0.3s ease";
-  msg.style.pointerEvents = "auto"; // разрешаем клик внутри сообщения
 
-  // === типы ===
+  msg.style.pointerEvents = "auto"; // внутри тоста можно кликать
+
+  // === ТИПЫ ===
   const colors = {
     inf:  "#333",
     suc:  "#2e7d32",
@@ -1101,7 +1109,7 @@ function showMessage(text, type = "inf", duration = 15000) {
 
   msg.style.background = colors[type] || colors.inf;
 
-  // === крестик ===
+  // === КРЕСТИК ЗАКРЫТИЯ ===
   const close = document.createElement("span");
   close.textContent = "×";
   close.style.position = "absolute";
@@ -1115,14 +1123,14 @@ function showMessage(text, type = "inf", duration = 15000) {
 
   close.onmouseenter = () => close.style.opacity = "1";
   close.onmouseleave = () => close.style.opacity = "0.8";
-
   close.onclick = () => hide();
 
   msg.appendChild(close);
 
-  // === добавляем ===
+  // === ДОБАВЛЯЕМ ===
   container.appendChild(msg);
 
+  // Анимация появления
   requestAnimationFrame(() => {
     msg.style.opacity = "1";
     msg.style.transform = "translateY(0)";
@@ -1130,6 +1138,7 @@ function showMessage(text, type = "inf", duration = 15000) {
 
   let timer = setTimeout(hide, duration);
 
+  // === ФУНКЦИЯ СКРЫТИЯ ===
   function hide() {
     clearTimeout(timer);
     msg.style.opacity = "0";
@@ -1139,6 +1148,8 @@ function showMessage(text, type = "inf", duration = 15000) {
       "transitionend",
       () => {
         msg.remove();
+
+        // если тостов больше нет — удаляем контейнер
         if (!container.children.length) {
           container.remove();
         }
@@ -1147,6 +1158,36 @@ function showMessage(text, type = "inf", duration = 15000) {
     );
   }
 }
+
+
+
+// ======================================================
+// ДИНАМИЧЕСКИЙ ПОДЪЁМ СООБЩЕНИЙ НАД МОБИЛЬНОЙ КЛАВИАТУРОЙ
+// ======================================================
+function initToastKeyboardSafeArea(container) {
+  if (!window.visualViewport) return;
+
+  const viewport = window.visualViewport;
+
+  function adjust() {
+    if (!container) return;
+
+    // вычисляем нижний "врез" клавиатуры
+    const bottomInset = Math.max(
+      20,
+      (window.innerHeight - viewport.height - viewport.offsetTop) + 20
+    );
+
+    container.style.bottom = bottomInset + "px";
+    container.style.right = "20px";
+  }
+
+  viewport.addEventListener("resize", adjust);
+  viewport.addEventListener("scroll", adjust);
+
+  adjust(); // на случай, если клавиатура уже открыта
+}
+
 
 
 
