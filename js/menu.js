@@ -235,10 +235,12 @@ async function handleMenuClick(homeCode, actionCode, actionLink, { fromHistory =
 // ================================
 function openSidebar() {
   document.body.classList.add('sidebar-open');
+  if (sidebarState.mode === 'mobile') lockBodyScroll();
 }
 
 function closeSidebar() {
   document.body.classList.remove('sidebar-open');
+  unlockBodyScroll();
 }
 
 function toggleMenu() {
@@ -255,7 +257,15 @@ function handleResize() {
     closeSidebar();
   }
 }
-window.addEventListener('resize', handleResize);
+let resizeTimer = null;
+
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => {
+    handleResize();
+  }, 50); // достаточно и 30–50
+});
+
 
 // ================================
 // INIT
@@ -644,7 +654,7 @@ function updateTopbarTitle(homeCode) {
 
 function toggleMenuFiles(homeCode) {
 
-  if (window.innerWidth > 640) return;
+  if (sidebarState.mode === 'desktop') return;
 
   const inFiles = document.body.classList.contains("files-mode");
 
@@ -680,20 +690,19 @@ function toggleMenuFiles(homeCode) {
 
 
 // ================================
-// MOBILE SWIPE: SIDEBAR ⇄ FILES
+// SWIPE: SIDEBAR ⇄ FILES  (mobile + tablet)
 // ================================
 (function initMenuFilesSwipe() {
 
-  const MOBILE_MAX = 640;
-  const SWIPE_THRESHOLD = 80; // px — безопасно для таблиц
+  const SWIPE_THRESHOLD = 80; // px
   const MAX_VERTICAL = 40;    // px
 
   let startX = 0;
   let startY = 0;
   let tracking = false;
 
-  function isMobile() {
-    return window.innerWidth <= MOBILE_MAX;
+  function isSwipeAllowed() {
+    return sidebarState.mode === 'mobile' || sidebarState.mode === 'tablet';
   }
 
   function sidebarIsOpen() {
@@ -701,13 +710,10 @@ function toggleMenuFiles(homeCode) {
   }
 
   const sidebar = document.querySelector(".sidebar");
-  if (!sidebar) return; // sidebar отсутствует — выходим
+  if (!sidebar) return;
 
-  // ====================
-  // TOUCH START
-  // ====================
   sidebar.addEventListener("touchstart", e => {
-    if (!isMobile()) return;
+    if (!isSwipeAllowed()) return;
     if (!sidebarIsOpen()) return;
     if (e.touches.length !== 1) return;
 
@@ -717,9 +723,6 @@ function toggleMenuFiles(homeCode) {
     tracking = true;
   }, { passive: true });
 
-  // ====================
-  // TOUCH MOVE
-  // ====================
   sidebar.addEventListener("touchmove", e => {
     if (!tracking) return;
 
@@ -727,20 +730,17 @@ function toggleMenuFiles(homeCode) {
     const dx = t.clientX - startX;
     const dy = t.clientY - startY;
 
-    // если пользователь скроллит вертикально — отменяем жест
+    // вертикальный скролл — отменяем жест
     if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 10) {
       tracking = false;
     }
   }, { passive: true });
 
-  // ====================
-  // TOUCH END
-  // ====================
   sidebar.addEventListener("touchend", e => {
     if (!tracking) return;
     tracking = false;
 
-    if (!isMobile()) return;
+    if (!isSwipeAllowed()) return;
     if (!sidebarIsOpen()) return;
 
     const t = e.changedTouches[0];
@@ -754,3 +754,17 @@ function toggleMenuFiles(homeCode) {
   });
 
 })();
+
+let scrollTopBeforeLock = 0;
+
+function lockBodyScroll() {
+  scrollTopBeforeLock = window.scrollY;
+  document.body.style.top = `-${scrollTopBeforeLock}px`;
+  document.body.classList.add("sidebar-scroll-lock");
+}
+
+function unlockBodyScroll() {
+  document.body.classList.remove("sidebar-scroll-lock");
+  document.body.style.top = "";
+  window.scrollTo(0, scrollTopBeforeLock);
+}

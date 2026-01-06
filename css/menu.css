@@ -367,3 +367,10 @@ body.files-mode .sidebar-files {
    }
 
 }
+
+body.sidebar-scroll-lock {
+  position: fixed;
+  width: 100%;
+  overflow: hidden;
+  touch-action: none;
+}
