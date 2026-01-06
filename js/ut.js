@@ -536,7 +536,22 @@ function _arrayWithHoles(r) {
 }
 //var host='https://dimazua.github.io/allLs/data/';
 var buttons =
-  '\n<div class="buttons-container">\n  <button onclick="exportTableToExcel(\'download\')" class="xls-button" title="\u0421\u043A\u0430\u0447\u0430\u0442\u044C \u0432 Excel">\n    <img src="img/xlsdownload.png" alt="Excel Icon" class="xls-icon">\n  </button>\n  <button onclick="exportTableToExcel(\'clipboard\')" class="xls-button" title="\u041A\u043E\u043F\u0438\u0440\u043E\u0432\u0430\u0442\u044C">\n    <img src="img/copy.svg" alt="Copy Icon" class="xls-icon">\n  </button>\n  <button onclick="captureAndCopy()" class="xls-button" title="\u0421\u043A\u0440\u0438\u043D\u0448\u043E\u0442 \u0442\u0430\u0431\u043B\u0438\u0446\u044B">\n    <img src="img/screenshot.png" alt="Screenshot Icon" class="xls-icon">\n  </button>\n</div>\n';
+  '\n<div class="buttons-container">\n' +
+  '  <button onclick="exportTableToExcel(\'download\')" class="xls-button" title="Скачать в Excel">\n' +
+  '    <img src="img/xlsdownload.png" class="xls-icon">\n' +
+  '  </button>\n' +
+  '  <button onclick="exportTableToExcel(\'clipboard\')" class="xls-button" title="Копировать">\n' +
+  '    <img src="img/copy.svg" class="xls-icon">\n' +
+  '  </button>\n' +
+  '  <button onclick="captureAndCopy()" class="xls-button" title="Скриншот таблицы">\n' +
+  '    <img src="img/screenshot.png" class="xls-icon">\n' +
+  '  </button>\n' +
+  (isMobile() && navigator.share
+    ? '  <button onclick="captureAndShare()" class="xls-button" title="Поделиться">\n' +
+      '    <img src="img/share.png" class="xls-icon">\n' +
+      '  </button>\n'
+    : '') +
+  '</div>\n';
 host = "data/";
 var monthNames = [
   "Январь",
@@ -2020,43 +2035,7 @@ function buildColGroup(widths) {
   // helpers
   // =========================================================
 
-function applyBordersAndAlign(original, cloned) {
-  const origRows = original.querySelectorAll("tr");
-  const cloneRows = cloned.querySelectorAll("tr");
 
-  origRows.forEach((origRow, rIdx) => {
-    const cloneRow = cloneRows[rIdx];
-    if (!cloneRow) return;
-
-    // ❗ служебные строки не трогаем
-    if (
-      origRow.classList.contains("itog") ||
-      origRow.classList.contains("balance-info")
-    ) {
-      return;
-    }
-
-    const origCells = origRow.querySelectorAll("th, td");
-    const cloneCells = cloneRow.querySelectorAll("th, td");
-
-    origCells.forEach((orig, cIdx) => {
-      const c = cloneCells[cIdx];
-      if (!c) return;
-
-      const cs = window.getComputedStyle(orig);
-
-      c.style.border = "2px solid black";
-      c.style.padding = cs.padding || "4px";
-      c.style.textAlign = cs.textAlign;
-      c.style.verticalAlign = cs.verticalAlign;
-      c.style.fontWeight = cs.fontWeight;
-      c.style.whiteSpace = cs.whiteSpace;
-    });
-  });
-
-  cloned.style.borderCollapse = "collapse";
-  cloned.style.borderSpacing = "0";
-}
 
 
   function fallbackDownload(canvas) {
@@ -2069,127 +2048,173 @@ function applyBordersAndAlign(original, cloned) {
 
 
 
-function captureAndCopy() {
-  console.log("Начинаем выполнение captureAndCopy");
-  var mainContainer = document.getElementById("maincontainer");
-  var tables = Array.from(
-    mainContainer.querySelectorAll("#banktable, #paytable, .main, #main")
-  ).filter(function (el) {
-    while (el) {
-      var style = window.getComputedStyle(el);
-      if (
-        style.display === "none" ||
-        style.visibility === "hidden" ||
-        style.opacity === "0"
-      ) {
-        return false;
+function renderTableToCanvas() {
+  return new Promise((resolve, reject) => {
+    var mainContainer = document.getElementById("maincontainer");
+
+    var tables = Array.from(
+      mainContainer.querySelectorAll("#banktable, #paytable, .main, #main")
+    ).filter(function (el) {
+      while (el) {
+        var style = window.getComputedStyle(el);
+        if (
+          style.display === "none" ||
+          style.visibility === "hidden" ||
+          style.opacity === "0"
+        ) {
+          return false;
+        }
+        el = el.parentElement;
       }
-      el = el.parentElement;
+      return true;
+    });
+
+    if (tables.length === 0) {
+      reject("Нет таблиц для обработки");
+      return;
     }
-    return true;
+
+    var mainTable = tables[0];
+
+    applyBorders(mainTable);
+
+    mainTable.querySelectorAll("td[rowspan]").forEach(td => {
+      td.style.position = "relative";
+    });
+
+    // ===== временный caption =====
+    if (getParam("actionCode") == "accounts") {
+      var address = document.getElementById("adr")?.innerText || "";
+      var selectElement = document.getElementById("number");
+      var apartmentNumber = selectElement ? selectElement.value.trim() : "";
+      var fio = document.getElementById("fio")?.innerText || "";
+
+      var caption = document.createElement("caption");
+      caption.className = "tmp";
+      caption.style.captionSide = "top";
+      caption.style.textAlign = "center";
+      caption.style.fontSize = "18px";
+      caption.style.fontWeight = "600";
+      caption.style.padding = "8px 0 10px";
+      caption.style.lineHeight = "1.3";
+      caption.innerText = address + " " + apartmentNumber + ", " + fio;
+
+      mainTable.insertBefore(caption, mainTable.firstChild);
+    }
+
+    html2canvas(mainTable, {
+      scale: 2,
+      backgroundColor: "#fff",
+      useCORS: true
+    }).then(canvas => {
+
+console.log(
+    "canvas px:",
+    canvas.width,
+    canvas.height,
+    "CSS size:",
+    canvas.style.width,
+    canvas.style.height,
+    "dpr:",
+    window.devicePixelRatio
+  );
+
+
+      // очистка временных элементов
+      document.querySelectorAll(".tmp").forEach(el => el.remove());
+      resolve(canvas);
+    }).catch(reject);
   });
 
-  if (tables.length === 0) {
-    console.warn("Нет таблиц для обработки");
-    showMessage("Нет таблиц для обработки","warn");
+function applyBorders(table) {
+  // Устанавливаем стили для таблицы
+  table.style.borderCollapse = "collapse";
+  table.style.borderSpacing = "0";
+
+  // Устанавливаем границы для всех ячеек
+  table.querySelectorAll("td").forEach((td, index) => {
+    td.style.border = "2px solid black";
+    td.style.padding = "4px";
+
+    // Если внутри есть вложенная таблица — просто логируем
+    if (td.querySelector("table")) {
+      console.log(
+        `TD[${index}]: содержит вложенную таблицу, граница не применяется к вложенной`
+      );
+    }
+  });
+}
+
+}
+function captureAndCopy() {
+  renderTableToCanvas()
+    .then(canvas => {
+      var supportsClipboard =
+        navigator.clipboard &&
+        window.ClipboardItem &&
+        canvas.toBlob;
+
+      if (!supportsClipboard) {
+        fallbackDownload(canvas);
+        showMessage("Буфер обмена недоступен, файл сохранён", "warn");
+        return;
+      }
+
+      canvas.toBlob(blob => {
+        navigator.clipboard.write([
+          new ClipboardItem({ "image/png": blob })
+        ]).then(() => {
+          showMessage("Скриншот таблицы скопирован в буфер обмена");
+        }).catch(err => {
+          console.error(err);
+          fallbackDownload(canvas);
+          showMessage("Не удалось скопировать, файл сохранён", "warn");
+        });
+      });
+    })
+    .catch(err => {
+      console.warn(err);
+      showMessage(err, "warn");
+    });
+}
+function captureAndShare() {
+  if (!isMobile() || !navigator.share || !navigator.canShare) {
+    captureAndCopy();
     return;
   }
 
-  var parentElement = tables[0].parentElement;
-  var mainTable = tables[0];
+  renderTableToCanvas()
+    .then(canvas => {
+      canvas.toBlob(async blob => {
+        var file = new File([blob], "table.png", { type: "image/png" });
 
-  console.log("Найдена основная таблица", mainTable);
+        if (!navigator.canShare({ files: [file] })) {
+          fallbackDownload(canvas);
+          return;
+        }
 
-  // Добавляем стили непосредственно перед рендером
-  applyBorders(mainTable);
-mainTable.querySelectorAll("td[rowspan]").forEach(td => {
-  td.style.position = "relative";
-});
-
-if (getParam("actionCode") == "accounts") {
-  var address = document.getElementById("adr")?.innerText || "";
-  var selectElement = document.getElementById("number");
-  var apartmentNumber = selectElement ? selectElement.value.trim() : "";
-  var fio = document.getElementById("fio")?.innerText || "";
-
-  var result = address + " " + apartmentNumber + ", " + fio;
-
-  var caption = document.createElement("caption");
-  caption.className = "tmp";
-caption.style.captionSide = "top";
-caption.style.textAlign = "center";      // центр
-caption.style.fontSize = "18px";         // крупнее
-caption.style.fontWeight = "600";
-caption.style.padding = "8px 0 10px";
-caption.style.lineHeight = "1.3";
-  caption.innerText = result;
-
-  mainTable.insertBefore(caption, mainTable.firstChild);
-}
-
-  //parentElement
-  html2canvas(mainTable, {
-    onrendered: function (canvas) {
-      console.log("html2canvas успешно отрендерил элемент");
-      var isFirefox = navigator.userAgent.toLowerCase().includes("firefox");
-      var supportsClipboard = navigator.clipboard && window.ClipboardItem;
-      console.log("isFirefox:", isFirefox);
-      console.log("Clipboard API доступен:", supportsClipboard);
-
-if (supportsClipboard) {
-  canvas.toBlob(function (blob) {
-    navigator.clipboard
-      .write([new ClipboardItem({ "image/png": blob })])
-      .then(function () {
-        showMessage("Скриншот таблицы скопирован в буфер обмена");
-        // ❗ ничего не скачиваем
-      })
-      .catch(function (err) {
-        console.error("Ошибка при копировании в буфер", err);
-        fallbackDownload(canvas); // ✅ скачиваем ТОЛЬКО здесь
-        showMessage("Не удалось скопировать, файл сохранён","warn");
+        try {
+          await navigator.share({
+            title: "Таблица",
+            text: "Скриншот таблицы",
+            files: [file]
+          });
+        } catch (e) {
+          console.warn("Share cancelled", e);
+        }
       });
-  });
-} else {
-  // ❗ буфер обмена недоступен — считаем, что скопировать нельзя
-  fallbackDownload(canvas); // ✅ скачиваем
-  showMessage("Буфер обмена недоступен, файл сохранён","warn");
-}
-
-
-      setTimeout(function () {
-        document.querySelectorAll("label").forEach((label) => {
-          label.style.display = "";
-        });
-        document.querySelectorAll(".tmp").forEach((el) => el.remove());
-        console.log("Временные элементы и скрытые label восстановлены");
-      }, 500);
-    }
-  });
-
-  function applyBorders(table) {
-    // Устанавливаем стили для таблицы
-    table.style.borderCollapse = "collapse";
-    table.style.borderSpacing = "0";
-
-    // Устанавливаем границы для всех ячеек, включая ячейки с вложенными таблицами
-    table.querySelectorAll("td").forEach((td, index) => {
-      td.style.border = "2px solid black";  // Границы для всех ячеек
-      td.style.padding = "4px";  // Для корректного отображения
-      //console.log(`TD[${index}]: граница установлена`);
-
-      // Пропускаем установку границ для вложенных таблиц
-      if (td.querySelector("table")) {
-        console.log(`TD[${index}]: содержит вложенную таблицу, граница не устанавливается для вложенной таблицы`);
-      }
+    })
+    .catch(err => {
+      console.warn(err);
+      showMessage(err, "warn");
     });
-  }
-
-  function fallbackDownload(canvas) {
-    var link = document.createElement("a");
-    link.download = "screenshot.png";
-    link.href = canvas.toDataURL("image/png");
-    link.click();
-    showMessage("Скриншот сохранён как файл (буфер обмена недоступен)","warn");
-  }
 }
+function fallbackDownload(canvas) {
+  var link = document.createElement("a");
+  link.download = "screenshot.png";
+  link.href = canvas.toDataURL("image/png");
+  link.click();
+}
+
+
+
