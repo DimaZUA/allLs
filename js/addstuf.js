@@ -850,9 +850,114 @@ var headerRow = `
   row.appendChild(paymentCell);
   return totalPayments;
 }
+function initLSAutocomplete(input, ls) {
+
+  const picker      = document.getElementById("ls-picker");
+  const pickerInput = document.getElementById("ls-picker-input");
+  const pickerList  = document.getElementById("ls-picker-list");
+  const closeBtn    = document.getElementById("ls-picker-close");
+
+  let lastFoundId = null;
+
+  function isMobile() {
+    return window.innerWidth <= 640;
+  }
+
+  function filterList(val) {
+    val = val.toLowerCase();
+    pickerList.innerHTML = "";
+
+    Object.entries(ls).forEach(([id, data]) => {
+      const kv  = String(data.kv);
+      const fio = (data.fio || "").toLowerCase();
+
+      if (!val || kv.startsWith(val) || fio.includes(val)) {
+        const div = document.createElement("div");
+        div.className = "ls-item";
+        div.innerHTML = `
+          <strong>Кв. ${kv}</strong>
+          <small>${data.fio || ""}</small>
+        `;
+        div.onclick = () => selectId(id);
+        pickerList.appendChild(div);
+      }
+    });
+  }
+
+  function selectId(id) {
+    lastFoundId = id;
+    input.value = ls[id].kv;
+    addStuff(id);
+    setParam("kv", ls[id].kv);
+    closePicker();
+  }
+
+  function openPicker() {
+    picker.classList.remove("hidden");
+    pickerInput.value = "";
+    filterList("");
+    setTimeout(() => pickerInput.focus(), 50);
+  }
+
+  function closePicker() {
+    picker.classList.add("hidden");
+  }
+
+  // ===== desktop: обычный ввод =====
+  input.addEventListener("input", function () {
+    if (isMobile()) return;
+
+    const val = this.value.trim().toLowerCase();
+    let foundId = null;
+
+    Object.entries(ls).some(([id, data]) => {
+      if (String(data.kv) === val) {
+        foundId = id;
+        return true;
+      }
+      if (!foundId && String(data.kv).startsWith(val)) foundId = id;
+      if (!foundId && (data.fio || "").toLowerCase().includes(val)) foundId = id;
+    });
+
+    if (foundId) {
+      lastFoundId = foundId;
+      addStuff(foundId);
+      setParam("kv", ls[foundId].kv);
+    }
+  });
+
+  // ===== mobile: bottom sheet =====
+  input.addEventListener("focus", function () {
+    if (isMobile()) {
+      openPicker();
+      this.blur();
+    }
+  });
+
+  pickerInput.addEventListener("input", function () {
+    filterList(this.value);
+  });
+
+  closeBtn.onclick = closePicker;
+
+  // ===== blur normalization =====
+  input.addEventListener("blur", function () {
+    if (lastFoundId && ls[lastFoundId]) {
+      this.value = ls[lastFoundId].kv;
+    }
+  });
+}
+
 function initLS() {
 
   document.getElementById("maincontainer").innerHTML = `
+  <div id="ls-picker" class="ls-picker hidden">
+  <div class="ls-picker-header">
+    <input id="ls-picker-input" type="search" placeholder="Квартира або П.І.Б.">
+    <button id="ls-picker-close">✕</button>
+  </div>
+  <div id="ls-picker-list" class="ls-picker-list"></div>
+</div>
     <div id="header" class="header">
       <div class="header-row">
         <div class="header-left">
@@ -985,6 +1090,7 @@ function initLS() {
   lastFoundId = ind;
   addStuff(ind);
   input.value = ls[ind]?.kv || "";
+initLSAutocomplete(input, ls);
 }
 
 
