@@ -600,8 +600,9 @@ function openFile(f, { userClick = false } = {}) {
     // КНОПКИ
     // ==================================================
     const btnContainer = document.createElement("div");
-    btnContainer.style.marginBottom = "10px";
+    btnContainer.style.marginBottom = "3px";
     preview.appendChild(btnContainer);
+    btnContainer.style.textAlign = "right";
 
     const downloadBtn = document.createElement("button");
     downloadBtn.textContent = "📥 Скачать файл";

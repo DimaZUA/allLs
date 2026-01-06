@@ -17,9 +17,11 @@ function getScreenMode() {
 // СТЕЙТ САЙДБАРА
 // ================================
 const sidebarState = {
-  open: false,
   mode: getScreenMode()
 };
+function sidebarIsOpen() {
+  return document.body.classList.contains("sidebar-open");
+}
 
 // ================================
 // Список доступных действий
@@ -130,7 +132,7 @@ function parseHomeRow(row) {
 async function handleMenuClick(homeCode, actionCode, actionLink, { fromHistory = false, initial = false } = {}) {
 
   // --- MOBILE / TABLET: закрываем меню ---
-  if (sidebarState.mode !== 'desktop' && sidebarState.open) {
+  if (sidebarState.mode !== 'desktop' && sidebarIsOpen()) {
     closeSidebar();
   }
 
@@ -232,17 +234,15 @@ async function handleMenuClick(homeCode, actionCode, actionLink, { fromHistory =
 // SIDEBAR CONTROL
 // ================================
 function openSidebar() {
-  sidebarState.open = true;
   document.body.classList.add('sidebar-open');
 }
 
 function closeSidebar() {
-  sidebarState.open = false;
   document.body.classList.remove('sidebar-open');
 }
 
 function toggleMenu() {
-  sidebarState.open ? closeSidebar() : openSidebar();
+  sidebarIsOpen() ? closeSidebar() : openSidebar();
 }
 
 // ================================
@@ -262,9 +262,12 @@ window.addEventListener('resize', handleResize);
 // ================================
 document.addEventListener("DOMContentLoaded", async () => {
   await loadHomesAndBuildMenu();
-  handleResize();
+  sidebarState.mode = getScreenMode();
+
   if (sidebarState.mode === 'desktop') {
     openSidebar();
+  } else {
+    closeSidebar();
   }
 });
 
@@ -608,7 +611,7 @@ function toggleMenuFiles(homeCode) {
   const actionEl = homeEl.querySelector(`ul span[data-action="reports"]`);
 
   // перед переходом в документы — считаем, что сайдбар открыт
-  sidebarState.open = true;     // ✅ синхронизация
+
 
   handleMenuClick(
     homeCode,

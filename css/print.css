@@ -29,7 +29,7 @@
     #header * {
         visibility: visible;
     }
-
+    #header{border:none}
     /* ===============================
        ЧТО СКРЫВАЕМ ПРИНУДИТЕЛЬНО
        =============================== */
@@ -41,7 +41,7 @@
     .sidebar,
     .hamburger,
     .preloader,
-    input,
+    input:not(#number) ,
     #datetime,
     .descr,
     #filter-container,
@@ -52,7 +52,20 @@
         display: none !important;
         visibility: hidden !important;
     }
-
+    /* убрать рамку у печатаемого input */
+    #number {
+        border: none !important;
+        outline: none !important;
+        box-shadow: none !important;
+        background: transparent !important;
+    }
+        /* убрать все тени при печати */
+    *,
+    *::before,
+    *::after {
+        box-shadow: none !important;
+        text-shadow: none !important;
+    }
     /* ===============================
        КОНТЕНТ
        =============================== */
