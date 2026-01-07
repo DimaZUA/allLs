@@ -1686,7 +1686,7 @@ if (row.status?.toLowerCase().includes("внесено")) {
 let headerResizeObserver = null;
 
 function updateStickyTop() {
-  const header = document.getElementById("header");
+  const header = document.querySelector(".header-row");
   if (!header) return;
 
   const rect = header.getBoundingClientRect();
@@ -1697,7 +1697,7 @@ function updateStickyTop() {
     "--header-height",
     `${stickyTop}px`
   );
-
+  console.log(stickyTop);
   // Подключаем ResizeObserver ТОЛЬКО ОДИН РАЗ
   if ("ResizeObserver" in window && !headerResizeObserver) {
     headerResizeObserver = new ResizeObserver(() => {

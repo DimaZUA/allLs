@@ -535,23 +535,90 @@ function _arrayWithHoles(r) {
   if (Array.isArray(r)) return r;
 }
 //var host='https://dimazua.github.io/allLs/data/';
-var buttons =
-  '\n<div class="buttons-container">\n' +
-  '  <button onclick="exportTableToExcel(\'download\')" class="xls-button" title="Скачать в Excel">\n' +
-  '    <img src="img/xlsdownload.png" class="xls-icon">\n' +
-  '  </button>\n' +
-  '  <button onclick="exportTableToExcel(\'clipboard\')" class="xls-button" title="Копировать">\n' +
-  '    <img src="img/copy.svg" class="xls-icon">\n' +
-  '  </button>\n' +
-  (isMobile() && navigator.share
-    ? '  <button onclick="captureAndShare()" class="xls-button" title="Поделиться">\n' +
-      '    <img src="img/share.png" class="xls-icon">\n' +
-      '  </button>\n'
-    :   '  <button onclick="captureAndCopy()" class="xls-button" title="Скриншот таблицы">\n' +
-  '    <img src="img/screenshot.png" class="xls-icon">\n' +
-  '  </button>\n' 
-    ) +
-  '</div>\n';
+function waitHtml2Canvas() {
+    return new Promise(resolve => {
+        if (typeof html2canvas === "function") {
+            resolve();
+            return;
+        }
+
+        // ждём появления html2canvas
+        const interval = setInterval(() => {
+            if (typeof html2canvas === "function") {
+                clearInterval(interval);
+                resolve();
+            }
+        }, 30);
+    });
+}
+
+async function initButtons() {
+    // 1. ждем библиотеку
+    await waitHtml2Canvas();
+
+    // 2. проверяем canvas
+    const canvasOK = await testCanvasReady();
+    console.log("canvasOK:", canvasOK);
+
+    // 3. формируем переменную buttons
+    buttons = buildButtonsHtml(canvasOK);
+}
+
+function testCanvasReady() {
+    return new Promise(resolve => {
+        const test = document.createElement("div");
+        test.style.width = "30px";
+        test.style.height = "15px";
+        test.style.position = "absolute";
+        test.style.left = "-9999px";
+        test.innerText = "t";
+        document.body.appendChild(test);
+
+        html2canvas(test, { scale: 1 })
+            .then(canvas => {
+                document.body.removeChild(test);
+                resolve(canvas instanceof HTMLCanvasElement);
+            })
+            .catch(() => {
+                document.body.removeChild(test);
+                resolve(false);
+            });
+    });
+}
+
+
+
+
+function buildButtonsHtml(canvasOK) {
+    let thirdButton = "";
+
+    if (canvasOK) {
+        thirdButton =
+            isMobile() && navigator.share
+                ? '  <button onclick="captureAndShare()" class="xls-button" title="Поделиться">\n' +
+                  '    <img src="img/share.png" class="xls-icon">\n' +
+                  '  </button>\n'
+                : '  <button onclick="captureAndCopy()" class="xls-button" title="Скриншот таблицы">\n' +
+                  '    <img src="img/screenshot.png" class="xls-icon">\n' +
+                  '  </button>\n';
+    }
+
+    return (
+        '\n<div class="buttons-container">\n' +
+        '  <button onclick="exportTableToExcel(\'download\')" class="xls-button" title="Скачать в Excel">\n' +
+        '    <img src="img/xlsdownload.png" class="xls-icon">\n' +
+        '  </button>\n' +
+        '  <button onclick="exportTableToExcel(\'clipboard\')" class="xls-button" title="Копировать">\n' +
+        '    <img src="img/copy.svg" class="xls-icon">\n' +
+        '  </button>\n' +
+        thirdButton +
+        '</div>\n'
+    );
+}
+
+var buttons='';
+initButtons();
+
 host = "data/";
 var monthNames = [
   "Январь",
