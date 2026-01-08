@@ -1162,7 +1162,8 @@ function openPicker() {
     const val = input.value;
     pickerInput.value = val;
 
-    filterList(val);
+    //filterList(val);
+    filterList("");
 
     // --- МАГИЯ ДЛЯ ГАРАНТИРОВАННОГО ВЫДЕЛЕНИЯ ---
     setTimeout(() => {
