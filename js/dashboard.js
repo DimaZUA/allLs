@@ -2360,6 +2360,8 @@ document.addEventListener('click', e => {
     } else {
         poster.dataset.fileIndex = String(idx + 1);
     }
+console.log("OPEN FILE:", idx, file);
+
 });
 
 

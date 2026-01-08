@@ -646,6 +646,51 @@ var monthNames = [
   "ноя",
   "дек"
 ];
+// ================================================
+// УСТОЙЧИВАЯ ФУНКЦИЯ ПОЗИЦИОНИРОВАНИЯ TOOLTIP
+// ================================================
+function safePositionTooltip(event, tooltip) {
+  // Унифицируем событие (touch или mouse)
+  const p = event.touches ? event.touches[0] : event;
+
+  if (!p || p.clientX == null || p.clientY == null) {
+    return; // безопасный выход — без NaN координат
+  }
+
+  const mouseX = p.clientX;
+  const mouseY = p.clientY;
+
+  // Не читаем размеры немедленно — ждём стабильного layout
+  requestAnimationFrame(() => {
+    const tooltipWidth  = tooltip.offsetWidth;
+    const tooltipHeight = tooltip.offsetHeight;
+
+    const windowWidth  = window.innerWidth;
+    const windowHeight = window.innerHeight;
+
+    let x = mouseX + 10;
+    let y = mouseY + 10;
+
+    if (x + tooltipWidth > windowWidth) {
+      x = mouseX - tooltipWidth - 10;
+    }
+    if (x < 0) x = 10;
+
+    if (y + tooltipHeight > windowHeight) {
+      y = mouseY - tooltipHeight - 10;
+    }
+    if (y < 0) y = 10;
+
+    tooltip.style.left = x + "px";
+    tooltip.style.top  = y + "px";
+  });
+}
+
+
+
+// ================================================
+// ОСНОВНАЯ ФУНКЦИЯ
+// ================================================
 function initPosters() {
   const sidebar = document.querySelector(".sidebar");
   const HOVER_DELAY = 700;
@@ -656,8 +701,10 @@ function initPosters() {
     navigator.maxTouchPoints > 0;
 
   document.querySelectorAll(".poster").forEach(cell => {
+
     const tooltip = cell.querySelector(".descr");
     if (!tooltip) return;
+
     tooltip.addEventListener("click", e => e.stopPropagation());
     tooltip.addEventListener("mousedown", e => e.stopPropagation());
 
@@ -665,21 +712,23 @@ function initPosters() {
     let longPressTimer = null;
     let longPressFired = false;
 
-    // ====== DESKTOP ======
+    // =============================
+    // DESKTOP MODE
+    // =============================
     if (!isTouch) {
+
       cell.addEventListener("mouseenter", e => {
         if (isCursorOverSidebar(e, sidebar)) return;
 
         hoverTimer = setTimeout(() => {
           tooltip.style.display = "block";
-          positionTooltip(e, tooltip);
+          safePositionTooltip(e, tooltip);
         }, HOVER_DELAY);
       });
 
       cell.addEventListener("mousemove", e => {
         if (tooltip.style.display === "block") {
-          clearTimeout(longPressTimer);
-          // positionTooltip(e, tooltip);
+          safePositionTooltip(e, tooltip);
         }
       });
 
@@ -691,46 +740,55 @@ function initPosters() {
       return;
     }
 
-    // ====== TOUCH ======
 
-    // Обычный tap — показать descr сразу
+    // =============================
+    // TOUCH MODE
+    // =============================
+
+    // TAP + LONG PRESS
     cell.addEventListener("touchstart", e => {
       longPressFired = false;
 
       longPressTimer = setTimeout(() => {
         longPressFired = true;
-
-        // Эмулируем desktop-клик
-        cell.dispatchEvent(
-          new MouseEvent("click", { bubbles: true })
-        );
+        cell.dispatchEvent(new MouseEvent("click", { bubbles: true }));
       }, LONGPRESS_DELAY);
 
       tooltip.style.display = "block";
-      positionTooltip(e.touches[0], tooltip);
-    });
+
+      // безопасное позиционирование
+      safePositionTooltip(e, tooltip);
+
+    }, { passive: true });
+
+
 
     cell.addEventListener("touchmove", () => {
       clearTimeout(longPressTimer);
-    });
+    }, { passive: true });
+
+
 
     cell.addEventListener("touchend", () => {
       clearTimeout(longPressTimer);
 
-      // если был long-press — tooltip не нужен
       if (longPressFired) {
         tooltip.style.display = "none";
       }
-    });
+    }, { passive: true });
 
-    // тап вне — закрыть
+
+
+    // TAP OUTSIDE
     document.addEventListener("touchstart", e => {
       if (!cell.contains(e.target)) {
         tooltip.style.display = "none";
       }
-    });
+    }, { passive: true });
+
   });
 }
+
 
 
 
@@ -751,40 +809,41 @@ function isCursorOverSidebar(event, sidebar) {
   );
 }
 function positionTooltip(event, tooltip) {
-  var mouseX = event.clientX,
-    mouseY = event.clientY;
-  var tooltipWidth = tooltip.offsetWidth,
-    tooltipHeight = tooltip.offsetHeight;
-  var _window = window,
-    windowWidth = _window.innerWidth,
-    windowHeight = _window.innerHeight;
-  var tooltipX = mouseX + 10; // Отступ справа от курсора
-  var tooltipY = mouseY + 10; // Отступ снизу от курсора
+  const touch = event.touches ? event.touches[0] : event;
 
-  // Проверка, чтобы подсказка не выходила за правый край окна
-  if (tooltipX + tooltipWidth > windowWidth) {
-    tooltipX = mouseX - tooltipWidth - 10; // Перемещаем подсказку влево
-  }
+  if (!touch || touch.clientX == null || touch.clientY == null) return;
 
-  // Проверка, чтобы подсказка не выходила за левый край окна
-  if (tooltipX < 0) {
-    tooltipX = 10; // Ограничиваем минимальным отступом
-  }
+  const mouseX = touch.clientX;
+  const mouseY = touch.clientY;
 
-  // Проверка, чтобы подсказка не выходила за нижний край окна
-  if (tooltipY + tooltipHeight > windowHeight) {
-    tooltipY = mouseY - tooltipHeight - 10; // Перемещаем подсказку вверх
-  }
+  // безопасное измерение — через requestAnimationFrame
+  requestAnimationFrame(() => {
+    const tooltipWidth  = tooltip.offsetWidth;
+    const tooltipHeight = tooltip.offsetHeight;
 
-  // Проверка, чтобы подсказка не выходила за верхний край окна
-  if (tooltipY < 0) {
-    tooltipY = 10; // Ограничиваем минимальным отступом
-  }
+    const windowWidth  = window.innerWidth;
+    const windowHeight = window.innerHeight;
 
-  // Устанавливаем позицию подсказки
-  tooltip.style.left = "".concat(tooltipX, "px");
-  tooltip.style.top = "".concat(tooltipY, "px");
+    let tooltipX = mouseX + 10;
+    let tooltipY = mouseY + 10;
+
+    if (tooltipX + tooltipWidth > windowWidth) {
+      tooltipX = mouseX - tooltipWidth - 10;
+    }
+
+    if (tooltipX < 0) tooltipX = 10;
+
+    if (tooltipY + tooltipHeight > windowHeight) {
+      tooltipY = mouseY - tooltipHeight - 10;
+    }
+
+    if (tooltipY < 0) tooltipY = 10;
+
+    tooltip.style.left = tooltipX + "px";
+    tooltip.style.top  = tooltipY + "px";
+  });
 }
+
 Number.prototype.toFixedWithComma = function () {
   var decimals =
     arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : 2;
@@ -1797,9 +1856,9 @@ function parseCellValue1(value) {
 
 // ===================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =====================
 function isMobile() {
-  // Истинно мобильное устройство: есть touchpoints и небольшой экран
-  return ('ontouchstart' in window || navigator.maxTouchPoints > 0) //&& window.innerWidth < 1024;
+    return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 }
+
 
 
 

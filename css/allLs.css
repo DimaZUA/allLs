@@ -886,66 +886,110 @@ table#main thead {
   }
 }
 
-/* ===== desktop dropdown ===== */
 
-.ls-dropdown {
-  position: absolute;
-  background: #fff;
-  border: 1px solid #ccc;
-  /*max-height: 240px;*/
-  overflow-y: auto;
-  z-index: 1000;
+/* ===========================
+      MOBILE (до 640px)
+   =========================== */
+@media (max-width: 640px) {
+
+    #ls-picker {
+        position: fixed;
+        inset: 0;
+        background: #fff;
+        border-radius: 12px 12px 0 0;
+        display: flex;
+        flex-direction: column;
+        z-index: 9999;
+    }
+
+    .ls-picker-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 12px;
+        width: 100%;
+        box-sizing: border-box;
+        border-bottom: 1px solid #ddd;
+        background: #fff;
+    }
+
+    .ls-picker-header input {
+        flex: 1;
+        font-size: 18px;
+        padding: 10px;
+        width: 100%;
+        min-width: 0;
+        box-sizing: border-box;
+    }
+
+    #ls-picker-list {
+        flex: 1;
+        overflow-y: auto;
+    }
 }
 
-/* ===== mobile bottom sheet ===== */
-.ls-picker {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 100%;
-  background: #fff;
-  border-top-left-radius: 12px;
-  border-top-right-radius: 12px;
-  box-shadow: 0 -4px 20px rgba(0,0,0,.25);
-  z-index: 5000;
-  display: flex;
-  flex-direction: column;
+
+/* ===========================
+        DESKTOP (≥ 641px)
+   =========================== */
+@media (min-width: 641px) {
+
+    #ls-picker {
+        position: absolute;
+        width: 420px;
+        max-height: 750px;
+        background: #fff;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        z-index: 9999;
+    }
+
+    .ls-picker-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px;
+        border-bottom: 1px solid #ddd;
+        background: #fff;
+    }
+
+    .ls-picker-header input {
+        flex: 1;
+        font-size: 16px;
+        padding: 8px;
+    }
+
+    #picker-content {
+        overflow-y: auto;
+        max-height: 520px;
+        padding: 5px 0;
+    }
 }
 
-.ls-picker.hidden {
-  display: none;
+
+/* ===========================
+            COMMON
+   =========================== */
+
+#ls-picker.hidden {
+    display: none;
 }
 
-.ls-picker-header {
-  display: flex;
-  gap: 8px;
-  padding: 10px;
-  border-bottom: 1px solid #ddd;
-}
-
-.ls-picker-header input {
-  flex: 1;
-  font-size: 16px;
-  padding: 6px 8px;
-}
-
-.ls-picker-list {
-  overflow-y: auto;
-  flex: 1;
+#ls-picker-list {
+    overflow-y: auto;
 }
 
 .ls-item {
-  padding: 10px;
-  border-bottom: 1px solid #eee;
-  cursor: pointer;
+    padding: 10px 12px;
+    border-bottom: 1px solid #eee;
+    cursor: pointer;
 }
 
-.ls-item strong {
-  display: block;
+.ls-item:hover,
+.ls-item.active {
+    background: #e6f0ff;
 }
-
-.ls-item small {
-  color: #666;
-}
-

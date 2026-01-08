@@ -851,113 +851,576 @@ var headerRow = `
   return totalPayments;
 }
 function initLSAutocomplete(input, ls) {
+let backStateAdded = false;
+let suppressPop = false; // блокируем обработчик во время программного закрытия
 
-  const picker      = document.getElementById("ls-picker");
-  const pickerInput = document.getElementById("ls-picker-input");
-  const pickerList  = document.getElementById("ls-picker-list");
-  const closeBtn    = document.getElementById("ls-picker-close");
-
-  let lastFoundId = null;
-
-  function isMobile() {
+function isMobile() {
     return window.innerWidth <= 640;
-  }
+}
 
-  function filterList(val) {
-    val = val.toLowerCase();
+    let filteredIds = [];
+    let highlightedIndex = -1;
+
+    const picker      = document.getElementById("ls-picker");
+    const pickerInput = document.getElementById("ls-picker-input");
+    const pickerList  = document.getElementById("ls-picker-list");
+    const closeBtn    = document.getElementById("ls-picker-close");
+
+    let lastFoundId = null;
+
+    // ----------------------------------------
+    // НОРМАЛИЗАЦИЯ ТЕКСТА
+    // ----------------------------------------
+    function normalizePhone(phone) {
+        return (phone || "")
+          .replace(/[\s\-\(\)\+]/g, "")
+          .replace(/\D/g, "");
+    }
+
+    function extractPhoneQueries(str) {
+        if (!str) return [];
+        const cleaned = str.replace(/[^\d]/g, "");
+        const results = cleaned.match(/\d{5,15}/g);
+        return results || [];
+    }
+
+    // ----------------------------------------
+    // ПОДСВЕТКА
+    // ----------------------------------------
+    function highlightTokens(text, query) {
+        if (!text) return "";
+        if (!query) return text;
+
+        const tokens = query
+            .trim()
+            .toLowerCase()
+            .split(/\s+/)
+            .filter(Boolean);
+
+        let result = text;
+
+        for (const token of tokens) {
+            const safe = token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const re = new RegExp(safe, "gi");
+            result = result.replace(re, m => `<mark>${m}</mark>`);
+        }
+        return result;
+    }
+
+    function highlightPhone(originalPhone, query) {
+        if (!originalPhone) return "";
+
+        const queries = extractPhoneQueries(query);
+        if (queries.length === 0) return originalPhone;
+
+        const norm = normalizePhone(originalPhone);
+
+        let matchStart = -1, matchLen = 0;
+
+        for (const q of queries) {
+            const idx = norm.indexOf(q);
+            if (idx >= 0) {
+                matchStart = idx;
+                matchLen = q.length;
+                break;
+            }
+        }
+
+        if (matchStart < 0) return originalPhone;
+
+        let digitIndex = 0;
+        let result = "";
+
+        for (const ch of originalPhone) {
+            if (/\d/.test(ch)) {
+                if (digitIndex >= matchStart && digitIndex < matchStart + matchLen) {
+                    result += `<mark>${ch}</mark>`;
+                } else {
+                    result += ch;
+                }
+                digitIndex++;
+            } else {
+                result += ch;
+            }
+        }
+
+        return result;
+    }
+
+    // ----------------------------------------
+    // РЕНДЕР СПИСКА
+    // ----------------------------------------
+function filterList(val) {
+
+    const query = val.toLowerCase();
+    const phoneQueries = extractPhoneQueries(val);
+
     pickerList.innerHTML = "";
+    filteredIds.length = 0;
+    highlightedIndex = -1;
+
+    const tokens = query.split(/\s+/).filter(Boolean);
+
+    // ==============================================
+    // 1. СОБИРАЕМ ВСЕ ЗАПИСИ В МАССИВ (для сортировки)
+    // ==============================================
+    let results = [];
 
     Object.entries(ls).forEach(([id, data]) => {
-      const kv  = String(data.kv);
-      const fio = (data.fio || "").toLowerCase();
 
-      if (!val || kv.startsWith(val) || fio.includes(val)) {
+        const kvRaw  = String(data.kv);       // Оригинал
+        const kvNorm = kvRaw.toLowerCase();   // Для поиска
+        const fioSrc = data.fio || "";
+        const fio    = fioSrc.toLowerCase();
+        const note   = (data.note || "").toLowerCase();
+        const tel    = data.tel || "";
+
+        // ---- НОРМАЛИЗОВАТЬ ТЕЛЕФОНЫ ----
+        const telNorm = normalizePhone(tel);
+
+let match = false;
+let priority = 100;
+
+// 0. Пустой ввод → показываем всё
+if (!query) {
+    match = true;
+    priority = 10;
+}
+
+// 1. Точное совпадение квартиры
+if (!match && kvNorm === query) {
+    match = true;
+    priority = 1;
+}
+
+// 2. Начинается с квартиры
+if (!match && kvNorm.startsWith(query)) {
+    match = true;
+    priority = 2;
+}
+
+// 3. ФИО
+if (!match && tokens.length > 0 && tokens.every(t => fio.includes(t))) {
+    match = true;
+    priority = 3;
+}
+
+// 4. Телефон — ОТДЕЛЬНО, НЕ ELSE IF
+if (!match && phoneQueries.length > 0 && telNorm) {
+    if (phoneQueries.some(q => telNorm.includes(q))) {
+        match = true;
+        priority = 4;
+    }
+}
+
+// 5. Примечание
+if (!match && tokens.length > 0 && tokens.every(t => note.includes(t))) {
+    match = true;
+    priority = 5;
+}
+
+if (!match) return;
+
+        // Добавляем результат в массив
+        results.push({
+            id,
+            data,
+            kvRaw,
+            kvNorm,
+            priority
+        });
+    });
+
+    // ==============================================
+    // 2. СОРТИРОВКА:
+    //    - сначала priority (1 — лучший)
+    //    - внутри сортировка по номеру квартиры
+    // ==============================================
+    function parseKv(kv) {
+        const m = kv.match(/^(\d+)(.*)$/);
+        if (!m) return { num: 999999, suf: kv };
+        return {
+            num: parseInt(m[1], 10),
+            suf: m[2] || ""
+        };
+    }
+
+    results.sort((a, b) => {
+        if (a.priority !== b.priority)
+            return a.priority - b.priority;
+
+        const A = parseKv(a.kvRaw);
+        const B = parseKv(b.kvRaw);
+
+        if (A.num !== B.num)
+            return A.num - B.num;
+
+        return A.suf.localeCompare(B.suf, 'uk'); // для А/Б/Г
+    });
+
+    // ==============================================
+    // 3. РЕНДЕР
+    // ==============================================
+    results.forEach(({id, data, kvRaw}) => {
+
+        filteredIds.push(id);
+
+        const kvHTML   = highlightTokens(kvRaw, query);
+        const fioHTML  = highlightTokens(data.fio || "", query);
+        const noteHTML = highlightTokens(data.note || "", query);
+        const telHTML  = data.tel ? highlightPhone(data.tel, query) : "";
+
         const div = document.createElement("div");
         div.className = "ls-item";
+
         div.innerHTML = `
-          <strong>Кв. ${kv}</strong>
-          ${data.fio || ""}
-          <small><br>Підїзд: ${data.pod || ""} Поверх: ${data.et || ""}</small>
+            <div><strong>Кв. ${kvHTML}</strong></div>
+            <div>${fioHTML}</div>
+            ${data.tel ? `<div>Тел: ${telHTML}</div>` : ""}
+            ${data.note ? `<div class="note">${noteHTML}</div>` : ""}
+            <small>Під'їзд: ${data.pod || ""} &nbsp; Поверх: ${data.et || ""}</small>
         `;
+
         div.onclick = () => selectId(id);
+
         pickerList.appendChild(div);
-      }
     });
-  }
 
-  function selectId(id) {
-    lastFoundId = id;
-    input.value = ls[id].kv;
-    addStuff(id);
-    setParam("kv", ls[id].kv);
-    closePicker();
-  }
+    // ===== DESKTOP: авто-высота =====
+    if (!isMobile()) {
+        const pickerContent = document.getElementById("picker-content");
 
-  function openPicker() {
-    picker.classList.remove("hidden");
-    pickerInput.value = "";
-    filterList("");
-    setTimeout(() => pickerInput.focus(), 50);
-  }
+        picker.style.height = "auto";
+        pickerContent.style.height = "auto";
+        pickerContent.style.maxHeight = "none";
 
-  function closePicker() {
-    picker.classList.add("hidden");
-  }
+        const contentH = pickerContent.scrollHeight;
+        const maxH = 520;
+        const finalH = Math.min(contentH, maxH);
 
-  // ===== desktop: обычный ввод =====
-  input.addEventListener("input", function () {
+        pickerContent.style.height = finalH + "px";
+        pickerContent.style.maxHeight = maxH + "px";
+
+        const headerH = document.querySelector(".ls-picker-header").offsetHeight;
+        picker.style.height = (headerH + finalH) + "px";
+    }
+}
+
+function naturalCompare(a, b) {
+    return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+}
+
+
+
+    // ----------------------------------------
+    // Выбор элемента
+    // ----------------------------------------
+    function selectId(id) {
+        lastFoundId = id;
+        input.value = ls[id].kv;
+        addStuff(id);
+        setParam("kv", ls[id].kv);
+        closePicker();
+    }
+
+    // ----------------------------------------
+    // Позиционирование (перекрываем input)
+    // ----------------------------------------
+function positionPicker() {
     if (isMobile()) return;
 
-    const val = this.value.trim().toLowerCase();
-    let foundId = null;
+    const rect = input.getBoundingClientRect();
 
-    Object.entries(ls).some(([id, data]) => {
-      if (String(data.kv) === val) {
-        foundId = id;
-        return true;
-      }
-      if (!foundId && String(data.kv).startsWith(val)) foundId = id;
-      if (!foundId && (data.fio || "").toLowerCase().includes(val)) foundId = id;
+    picker.style.left = rect.left + "px";
+    picker.style.top  = rect.top + window.scrollY + "px";
+}
+
+
+    // ----------------------------------------
+    // Открытие / Закрытие пикера
+    // ----------------------------------------
+function openPicker() {
+
+    if (isMobile()) {
+        picker.style.position = "fixed";
+        picker.style.left = "0";
+        picker.style.right = "0";
+        picker.style.top = "0";
+        picker.style.bottom = "0";
+        picker.classList.remove("desktop-picker-pos");
+        if (!backStateAdded) {
+           history.pushState({ lsPicker: true }, ""); 
+           backStateAdded = true;
+        }
+    } else {
+        picker.classList.add("desktop-picker-pos");
+        positionPicker();
+    }
+
+    picker.classList.remove("hidden");
+
+    const val = input.value;
+    pickerInput.value = val;
+
+    filterList(val);
+
+    // --- МАГИЯ ДЛЯ ГАРАНТИРОВАННОГО ВЫДЕЛЕНИЯ ---
+    setTimeout(() => {
+
+        pickerInput.focus();
+
+        // 1) Попытка обычного выделения (работает в desktop)
+        pickerInput.select();
+
+        // 2) Попытка ручного выставления диапазона (хуже, но работает в Android)
+        try {
+            pickerInput.setSelectionRange(0, pickerInput.value.length);
+        } catch (e) {}
+
+        // 3) Повторить позже — исправляет iOS, которая сбрасывает выделение
+        setTimeout(() => {
+            try {
+                pickerInput.setSelectionRange(0, pickerInput.value.length);
+            } catch (e) {}
+        }, 30);
+
+    }, 20);
+}
+
+
+
+
+    function closePicker() {
+        picker.classList.add("hidden");
+        highlightedIndex = -1;
+if (backStateAdded) {
+    suppressPop = true;                      // чтобы popstate не закрыл ещё раз
+    history.back();                          // откат записи
+    backStateAdded = false;
+
+    // через микрозадержку сбрасываем блокировку
+    setTimeout(() => suppressPop = false, 50);
+}
+    }
+
+    // ----------------------------------------
+    // Навигация в pickerInput
+    // ----------------------------------------
+pickerInput.addEventListener("keydown", function(e) {
+
+    const items = pickerList.querySelectorAll(".ls-item");
+    const total = items.length;
+
+    if (total === 0) return;
+
+    // ESC закрыть
+    if (e.key === "Escape") {
+        closePicker();
+        return;
+    }
+
+    // ========= ArrowDown =========
+    if (e.key === "ArrowDown") {
+        e.preventDefault();
+
+        if (highlightedIndex < total - 1) {
+            highlightedIndex++;   // обычный шаг вниз
+        }
+        // если уже на последнем — остаёмся
+
+        updateHighlight(items);
+        return;
+    }
+
+    // ========= ArrowUp =========
+    if (e.key === "ArrowUp") {
+        e.preventDefault();
+
+        if (highlightedIndex > 0) {
+            highlightedIndex--;   // обычный шаг вверх
+        }
+        // если на первом — остаёмся
+
+        updateHighlight(items);
+        return;
+    }
+
+    // ========= HOME — первая строка =========
+    if (e.key === "Home") {
+        e.preventDefault();
+        highlightedIndex = 0;
+        updateHighlight(items);
+        return;
+    }
+
+    // ========= END — последняя строка =========
+    if (e.key === "End") {
+        e.preventDefault();
+        highlightedIndex = total - 1;
+        updateHighlight(items);
+        return;
+    }
+
+    // ========= PAGE DOWN — +10 =========
+    if (e.key === "PageDown") {
+        e.preventDefault();
+
+        const oldIndex = highlightedIndex;
+        highlightedIndex = Math.min(highlightedIndex + 10, total - 1);
+
+        // если осталось меньше 10 строк вниз → прыжок на последнюю
+        if (highlightedIndex === oldIndex) {
+            highlightedIndex = total - 1;
+        }
+
+        updateHighlight(items);
+        return;
+    }
+
+    // ========= PAGE UP — −10 =========
+    if (e.key === "PageUp") {
+        e.preventDefault();
+
+        const oldIndex = highlightedIndex;
+        highlightedIndex = Math.max(highlightedIndex - 10, 0);
+
+        // если сверху меньше 10 → прыжок на первую
+        if (highlightedIndex === oldIndex) {
+            highlightedIndex = 0;
+        }
+
+        updateHighlight(items);
+        return;
+    }
+
+    // ========= ENTER =========
+    if (e.key === "Enter") {
+        e.preventDefault();
+
+        let id = null;
+
+        if (highlightedIndex >= 0 && highlightedIndex < filteredIds.length) {
+            id = filteredIds[highlightedIndex];
+        } else if (filteredIds.length > 0) {
+            id = filteredIds[0];
+        }
+
+        if (id) selectId(id);
+        return;
+    }
+});
+
+
+// ===================================================
+// Обновление визуальной подсветки
+// ===================================================
+function updateHighlight(items) {
+
+    items.forEach((el, i) => {
+        el.classList.toggle("active", i === highlightedIndex);
     });
 
-    if (foundId) {
-      lastFoundId = foundId;
-      addStuff(foundId);
-      setParam("kv", ls[foundId].kv);
+    const activeEl = items[highlightedIndex];
+
+    if (activeEl) {
+        activeEl.scrollIntoView({
+            block: "nearest",
+            behavior: "auto"
+        });
     }
-  });
-
-  // ===== mobile: bottom sheet =====
-  input.addEventListener("focus", function () {
-    if (isMobile()) {
-      openPicker();
-      this.blur();
-    }
-  });
-
-  pickerInput.addEventListener("input", function () {
-    filterList(this.value);
-  });
-
-  closeBtn.onclick = closePicker;
-
-  // ===== blur normalization =====
-  input.addEventListener("blur", function () {
-    if (lastFoundId && ls[lastFoundId]) {
-      this.value = ls[lastFoundId].kv;
-    }
-  });
 }
+
+
+
+    // ----------------------------------------
+    // Поиск
+    // ----------------------------------------
+    pickerInput.addEventListener("input", function () {
+        filterList(this.value);
+    });
+
+    // ----------------------------------------
+    // Клик вне
+    // ----------------------------------------
+    document.addEventListener("mousedown", function(e) {
+        if (picker.classList.contains("hidden")) return;
+        if (picker.contains(e.target)) return;
+        if (input.contains(e.target)) return;
+        closePicker();
+    });
+
+    closeBtn.onclick = () => closePicker();
+
+    // ----------------------------------------
+    // Открытие пикера
+    // ----------------------------------------
+    input.addEventListener("focus", function () {
+        openPicker();
+        this.blur();
+    });
+
+    // ----------------------------------------
+    // Восстановление значения
+    // ----------------------------------------
+    input.addEventListener("blur", function () {
+        if (lastFoundId && ls[lastFoundId]) {
+            this.value = ls[lastFoundId].kv;
+        }
+    });
+
+    // ----------------------------------------
+    // СИНХРОНИЗАЦИЯ текста input → pickerInput
+    // ----------------------------------------
+    input.addEventListener("input", function () {
+        pickerInput.value = this.value;
+        filterList(this.value);
+    });
+// ----------------------------------------
+// ПЕРЕРАСЧЁТ ПОЗИЦИИ ПРИ ПЕРЕВОРОТЕ ЭКРАНА
+// ----------------------------------------
+window.addEventListener("resize", () => {
+    if (!picker.classList.contains("hidden") && !isMobile()) {
+        positionPicker();
+    }
+});
+
+window.addEventListener("orientationchange", () => {
+    // Небольшая задержка чтобы браузер успел перестроить layout
+    setTimeout(() => {
+        if (!picker.classList.contains("hidden") && !isMobile()) {
+            positionPicker();
+        }
+    }, 100);
+});
+// Закрытие по кнопке "Назад" Android
+window.addEventListener("popstate", () => {
+    if (suppressPop) return; // если закрыли программно — игнорируем
+    if (!picker.classList.contains("hidden") && backStateAdded) {
+        closePicker();
+    }
+});
+
+}
+
+
+
+
+
 
 function initLS() {
 
   document.getElementById("maincontainer").innerHTML = `
-  <div id="ls-picker" class="ls-picker hidden">
-  <div class="ls-picker-header">
-    <input id="ls-picker-input" type="text" placeholder="Квартира або П.І.Б.">
-    <button id="ls-picker-close">✕</button>
-  </div>
-  <div id="ls-picker-list" class="ls-picker-list"></div>
+<div id="ls-picker" class="ls-picker hidden">
+    <div class="ls-picker-header">
+        <input id="ls-picker-input" type="text">
+        <button id="ls-picker-close">×</button>
+    </div>
+
+    <div id="picker-content" class="picker-content">
+        <div id="ls-picker-list" class="ls-picker-list"></div>
+    </div>
+</div>
+
 </div>
     <div id="header" class="header">
       <div class="header-row">
@@ -1697,7 +2160,7 @@ function updateStickyTop() {
     "--header-height",
     `${stickyTop}px`
   );
-  console.log(stickyTop);
+
   // Подключаем ResizeObserver ТОЛЬКО ОДИН РАЗ
   if ("ResizeObserver" in window && !headerResizeObserver) {
     headerResizeObserver = new ResizeObserver(() => {
