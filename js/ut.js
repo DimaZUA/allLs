@@ -587,20 +587,42 @@ function testCanvasReady() {
 }
 
 
+let CAN_SHARE_IMAGE = false;
+
+async function detectFileShareSupport() {
+    if (!navigator.share || !navigator.canShare) {
+        CAN_SHARE_IMAGE = false;
+        return;
+    }
+
+    try {
+        const blob = new Blob(["x"], { type: "image/png" });
+        const file = new File([blob], "test.png", { type: "image/png" });
+        CAN_SHARE_IMAGE = navigator.canShare({ files: [file] }) === true;
+    } catch (e) {
+        CAN_SHARE_IMAGE = false;
+    }
+}
+
+// запуск проверки при старте приложения
+detectFileShareSupport();
 
 
 function buildButtonsHtml(canvasOK) {
     let thirdButton = "";
 
     if (canvasOK) {
-        thirdButton =
-            isMobile() && navigator.share
-                ? '  <button onclick="captureAndShare()" class="xls-button" title="Поделиться">\n' +
-                  '    <img src="img/share.png" class="xls-icon">\n' +
-                  '  </button>\n'
-                : '  <button onclick="captureAndCopy()" class="xls-button" title="Скриншот таблицы">\n' +
-                  '    <img src="img/screenshot.png" class="xls-icon">\n' +
-                  '  </button>\n';
+        if (isMobile() && CAN_SHARE_IMAGE) {
+            thirdButton =
+                '  <button onclick="captureAndShare()" class="xls-button" title="Поделиться">\n' +
+                '    <img src="img/share.png" class="xls-icon">\n' +
+                '  </button>\n';
+        } else {
+            thirdButton =
+                '  <button onclick="captureAndCopy()" class="xls-button" title="${org}">\n' +
+                '    <img src="img/screenshot.png" class="xls-icon">\n' +
+                '  </button>\n';
+        }
     }
 
     return (
@@ -615,6 +637,8 @@ function buildButtonsHtml(canvasOK) {
         '</div>\n'
     );
 }
+
+
 
 var buttons='';
 initButtons();
