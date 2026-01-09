@@ -869,22 +869,8 @@ table#main thead {
   font-weight: 600;
 }
 
+
 /* ================= MOBILE ================= */
-
-@media (max-width: 640px) {
-  .header-row {
-    flex-direction: column;
-  }
-
-  .header-right {
-    width: 100%;
-    text-align: left;
-  }
-
-  .buttons-container {
-    justify-content: flex-start;
-  }
-}
 
 
 /* ===========================
@@ -903,6 +889,7 @@ table#main thead {
     }
 
     .ls-picker-header {
+        flex: 0 0 auto;
         display: flex;
         align-items: center;
         gap: 8px;
@@ -911,6 +898,7 @@ table#main thead {
         box-sizing: border-box;
         border-bottom: 1px solid #ddd;
         background: #fff;
+        z-index: 10;
     }
 
     .ls-picker-header input {
@@ -922,11 +910,20 @@ table#main thead {
         box-sizing: border-box;
     }
 
-    #ls-picker-list {
-        flex: 1;
+    /* ВАЖНО: скроллим именно #picker-content */
+    #picker-content {
+        flex: 1 1 auto;
         overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        background: #fff;
+    }
+
+    /* #ls-picker-list просто занимает контент */
+    #ls-picker-list {
+        padding-bottom: 20px;
     }
 }
+
 
 
 /* ===========================
