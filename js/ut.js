@@ -587,25 +587,26 @@ function testCanvasReady() {
 }
 
 
-let CAN_SHARE_IMAGE = false;
+let CAN_SHARE_IMAGE = canMobileShareImage();
 
-async function detectFileShareSupport() {
-    if (!navigator.share || !navigator.canShare) {
-        CAN_SHARE_IMAGE = false;
-        return;
-    }
+function canMobileShareImage() {
+    const ua = navigator.userAgent.toLowerCase();
 
-    try {
-        const blob = new Blob(["x"], { type: "image/png" });
-        const file = new File([blob], "test.png", { type: "image/png" });
-        CAN_SHARE_IMAGE = navigator.canShare({ files: [file] }) === true;
-    } catch (e) {
-        CAN_SHARE_IMAGE = false;
-    }
+    // только android
+    if (!/android/.test(ua)) return false;
+
+    // chrome mobile: есть Chrome, но нет Opera/Edge
+    const isChrome =
+        /chrome/.test(ua) &&
+        !/opr/.test(ua) &&
+        !/opera/.test(ua) &&
+        !/edg/.test(ua) &&
+        !/samsungbrowser/.test(ua);
+
+    return isChrome;
 }
 
-// запуск проверки при старте приложения
-detectFileShareSupport();
+
 
 
 function buildButtonsHtml(canvasOK) {
