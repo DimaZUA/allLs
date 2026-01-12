@@ -1377,7 +1377,7 @@ for (let toggle of yearToggles) {
     break; // остановимся на первом
   }
 }
-     ls=firstOpenYear + "_кв." + document.getElementById('number').selectedOptions[0].textContent;
+     ls=firstOpenYear + "_кв." + document.getElementById('number').value;
   } else if (actionCode === "list") {
     const monthInput = document.getElementById("end-date");
     const dateValue = monthInput?.value;
