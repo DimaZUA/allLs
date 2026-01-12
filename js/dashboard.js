@@ -10,8 +10,8 @@ const LIABILITY_CATEGORIES = [
     { key: '631',  title: 'Постачальники товарів і послуг' },
     { key: '372',  title: 'Підзвітні особи' },
     { key: '482',  title: 'Пільги (ХМР)' },
-    { key: 'TAX',  title: 'Податки і збори', accounts: ['641','651','652'] },
-    { key: '661',  title: 'Заробітна плата' },
+    { key: 'TAX',  title: 'Зарплата і податки', accounts: ['661','641','651','652'] },
+
 ];
 
 
@@ -861,9 +861,9 @@ const LIABILITY_ACCOUNTS = {
     '372':  { type: 'special', analytics: 'who',     title: 'Підзвітні особи' },
     '631':  { type: 'passive', analytics: 'who',     title: 'Постачальники товарів і послуг' },
     '661':  { type: 'passive', analytics: 'total',   title: 'Заробітна плата' },
-    '641':  { type: 'passive', analytics: 'account', title: 'ПДФО (641)' },
-    '651':  { type: 'passive', analytics: 'account', title: 'ЄСВ (651)' },
-    '652':  { type: 'passive', analytics: 'account', title: 'Військовий збір (652)' }
+    '641':  { type: 'passive', analytics: 'account', title: 'ПДФО 18%' },
+    '651':  { type: 'passive', analytics: 'account', title: 'ЄСВ 22%' },
+    '652':  { type: 'passive', analytics: 'account', title: 'Військовий збір 5%' }
 };
 function getAccountTitle(acc) {
     return LIABILITY_ACCOUNTS?.[acc]?.title || acc;
