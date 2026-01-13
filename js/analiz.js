@@ -367,7 +367,7 @@ function summary(arr) {
 
       const tdLabel = document.createElement("td");
       tdLabel.innerHTML =
-        `<div><span style="color:gray;">Было</span><br><span style="color:green;">Стало</span></div>`;
+        `<div><span style="color:gray;">Було</span><br><span style="color:green;">Стало</span></div>`;
       rowCmp.appendChild(tdLabel);
 
       compareCols.forEach(col => {
