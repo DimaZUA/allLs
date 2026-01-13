@@ -2398,4 +2398,3 @@ function fallbackDownload(canvas) {
   link.href = canvas.toDataURL("image/png");
   link.click();
 }
-
