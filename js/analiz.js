@@ -1,5 +1,6 @@
 function generateAnaliz(start, end) {
-  // Список месяцев
+
+  // === 1. Список месяцев ===
   const months = [];
   let current = new Date(start.getFullYear(), start.getMonth(), 1);
   const endMonth = new Date(end.getFullYear(), end.getMonth(), 1);
@@ -10,7 +11,7 @@ function generateAnaliz(start, end) {
 
   const result = [];
 
-  // Вспомогательная функция для подсчёта месяцев долга
+  // === 2. Функция подсчёта месяцев долга ===
   function calculateDebtMonths(chargesHistory, debtEnd) {
     let debt = debtEnd;
     let months = 0;
@@ -29,7 +30,6 @@ function generateAnaliz(start, end) {
       }
     }
 
-    // Если долг остался после всех месяцев
     if (debt > 0) {
       const firstNonZero = chargesHistory.find(c => c > 0);
       if (firstNonZero) months += debt / firstNonZero;
@@ -38,9 +38,11 @@ function generateAnaliz(start, end) {
     return months;
   }
 
+  // === 3. Формирование строк данных ===
   months.forEach(monthDate => {
     let row = {
       month: `${String(monthDate.getMonth() + 1).padStart(2,'0')}.${monthDate.getFullYear()}`,
+
       totalCharged: 0,
       totalPaid: 0,
       overpayCharged: 0,
@@ -50,17 +52,23 @@ function generateAnaliz(start, end) {
       debtorPaid: 0,
       debtorCount: 0,
       totalCount: 0,
-      totaldebitStart: 0
+      totaldebitStart: 0,
+
+      debtors: new Set()   // <<< НОВОЕ: список должников в этом месяце
     };
 
     Object.keys(nach).forEach(accountId => {
+
       const year = monthDate.getFullYear();
       const month = monthDate.getMonth() + 1;
 
       let chargesBefore = 0, paymentsBefore = 0;
       const chargesHistory = [];
+
+      // собираем историю начислений
       for (const y in nach[accountId]) {
         for (const m in nach[accountId][y]) {
+
           const charge = Object.values(nach[accountId][y][m]).reduce((s,v)=>s+v,0);
           chargesHistory.push(charge);
 
@@ -73,8 +81,13 @@ function generateAnaliz(start, end) {
       }
 
       const debitStart = chargesBefore - paymentsBefore;
-      const chargesThisMonth = Object.values(nach[accountId]?.[year]?.[month] || {}).reduce((s,v)=>s+v,0);
-      const paymentsThisMonth = (oplat[accountId]?.[year]?.[month] || []).reduce((s,p)=>s+p.sum,0);
+
+      const chargesThisMonth =
+        Object.values(nach[accountId]?.[year]?.[month] || {}).reduce((s,v)=>s+v,0);
+
+      const paymentsThisMonth =
+        (oplat[accountId]?.[year]?.[month] || []).reduce((s,p)=>s+p.sum,0);
+
       const debitEnd = debitStart + chargesThisMonth - paymentsThisMonth;
 
       row.totaldebitStart += debitStart;
@@ -83,19 +96,26 @@ function generateAnaliz(start, end) {
       row.totalCount++;
 
       if (debitEnd <= 0) {
+        // переплатники
         row.overpayCharged += chargesThisMonth;
         row.overpayPaid += paymentsThisMonth;
         row.overpayDebtEnd += debitEnd;
       } else {
+        // должники
         const monthsOfDebt = calculateDebtMonths(chargesHistory, debitEnd);
+
         if (monthsOfDebt > 3) {
           row.debtorCharged += debitStart;
           row.debtorPaid += paymentsThisMonth;
           row.debtorCount++;
+
+          row.debtors.add(accountId);   // <<< ЗАПИСЫВАЕМ конкретного должника
         }
       }
+
     });
 
+    // проценты
     row.percentPaid = row.totalCharged ? (row.totalPaid / row.totalCharged) * 100 : 0;
     row.overpayPercent = row.totalCharged ? (-row.overpayDebtEnd / row.totalCharged) * 100 : 0;
     row.debtorPercent = row.totalCharged ? (row.debtorPaid / row.totalCharged) * 100 : 0;
@@ -104,67 +124,132 @@ function generateAnaliz(start, end) {
     result.push(row);
   });
 
-  return renderAnalizTable(result); // возвращаем массив объектов с понятными полями
+  return renderAnalizTable(result);
 }
 
-function renderAnalizTable(data) {
-  const wrapper = document.createElement("div");
 
-  // === Таблица ===
+function renderAnalizTable(data) {
+
+  // === 1. Конфигурация колонок ===
+const COLS = {
+  month:              { title: "Місяць",          type: "text",    isValue: false, visible: true },
+
+  totalCharged:       { title: "Нараховано",      type: "number",  isValue: true,  visible: true },
+  totalPaid:          { title: "Сплачено",        type: "number",  isValue: true,  visible: true },
+  percentPaid:        { title: "% оплати",        type: "percent", isValue: true,  visible: true },
+
+  overpayPaid:        { title: "Сплачено",        type: "number",  isValue: true,  visible: true },
+  overpayDebtEnd:     { title: "Переплата",       type: "number",  isValue: true,  visible: false },
+  overpayPercent:     { title: "% переплати",     type: "percent", isValue: true,  visible: false },
+
+  debtorPaid:         { title: "Сплачено",        type: "number",  isValue: true,  visible: true },
+  debtorPercent:      { title: "% оплати",        type: "percent", isValue: true,  visible: true },
+  debtorCount:        { title: "К-сть",           type: "int",     isValue: true,  visible: true },
+  debtorPercentCount: { title: "% кв",            type: "percent", isValue: true,  visible: false }
+};
+
+  // === 2. Группы колонок ===
+  const COL_GROUPS = [
+    {
+      title: "Всього по будинку",
+      class: "th-total",
+      cols: ["totalCharged","totalPaid","percentPaid"]
+    },
+    {
+      title: "Переплатники",
+      class: "th-overpay",
+      cols: ["overpayPaid","overpayDebtEnd","overpayPercent"]
+    },
+    {
+      title: "Боржники",
+      class: "th-debtor",
+      cols: ["debtorPaid","debtorPercent","debtorCount","debtorPercentCount"]
+    }
+  ];
+
+  // === 3. Форматирование ===
+  const fmt = (type, val) => {
+    if (type === "number") return Math.round(val);
+    if (type === "percent") return val.toFixed(1);
+    if (type === "int") return Math.round(val);
+    return val;
+  };
+
+  // === 4. Помощник: список всех видимых колонок в правильном порядке ===
+  const orderedCols = [
+    "month",
+    "totalCharged","totalPaid","percentPaid",
+    "overpayPaid","overpayDebtEnd","overpayPercent",
+    "debtorPaid","debtorPercent","debtorCount","debtorPercentCount"
+  ].filter(c => COLS[c].visible);
+
+  // === 5. Создание таблицы ===
+  const wrapper = document.createElement("div");
   const table = document.createElement("table");
   table.classList.add("analiz-table");
 
   const thead = document.createElement("thead");
-  thead.innerHTML = `
-    <tr>
-      <th rowspan="2">Місяць</th>
-      <th colspan="3" class="th-total">Всього по будинку</th>
-      <th colspan="3" class="th-overpay">Переплатники</th>
-      <th colspan="4" class="th-debtor">Боржники</th>
-    </tr>
-    <tr>
-      <th class="th-total">Нараховано</th>
-      <th class="th-total">Сплачено</th>
-      <th class="th-total">% оплати</th>
 
-      <th class="th-overpay">Сплачено</th>
-      <th class="th-overpay">Переплата</th>
-      <th class="th-overpay">% переплати</th>
+  // === 6. Первая строка шапки ===
+  const tr1 = document.createElement("tr");
+  const thMonth = document.createElement("th");
+  thMonth.rowSpan = 2;
+  thMonth.textContent = "Місяць";
+  tr1.appendChild(thMonth);
 
-      <th class="th-debtor">Сплачено</th>
-      <th class="th-debtor">% оплати</th>
-      <th class="th-debtor">К-сть</th>
-      <th class="th-debtor">% кв</th>
-    </tr>
-  `;
+  COL_GROUPS.forEach(gr => {
+    const visibleCols = gr.cols.filter(c => COLS[c].visible);
+    if (visibleCols.length === 0) return;
+
+    const th = document.createElement("th");
+    th.className = gr.class;
+    th.colSpan = visibleCols.length;
+    th.textContent = gr.title;
+    tr1.appendChild(th);
+  });
+
+  // === 7. Вторая строка шапки ===
+  const tr2 = document.createElement("tr");
+
+  COL_GROUPS.forEach(gr => {
+    gr.cols.forEach(col => {
+      if (!COLS[col].visible) return;
+      const th = document.createElement("th");
+      th.className = gr.class;
+      th.textContent = COLS[col].title;
+      tr2.appendChild(th);
+    });
+  });
+
+  thead.appendChild(tr1);
+  thead.appendChild(tr2);
   table.appendChild(thead);
 
+  // === 8. Тело таблицы ===
   const tbody = document.createElement("tbody");
   const rows = [];
 
-  // === Создаем строки таблицы ===
-  data.forEach(row => {
+  data.forEach(r => {
     const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td>${row.month}</td>
-      <td class="td-total">${Math.round(row.totalCharged)}</td>
-      <td class="td-total">${Math.round(row.totalPaid)}</td>
-      <td class="td-total">${row.percentPaid.toFixed(1)}</td>
 
-      <td class="td-overpay">${Math.round(row.overpayPaid)}</td>
-      <td class="td-overpay">${Math.round(row.overpayDebtEnd)}</td>
-      <td class="td-overpay">${row.overpayPercent.toFixed(1)}</td>
+    orderedCols.forEach(col => {
+      const td = document.createElement("td");
+      const cfg = COLS[col];
 
-      <td class="td-debtor">${Math.round(row.debtorPaid)}</td>
-      <td class="td-debtor">${row.debtorPercent.toFixed(1)}</td>
-      <td class="td-debtor">${row.debtorCount}</td>
-            <td class="td-debtor">${Math.round(row.debtorPercentCount)}</td>
-    `;
+      td.className = 
+        (col.startsWith("total") ? "td-total" :
+        col.startsWith("overpay") ? "td-overpay" :
+        col.startsWith("debtor") ? "td-debtor" : "");
+
+      td.textContent = fmt(cfg.type, r[col]);
+      tr.appendChild(td);
+    });
+
     tbody.appendChild(tr);
     rows.push(tr);
   });
 
-  // === Итоговые строки ===
+  // === 9. Итоги ===
   const topSummary = document.createElement("tr");
   topSummary.classList.add("summary-row", "top-summary");
 
@@ -179,227 +264,326 @@ function renderAnalizTable(data) {
   table.appendChild(tbody);
   wrapper.appendChild(table);
 
-  // === Функция пересчета итогов ===
-  function updateSummaries(splitIndex) {
+  // === 10. Пересчет итогов ===
+function updateSummaries(splitIndex) {
+
     const topData = data.slice(0, splitIndex);
     const bottomData = data.slice(splitIndex);
 
-    const calcSummary = (partData) => {
-      const sum = (field) => partData.reduce((acc, r) => acc + r[field], 0);
-      const avg = (field) => partData.length ? sum(field) / partData.length : 0;
+    const sum = (arr, f) => arr.reduce((a, r) => a + r[f], 0);
+    const avg = (arr, f) => arr.length ? sum(arr, f) / arr.length : 0;
 
-      const totalCount = sum('totalCount');
-      const debtorCount = sum('debtorCount');
+    // === Итоговые значения для верхней и нижней части ===
+function summary(arr) {
+    const totalCount = sum(arr, "totalCount");
+    const debtorCount = sum(arr, "debtorCount");
 
-      return {
-        totalCharged: sum('totalCharged'),
-        totalPaid: sum('totalPaid'),
-        percentPaid: totalCount ? (sum('totalPaid') / sum('totalCharged')) * 100 : 0,
+    const debtorIDs = new Set();
 
-        overpayCharged: sum('overpayCharged'),
-        overpayPaid: sum('overpayPaid'),
-        overpayDebtEnd: sum('overpayDebtEnd'),
-        overpayPercent: avg('overpayPercent'),
+    arr.forEach(r => {
+        if (r.debtors && r.debtors.size > 0) {
+            r.debtors.forEach(id => debtorIDs.add(id));
+        }
+    });
 
-        debtorCharged: sum('debtorCharged'),
-        debtorPaid: sum('debtorPaid'),
-        debtorPercent: sum('totalCharged') ? (sum('debtorPaid') / sum('totalCharged')) * 100 : 0,
-        debtorCount,
-        debtorPercentCount: totalCount ? (debtorCount / totalCount) * 100 : 0,
+    return {
+      rowCount: arr.length,
+      totalCharged: sum(arr,"totalCharged"),
+      totalPaid: sum(arr,"totalPaid"),
+      percentPaid: totalCount ? (sum(arr,"totalPaid") / sum(arr,"totalCharged")) * 100 : 0,
 
-        rowCount: partData.length
-      };
+      overpayPaid: sum(arr,"overpayPaid"),
+      overpayDebtEnd: sum(arr,"overpayDebtEnd"),
+      overpayPercent: avg(arr,"overpayPercent"),
+
+      debtorPaid: sum(arr,"debtorPaid"),
+      debtorPercent: sum(arr,"totalCharged") ? (sum(arr,"debtorPaid") / sum(arr,"totalCharged")) * 100 : 0,
+      debtorCount: debtorCount,
+      debtorPercentCount: totalCount ? (debtorCount / totalCount) * 100 : 0,
+
+      debtors: debtorIDs   // здесь храним реальные квартиры-должники
     };
+}
 
-    const topSummaryData = calcSummary(topData);
-    const bottomSummaryData = calcSummary(bottomData);
 
-    const fillRow = (tr, summary) => {
-      tr.innerHTML = `
-        <td>В середньому за ${summary.rowCount} міс.:</td>
-        <td class="summary-total">${Math.round(summary.totalCharged / summary.rowCount)}</td>
-        <td class="summary-total">${Math.round(summary.totalPaid / summary.rowCount)}</td>
-        <td class="summary-total">${summary.percentPaid.toFixed(1)}</td>
+    const topS = summary(topData);
+    const bottomS = summary(bottomData);
 
-        <td class="summary-overpay">${Math.round(summary.overpayPaid / summary.rowCount)}</td>
-        <td class="summary-overpay">${Math.round(summary.overpayDebtEnd / summary.rowCount)}</td>
-        <td class="summary-overpay">${summary.overpayPercent.toFixed(1)}</td>
+    // === Заполнение итоговой строки ===
+    function fill(tr, S) {
+      tr.innerHTML = "";
 
-        <td class="summary-debtor">${Math.round(summary.debtorPaid / summary.rowCount)}</td>
-        <td class="summary-debtor">${summary.debtorPercent.toFixed(1)}</td>
-        <td class="summary-debtor">${Math.round(summary.debtorCount / summary.rowCount)}</td>
-        <td class="summary-debtor">${Math.round(summary.debtorPercentCount)}</td>
-      `;
-    };
+      const td0 = document.createElement("td");
+      td0.textContent = `В середньому за ${S.rowCount} міс.:`;
+      tr.appendChild(td0);
 
-    // Вставляем итоговые строки
+      orderedCols.slice(1).forEach(col => {
+        const td = document.createElement("td");
+        const cfg = COLS[col];
+
+        let val = S[col];
+        if (cfg.type === "number" || cfg.type === "int") {
+          val = S.rowCount ? val / S.rowCount : 0;
+        }
+
+        td.className =
+          (col.startsWith("total") ? "summary-total" :
+          col.startsWith("overpay") ? "summary-overpay" :
+          col.startsWith("debtor") ? "summary-debtor" : "");
+
+        td.textContent = fmt(cfg.type, val);
+        tr.appendChild(td);
+      });
+    }
+
+    // === Переставляем строки итогов под splitIndex ===
     const refNode = rows[splitIndex - 1] || null;
     if (topSummary.parentNode) topSummary.remove();
     if (spacer.parentNode) spacer.remove();
+
     if (refNode) {
       refNode.after(topSummary);
       topSummary.after(spacer);
     }
 
-    fillRow(topSummary, topSummaryData);
-    fillRow(bottomSummary, bottomSummaryData);
+    fill(topSummary, topS);
+    fill(bottomSummary, bottomS);
 
-    // === Визуальная гистограмма "Было / Стало" ===
-    if (table.querySelector(".compare-row")) {
-      table.querySelector(".compare-row").remove();
-    }
+    // === 11. ГИСТОГРАММА "Было / Стало" ===
+    const old = table.querySelector(".compare-row");
+    if (old) old.remove();
 
-    if (splitIndex < data.length) {
-      bottomSummary.style.display = "";
+    const compareCols = orderedCols.filter(col =>
+      col !== "month" && COLS[col].isValue === true
+    );
 
-      const compareRow = document.createElement("tr");
-      compareRow.classList.add("compare-row");
-      bottomSummary.after(compareRow);
+    let rowCmp = null;
 
-      const fields = [
-        "totalCharged", "totalPaid", "percentPaid",
-        "overpayPaid", "overpayDebtEnd", "overpayPercent",
-        "debtorPaid", "debtorPercent", "debtorCount"
-      ];
+    if (splitIndex < data.length && compareCols.length > 0) {
 
-      // Первая ячейка — подпись
-      const labelTd = document.createElement("td");
-      labelTd.innerHTML = `
-        <div>
-          <span style="color:gray;">Было</span><br>
-          <span style="color:green;">Стало</span>
-        </div>
-      `;
-      compareRow.appendChild(labelTd);
+      rowCmp = document.createElement("tr");
+      rowCmp.classList.add("compare-row");
+      bottomSummary.after(rowCmp);
 
-      fields.forEach((f, idx) => {
+      const tdLabel = document.createElement("td");
+      tdLabel.innerHTML =
+        `<div><span style="color:gray;">Было</span><br><span style="color:green;">Стало</span></div>`;
+      rowCmp.appendChild(tdLabel);
+
+      compareCols.forEach(col => {
+        const cfg = COLS[col];
         const td = document.createElement("td");
-        td.style.height = "50px";
+        td.style.height = "60px";
         td.style.verticalAlign = "bottom";
-        td.style.padding = "4px";
-        if (idx === fields.length - 1) td.colSpan = 2;
 
-        const topCell = topSummary.cells[idx + 1];
-        const bottomCell = bottomSummary.cells[idx + 1];
+        const idx = orderedCols.indexOf(col);
 
-        const parseVal = (cell) => {
+        const parseVal = cell => {
           if (!cell) return 0;
-          const text = cell.textContent.replace(",", ".").replace("%", "").trim();
-          return parseFloat(text) || 0;
+          return parseFloat(cell.textContent.replace("%","").trim()) || 0;
         };
 
-        const topVal = parseVal(topCell);
-        const bottomVal = parseVal(bottomCell);
+        const topV = parseVal(topSummary.cells[idx]);
+        const botV = parseVal(bottomSummary.cells[idx]);
 
-        let maxVal;
-        if (idx === 0 || idx === 1) { // начислено / оплачено
-          const topOther = parseVal(topSummary.cells[1]);
-          const bottomOther = parseVal(bottomSummary.cells[1]);
-          const topPaid = parseVal(topSummary.cells[2]);
-          const bottomPaid = parseVal(bottomSummary.cells[2]);
-          maxVal = Math.max(topOther, bottomOther, topPaid, bottomPaid, 1);
+        const maxV = Math.max(Math.abs(topV), Math.abs(botV), 1);
+
+        const h1 = Math.abs(topV) / maxV * 60;
+        const h2 = Math.abs(botV) / maxV * 60;
+
+        let color;
+        const positiveBetter = [
+          "totalCharged", "totalPaid", "percentPaid",
+          "overpayPaid", "overpayPercent",
+          "debtorPaid", "debtorPercent"
+        ].includes(col);
+
+        const negativeBetter = [
+          "overpayDebtEnd",
+          "debtorCount", "debtorPercentCount"
+        ].includes(col);
+
+        if (topV === botV) {
+            color = "#808080";
+        } else if (positiveBetter) {
+            color = botV > topV ? "#006400" : "#8B0000";
         } else {
-          maxVal = Math.max(Math.abs(topVal), Math.abs(bottomVal), 1);
+            color = botV < topV ? "#006400" : "#8B0000";
         }
 
-        const topHeight = (Math.abs(topVal) / maxVal) * 80;
-        const bottomHeight = (Math.abs(bottomVal) / maxVal) * 80;
+td.innerHTML = `
+  <div style="
+      display:flex;
+      gap:4px;
+      align-items:flex-end;
+      justify-content:center;
+      height:60px;
+      width:100%;
+  ">
+    <div style="width:30px; height:${h1}px; background:gray; border-radius:4px;"></div>
+    <div style="width:30px; height:${h2}px; background:${color}; border-radius:4px;"></div>
+  </div>
+`;
 
-        // Цвет фона всей ячейки
-        let bgColor = "#f9f9f9";
-        if (idx > 0) {
-          const isLast = idx === fields.length - 1;
-          const better = isLast ? Math.abs(bottomVal) < Math.abs(topVal) : Math.abs(bottomVal) > Math.abs(topVal);
-          bgColor = better ? "#b6f2b6" : "#f9b6b6";
-        }
-        td.style.background = bgColor;
-
-        td.innerHTML = `
-          <div style="display:flex; justify-content:center; align-items:flex-end; height:80px; gap:4px;">
-            <div style="width:30px; height:${topHeight}px; background:gray; border-radius:5px;"></div>
-            <div style="width:30px; height:${bottomHeight}px; background:green; border-radius:5px;"></div>
-          </div>
-        `;
-
-        // === Горизонтальные гистограммы при наведении ===
-        td.addEventListener("mouseenter", () => {
-          const rowsAll = table.querySelectorAll("tbody tr");
-          let maxCol = 1;
-          rowsAll.forEach(tr => {
-            const cell = tr.cells[idx + 1];
-            if (!cell) return;
-            const val = Math.abs(parseVal(cell));
-            if (val > maxCol) maxCol = val;
-          });
-
-          rowsAll.forEach(tr => {
-            const cell = tr.cells[idx + 1];
-            if (!cell) return;
-            const val = Math.abs(parseVal(cell));
-
-            const overlay = document.createElement("div");
-            overlay.classList.add("cell-bg");
-            overlay.style.position = "absolute";
-            overlay.style.top = "0";
-            overlay.style.left = "0";
-            overlay.style.height = "100%";
-            overlay.style.width = "0%";
-            overlay.style.background = "rgba(100,200,255,0.3)";
-            overlay.style.pointerEvents = "none";
-            overlay.style.transition = "width 1s ease";
-
-            cell.style.position = "relative";
-            cell.appendChild(overlay);
-
-            setTimeout(() => {
-              overlay.style.width = (val / maxCol * 100) + "%";
-            }, 10);
-
-            // дрожание ячейки
-            cell.style.animation = "shake 1s";
-            cell.addEventListener("animationend", () => {
-              cell.style.animation = "";
-            });
-          });
-        });
-
-        td.addEventListener("mouseleave", () => {
-          const overlays = table.querySelectorAll(".cell-bg");
-          overlays.forEach(o => o.remove());
-        });
-
-        compareRow.appendChild(td);
+        rowCmp.appendChild(td);
       });
-    } else {
-      bottomSummary.style.display = "none";
     }
-  }
 
-  // === Определяем значение по умолчанию ===
+    // === 12. Если итог опущен в самый низ — скрываем нижний итог ===
+    if (splitIndex === rows.length) {
+        bottomSummary.style.display = "none";
+        if (spacer.parentNode) spacer.remove();
+        const cmp = table.querySelector(".compare-row");
+        if (cmp) cmp.remove();
+        if (wrapper._debtInfo) wrapper._debtInfo.innerHTML = "";
+        return;
+    } else {
+        bottomSummary.style.display = "";
+    }
+
+    // === 13. ТЕКСТОВАЯ ИНФОРМАЦИЯ О ДОЛЖНИКАХ ПОД ТАБЛИЦЕЙ ===
+
+    // создаём инфо-блок, если он ещё не создан
+    if (!wrapper._debtInfo) {
+        const div = document.createElement("div");
+        div.style.marginTop = "8px";
+        div.style.fontSize = "13px";
+        div.style.fontWeight = "500";
+        div.style.color = "#333";
+        wrapper.appendChild(div);
+        wrapper._debtInfo = div;
+    }
+
+    // сравнение множеств должников
+    const topDebtors = topS.debtors;
+    const bottomDebtors = bottomS.debtors;
+
+const wasDebtors = data[splitIndex - 1]?.debtors || new Set();
+const nowDebtors = data[data.length - 1]?.debtors || new Set();
+
+const still = [...wasDebtors].filter(x => nowDebtors.has(x));
+const paidOff = [...wasDebtors].filter(x => !nowDebtors.has(x));
+const added = [...nowDebtors].filter(x => !wasDebtors.has(x));
+
+
+//
+// === 13. Надпись + 3 постера со списками квартир ===
+//
+
+// чистим контейнер
+wrapper._debtInfo.innerHTML = "";
+
+function addSimplePoster(title, list, color) {
+
+    const poster = document.createElement("div");
+    poster.className = "poster";
+    poster.style.display = "inline-block";
+    poster.style.margin = "6px 12px 6px 0";
+    poster.style.padding = "6px 10px";
+    poster.style.border = "1px solid #aaa";
+    poster.style.borderRadius = "6px";
+    poster.style.background = "#fafafa";
+    poster.style.fontWeight = "bold";
+    poster.style.color = color;
+    poster.textContent = `${title}: ${list.length}`;
+
+    // === descr ===
+    const descr = document.createElement("div");
+    descr.className = "descr";   // твой CSS
+
+    let html = "";
+    if (list.length === 0) {
+        html = "";
+    } else {
+        list.forEach(acc => {
+            html += 'кв.'+ls[acc].kv+' '+ls[acc].fio  + "<br>";
+        });
+    }
+    descr.innerHTML = html;
+
+    // descr должен быть в body, т.к. position:fixed
+    if (html>'') poster.appendChild(descr);
+
+
+    wrapper._debtInfo.appendChild(poster);
+}
+
+// три строки
+addSimplePoster("Нові боржники", added, "#8B0000");
+addSimplePoster("Погасили борг", paidOff, "#006400");
+addSimplePoster("Залишились боржникми", still, "#444");
+
+// === 12b. Расчёт изменений в оплате и погашении долгов ===
+
+// === Δ оплаты ===
+const avgChargedBottom = bottomS.rowCount
+    ? bottomS.totalCharged / bottomS.rowCount
+    : 0;
+
+const deltaPayPercent = bottomS.percentPaid - topS.percentPaid;
+const deltaPayValue = avgChargedBottom * (deltaPayPercent / 100);
+
+// === Δ погашения долгов ===
+const deltaDebtPercent = bottomS.debtorPercent - topS.debtorPercent;
+const deltaDebtValue   = avgChargedBottom * (deltaDebtPercent / 100);
+
+// === Формируем текст ===
+
+const infoPay ="Відносні показники (виключено вплив зміни тарифу або нарахування цільвих внесків):<br>"+
+    (deltaPayValue >= 0 ? "Зростання" : "Зменшення") +
+    ` платежів в будинку (в місяць): ` +
+    `<span class="${deltaPayValue >= 0 ? 'green' : 'red'}">` +
+        fmt("number", Math.abs(deltaPayValue)) +
+    ` грн</span>`;
+
+const infoDebt =
+    (deltaDebtValue >= 0 ? "Зростання" : "Зменшення") +
+    ` погашення боргів (в місяць): ` +
+    `<span class="${deltaDebtValue >= 0 ? 'green' : 'red'}">` +
+        fmt("number", Math.abs(deltaDebtValue)) +
+    ` грн</span>`;
+
+
+
+// выводим два итоговых текста
+const textBlock = document.createElement("div");
+textBlock.style.marginBottom = "8px";
+textBlock.style.fontSize = "18px";
+textBlock.innerHTML =
+    infoPay + "<br>" +
+    infoDebt;
+
+wrapper._debtInfo.appendChild(textBlock);
+
+initPosters();
+
+
+}
+
+
+
+
+
+  // === 12. Определить splitIndex по умолчанию ===
   let splitIndex = data.length;
   if (data.length > 1) {
-    const decemberIndexes = data
-      .map((r, i) => ({i, isDecember: r.month.startsWith("12.")}))
-      .filter(x => x.isDecember)
-      .map(x => x.i + 1);
-
-    if (decemberIndexes.length > 0) {
-      splitIndex = decemberIndexes[decemberIndexes.length - 1];
-    } else {
-      splitIndex = Math.round(data.length / 2);
-    }
+    const dec = data
+      .map((r,i)=>({i,isDec:r.month.startsWith("12.")}))
+      .filter(x=>x.isDec)
+      .map(x=>x.i+1);
+    splitIndex = dec.length ? dec[dec.length-1] : Math.round(data.length/2);
   }
 
   updateSummaries(splitIndex);
 
-  // === Перетаскивание строки итога ===
+  // === 13. Перетаскивание итоговой строки ===
   let isDragging = false;
   let startY = 0;
   let startIndex = 0;
 
   topSummary.style.cursor = "ns-resize";
 
-  topSummary.addEventListener("mousedown", (e) => {
+  topSummary.addEventListener("mousedown", e => {
     isDragging = true;
     startY = e.clientY;
     startIndex = splitIndex;
@@ -407,12 +591,12 @@ function renderAnalizTable(data) {
     document.body.style.userSelect = "none";
   });
 
-  document.addEventListener("mousemove", (e) => {
+  document.addEventListener("mousemove", e => {
     if (!isDragging) return;
     const dy = e.clientY - startY;
     const rowHeight = rows[0].offsetHeight || 25;
-    let delta = Math.round(dy / rowHeight);
-    let newIndex = Math.min(Math.max(1, startIndex + delta), rows.length);
+    const delta = Math.round(dy / rowHeight);
+    const newIndex = Math.min(Math.max(1, startIndex + delta), rows.length);
     if (newIndex !== splitIndex) {
       splitIndex = newIndex;
       updateSummaries(splitIndex);
@@ -428,3 +612,4 @@ function renderAnalizTable(data) {
 
   return wrapper;
 }
+

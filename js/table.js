@@ -61,12 +61,36 @@ function setDefaultDates() {
   `;
 
   // Восстанавливаем значения из параметров, если есть
-  if (getParam("preset")) presets.value = getParam("preset");
-  if (getParam("end")) endInput.value = getParam("end");
-  if (getParam("start")) startInput.value = getParam("start");
-  
+// Восстанавливаем значения из параметров, если есть
+const hasPresetParam = !!getParam("preset");
+const hasStartParam  = !!getParam("start");
+const hasEndParam    = !!getParam("end");
 
-  applyPreset();
+if (hasPresetParam) presets.value = getParam("preset");
+if (hasEndParam) endInput.value   = getParam("end");
+if (hasStartParam) startInput.value = getParam("start");
+
+// === Устанавливаем значения по умолчанию, если параметров нет ===
+if (!hasPresetParam && !hasStartParam && !hasEndParam) {
+    const today = new Date();
+
+    // Предыдущий месяц
+    const prev = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+
+    const year = prev.getFullYear();
+    const month = prev.getMonth() + 1;
+
+    // Конец — предыдущий месяц
+    endInput.value = `${year}-${String(month).padStart(2, "0")}`;
+
+    // Начало — январь того же года
+    startInput.value = `${year}-01`;
+
+    // Вручную ставим пресет custom
+    presets.value = "custom";
+} else {
+    applyPreset();
+}
 }
 
 // Применяет выбранный пресет к полям дат.
@@ -137,7 +161,7 @@ function createDebetChart() {
   var rowDataList = [];
 
   rows.forEach(function (row) {
-    var columns = Array.from(row.querySelectorAll("td")).filter(td => !td.closest("table.subtable"));
+    var columns = Array.from(row.querySelectorAll("td")).filteёr(td => !td.closest("table.subtable"));
     if (columns.length > 0) {
       var totalPaymentsForMonth = parseCellValue(columns[columns.length - 2].textContent);
       var totalChargesForMonth = 0;
@@ -413,6 +437,7 @@ function generateTable() {
   setParam("displayMode", displayMode);
   if (displayMode === "analiz") {
   	tableContainer.appendChild(generateAnaliz(start,end));
+  	initPosters();
   	return;
   }
   if (displayMode === "analiz1") {
