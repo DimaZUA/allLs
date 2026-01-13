@@ -138,8 +138,8 @@ const COLS = {
   totalPaid:          { title: "Сплачено",        type: "number",  isValue: true,  visible: true },
   percentPaid:        { title: "% оплати",        type: "percent", isValue: true,  visible: true },
 
-  overpayPaid:        { title: "Сплачено",        type: "number",  isValue: true,  visible: true },
-  overpayDebtEnd:     { title: "Переплата",       type: "number",  isValue: true,  visible: false },
+  overpayPaid:        { title: "Сплачено",        type: "number",  isValue: true,  visible: false },
+  overpayDebtEnd:     { title: "Переплата",       type: "number",  isValue: true,  visible: true },
   overpayPercent:     { title: "% переплати",     type: "percent", isValue: true,  visible: false },
 
   debtorPaid:         { title: "Сплачено",        type: "number",  isValue: true,  visible: true },
