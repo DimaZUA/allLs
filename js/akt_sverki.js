@@ -1262,9 +1262,48 @@ function renderLiabPage(account, dateFrom, dateTo, who) {
 }
 
 function updatePrintHeader(account, who, dateTo) {
-    const subtitleText = who ? safeWhoName(who) : getAccountTitle(account);
 
-    const actText = document.querySelector(".print-act-header .act-text");
+    let subtitleText = "";
+
+    const accInfo = LIABILITY_ACCOUNTS[account];
+    const taxCat  = LIABILITY_CATEGORIES.find(c => c.key === "TAX");
+
+    // ---- 1) Все налоги и зарплата (а также TAX) ----
+    if (taxCat.accounts.includes(account)) {
+
+        if (who === "TAX") {
+            // Объединённый режим: 661 + 641 + 651 + 652
+            subtitleText = taxCat.title;    // "Зарплата і податки"
+        }
+        else if (who && taxCat.accounts.includes(who)) {
+            // Пользователь выбрал конкретный налог
+            subtitleText = LIABILITY_ACCOUNTS[who].title;
+        }
+        else {
+            // Открыт один счет, например 641 или 661
+            subtitleText = accInfo.title;
+        }
+    }
+
+    // ---- 2) ЛЬГОТИ 482 (analytics = total) ----
+    else if (accInfo.analytics === "total") {
+        subtitleText = accInfo.title;
+    }
+
+    // ---- 3) Счета с контрагентами (analytics = who) ----
+    else if (accInfo.analytics === "who") {
+        subtitleText = who ? safeWhoName(who) : accInfo.title;
+    }
+
+    // ---- 4) Дефолт (если что-то добавится позже) ----
+    else {
+        subtitleText = accInfo.title;
+    }
+
+
+    // ---- вставка в DOM ----
+
+    const actText   = document.querySelector(".print-act-header .act-text");
     const signBlock = document.querySelector(".print-act-sign");
 
     if (actText) {
@@ -1292,6 +1331,7 @@ function updatePrintHeader(account, who, dateTo) {
         `;
     }
 }
+
 
 
 
