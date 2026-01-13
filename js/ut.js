@@ -675,41 +675,65 @@ var monthNames = [
 // УСТОЙЧИВАЯ ФУНКЦИЯ ПОЗИЦИОНИРОВАНИЯ TOOLTIP
 // ================================================
 function safePositionTooltip(event, tooltip) {
-  // Унифицируем событие (touch или mouse)
   const p = event.touches ? event.touches[0] : event;
-
-  if (!p || p.clientX == null || p.clientY == null) {
-    return; // безопасный выход — без NaN координат
-  }
+  if (!p || p.clientX == null || p.clientY == null) return;
 
   const mouseX = p.clientX;
   const mouseY = p.clientY;
 
-  // Не читаем размеры немедленно — ждём стабильного layout
   requestAnimationFrame(() => {
-    const tooltipWidth  = tooltip.offsetWidth;
-    const tooltipHeight = tooltip.offsetHeight;
+    const rect = tooltip.getBoundingClientRect();
+    const tw = rect.width;
+    const th = rect.height;
 
-    const windowWidth  = window.innerWidth;
-    const windowHeight = window.innerHeight;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
 
-    let x = mouseX + 10;
-    let y = mouseY + 10;
+    const offset = 14; // используем только для “право+низ”
 
-    if (x + tooltipWidth > windowWidth) {
-      x = mouseX - tooltipWidth - 10;
+    let x, y;
+
+    // --------------------------
+    // 1. Определяем горизонталь
+    // --------------------------
+    const fitsRight = mouseX + tw < vw;
+    if (fitsRight) {
+      x = mouseX;                 // без смещения
+    } else {
+      x = mouseX - tw;            // слева
     }
-    if (x < 0) x = 10;
 
-    if (y + tooltipHeight > windowHeight) {
-      y = mouseY - tooltipHeight - 10;
+    // --------------------------
+    // 2. Определяем вертикаль
+    // --------------------------
+    const fitsBottom = mouseY + th < vh;
+    if (fitsBottom) {
+      y = mouseY;                 // без смещения
+    } else {
+      y = mouseY - th;            // сверху
     }
-    if (y < 0) y = 10;
+
+    // ----------------------------------------------
+    // 3. Если мы в правом-нижнем секторе → смещаем
+    // ----------------------------------------------
+    if (fitsRight && fitsBottom) {
+      x += offset;
+      y += offset;
+    }
+
+    // ----------------------------------------------
+    // 4. Страховка от выхода за края
+    // ----------------------------------------------
+    x = Math.max(4, Math.min(x, vw - tw - 4));
+    y = Math.max(4, Math.min(y, vh - th - 4));
 
     tooltip.style.left = x + "px";
     tooltip.style.top  = y + "px";
   });
 }
+
+
+
 
 
 
@@ -721,9 +745,9 @@ function initPosters() {
   const HOVER_DELAY = 700;
   const LONGPRESS_DELAY = 750;
 
-  const isTouch =
-    "ontouchstart" in window ||
-    navigator.maxTouchPoints > 0;
+const isTouch =
+  "ontouchstart" in window ||
+  navigator.maxTouchPoints > 0;
 
   document.querySelectorAll(".poster").forEach(cell => {
 
@@ -748,18 +772,20 @@ function initPosters() {
         hoverTimer = setTimeout(() => {
           tooltip.style.display = "block";
           safePositionTooltip(e, tooltip);
+          cell.style.cursor = "default";
         }, HOVER_DELAY);
       });
 
       cell.addEventListener("mousemove", e => {
         if (tooltip.style.display === "block") {
-          safePositionTooltip(e, tooltip);
+          //safePositionTooltip(e, tooltip);
         }
       });
 
       cell.addEventListener("mouseleave", () => {
         clearTimeout(hoverTimer);
         tooltip.style.display = "none";
+        cell.style.cursor = "help";
       });
 
       return;
@@ -780,7 +806,7 @@ function initPosters() {
       }, LONGPRESS_DELAY);
 
       tooltip.style.display = "block";
-
+      cell.style.cursor = "default";
       // безопасное позиционирование
       safePositionTooltip(e, tooltip);
 
@@ -799,6 +825,7 @@ function initPosters() {
 
       if (longPressFired) {
         tooltip.style.display = "none";
+        cell.style.cursor = "help";
       }
     }, { passive: true });
 
@@ -808,14 +835,12 @@ function initPosters() {
     document.addEventListener("touchstart", e => {
       if (!cell.contains(e.target)) {
         tooltip.style.display = "none";
+        cell.style.cursor = "help";
       }
     }, { passive: true });
 
   });
 }
-
-
-
 
 
 // Функция для проверки, находится ли курсор над боковой панелью
@@ -833,41 +858,7 @@ function isCursorOverSidebar(event, sidebar) {
     event.clientY <= bottom
   );
 }
-function positionTooltip(event, tooltip) {
-  const touch = event.touches ? event.touches[0] : event;
 
-  if (!touch || touch.clientX == null || touch.clientY == null) return;
-
-  const mouseX = touch.clientX;
-  const mouseY = touch.clientY;
-
-  // безопасное измерение — через requestAnimationFrame
-  requestAnimationFrame(() => {
-    const tooltipWidth  = tooltip.offsetWidth;
-    const tooltipHeight = tooltip.offsetHeight;
-
-    const windowWidth  = window.innerWidth;
-    const windowHeight = window.innerHeight;
-
-    let tooltipX = mouseX + 10;
-    let tooltipY = mouseY + 10;
-
-    if (tooltipX + tooltipWidth > windowWidth) {
-      tooltipX = mouseX - tooltipWidth - 10;
-    }
-
-    if (tooltipX < 0) tooltipX = 10;
-
-    if (tooltipY + tooltipHeight > windowHeight) {
-      tooltipY = mouseY - tooltipHeight - 10;
-    }
-
-    if (tooltipY < 0) tooltipY = 10;
-
-    tooltip.style.left = tooltipX + "px";
-    tooltip.style.top  = tooltipY + "px";
-  });
-}
 
 Number.prototype.toFixedWithComma = function () {
   var decimals =
@@ -2410,3 +2401,4 @@ function fallbackDownload(canvas) {
 
 
 
+f
