@@ -529,7 +529,7 @@ const deltaDebtValue   = avgChargedBottom * (deltaDebtPercent / 100);
 
 // === Формируем текст ===
 
-const infoPay ="Відносні показники (виключено вплив зміни тарифу або нарахування цільвих внесків):<br>"+
+const infoPay ='<span style="font-size: 12px;">Відносні показники (виключено вплив зміни тарифу або нарахування цільових внесків):</span><br>'+
     (deltaPayValue >= 0 ? "Зростання" : "Зменшення") +
     ` платежів в будинку (в місяць): ` +
     `<span class="${deltaPayValue >= 0 ? 'green' : 'red'}">` +
