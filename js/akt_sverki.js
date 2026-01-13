@@ -1224,12 +1224,6 @@ function renderLiabPage(account, dateFrom, dateTo, who) {
                 </div>
 
                 <div class="act-text">
-                    Ми, що нижче підписалися, представники
-                    <b>${org}</b>
-                    та
-                    <b>${subtitleText}</b>,
-                    склали цей акт про те, що станом на
-                    <b>${toDMY(dateTo)}</b> взаємні розрахунки мають наступний стан:
                 </div>
             </div>
 
@@ -1238,19 +1232,11 @@ function renderLiabPage(account, dateFrom, dateTo, who) {
 
             <!-- Печатный блок подписи -->
             <div class="print-act-sign">
-                <div>
-                    Від ${org}:<br><br>
-                    ___________________ / ___________________
-                </div>
-
-                <div>
-                    Від ${subtitleText}:<br><br>
-                    ___________________ / ___________________
-                </div>
             </div>
 
         </div>
     `;
+    updatePrintHeader(account, selectedWho, dateTo);
 
     // --- bind elements ---
     window.dateFromEl = document.getElementById("dateFrom");
@@ -1275,6 +1261,37 @@ function renderLiabPage(account, dateFrom, dateTo, who) {
         );
 }
 
+function updatePrintHeader(account, who, dateTo) {
+    const subtitleText = who ? safeWhoName(who) : getAccountTitle(account);
+
+    const actText = document.querySelector(".print-act-header .act-text");
+    const signBlock = document.querySelector(".print-act-sign");
+
+    if (actText) {
+        actText.innerHTML = `
+            Ми, що нижче підписалися, представники
+            <b>${org}</b>
+            та
+            <b>${subtitleText}</b>,
+            склали цей акт про те, що станом на
+            <b>${toDMY(dateTo)}</b> взаємні розрахунки мають наступний стан:
+        `;
+    }
+
+    if (signBlock) {
+        signBlock.innerHTML = `
+            <div>
+                Від ${org}:<br><br>
+                ___________________ / ___________________
+            </div>
+
+            <div>
+                Від ${subtitleText}:<br><br>
+                ___________________ / ___________________
+            </div>
+        `;
+    }
+}
 
 
 
@@ -1422,6 +1439,7 @@ function reloadLiabAdvanced() {
                 dateTo
             );
 
+            updatePrintHeader(account, sel, dateTo);
             closeActPreview();
             bindPosterHandlers();
             return;
@@ -1443,7 +1461,7 @@ function reloadLiabAdvanced() {
             null,
             dateTo
         );
-
+        updatePrintHeader(account, sel, dateTo);
         closeActPreview();
         bindPosterHandlers();
         return;
@@ -1472,7 +1490,7 @@ function reloadLiabAdvanced() {
             sel,
             dateTo
         );
-
+        updatePrintHeader(account, sel, dateTo);
         closeActPreview();
         bindPosterHandlers();
         return;
@@ -1496,7 +1514,7 @@ function reloadLiabAdvanced() {
         sel,
         dateTo
     );
-
+    updatePrintHeader(account, sel, dateTo);
     closeActPreview();
     bindPosterHandlers();
 }
