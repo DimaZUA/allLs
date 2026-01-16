@@ -712,6 +712,25 @@ function openFile(f, { userClick = false } = {}) {
         content.appendChild(iframe);
         return;
     }
+// ==================================================
+// DOC / DOCX
+// ==================================================
+if (f.match(/\.(doc|docx)$/i)) {
+    const iframe = document.createElement("iframe");
+    const url = BASE_URL + f;
+
+    iframe.src =
+        "https://docs.google.com/gview?url=" +
+        encodeURIComponent(url) +
+        "&embedded=false";
+
+    iframe.style.width = "100%";
+    iframe.style.height = "100%";
+    iframe.style.border = "0";
+
+    content.appendChild(iframe);
+    return;
+}
 
     // ==================================================
     // НЕПОДДЕРЖИВАЕМЫЙ ФОРМАТ
