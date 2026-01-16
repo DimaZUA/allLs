@@ -579,11 +579,23 @@ _totalRow.innerHTML =
     yearContent.appendChild(table);
     yearContent.dataset.id = "block-" + year;
 
-yearsBar.appendChild(yearToggle);
-yearsBar.appendChild(yearLabel);
+
+const yearBlock = document.createElement("div");
+yearBlock.className = "year-block";
 
 yearContent.classList.add("year-table");
-container.appendChild(yearContent);
+yearContent.dataset.id = "block-" + year;
+
+yearBlock.appendChild(yearToggle);
+yearBlock.appendChild(yearLabel);
+yearBlock.appendChild(yearContent);
+
+container.appendChild(yearBlock);
+
+//yearsBar.appendChild(yearToggle);
+//yearsBar.appendChild(yearLabel);
+//yearContent.classList.add("year-table");
+//container.appendChild(yearContent);
 
     lastYearToggle = yearToggle; // Сохраняем чекбокс последнего года
   };

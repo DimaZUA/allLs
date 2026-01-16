@@ -798,7 +798,7 @@ table#main thead {
 
 .box.year-table.active {
   display: block;
-  margin-bottom: 24px;
+  margin-bottom: 2px;
 }
 
 .paysubtable td:nth-child(3) {
@@ -989,4 +989,27 @@ table#main thead {
 .ls-item:hover,
 .ls-item.active {
     background: #e6f0ff;
+}
+/* Контейнер с годами */
+#din {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+
+/* year-block не влияет на раскладку */
+.year-block {
+  display: contents;
+}
+
+/* таблица года по умолчанию скрыта */
+.year-table {
+  display: none;
+  width: 100%;
+  margin: 2px 0 2px;
+}
+
+/* показываем таблицу сразу после label активного года */
+.toggle-box:checked + label + .year-table {
+  display: block;
 }
