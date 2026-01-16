@@ -610,7 +610,7 @@ function openFile(f, { userClick = false } = {}) {
     btnContainer.appendChild(downloadBtn);
 
     // ==================================================
-    // ОСНОВНОЙ КОНТЕЙНЕР (ВАЖНО: СОЗДАЁТСЯ СРАЗУ)
+    // ОСНОВНОЙ КОНТЕЙНЕР
     // ==================================================
     const content = document.createElement("div");
     content.style.width = "100%";
@@ -709,12 +709,6 @@ function openFile(f, { userClick = false } = {}) {
     // ==================================================
     if (f.match(/\.(doc|docx)$/i)) {
 
-        // --- КНОПКА ПЕЧАТИ ТОЛЬКО ДЛЯ DOC/DOCX ---
-        const printBtn = document.createElement("button");
-        printBtn.textContent = "🖨 Печать";
-        printBtn.style.marginRight = "10px";
-        btnContainer.appendChild(printBtn);
-
         const iframe = document.createElement("iframe");
         const url = BASE_URL + f;
 
@@ -729,16 +723,6 @@ function openFile(f, { userClick = false } = {}) {
 
         content.appendChild(iframe);
 
-        // обработчик печати
-        printBtn.onclick = () => {
-            if (iframe.contentWindow) {
-                iframe.contentWindow.focus();
-                iframe.contentWindow.print();
-            } else {
-                alert("Не удалось напечатать документ");
-            }
-        };
-
         return;
     }
 
@@ -750,6 +734,7 @@ function openFile(f, { userClick = false } = {}) {
         "Файл не поддерживается для предпросмотра. Используйте кнопку скачать.";
     content.appendChild(msg);
 }
+
 
 
 
