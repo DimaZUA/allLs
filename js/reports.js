@@ -588,7 +588,6 @@ function getFileToOpen(fileList) {
 // --- Открытие файла ---
 function openFile(f, { userClick = false } = {}) {
 
-
     const preview = document.getElementById("preview");
     if (!preview) return;
 
@@ -633,7 +632,6 @@ function openFile(f, { userClick = false } = {}) {
             pdfContainer.style.padding = "4px";
             content.appendChild(pdfContainer);
 
-            // --- логгер прямо в DOM ---
             const log = (msg) => {
                 const d = document.createElement("div");
                 d.textContent = msg;
@@ -648,9 +646,6 @@ function openFile(f, { userClick = false } = {}) {
                 pdfContainer.appendChild(d);
             };
 
-            //log("📄 PDF mobile preview");
-            //log("URL: " + pdfUrl);
-
             if (typeof pdfjsLib === "undefined") {
                 logError("pdfjsLib не загружен");
                 return;
@@ -661,12 +656,8 @@ function openFile(f, { userClick = false } = {}) {
                 return;
             }
 
-            //log("Запуск renderPdfPreview…");
-
             renderPdfPreview(pdfContainer, pdfUrl)
-                .then(() => {
-                    //log("✔ PDF отрендерен");
-                })
+                .then(() => {})
                 .catch(err => {
                     logError("Ошибка PDF");
                     logError(err?.message || String(err));
@@ -677,7 +668,7 @@ function openFile(f, { userClick = false } = {}) {
 
         // ---------- DESKTOP ----------
         const iframe = document.createElement("iframe");
-        iframe.src = pdfUrl+ "#page=1&zoom=page-width";;
+        iframe.src = pdfUrl + "#page=1&zoom=page-width";
         iframe.style.width = "100%";
         iframe.style.height = "99%";
         iframe.style.border = "0";
@@ -712,25 +703,44 @@ function openFile(f, { userClick = false } = {}) {
         content.appendChild(iframe);
         return;
     }
-// ==================================================
-// DOC / DOCX
-// ==================================================
-if (f.match(/\.(doc|docx)$/i)) {
-    const iframe = document.createElement("iframe");
-    const url = BASE_URL + f;
 
-    iframe.src =
-        "https://docs.google.com/gview?url=" +
-        encodeURIComponent(url) +
-        "&embedded=false";
+    // ==================================================
+    // DOC / DOCX
+    // ==================================================
+    if (f.match(/\.(doc|docx)$/i)) {
 
-    iframe.style.width = "100%";
-    iframe.style.height = "100%";
-    iframe.style.border = "0";
+        // --- КНОПКА ПЕЧАТИ ТОЛЬКО ДЛЯ DOC/DOCX ---
+        const printBtn = document.createElement("button");
+        printBtn.textContent = "🖨 Печать";
+        printBtn.style.marginRight = "10px";
+        btnContainer.appendChild(printBtn);
 
-    content.appendChild(iframe);
-    return;
-}
+        const iframe = document.createElement("iframe");
+        const url = BASE_URL + f;
+
+        iframe.src =
+            "https://docs.google.com/gview?url=" +
+            encodeURIComponent(url) +
+            "&embedded=true";
+
+        iframe.style.width = "100%";
+        iframe.style.height = "100%";
+        iframe.style.border = "0";
+
+        content.appendChild(iframe);
+
+        // обработчик печати
+        printBtn.onclick = () => {
+            if (iframe.contentWindow) {
+                iframe.contentWindow.focus();
+                iframe.contentWindow.print();
+            } else {
+                alert("Не удалось напечатать документ");
+            }
+        };
+
+        return;
+    }
 
     // ==================================================
     // НЕПОДДЕРЖИВАЕМЫЙ ФОРМАТ
@@ -740,6 +750,7 @@ if (f.match(/\.(doc|docx)$/i)) {
         "Файл не поддерживается для предпросмотра. Используйте кнопку скачать.";
     content.appendChild(msg);
 }
+
 
 
 function exitFilesMode() {
