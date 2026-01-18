@@ -127,7 +127,7 @@ function getDownloadName(f) {
 
 // --- Скачать файл ---
 async function downloadFile(f) {
-    const url = BASE_URL + f;
+    const url = nocache(BASE_URL + f);
     const name = getDownloadName(f);
     try {
         const resp = await fetch(url);
@@ -683,7 +683,7 @@ function openFile(f, { userClick = false } = {}) {
     // ==================================================
     if (f.match(/\.(jpg|jpeg|png|gif)$/i)) {
         const img = document.createElement("img");
-        img.src = BASE_URL + f;
+        img.src = nocache(BASE_URL + f);
         img.style.maxWidth = "100%";
         img.style.display = "block";
         content.appendChild(img);
@@ -696,7 +696,7 @@ function openFile(f, { userClick = false } = {}) {
     if (f.match(/\.(xls|xlsx)$/i)) {
         const iframe = document.createElement("iframe");
         iframe.src =
-            `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(BASE_URL + f)}`;
+            `https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(nocache(BASE_URL + f))}`;
         iframe.style.width = "100%";
         iframe.style.height = "100%";
         iframe.style.border = "0";
@@ -710,7 +710,7 @@ function openFile(f, { userClick = false } = {}) {
     if (f.match(/\.(doc|docx)$/i)) {
 
         const iframe = document.createElement("iframe");
-        const url = BASE_URL + f;
+        const url = nocache(BASE_URL + f);
 
         iframe.src =
             "https://docs.google.com/gview?url=" +
