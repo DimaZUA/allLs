@@ -1,543 +1,19 @@
-﻿function _typeof(o) {
-  "@babel/helpers - typeof";
-  return (
-    (_typeof =
-      "function" == typeof Symbol && "symbol" == typeof Symbol.iterator
-        ? function (o) {
-            return typeof o;
-          }
-        : function (o) {
-            return o &&
-              "function" == typeof Symbol &&
-              o.constructor === Symbol &&
-              o !== Symbol.prototype
-              ? "symbol"
-              : typeof o;
-          }),
-    _typeof(o)
-  );
-}
-function _regeneratorRuntime() {
-  "use strict";
-  /*! regenerator-runtime -- Copyright (c) 2014-present, Facebook, Inc. -- license (MIT): https://github.com/facebook/regenerator/blob/main/LICENSE */ _regeneratorRuntime =
-    function _regeneratorRuntime() {
-      return e;
-    };
-  var t,
-    e = {},
-    r = Object.prototype,
-    n = r.hasOwnProperty,
-    o =
-      Object.defineProperty ||
-      function (t, e, r) {
-        t[e] = r.value;
-      },
-    i = "function" == typeof Symbol ? Symbol : {},
-    a = i.iterator || "@@iterator",
-    c = i.asyncIterator || "@@asyncIterator",
-    u = i.toStringTag || "@@toStringTag";
-  function define(t, e, r) {
-    return (
-      Object.defineProperty(t, e, {
-        value: r,
-        enumerable: !0,
-        configurable: !0,
-        writable: !0
-      }),
-      t[e]
-    );
-  }
-  try {
-    define({}, "");
-  } catch (t) {
-    define = function define(t, e, r) {
-      return (t[e] = r);
-    };
-  }
-  function wrap(t, e, r, n) {
-    var i = e && e.prototype instanceof Generator ? e : Generator,
-      a = Object.create(i.prototype),
-      c = new Context(n || []);
-    return o(a, "_invoke", { value: makeInvokeMethod(t, r, c) }), a;
-  }
-  function tryCatch(t, e, r) {
-    try {
-      return { type: "normal", arg: t.call(e, r) };
-    } catch (t) {
-      return { type: "throw", arg: t };
-    }
-  }
-  e.wrap = wrap;
-  var h = "suspendedStart",
-    l = "suspendedYield",
-    f = "executing",
-    s = "completed",
-    y = {};
-  function Generator() {}
-  function GeneratorFunction() {}
-  function GeneratorFunctionPrototype() {}
-  var p = {};
-  define(p, a, function () {
-    return this;
-  });
-  var d = Object.getPrototypeOf,
-    v = d && d(d(values([])));
-  v && v !== r && n.call(v, a) && (p = v);
-  var g =
-    (GeneratorFunctionPrototype.prototype =
-    Generator.prototype =
-      Object.create(p));
-  function defineIteratorMethods(t) {
-    ["next", "throw", "return"].forEach(function (e) {
-      define(t, e, function (t) {
-        return this._invoke(e, t);
-      });
-    });
-  }
-  function AsyncIterator(t, e) {
-    function invoke(r, o, i, a) {
-      var c = tryCatch(t[r], t, o);
-      if ("throw" !== c.type) {
-        var u = c.arg,
-          h = u.value;
-        return h && "object" == _typeof(h) && n.call(h, "__await")
-          ? e.resolve(h.__await).then(
-              function (t) {
-                invoke("next", t, i, a);
-              },
-              function (t) {
-                invoke("throw", t, i, a);
-              }
-            )
-          : e.resolve(h).then(
-              function (t) {
-                (u.value = t), i(u);
-              },
-              function (t) {
-                return invoke("throw", t, i, a);
-              }
-            );
-      }
-      a(c.arg);
-    }
-    var r;
-    o(this, "_invoke", {
-      value: function value(t, n) {
-        function callInvokeWithMethodAndArg() {
-          return new e(function (e, r) {
-            invoke(t, n, e, r);
-          });
-        }
-        return (r = r
-          ? r.then(callInvokeWithMethodAndArg, callInvokeWithMethodAndArg)
-          : callInvokeWithMethodAndArg());
-      }
-    });
-  }
-  function makeInvokeMethod(e, r, n) {
-    var o = h;
-    return function (i, a) {
-      if (o === f) throw Error("Generator is already running");
-      if (o === s) {
-        if ("throw" === i) throw a;
-        return { value: t, done: !0 };
-      }
-      for (n.method = i, n.arg = a; ; ) {
-        var c = n.delegate;
-        if (c) {
-          var u = maybeInvokeDelegate(c, n);
-          if (u) {
-            if (u === y) continue;
-            return u;
-          }
-        }
-        if ("next" === n.method) n.sent = n._sent = n.arg;
-        else if ("throw" === n.method) {
-          if (o === h) throw ((o = s), n.arg);
-          n.dispatchException(n.arg);
-        } else "return" === n.method && n.abrupt("return", n.arg);
-        o = f;
-        var p = tryCatch(e, r, n);
-        if ("normal" === p.type) {
-          if (((o = n.done ? s : l), p.arg === y)) continue;
-          return { value: p.arg, done: n.done };
-        }
-        "throw" === p.type && ((o = s), (n.method = "throw"), (n.arg = p.arg));
-      }
-    };
-  }
-  function maybeInvokeDelegate(e, r) {
-    var n = r.method,
-      o = e.iterator[n];
-    if (o === t)
-      return (
-        (r.delegate = null),
-        ("throw" === n &&
-          e.iterator["return"] &&
-          ((r.method = "return"),
-          (r.arg = t),
-          maybeInvokeDelegate(e, r),
-          "throw" === r.method)) ||
-          ("return" !== n &&
-            ((r.method = "throw"),
-            (r.arg = new TypeError(
-              "The iterator does not provide a '" + n + "' method"
-            )))),
-        y
-      );
-    var i = tryCatch(o, e.iterator, r.arg);
-    if ("throw" === i.type)
-      return (r.method = "throw"), (r.arg = i.arg), (r.delegate = null), y;
-    var a = i.arg;
-    return a
-      ? a.done
-        ? ((r[e.resultName] = a.value),
-          (r.next = e.nextLoc),
-          "return" !== r.method && ((r.method = "next"), (r.arg = t)),
-          (r.delegate = null),
-          y)
-        : a
-      : ((r.method = "throw"),
-        (r.arg = new TypeError("iterator result is not an object")),
-        (r.delegate = null),
-        y);
-  }
-  function pushTryEntry(t) {
-    var e = { tryLoc: t[0] };
-    1 in t && (e.catchLoc = t[1]),
-      2 in t && ((e.finallyLoc = t[2]), (e.afterLoc = t[3])),
-      this.tryEntries.push(e);
-  }
-  function resetTryEntry(t) {
-    var e = t.completion || {};
-    (e.type = "normal"), delete e.arg, (t.completion = e);
-  }
-  function Context(t) {
-    (this.tryEntries = [{ tryLoc: "root" }]),
-      t.forEach(pushTryEntry, this),
-      this.reset(!0);
-  }
-  function values(e) {
-    if (e || "" === e) {
-      var r = e[a];
-      if (r) return r.call(e);
-      if ("function" == typeof e.next) return e;
-      if (!isNaN(e.length)) {
-        var o = -1,
-          i = function next() {
-            for (; ++o < e.length; )
-              if (n.call(e, o))
-                return (next.value = e[o]), (next.done = !1), next;
-            return (next.value = t), (next.done = !0), next;
-          };
-        return (i.next = i);
-      }
-    }
-    throw new TypeError(_typeof(e) + " is not iterable");
-  }
-  return (
-    (GeneratorFunction.prototype = GeneratorFunctionPrototype),
-    o(g, "constructor", {
-      value: GeneratorFunctionPrototype,
-      configurable: !0
-    }),
-    o(GeneratorFunctionPrototype, "constructor", {
-      value: GeneratorFunction,
-      configurable: !0
-    }),
-    (GeneratorFunction.displayName = define(
-      GeneratorFunctionPrototype,
-      u,
-      "GeneratorFunction"
-    )),
-    (e.isGeneratorFunction = function (t) {
-      var e = "function" == typeof t && t.constructor;
-      return (
-        !!e &&
-        (e === GeneratorFunction ||
-          "GeneratorFunction" === (e.displayName || e.name))
-      );
-    }),
-    (e.mark = function (t) {
-      return (
-        Object.setPrototypeOf
-          ? Object.setPrototypeOf(t, GeneratorFunctionPrototype)
-          : ((t.__proto__ = GeneratorFunctionPrototype),
-            define(t, u, "GeneratorFunction")),
-        (t.prototype = Object.create(g)),
-        t
-      );
-    }),
-    (e.awrap = function (t) {
-      return { __await: t };
-    }),
-    defineIteratorMethods(AsyncIterator.prototype),
-    define(AsyncIterator.prototype, c, function () {
-      return this;
-    }),
-    (e.AsyncIterator = AsyncIterator),
-    (e.async = function (t, r, n, o, i) {
-      void 0 === i && (i = Promise);
-      var a = new AsyncIterator(wrap(t, r, n, o), i);
-      return e.isGeneratorFunction(r)
-        ? a
-        : a.next().then(function (t) {
-            return t.done ? t.value : a.next();
-          });
-    }),
-    defineIteratorMethods(g),
-    define(g, u, "Generator"),
-    define(g, a, function () {
-      return this;
-    }),
-    define(g, "toString", function () {
-      return "[object Generator]";
-    }),
-    (e.keys = function (t) {
-      var e = Object(t),
-        r = [];
-      for (var n in e) r.push(n);
-      return (
-        r.reverse(),
-        function next() {
-          for (; r.length; ) {
-            var t = r.pop();
-            if (t in e) return (next.value = t), (next.done = !1), next;
-          }
-          return (next.done = !0), next;
-        }
-      );
-    }),
-    (e.values = values),
-    (Context.prototype = {
-      constructor: Context,
-      reset: function reset(e) {
-        if (
-          ((this.prev = 0),
-          (this.next = 0),
-          (this.sent = this._sent = t),
-          (this.done = !1),
-          (this.delegate = null),
-          (this.method = "next"),
-          (this.arg = t),
-          this.tryEntries.forEach(resetTryEntry),
-          !e)
-        )
-          for (var r in this)
-            "t" === r.charAt(0) &&
-              n.call(this, r) &&
-              !isNaN(+r.slice(1)) &&
-              (this[r] = t);
-      },
-      stop: function stop() {
-        this.done = !0;
-        var t = this.tryEntries[0].completion;
-        if ("throw" === t.type) throw t.arg;
-        return this.rval;
-      },
-      dispatchException: function dispatchException(e) {
-        if (this.done) throw e;
-        var r = this;
-        function handle(n, o) {
-          return (
-            (a.type = "throw"),
-            (a.arg = e),
-            (r.next = n),
-            o && ((r.method = "next"), (r.arg = t)),
-            !!o
-          );
-        }
-        for (var o = this.tryEntries.length - 1; o >= 0; --o) {
-          var i = this.tryEntries[o],
-            a = i.completion;
-          if ("root" === i.tryLoc) return handle("end");
-          if (i.tryLoc <= this.prev) {
-            var c = n.call(i, "catchLoc"),
-              u = n.call(i, "finallyLoc");
-            if (c && u) {
-              if (this.prev < i.catchLoc) return handle(i.catchLoc, !0);
-              if (this.prev < i.finallyLoc) return handle(i.finallyLoc);
-            } else if (c) {
-              if (this.prev < i.catchLoc) return handle(i.catchLoc, !0);
-            } else {
-              if (!u) throw Error("try statement without catch or finally");
-              if (this.prev < i.finallyLoc) return handle(i.finallyLoc);
-            }
-          }
-        }
-      },
-      abrupt: function abrupt(t, e) {
-        for (var r = this.tryEntries.length - 1; r >= 0; --r) {
-          var o = this.tryEntries[r];
-          if (
-            o.tryLoc <= this.prev &&
-            n.call(o, "finallyLoc") &&
-            this.prev < o.finallyLoc
-          ) {
-            var i = o;
-            break;
-          }
-        }
-        i &&
-          ("break" === t || "continue" === t) &&
-          i.tryLoc <= e &&
-          e <= i.finallyLoc &&
-          (i = null);
-        var a = i ? i.completion : {};
-        return (
-          (a.type = t),
-          (a.arg = e),
-          i
-            ? ((this.method = "next"), (this.next = i.finallyLoc), y)
-            : this.complete(a)
-        );
-      },
-      complete: function complete(t, e) {
-        if ("throw" === t.type) throw t.arg;
-        return (
-          "break" === t.type || "continue" === t.type
-            ? (this.next = t.arg)
-            : "return" === t.type
-            ? ((this.rval = this.arg = t.arg),
-              (this.method = "return"),
-              (this.next = "end"))
-            : "normal" === t.type && e && (this.next = e),
-          y
-        );
-      },
-      finish: function finish(t) {
-        for (var e = this.tryEntries.length - 1; e >= 0; --e) {
-          var r = this.tryEntries[e];
-          if (r.finallyLoc === t)
-            return this.complete(r.completion, r.afterLoc), resetTryEntry(r), y;
-        }
-      },
-      catch: function _catch(t) {
-        for (var e = this.tryEntries.length - 1; e >= 0; --e) {
-          var r = this.tryEntries[e];
-          if (r.tryLoc === t) {
-            var n = r.completion;
-            if ("throw" === n.type) {
-              var o = n.arg;
-              resetTryEntry(r);
-            }
-            return o;
-          }
-        }
-        throw Error("illegal catch attempt");
-      },
-      delegateYield: function delegateYield(e, r, n) {
-        return (
-          (this.delegate = { iterator: values(e), resultName: r, nextLoc: n }),
-          "next" === this.method && (this.arg = t),
-          y
-        );
-      }
-    }),
-    e
-  );
-}
-function asyncGeneratorStep(n, t, e, r, o, a, c) {
-  try {
-    var i = n[a](c),
-      u = i.value;
-  } catch (n) {
-    return void e(n);
-  }
-  i.done ? t(u) : Promise.resolve(u).then(r, o);
-}
-function _asyncToGenerator(n) {
-  return function () {
-    var t = this,
-      e = arguments;
-    return new Promise(function (r, o) {
-      var a = n.apply(t, e);
-      function _next(n) {
-        asyncGeneratorStep(a, r, o, _next, _throw, "next", n);
-      }
-      function _throw(n) {
-        asyncGeneratorStep(a, r, o, _next, _throw, "throw", n);
-      }
-      _next(void 0);
-    });
-  };
-}
-function _createForOfIteratorHelper(r, e) {
-  var t =
-    ("undefined" != typeof Symbol && r[Symbol.iterator]) || r["@@iterator"];
-  if (!t) {
-    if (
-      Array.isArray(r) ||
-      (t = _unsupportedIterableToArray(r)) ||
-      (e && r && "number" == typeof r.length)
-    ) {
-      t && (r = t);
-      var _n = 0,
-        F = function F() {};
-      return {
-        s: F,
-        n: function n() {
-          return _n >= r.length ? { done: !0 } : { done: !1, value: r[_n++] };
-        },
-        e: function e(r) {
-          throw r;
-        },
-        f: F
-      };
-    }
-    throw new TypeError(
-      "Invalid attempt to iterate non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."
-    );
-  }
-  var o,
-    a = !0,
-    u = !1;
-  return {
-    s: function s() {
-      t = t.call(r);
-    },
-    n: function n() {
-      var r = t.next();
-      return (a = r.done), r;
-    },
-    e: function e(r) {
-      (u = !0), (o = r);
-    },
-    f: function f() {
-      try {
-        a || null == t["return"] || t["return"]();
-      } finally {
-        if (u) throw o;
-      }
-    }
-  };
-}
-function _unsupportedIterableToArray(r, a) {
-  if (r) {
-    if ("string" == typeof r) return _arrayLikeToArray(r, a);
-    var t = {}.toString.call(r).slice(8, -1);
-    return (
-      "Object" === t && r.constructor && (t = r.constructor.name),
-      "Map" === t || "Set" === t
-        ? Array.from(r)
-        : "Arguments" === t ||
-          /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(t)
-        ? _arrayLikeToArray(r, a)
-        : void 0
-    );
-  }
-}
-function _arrayLikeToArray(r, a) {
-  (null == a || a > r.length) && (a = r.length);
-  for (var e = 0, n = Array(a); e < a; e++) n[e] = r[e];
-  return n;
-}
-var data = {};
+﻿var data = {};
+
 function displayHomeInfo(homeCode) {
   var home = homes.find(function (h) {
     return h.code === homeCode;
   });
-  data = home;
+
+  if (!home) {
+    document.getElementById("maincontainer").innerHTML =
+      "<h2>Информация не найдена</h2>";
+    return;
+  }
+
+  // делаем копию, чтобы не портить исходный объект
+  data = { ...home };
+
   var fieldMapping = {
     okpo: "code",
     ORGKR: "name",
@@ -545,17 +21,15 @@ function displayHomeInfo(homeCode) {
     adrfull: "adr",
     голова: "головаfull"
   };
+
   for (var targetField in fieldMapping) {
     var sourceField = fieldMapping[targetField];
-    data[targetField] = data[targetField] || data[sourceField];
-  }
-  if (!home) {
-    document.getElementById("maincontainer").innerHTML =
-      "<h2>Информация не найдена</h2>";
-    return;
+    if (data[targetField] == null && data[sourceField] != null) {
+      data[targetField] = data[sourceField];
+    }
   }
 
-  // Словарь для замены ключей на понятные надписи
+  // Словарь для отображения ключей
   var keyMap = {
     name: "Наименование",
     code: "Код ЄДРПОУ",
@@ -571,334 +45,612 @@ function displayHomeInfo(homeCode) {
     "ЖК/ОСББ": "ЖК/ОСББ",
     Iban: "IBAN"
   };
-  var infoHtml =
-    '    <div id="dropArea">\u041F\u0435\u0440\u0435\u0442\u0430\u0449\u0438\u0442\u0435 \u0444\u0430\u0439\u043B\u044B \u0441\u044E\u0434\u0430 \u0438\u043B\u0438 \u043A\u043B\u0438\u043A\u043D\u0438\u0442\u0435, \u0447\u0442\u043E\u0431\u044B \u0432\u044B\u0431\u0440\u0430\u0442\u044C</div>\n    <input type="file" id="uploadFile" multiple style="display: none;">\n<h2>\u0418\u043D\u0444\u043E\u0440\u043C\u0430\u0446\u0438\u044F \u043E \u0434\u043E\u043C\u0435: '.concat(
-      home.name,
-      "</h2><ul>"
-    );
+
+  var infoHtml = `
+    <div id="dropArea">
+      Перетащите файлы сюда или кликните, чтобы выбрать
+    </div>
+    <input type="file" id="uploadFile" multiple style="display: none;">
+
+    <h2>Информация о доме: ${home.name}</h2>
+    <ul>
+  `;
+
   for (var key in home) {
     if (home.hasOwnProperty(key) && keyMap[key] && home[key]) {
-      infoHtml += '<li \n                        title="['
-        .concat(key, ']"\n                        onclick="copyToClipboard(\'[')
-        .concat(key, "]')\">\n                        <strong>")
-        .concat(keyMap[key], ":</strong> ")
-        .concat(home[key], "\n                     </li>");
+      infoHtml += `
+        <li
+          title="{${key}}"
+          onclick="copyToClipboard('{${key}}')"
+        >
+          <strong>${keyMap[key]}:</strong> ${home[key]}
+        </li>
+      `;
     }
   }
-  infoHtml += "</ul>";
 
-  // Добавляем секцию для реквизитов
-  infoHtml +=
-    "<style>\n                    p {\n                        margin: 0;\n                        padding: 0;\n                        line-height: 1.2;\n                    }\n                </style><h3>\u0420\u0435\u043A\u0432\u0456\u0437\u0438\u0442\u0438:</h3>";
-  if (home.name)
-    infoHtml += "<p>"
-      .concat(home.name, " \u0432 \u043E\u0441\u043E\u0431\u0456 ")
-      .concat(
-        home.Руководителя,
-        ", \u0449\u043E \u0434\u0456\u0454 \u043D\u0430 \u043F\u0456\u0434\u0441\u0442\u0430\u0432\u0456 \u0421\u0442\u0430\u0442\u0443\u0442\u0443,</p><br>"
-      );
-  if (home.name)
-    infoHtml +=
-      "<p><strong>\u041D\u0430\u0439\u043C\u0435\u043D\u0443\u0432\u0430\u043D\u043D\u044F:</strong> ".concat(
-        home.name,
-        "</p>"
-      );
-  if (home.adr)
-    infoHtml +=
-      "<p><strong>\u0410\u0434\u0440\u0435\u0441\u0430:</strong> ".concat(
-        home.adr,
-        "</p>"
-      );
-  if (home.code)
-    infoHtml +=
-      "<p><strong>\u041A\u043E\u0434 \u0404\u0414\u0420\u041F\u041E\u0423:</strong> ".concat(
-        home.code,
-        "</p>"
-      );
-  if (home.Iban)
-    infoHtml += "<p><strong>IBAN:</strong> "
-      .concat(home.Iban)
-      .concat(home.Bank ? " в " + home.Bank : "", "</p>");
-  if (home.email)
-    infoHtml +=
-      "<p><strong>\u0415\u043B\u0435\u043A\u0442\u0440\u043E\u043D\u043D\u0430 \u043F\u043E\u0448\u0442\u0430:</strong> ".concat(
-        home.email,
-        "</p>"
-      );
-  if (home.tel)
-    infoHtml +=
-      "<p><strong>\u0422\u0435\u043B\u0435\u0444\u043E\u043D:</strong> ".concat(
-        home.tel,
-        "</p>"
-      );
-  if (home.Podpis) infoHtml += "<p>".concat(home.Podpis, "</p>");
+  infoHtml += `
+    </ul>
+
+    <style>
+      p {
+        margin: 0;
+        padding: 0;
+        line-height: 1.2;
+      }
+    </style>
+
+    <h3>Реквізити:</h3>
+  `;
+
+  if (home.name && home.Руководителя) {
+    infoHtml += `
+      <p>
+        ${home.name} в особі ${home.Руководителя},
+        що діє на підставі Статуту,
+      </p>
+      <br>
+    `;
+  }
+
+  if (home.name) {
+    infoHtml += `
+      <p><strong>Найменування:</strong> ${home.name}</p>
+    `;
+  }
+
+  if (home.adr) {
+    infoHtml += `
+      <p><strong>Адреса:</strong> ${home.adr}</p>
+    `;
+  }
+
+  if (home.code) {
+    infoHtml += `
+      <p><strong>Код ЄДРПОУ:</strong> ${home.code}</p>
+    `;
+  }
+
+  if (home.Iban) {
+    infoHtml += `
+      <p>
+        <strong>IBAN:</strong>
+        ${home.Iban}${home.Bank ? " в " + home.Bank : ""}
+      </p>
+    `;
+  }
+
+  if (home.email) {
+    infoHtml += `
+      <p><strong>Електронна пошта:</strong> ${home.email}</p>
+    `;
+  }
+
+  if (home.tel) {
+    infoHtml += `
+      <p><strong>Телефон:</strong> ${home.tel}</p>
+    `;
+  }
+
+  if (home.Podpis) {
+    infoHtml += `
+      <p>${home.Podpis}</p>
+    `;
+  }
+
   document.getElementById("maincontainer").innerHTML = infoHtml;
+
   var dropArea = document.getElementById("dropArea");
   var fileInput = document.getElementById("uploadFile");
 
-  // Открытие диалога выбора файлов при клике по области
-  dropArea.addEventListener("click", function () {
+  // UI-обработчики (без дублирования)
+  dropArea.onclick = function () {
     fileInput.click();
-  });
+  };
 
-  // Обработчик перетаскивания файлов
-  dropArea.addEventListener("dragover", function (event) {
+  dropArea.ondragover = function (event) {
     event.preventDefault();
     dropArea.classList.add("hover");
-  });
-  dropArea.addEventListener("dragleave", function () {
+  };
+
+  dropArea.ondragleave = function () {
     dropArea.classList.remove("hover");
-  });
-  dropArea.addEventListener("drop", function (event) {
+  };
+
+  dropArea.ondrop = function (event) {
     event.preventDefault();
     dropArea.classList.remove("hover");
-    var files = event.dataTransfer.files;
-    if (files.length) {
-      processFiles(files);
+    if (event.dataTransfer.files.length) {
+      processFiles(event.dataTransfer.files);
     }
-  });
+  };
 
-  // Обработчик загрузки файлов через input
-  fileInput.addEventListener("change", function (event) {
-    var files = event.target.files;
-    if (files.length) {
-      processFiles(files);
+  fileInput.onchange = function (event) {
+    if (event.target.files.length) {
+      processFiles(event.target.files);
     }
-  });
+  };
 }
 
-// Обработка нескольких файлов
+
+//==========================================
+// Обработка документов
+//==========================================
+
 function processFiles(files) {
-  var _iterator = _createForOfIteratorHelper(files),
-    _step;
-  try {
-    var _loop = function _loop() {
-      var file = _step.value;
-      var reader = new FileReader();
-      reader.readAsArrayBuffer(file);
-      reader.onload = function (e) {
-        var content = e.target.result;
-        var fileExtension = file.name.split(".").pop().toLowerCase();
-        if (fileExtension === "docx") {
-          processWordFile(content, file.name);
-        } else if (fileExtension === "xlsx") {
-          processExcelFile(content, file.name);
-        } else if (fileExtension === "txt") {
-          processTextFile(content, file.name);
-        } else if (fileExtension === "xml") {
-          processXmlFile(content, file.name);
-        } else {
+  for (const file of files) {
+    const reader = new FileReader();
+
+    reader.onload = async function (event) {
+      const content = event.target.result;
+      const originalFileName = file.name;
+      const extension = originalFileName.split(".").pop().toLowerCase();
+
+      // 1. Получаем все плейсхолдеры, реально существующие в файле
+      let fileKeys = new Set();
+
+      if (extension === "txt" || extension === "xml") {
+        fileKeys = extractPlaceholdersFromTextContent(content);
+      } else if (extension === "xlsx") {
+        fileKeys = await extractPlaceholdersFromXlsx(content);
+      } else if (extension === "docx") {
+        fileKeys = extractPlaceholdersFromDocx(content);
+      }
+
+      // 2. Формируем карту подстановок
+      const replacements = getReplacementMap(data);
+
+      // 3. Запрашиваем ТОЛЬКО отсутствующие значения
+for (const key of fileKeys) {
+  // Пропускаем условные конструкции вида {A/B}
+  if (key.includes("/")) {
+    continue;
+  }
+
+  if (isMissingValue(replacements, key)) {
+    const userValue = prompt(`Введите значение для {${key}}`, "");
+    if (userValue !== null) {
+      replacements[key] = userValue;
+    }
+  }
+}
+
+
+      // 4. Получение нового имени файла (ЕДИНСТВЕННОЕ МЕСТО)
+      const newFileName = buildNewFileName(originalFileName, replacements);
+
+      // 5. Маршрутизация обработки
+      switch (extension) {
+        case "docx":
+          processWordFile(content, newFileName, replacements);
+          break;
+
+        case "xlsx":
+          await processExcelFile(content, newFileName, replacements);
+          break;
+
+        case "txt":
+          processTextFile(content, newFileName, replacements);
+          break;
+
+        case "xml":
+          processXmlFile(content, newFileName, replacements);
+          break;
+
+        default:
           console.warn(
-            '\u23ED \u0424\u0430\u0439\u043B "'.concat(
-              file.name,
-              '" \u043F\u0440\u043E\u043F\u0443\u0449\u0435\u043D: \u043D\u0435\u043F\u043E\u0434\u0434\u0435\u0440\u0436\u0438\u0432\u0430\u0435\u043C\u044B\u0439 \u0444\u043E\u0440\u043C\u0430\u0442'
-            )
+            `Файл "${originalFileName}" пропущен: неподдерживаемый формат`
           );
+      }
+    };
+
+    reader.onerror = function () {
+      console.error(`Ошибка чтения файла: ${file.name}`);
+    };
+
+    reader.readAsArrayBuffer(file);
+  }
+}
+
+//==========================================
+// Вспомогательные функции
+//==========================================
+
+function getReplacementMap(sourceData) {
+  const map = {};
+
+  if (!sourceData || typeof sourceData !== "object") {
+    return map;
+  }
+
+  Object.keys(sourceData).forEach(function (key) {
+    const value = sourceData[key];
+    map[key.toLowerCase()] =
+      value === null || value === undefined ? "" : String(value);
+  });
+
+  return map;
+}
+
+function buildNewFileName(originalFileName, replacements) {
+  // 1. Разделяем имя и расширение
+  const dotIndex = originalFileName.lastIndexOf(".");
+  let name =
+    dotIndex >= 0
+      ? originalFileName.slice(0, dotIndex)
+      : originalFileName;
+  const ext =
+    dotIndex >= 0
+      ? originalFileName.slice(dotIndex)
+      : "";
+
+  /*
+    2. Удаляем TPL как маркер шаблона
+
+    Правила:
+    - TPL должно удаляться вместе с несловесными символами вокруг
+    - Работает для:
+      TPL_Документ
+      Документ TPL
+      Документа-TPL-
+      Документ_TPL
+  */
+
+  name = name.replace(
+    /(^|[^a-zA-Z0-9а-яА-ЯёЁ])TPL([^a-zA-Z0-9а-яА-ЯёЁ]|$)/gi,
+    " "
+  );
+
+  // Чистим хвосты: лишние пробелы, подчёркивания, дефисы
+  name = name
+    .replace(/[_\-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  // 3. Формируем дату и время
+  const now = new Date();
+
+  const yyyy = now.getFullYear();
+  const mm = String(now.getMonth() + 1).padStart(2, "0");
+  const dd = String(now.getDate()).padStart(2, "0");
+
+  const hh = String(now.getHours()).padStart(2, "0");
+  const min = String(now.getMinutes()).padStart(2, "0");
+  const ss = String(now.getSeconds()).padStart(2, "0");
+
+  const dateTime = `${yyyy}-${mm}-${dd}_${hh}-${min}-${ss}`;
+
+  const home = homes.find(h => h.code === homeCode);
+  const prefix = home && home.org3 ? home.org3 + "_" : "";
+
+  // 4. Итоговое имя файла
+  return `${prefix}_${name}_${dateTime}${ext}`;
+}
+
+
+//==========================================
+// Нормализация текста шаблона
+//==========================================
+
+function normalizeTemplateText(text, replacements, orgValue) {
+  text = resolveConditionalPlaceholders(text, orgValue);
+  text = replacePlaceholders(text, replacements);
+  return text;
+}
+
+//==========================================
+// Извлечение плейсхолдеров
+//==========================================
+
+function extractPlaceholdersFromTextContent(content) {
+  const text = new TextDecoder().decode(content);
+  return extractPlaceholdersFromText(text);
+}
+
+function extractPlaceholdersFromText(text) {
+  const keys = new Set();
+  const re = /\{([^}]+)\}/g;
+  let match;
+
+  while ((match = re.exec(text)) !== null) {
+    keys.add(match[1].toLowerCase());
+  }
+
+  return keys;
+}
+
+async function extractPlaceholdersFromXlsx(content) {
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(content);
+
+  const keys = new Set();
+
+  workbook.eachSheet(function (sheet) {
+    sheet.eachRow(function (row) {
+      row.eachCell(function (cell) {
+        const text =
+          cell.value && cell.value.formula
+            ? cell.value.formula
+            : cell.value != null
+            ? cell.value.toString()
+            : "";
+
+        extractPlaceholdersFromText(text).forEach(function (k) {
+          keys.add(k);
+        });
+      });
+    });
+  });
+
+  return keys;
+}
+
+function extractPlaceholdersFromDocx(content) {
+  const zip = new PizZip(content);
+
+  const doc = new window.docxtemplater(zip, {
+    paragraphLoop: true,
+    linebreaks: true,
+    delimiters: { start: "{", end: "}" }
+  });
+
+  const fullText = doc.getFullText();
+  return extractPlaceholdersFromText(fullText);
+}
+
+//==========================================
+// Проверка отсутствующих значений
+//==========================================
+
+function isMissingValue(replacements, key) {
+  return (
+    !replacements.hasOwnProperty(key) ||
+    replacements[key] === null ||
+    replacements[key] === undefined ||
+    String(replacements[key]).trim() === ""
+  );
+}
+
+//==========================================
+// Замена данных
+//==========================================
+
+function replacePlaceholders(text, replacements) {
+  let result = text;
+
+  Object.keys(replacements).forEach(function (key) {
+    const re = new RegExp(`\\{${key}\\}`, "gi");
+    result = result.replace(re, replacements[key]);
+  });
+
+  return result;
+}
+
+function replaceCellValue(cellValue, replacements) {
+  const text =
+    cellValue && cellValue.formula
+      ? cellValue.formula
+      : cellValue != null
+      ? cellValue.toString()
+      : "";
+
+  return normalizeTemplateText(text, replacements, data.org);
+}
+
+//==========================================
+// Обработка файлов
+//==========================================
+
+function processTextFile(content, newFileName, replacements) {
+  let text = new TextDecoder().decode(content);
+  text = normalizeTemplateText(text, replacements, data.org);
+
+  saveAs(
+    new Blob([text], { type: "text/plain;charset=utf-8" }),
+    newFileName
+  );
+}
+
+function processXmlFile(content, newFileName, replacements) {
+  let xmlText = new TextDecoder().decode(content);
+  xmlText = normalizeTemplateText(xmlText, replacements, data.org);
+
+  saveAs(
+    new Blob([xmlText], { type: "application/xml" }),
+    newFileName
+  );
+}
+
+async function processExcelFile(content, newFileName, replacements) {
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(content);
+
+  const worksheet = workbook.worksheets[0];
+
+  worksheet.eachRow(function (row) {
+    row.eachCell(function (cell) {
+      const newValue = replaceCellValue(cell.value, replacements);
+
+      if (cell.value && cell.value.formula) {
+        cell.value.formula = newValue;
+      } else {
+        cell.value = newValue;
+      }
+    });
+  });
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  saveAs(new Blob([buffer]), newFileName);
+}
+
+function processWordFile(content, newFileName, replacements) {
+  const zip = new PizZip(content);
+
+  const doc = new window.docxtemplater(zip, {
+    paragraphLoop: true,
+    linebreaks: true,
+    delimiters: { start: "{", end: "}" },
+
+    // 👇 КЛЮЧЕВОЕ МЕСТО
+    parser: function (tag) {
+      return {
+        get: function (scope) {
+          // 1. Условный {A/B}
+          if (tag.includes("/")) {
+            const resolved = resolveConditionalKey(tag, data.org);
+            if (resolved !== null) {
+              return resolved;
+            }
+          }
+
+          // 2. Обычный {KEY}
+          const key = tag.toLowerCase();
+          if (replacements.hasOwnProperty(key)) {
+            return replacements[key];
+          }
+
+          // 3. Неизвестный ключ — оставить как есть
+          return `{${tag}}`;
         }
       };
-    };
-    for (_iterator.s(); !(_step = _iterator.n()).done; ) {
-      _loop();
+    },
+
+    nullGetter: function (key) {
+      return `{${key.value}}`;
     }
-  } catch (err) {
-    _iterator.e(err);
-  } finally {
-    _iterator.f();
-  }
-}
-
-// Функция замены в DOCX
-function processWordFile(content, originalFileName) {
-  try {
-    var zip = new PizZip(content);
-    var myParser = function myParser(tag) {
-      return {
-        get:
-          tag === "."
-            ? function (s) {
-                return s;
-              }
-            : function (s) {
-                return s[tag.toLowerCase()]; // Ищем значение по ключу в нижнем регистре
-              }
-      };
-    };
-    var doc = new window.docxtemplater(zip, {
-      paragraphLoop: true,
-      linebreaks: true,
-      delimiters: {
-        start: "[",
-        end: "]"
-      },
-      nullGetter: function nullGetter(key) {
-        return "[".concat(key.value, "]");
-      },
-      // Возвращаем сам ключ как строку
-      parser: myParser
-    });
-    var normalizedData = normalizeData(data);
-    doc.render(normalizedData);
-    var blob = doc.getZip().generate({
-      type: "blob"
-    });
-    var newFileName = originalFileName.replace(".docx", "_modified.docx");
-    saveAs(blob, newFileName);
-  } catch (error) {
-    console.error(
-      "\u274C \u041E\u0448\u0438\u0431\u043A\u0430 \u043E\u0431\u0440\u0430\u0431\u043E\u0442\u043A\u0438 DOCX (".concat(
-        originalFileName,
-        "):"
-      ),
-      error
-    );
-  }
-}
-
-// Функция замены в Excel (XLSX) с ExcelJS
-function processExcelFile(_x, _x2) {
-  return _processExcelFile.apply(this, arguments);
-} // Функция замены в TXT
-function _processExcelFile() {
-  _processExcelFile = _asyncToGenerator(
-    /*#__PURE__*/ _regeneratorRuntime().mark(function _callee(
-      content,
-      originalFileName
-    ) {
-      var workbook, worksheet, normalizedData, buffer, newFileName;
-      return _regeneratorRuntime().wrap(
-        function _callee$(_context) {
-          while (1)
-            switch ((_context.prev = _context.next)) {
-              case 0:
-                _context.prev = 0;
-                workbook = new ExcelJS.Workbook();
-                _context.next = 4;
-                return workbook.xlsx.load(content);
-              case 4:
-                worksheet = workbook.worksheets[0];
-                normalizedData = normalizeData(data);
-                worksheet.eachRow(function (row) {
-                  row.eachCell(function (cell) {
-                    var _cell$value, _cell$value2, _cell$value3;
-                    var cellValue =
-                      ((_cell$value = cell.value) === null ||
-                      _cell$value === void 0
-                        ? void 0
-                        : _cell$value.formula) ||
-                      ((_cell$value2 = cell.value) === null ||
-                      _cell$value2 === void 0
-                        ? void 0
-                        : _cell$value2.toString()) ||
-                      "";
-                    Object.keys(normalizedData).forEach(function (key) {
-                      var regex = new RegExp("\\[".concat(key, "\\]"), "gi");
-                      cellValue = cellValue.replace(regex, normalizedData[key]);
-                    });
-                    if (
-                      (_cell$value3 = cell.value) !== null &&
-                      _cell$value3 !== void 0 &&
-                      _cell$value3.formula
-                    ) {
-                      cell.value.formula = cellValue;
-                    } else {
-                      cell.value = cellValue;
-                    }
-                  });
-                });
-                _context.next = 9;
-                return workbook.xlsx.writeBuffer();
-              case 9:
-                buffer = _context.sent;
-                newFileName = originalFileName.replace(
-                  ".xlsx",
-                  "_modified.xlsx"
-                );
-                saveAs(new Blob([buffer]), newFileName);
-                _context.next = 17;
-                break;
-              case 14:
-                _context.prev = 14;
-                _context.t0 = _context["catch"](0);
-                console.error(
-                  "\u274C \u041E\u0448\u0438\u0431\u043A\u0430 \u043E\u0431\u0440\u0430\u0431\u043E\u0442\u043A\u0438 XLSX (".concat(
-                    originalFileName,
-                    "):"
-                  ),
-                  _context.t0
-                );
-              case 17:
-              case "end":
-                return _context.stop();
-            }
-        },
-        _callee,
-        null,
-        [[0, 14]]
-      );
-    })
-  );
-  return _processExcelFile.apply(this, arguments);
-}
-function processTextFile(content, originalFileName) {
-  try {
-    var text = new TextDecoder().decode(content);
-    var normalizedText = text;
-    var normalizedData = normalizeData(data);
-    Object.keys(normalizedData).forEach(function (key) {
-      var regex = new RegExp("\\[".concat(key, "\\]"), "gi");
-      normalizedText = normalizedText.replace(regex, normalizedData[key]);
-    });
-    var blob = new Blob([normalizedText], {
-      type: "text/plain;charset=utf-8"
-    });
-    var newFileName = originalFileName.replace(".txt", "_modified.txt");
-    saveAs(blob, newFileName);
-  } catch (error) {
-    console.error(
-      "\u274C \u041E\u0448\u0438\u0431\u043A\u0430 \u043E\u0431\u0440\u0430\u0431\u043E\u0442\u043A\u0438 TXT (".concat(
-        originalFileName,
-        "):"
-      ),
-      error
-    );
-  }
-}
-
-// Функция замены в XML
-function processXmlFile(content, originalFileName) {
-  try {
-    var parser = new DOMParser();
-    var xmlDoc = parser.parseFromString(
-      new TextDecoder().decode(content),
-      "application/xml"
-    );
-    var xmlText = new XMLSerializer().serializeToString(xmlDoc);
-    var normalizedData = normalizeData(data);
-    Object.keys(normalizedData).forEach(function (key) {
-      var regex = new RegExp("\\[".concat(key, "\\]"), "gi");
-      xmlText = xmlText.replace(regex, normalizedData[key]);
-    });
-    var blob = new Blob([xmlText], {
-      type: "application/xml"
-    });
-    var newFileName = originalFileName.replace(".xml", "_modified.xml");
-    saveAs(blob, newFileName);
-  } catch (error) {
-    console.error(
-      "\u274C \u041E\u0448\u0438\u0431\u043A\u0430 \u043E\u0431\u0440\u0430\u0431\u043E\u0442\u043A\u0438 XML (".concat(
-        originalFileName,
-        "):"
-      ),
-      error
-    );
-  }
-}
-
-// Преобразует ключи в нижний регистр для нечувствительного поиска
-function normalizeData(data) {
-  var normalizedData = {};
-  Object.keys(data).forEach(function (key) {
-    normalizedData[key.toLowerCase()] = data[key];
   });
-  return normalizedData;
+
+  doc.render({}); // replacements обрабатываются через parser
+
+  const blob = doc.getZip().generate({ type: "blob" });
+  saveAs(blob, newFileName);
 }
+
+function resolveConditionalKey(key, orgValue) {
+  if (!key.includes("/")) {
+    return null;
+  }
+
+  const parts = key.split("/").map(s => s.trim());
+  if (parts.length !== 2) {
+    return null;
+  }
+
+  const orgType = detectOrgType(orgValue);
+
+  if (!orgType) {
+    return parts[0];
+  }
+
+  const [a, b] = parts;
+
+  const aIsCoop = textHasCoopMarker(a);
+  const aIsOsbb = textHasOsbbMarker(a);
+
+  const bIsCoop = textHasCoopMarker(b);
+  const bIsOsbb = textHasOsbbMarker(b);
+
+  if (orgType === "COOP") {
+    if (aIsCoop && !bIsCoop) return a;
+    if (bIsCoop && !aIsCoop) return b;
+  }
+
+  if (orgType === "OSBB") {
+    if (aIsOsbb && !bIsOsbb) return a;
+    if (bIsOsbb && !aIsOsbb) return b;
+  }
+
+  return a;
+}
+
+
+
+
+//==========================================
+// Определение типа организации
+//==========================================
+
+function detectOrgType(orgValue) {
+  if (!orgValue) {
+    return null;
+  }
+
+  // Строгая проверка аббревиатур
+  if (/(^|[^а-яa-z0-9])(жк|жбк)(?=[^а-яa-z0-9]|$)/i.test(orgValue)) {
+    return "COOP";
+  }
+
+  if (/(^|[^а-яa-z0-9])(осбб|осмд)(?=[^а-яa-z0-9]|$)/i.test(orgValue)) {
+    return "OSBB";
+  }
+
+  // Fallback
+  if (/коопера/i.test(orgValue)) {
+    return "COOP";
+  }
+
+  if (/(власник|владельц)/i.test(orgValue)) {
+    return "OSBB";
+  }
+
+  return null;
+}
+
+function textHasCoopMarker(text) {
+  if (!text) {
+    return false;
+  }
+
+  return (
+    /(^|[^а-яa-z0-9])(жк|жбк)(?=[^а-яa-z0-9]|$)/i.test(text) ||
+    /коопера/i.test(text)
+  );
+}
+
+function textHasOsbbMarker(text) {
+  if (!text) {
+    return false;
+  }
+
+  return (
+    /(^|[^а-яa-z0-9])(осбб|осмд)(?=[^а-яa-z0-9]|$)/i.test(text) ||
+    /(власник|владельц)/i.test(text)
+  );
+}
+
+//==========================================
+// Обработка условных {A/B}
+//==========================================
+
+function resolveConditionalPlaceholders(text, orgValue) {
+  const orgType = detectOrgType(orgValue);
+
+  if (!orgType) {
+    return text;
+  }
+
+  return text.replace(/\{([^{}\/]+)\/([^{}]+)\}/g, function (
+    _match,
+    partA,
+    partB
+  ) {
+    const aIsCoop = textHasCoopMarker(partA);
+    const aIsOsbb = textHasOsbbMarker(partA);
+
+    const bIsCoop = textHasCoopMarker(partB);
+    const bIsOsbb = textHasOsbbMarker(partB);
+
+    if (orgType === "COOP") {
+      if (aIsCoop && !bIsCoop) return partA;
+      if (bIsCoop && !aIsCoop) return partB;
+    }
+
+    if (orgType === "OSBB") {
+      if (aIsOsbb && !bIsOsbb) return partA;
+      if (bIsOsbb && !aIsOsbb) return partB;
+    }
+
+    return partA;
+  });
+}
+
