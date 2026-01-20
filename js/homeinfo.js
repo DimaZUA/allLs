@@ -19,7 +19,7 @@ function displayHomeInfo(homeCode) {
     ORGKR: "name",
     org: "name",
     adrfull: "adr",
-    голова: "головаfull"
+    головаfull: "головаfull",
   };
 
   for (var targetField in fieldMapping) {
@@ -200,20 +200,44 @@ function processFiles(files) {
       // 2. Формируем карту подстановок
       const replacements = getReplacementMap(data);
 
+// ===== автоключ {голова} из {головаfull} =====
+if (
+  typeof replacements["головаfull"] === "string" &&
+  replacements["головаfull"].trim() !== ""
+) {
+  const parts = replacements["головаfull"].trim().split(/\s+/);
+
+  if (parts.length >= 2) {
+    const lastName = parts[0];
+    const firstInitial = parts[1] ? parts[1][0] + "." : "";
+    const middleInitial = parts[2] ? " " + parts[2][0] + "." : "";
+
+    replacements["голова"] =
+      `${lastName} ${firstInitial}${middleInitial}`.trim();
+  } else {
+    replacements["голова"] = replacements["головаfull"];
+  }
+}
+
       // 3. Запрашиваем ТОЛЬКО отсутствующие значения
+// 3. Собираем недостающие ключи (кроме {A/B})
+const missingKeys = [];
+
 for (const key of fileKeys) {
-  // Пропускаем условные конструкции вида {A/B}
   if (key.includes("/")) {
     continue;
   }
 
   if (isMissingValue(replacements, key)) {
-    const userValue = prompt(`Введите значение для {${key}}`, "");
-    if (userValue !== null) {
-      replacements[key] = userValue;
-    }
+    missingKeys.push(key);
   }
 }
+
+// 4. Если есть недостающие — показываем форму
+if (missingKeys.length > 0) {
+  await requestMissingValuesFromUI(missingKeys, replacements);
+}
+
 
 
       // 4. Получение нового имени файла (ЕДИНСТВЕННОЕ МЕСТО)
@@ -622,35 +646,78 @@ function textHasOsbbMarker(text) {
 // Обработка условных {A/B}
 //==========================================
 
-function resolveConditionalPlaceholders(text, orgValue) {
-  const orgType = detectOrgType(orgValue);
+function requestMissingValuesFromUI(keys, replacements) {
+  return new Promise((resolve, reject) => {
+    // overlay
+    const overlay = document.createElement("div");
+    overlay.style.position = "fixed";
+    overlay.style.top = 0;
+    overlay.style.left = 0;
+    overlay.style.width = "100%";
+    overlay.style.height = "100%";
+    overlay.style.background = "rgba(0,0,0,0.4)";
+    overlay.style.zIndex = 9999;
+    overlay.style.display = "flex";
+    overlay.style.alignItems = "center";
+    overlay.style.justifyContent = "center";
 
-  if (!orgType) {
-    return text;
-  }
+    // modal
+    const modal = document.createElement("div");
+    modal.style.background = "#fff";
+    modal.style.padding = "20px";
+    modal.style.borderRadius = "6px";
+    modal.style.width = "400px";
+    modal.style.maxHeight = "80vh";
+    modal.style.overflowY = "auto";
+    modal.style.boxShadow = "0 4px 12px rgba(0,0,0,0.2)";
 
-  return text.replace(/\{([^{}\/]+)\/([^{}]+)\}/g, function (
-    _match,
-    partA,
-    partB
-  ) {
-    const aIsCoop = textHasCoopMarker(partA);
-    const aIsOsbb = textHasOsbbMarker(partA);
+    modal.innerHTML = `
+      <h3 style="margin-top:0">Заполните данные</h3>
+      <div id="missing-fields"></div>
+      <div style="margin-top:15px; text-align:right">
+        <button id="cancelBtn">Отмена</button>
+        <button id="okBtn">Скачать</button>
+      </div>
+    `;
 
-    const bIsCoop = textHasCoopMarker(partB);
-    const bIsOsbb = textHasOsbbMarker(partB);
+    const fieldsContainer = modal.querySelector("#missing-fields");
 
-    if (orgType === "COOP") {
-      if (aIsCoop && !bIsCoop) return partA;
-      if (bIsCoop && !aIsCoop) return partB;
-    }
+    keys.forEach(key => {
+      const wrapper = document.createElement("div");
+      wrapper.style.marginBottom = "10px";
 
-    if (orgType === "OSBB") {
-      if (aIsOsbb && !bIsOsbb) return partA;
-      if (bIsOsbb && !aIsOsbb) return partB;
-    }
+      const label = document.createElement("label");
+      label.textContent = `{${key}}`;
+      label.style.display = "block";
+      label.style.fontSize = "12px";
+      label.style.marginBottom = "4px";
 
-    return partA;
+      const input = document.createElement("input");
+      input.type = "text";
+      input.style.width = "100%";
+      input.dataset.key = key;
+
+      wrapper.appendChild(label);
+      wrapper.appendChild(input);
+      fieldsContainer.appendChild(wrapper);
+    });
+
+    modal.querySelector("#cancelBtn").onclick = () => {
+      document.body.removeChild(overlay);
+      reject(new Error("User cancelled"));
+    };
+
+    modal.querySelector("#okBtn").onclick = () => {
+      const inputs = modal.querySelectorAll("input[data-key]");
+      inputs.forEach(input => {
+        replacements[input.dataset.key] = input.value || "";
+      });
+
+      document.body.removeChild(overlay);
+      resolve();
+    };
+
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
   });
 }
-
