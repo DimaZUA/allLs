@@ -1,6 +1,7 @@
 ﻿var data = {};
-
+let hk=0;
 function displayHomeInfo(homeCode) {
+  hk=homeCode;
   var home = homes.find(function (h) {
     return h.code === homeCode;
   });
@@ -139,7 +140,7 @@ function displayHomeInfo(homeCode) {
   }
 
   document.getElementById("maincontainer").innerHTML = infoHtml;
-
+  var maincontainer= document.getElementById("maincontainer");
   var dropArea = document.getElementById("dropArea");
   var fileInput = document.getElementById("uploadFile");
 
@@ -148,16 +149,16 @@ function displayHomeInfo(homeCode) {
     fileInput.click();
   };
 
-  dropArea.ondragover = function (event) {
+  maincontainer.ondragover = function (event) {
     event.preventDefault();
     dropArea.classList.add("hover");
   };
 
-  dropArea.ondragleave = function () {
+  maincontainer.ondragleave = function () {
     dropArea.classList.remove("hover");
   };
 
-  dropArea.ondrop = function (event) {
+  maincontainer.ondrop = function (event) {
     event.preventDefault();
     dropArea.classList.remove("hover");
     if (event.dataTransfer.files.length) {
@@ -165,11 +166,18 @@ function displayHomeInfo(homeCode) {
     }
   };
 
-  fileInput.onchange = function (event) {
-    if (event.target.files.length) {
-      processFiles(event.target.files);
-    }
-  };
+fileInput.onchange = function (event) {
+  if (event.target.files.length) {
+    processFiles(event.target.files);
+  }
+
+  // ⬅️ КРИТИЧЕСКИ ВАЖНО
+  event.target.value = "";
+};
+
+  const res=analyzeTypicalApartments(true);
+  console.log ('res:');
+  console.log (res);
 }
 
 
@@ -186,7 +194,10 @@ function processFiles(files) {
       const originalFileName = file.name;
       const extension = originalFileName.split(".").pop().toLowerCase();
 
-      // 1. Получаем все плейсхолдеры, реально существующие в файле
+      /* =====================================================
+         1. Извлекаем плейсхолдеры, реально присутствующие в файле
+         ===================================================== */
+
       let fileKeys = new Set();
 
       if (extension === "txt" || extension === "xml") {
@@ -197,74 +208,138 @@ function processFiles(files) {
         fileKeys = extractPlaceholdersFromDocx(content);
       }
 
-      // 2. Формируем карту подстановок
+      /* =====================================================
+         2. Формируем карту подстановок из data
+         ===================================================== */
+
       const replacements = getReplacementMap(data);
 
-// ===== автоключ {голова} из {головаfull} =====
-if (
-  typeof replacements["головаfull"] === "string" &&
-  replacements["головаfull"].trim() !== ""
-) {
-  const parts = replacements["головаfull"].trim().split(/\s+/);
+      /* =====================================================
+         2.1 Автоключ {голова} из {головаfull}
+         ===================================================== */
 
-  if (parts.length >= 2) {
-    const lastName = parts[0];
-    const firstInitial = parts[1] ? parts[1][0] + "." : "";
-    const middleInitial = parts[2] ? " " + parts[2][0] + "." : "";
+      if (
+        typeof replacements["головаfull"] === "string" &&
+        replacements["головаfull"].trim() !== ""
+      ) {
+        const parts = replacements["головаfull"].trim().split(/\s+/);
 
-    replacements["голова"] =
-      `${lastName} ${firstInitial}${middleInitial}`.trim();
-  } else {
-    replacements["голова"] = replacements["головаfull"];
-  }
-}
+        if (parts.length >= 2) {
+          const lastName = parts[0];
+          const firstInitial = parts[1] ? parts[1][0] + "." : "";
+          const middleInitial = parts[2] ? " " + parts[2][0] + "." : "";
 
-      // 3. Запрашиваем ТОЛЬКО отсутствующие значения
-// 3. Собираем недостающие ключи (кроме {A/B})
-const missingKeys = [];
+          replacements["голова"] =
+            `${lastName} ${firstInitial}${middleInitial}`.trim();
+        } else {
+          replacements["голова"] = replacements["головаfull"];
+        }
+      }
 
-for (const key of fileKeys) {
-  if (key.includes("/")) {
-    continue;
-  }
+      /* =====================================================
+         3. Определяем, какие computed-плейсхолдеры используются
+         ===================================================== */
 
-  if (isMissingValue(replacements, key)) {
-    missingKeys.push(key);
-  }
-}
+      const usedComputedKeys = Object.keys(computedPlaceholders || {})
+        .filter(key => fileKeys.has(key));
 
-// 4. Если есть недостающие — показываем форму
-if (missingKeys.length > 0) {
-  await requestMissingValuesFromUI(missingKeys, replacements);
-}
+      /* =====================================================
+         4. Собираем недостающие ключи
+            - обычные {KEY}
+            - зависимости computed-плейсхолдеров
+            - исключаем {A/B}
+         ===================================================== */
 
+      const missingKeys = [];
 
+      // обычные плейсхолдеры
+      for (const key of fileKeys) {
+        if (key.includes("/")) {
+          continue;
+        }
 
-      // 4. Получение нового имени файла (ЕДИНСТВЕННОЕ МЕСТО)
-      const newFileName = buildNewFileName(originalFileName, replacements);
+        if (computedPlaceholders && computedPlaceholders[key]) {
+          continue;
+        }
 
-      // 5. Маршрутизация обработки
-      switch (extension) {
-        case "docx":
+        if (isMissingValue(replacements, key)) {
+          missingKeys.push(key);
+        }
+      }
+
+      // зависимости вычисляемых плейсхолдеров
+      usedComputedKeys.forEach(computedKey => {
+        const rule = computedPlaceholders[computedKey];
+
+        if (!rule || !Array.isArray(rule.dependsOn)) {
+          return;
+        }
+
+        rule.dependsOn.forEach(depKey => {
+          if (isMissingValue(replacements, depKey)) {
+            missingKeys.push(depKey);
+          }
+        });
+      });
+
+      // делаем список уникальным
+      const uniqueMissingKeys = [...new Set(missingKeys)];
+
+      /* =====================================================
+         5. Запрашиваем недостающие значения через UI
+         ===================================================== */
+
+      if (uniqueMissingKeys.length > 0) {
+        try {
+          await requestMissingValuesFromUI(uniqueMissingKeys, replacements);
+        } catch (e) {
+          // пользователь нажал "Отмена" — просто пропускаем файл
+          console.warn(`Файл "${originalFileName}" пропущен пользователем`);
+          return;
+        }
+      }
+
+      /* =====================================================
+         6. Вычисляем computed-плейсхолдеры
+         ===================================================== */
+
+      usedComputedKeys.forEach(computedKey => {
+        const rule = computedPlaceholders[computedKey];
+
+        if (
+          rule &&
+          typeof rule.compute === "function"
+        ) {
+          replacements[computedKey] = rule.compute(replacements);
+        }
+      });
+
+      /* =====================================================
+         7. Формируем имя выходного файла
+         ===================================================== */
+
+      const newFileName = buildNewFileName(originalFileName);
+
+      /* =====================================================
+         8. Обрабатываем файл по типу
+         ===================================================== */
+
+      try {
+        if (extension === "docx") {
           processWordFile(content, newFileName, replacements);
-          break;
-
-        case "xlsx":
+        } else if (extension === "xlsx") {
           await processExcelFile(content, newFileName, replacements);
-          break;
-
-        case "txt":
+        } else if (extension === "txt") {
           processTextFile(content, newFileName, replacements);
-          break;
-
-        case "xml":
+        } else if (extension === "xml") {
           processXmlFile(content, newFileName, replacements);
-          break;
-
-        default:
+        } else {
           console.warn(
             `Файл "${originalFileName}" пропущен: неподдерживаемый формат`
           );
+        }
+      } catch (err) {
+        console.error(`Ошибка обработки файла "${originalFileName}"`, err);
       }
     };
 
@@ -275,6 +350,7 @@ if (missingKeys.length > 0) {
     reader.readAsArrayBuffer(file);
   }
 }
+
 
 //==========================================
 // Вспомогательные функции
@@ -296,7 +372,7 @@ function getReplacementMap(sourceData) {
   return map;
 }
 
-function buildNewFileName(originalFileName, replacements) {
+function buildNewFileName(originalFileName) {
   // 1. Разделяем имя и расширение
   const dotIndex = originalFileName.lastIndexOf(".");
   let name =
@@ -321,13 +397,12 @@ function buildNewFileName(originalFileName, replacements) {
   */
 
   name = name.replace(
-    /(^|[^a-zA-Z0-9а-яА-ЯёЁ])TPL([^a-zA-Z0-9а-яА-ЯёЁ]|$)/gi,
+    /([^a-zA-Z0-9а-яА-ЯёЁ]*)TPL([^a-zA-Z0-9а-яА-ЯёЁ]*)/gi,
     " "
   );
 
   // Чистим хвосты: лишние пробелы, подчёркивания, дефисы
   name = name
-    .replace(/[_\-]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 
@@ -344,11 +419,11 @@ function buildNewFileName(originalFileName, replacements) {
 
   const dateTime = `${yyyy}-${mm}-${dd}_${hh}-${min}-${ss}`;
 
-  const home = homes.find(h => h.code === homeCode);
+  const home = homes.find(h => h.code === hk);
   const prefix = home && home.org3 ? home.org3 + "_" : "";
 
   // 4. Итоговое имя файла
-  return `${prefix}_${name}_${dateTime}${ext}`;
+  return `${prefix}${name}_${dateTime}${ext}`;
 }
 
 
@@ -702,22 +777,107 @@ function requestMissingValuesFromUI(keys, replacements) {
       fieldsContainer.appendChild(wrapper);
     });
 
-    modal.querySelector("#cancelBtn").onclick = () => {
-      document.body.removeChild(overlay);
-      reject(new Error("User cancelled"));
-    };
+modal.querySelector("#cancelBtn").onclick = () => {
+  document.body.removeChild(overlay);
+  reject(new Error("User cancelled"));
+};
 
-    modal.querySelector("#okBtn").onclick = () => {
-      const inputs = modal.querySelectorAll("input[data-key]");
-      inputs.forEach(input => {
-        replacements[input.dataset.key] = input.value || "";
-      });
+modal.querySelector("#okBtn").onclick = () => {
+  const inputs = modal.querySelectorAll("input[data-key]");
 
+  inputs.forEach(input => {
+    let val = input.value.trim();
+
+    if (val === "") {
+      replacements[input.dataset.key] = "";
+      return;
+    }
+
+    // убираем пробелы (разделители тысяч)
+    let normalized = val.replace(/\s+/g, "");
+
+    // заменяем запятую на точку
+    normalized = normalized.replace(",", ".");
+
+    // строгая проверка числа
+    if (/^-?\d+(\.\d+)?$/.test(normalized)) {
+      replacements[input.dataset.key] = Number(normalized);
+    } else {
+      replacements[input.dataset.key] = val;
+    }
+  });
       document.body.removeChild(overlay);
-      resolve();
+      resolve(true);
     };
 
     overlay.appendChild(modal);
     document.body.appendChild(overlay);
   });
 }
+
+// ==========================================
+// Реестр вычисляемых плейсхолдеров
+// ==========================================
+
+const computedPlaceholders = {
+"тарпроц":{
+dependsOn: ["тариф", "тариф старый"],
+compute(replacements) {
+      const newTariff = parseFloat(replacements["тариф"]);
+      const oldTariff = parseFloat(replacements["тариф старый"]);
+
+      if (isNaN(newTariff) || isNaN(oldTariff)) {
+        return "";
+      }
+      const diff = newTariff - oldTariff;
+      return (diff/oldTariff).toFixedWithComma();
+}
+},
+
+  "приклад": {
+    dependsOn: ["тариф", "тариф старый"],
+
+    compute(replacements) {
+      const newTariff = parseFloat(replacements["тариф"]);
+      const oldTariff = parseFloat(replacements["тариф старый"]);
+
+      if (isNaN(newTariff) || isNaN(oldTariff)) {
+        return "";
+      }
+
+      const analysisResult = analyzeTypicalApartments(false);
+
+      if (
+        !analysisResult ||
+        !Array.isArray(analysisResult.types) ||
+        analysisResult.types.length === 0
+      ) {
+        return "";
+      }
+
+      const diff = newTariff - oldTariff;
+      const parts = [];
+
+      analysisResult.types.forEach(function (type) {
+        if (typeof type.avg !== "number") {
+          return;
+        }
+
+        // 1. Округление площади до 0,5
+        const roundedArea = Math.round(type.avg * 2) / 2;
+
+        // 2. Разница в гривнах (округление до целых)
+        const amount = Math.round(diff * roundedArea*100)/100;
+
+        // 3. Текстовый фрагмент
+        parts.push(
+          `${formatNumber(amount)} грн. для квартири площею ${roundedArea.toFixedWithComma(1)} кв.м.`
+        );
+      });
+
+      // 4. Склейка без лишнего ";"
+      return parts.join("; ");
+    }
+  }
+};
+

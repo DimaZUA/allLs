@@ -2398,3 +2398,123 @@ function fallbackDownload(canvas) {
   link.href = canvas.toDataURL("image/png");
   link.click();
 }
+
+function analyzeTypicalApartments(debug = false) {
+
+  function median(arr) {
+    const a = arr.slice().sort((x, y) => x - y);
+    const m = Math.floor(a.length / 2);
+    return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2;
+  }
+
+  function quantile(arr, q) {
+    const a = arr.slice().sort((x, y) => x - y);
+    const pos = (a.length - 1) * q;
+    const base = Math.floor(pos);
+    const rest = pos - base;
+    return a[base + 1] !== undefined
+      ? a[base] + rest * (a[base + 1] - a[base])
+      : a[base];
+  }
+
+  function avg(arr) {
+    return arr.reduce((s, v) => s + v, 0) / arr.length;
+  }
+
+  // 1. Сбор площадей
+  const areas = Object.values(ls)
+    .map(o => o.pl)
+    .filter(v => typeof v === 'number' && v > 0)
+    .sort((a, b) => a - b);
+
+  if (areas.length < 5) {
+    if (debug) {
+      console.warn('Недостаточно данных для анализа');
+    }
+    return { types: [], outliers: [] };
+  }
+
+  // 2. Разницы между соседними значениями
+  const diffs = [];
+  for (let i = 1; i < areas.length; i++) {
+    diffs.push(areas[i] - areas[i - 1]);
+  }
+
+  // 3. Адаптивный допуск (режим "комнатность")
+  const q1 = quantile(diffs, 0.25);
+  const q3 = quantile(diffs, 0.75);
+  const iqr = q3 - q1;
+
+  const medianArea = median(areas);
+  const minThreshold = medianArea * 0.035;
+
+  const THRESHOLD = Math.max(iqr * 3, minThreshold);
+
+  // 4. Кластеризация
+  const clusters = [];
+  let current = [areas[0]];
+
+  for (let i = 1; i < areas.length; i++) {
+    if (areas[i] - areas[i - 1] <= THRESHOLD) {
+      current.push(areas[i]);
+    } else {
+      clusters.push(current);
+      current = [areas[i]];
+    }
+  }
+  clusters.push(current);
+
+  // 5. Отсев нетиповых
+  const MIN_CLUSTER_SIZE = Math.max(3, Math.round(areas.length * 0.05));
+
+  const typical = clusters.filter(c => c.length >= MIN_CLUSTER_SIZE);
+  const outliers = clusters.filter(c => c.length < MIN_CLUSTER_SIZE);
+
+  // 6. Формирование результата
+  const types = typical.map((c, i) => ({
+    type: i + 1,
+    count: c.length,
+    avg: +avg(c).toFixed(2),
+    min: +c[0].toFixed(2),
+    max: +c[c.length - 1].toFixed(2)
+  }));
+
+  // 7. Debug-вывод
+  if (debug) {
+    console.group('Анализ типовых квартир по площади');
+
+    console.log('Всего квартир:', areas.length);
+    console.log('Автоматический допуск (м²):', THRESHOLD.toFixed(2));
+    console.log('Минимальный размер типового кластера:', MIN_CLUSTER_SIZE);
+
+    console.group('Типовые квартиры');
+    types.forEach(t => {
+      console.log(
+        `Тип ${t.type}:`,
+        `квартир = ${t.count},`,
+        `средняя = ${t.avg} м²,`,
+        `диапазон = ${t.min} – ${t.max}`
+      );
+    });
+    console.groupEnd();
+
+    if (outliers.length) {
+      console.group('Нетиповые / выбросы');
+      outliers.forEach(c => {
+        console.log(
+          `квартир = ${c.length},`,
+          `площади =`, c.map(v => v.toFixed(2)).join(', ')
+        );
+      });
+      console.groupEnd();
+    }
+
+    console.groupEnd();
+  }
+
+  return {
+    types,
+    outliers
+  };
+}
+
