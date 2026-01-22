@@ -313,7 +313,8 @@ root.appendChild(totalHouseDiv);
   main.innerHTML = "";
   main.appendChild(root);
 
-  initTooltips();
+  initPosters();
+  addFloorItemHandlers();
 }
 
 
@@ -335,63 +336,10 @@ function createItemsForFloor(lsList, pod, et, container, opts) {
     items.forEach(item => {
       const div = document.createElement("div");
       div.classList.add("floor-item");
+      div.classList.add("poster");
+      div.dataset.kv = ls[item.id].kv;
       div.dataset.id = item.id;
 
-      // ====================== CLICK / TAP ======================
-      if (!isTouch) {
-        // Desktop: клик для перехода (подсказка через mouse events)
-        div.addEventListener("click", () => goToAccount(item.id));
-      } else {
-        // Touch: короткий тап — подсказка, долгий тап — переход
-        let longPressTimer = null;
-
-        div.addEventListener("touchstart", e => {
-          const id = item.id;
-          const tooltip = ensureTooltip();
-
-          // Запуск таймера долгого удержания (500ms)
-          longPressTimer = setTimeout(() => {
-            tooltip.style.display = "none"; // скрыть подсказку
-            goToAccount(id);
-            lastTappedId = 0;
-          }, 1000);
-
-          // Показываем подсказку при первом тапе
-          if (lastTappedId !== id) {
-            tooltip.innerHTML = div.dataset.fio.replace(/\n/g, "<br>");
-            tooltip.style.display = "block";
-
-            const tw = tooltip.offsetWidth, th = tooltip.offsetHeight;
-            let x = e.touches[0].pageX + 10;
-            let y = e.touches[0].pageY + 10;
-            if (x + tw > window.scrollX + window.innerWidth) x = e.touches[0].pageX - tw - 10;
-            if (y + th > window.scrollY + window.innerHeight) y = e.touches[0].pageY - th - 10;
-            if (x < window.scrollX) x = window.scrollX + 10;
-
-            tooltip.style.left = x + "px";
-            tooltip.style.top = y + "px";
-            tooltip.style.maxWidth = window.innerWidth * 0.8 + "px";
-
-            lastTappedId = id;
-          } else {
-            tooltip.style.display = "none";
-            lastTappedId = 0;
-          }
-        });
-
-        div.addEventListener("touchend", () => {
-          clearTimeout(longPressTimer); // отменяем долгий тап, если отпустили раньше
-        });
-
-        // Скрытие подсказки при тапе вне элемента
-        document.addEventListener("touchstart", ev => {
-          if (!ev.target.closest(".floor-item")) {
-            const tooltip = ensureTooltip();
-            tooltip.style.display = "none";
-            lastTappedId = 0;
-          }
-        }, { passive: true });
-      }
 
       // --- Ширина, номера квартир, значения, подсказки --- //
       let width;
@@ -445,8 +393,11 @@ function createItemsForFloor(lsList, pod, et, container, opts) {
       if (item.tel) infoParts.push(`Телефон: ${item.tel}`);
       if (item.email) infoParts.push(`Електронна пошта: ${item.email}`);
       if (item.note) infoParts.push(`Примітка: ${item.note.replace(/\n/g, "<br>")}`);
-      div.dataset.fio = infoParts.join("\n");
-
+      //div.dataset.fio = infoParts.join("\n");
+      const descr=document.createElement("span");
+      descr.classList.add('descr');
+      descr.innerHTML = infoParts.join("<br>");
+      div.appendChild(descr);
       container.appendChild(div);
     });
   } else {
@@ -474,42 +425,11 @@ function createItemsForFloor(lsList, pod, et, container, opts) {
     }
     div.appendChild(span);
     container.appendChild(div);
+
     requestAnimationFrame(() => { div.style.opacity = 1; });
   }
 }
 
-
-// ===================== 6. ПОДСКАЗКИ =====================
-function initTooltips() {
-  const tooltip = ensureTooltip();
-  const isTouch = isMobile();
-
-  document.querySelectorAll(".floor-item").forEach(item => {
-    if (isTouch) return; // мобильные: обработка через click уже есть
-
-    item.addEventListener("mouseenter", e => {
-      const fio = item.dataset.fio;
-      if (fio) {
-        tooltip.innerHTML = fio.replace(/\n/g, "<br>");
-        tooltip.style.display = "block";
-      }
-    });
-
-    item.addEventListener("mousemove", e => {
-      const tw = tooltip.offsetWidth, th = tooltip.offsetHeight;
-      let x = e.pageX + 10;
-      let y = e.pageY + 10;
-      tooltip.style.maxWidth = window.innerWidth * 0.8 + "px";
-      if (x + tw > window.scrollX + window.innerWidth) x = e.pageX - tw - 10;
-      if (y + th > window.scrollY + window.innerHeight) y = e.pageY - th - 10;
-      if (x < window.scrollX) x = window.scrollX + 10;
-      tooltip.style.left = x + "px";
-      tooltip.style.top = y + "px";
-    });
-
-    item.addEventListener("mouseleave", () => tooltip.style.display = "none");
-  });
-}
 
 
 
@@ -534,16 +454,7 @@ function goToAccount(accountId) {
   handleMenuClick(homeCode, "accounts", actionLink);
 }
 
-// Создаём tooltip, если его ещё нет
-function ensureTooltip() {
-  let tooltip = document.querySelector(".fio-tooltip");
-  if (!tooltip) {
-    tooltip = document.createElement("div");
-    tooltip.classList.add("fio-tooltip");
-    document.body.appendChild(tooltip);
-  }
-  return tooltip;
-}
+
 // ===================== 7. ОБНОВЛЕНИЕ =====================
 function updateDisplay(newDisplay, state) {
   state.display = newDisplay;
@@ -678,3 +589,44 @@ function initSchema() {
   const state = { display, displayKeys, displayKeysName, numericDisplays, lsList, avgArea, avgValues, entrances, itogKeysName };
   renderSchema(state);
 }
+
+function addFloorItemHandlers() {
+  const isTouch = isMobile();
+
+  document.querySelectorAll(".floor-item").forEach(floorItem => {
+    const lsId = floorItem.dataset.id;
+
+    // пропускаем итоги, стояки и служебные элементы
+    if (!lsId || !/^\d+$/.test(lsId)) return;
+
+    const go = () => goToAccount(lsId);
+
+    // ================= DESKTOP =================
+    if (!isTouch) {
+      // клик — сразу переход
+      floorItem.addEventListener("click", go);
+      return;
+    }
+
+    // ================= MOBILE =================
+    // добавляем ТОЛЬКО long-press
+    let pressTimer = null;
+
+    const onTouchStart = () => {
+      pressTimer = setTimeout(() => {
+        go();
+      }, 900); // долгий тап
+    };
+
+    const cancel = () => {
+      clearTimeout(pressTimer);
+      pressTimer = null;
+    };
+
+    floorItem.addEventListener("touchstart", onTouchStart);
+    floorItem.addEventListener("touchend", cancel);
+    floorItem.addEventListener("touchmove", cancel);
+    floorItem.addEventListener("touchcancel", cancel);
+  });
+}
+

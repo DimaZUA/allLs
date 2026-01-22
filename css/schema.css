@@ -67,14 +67,9 @@ body {
   border: 1px solid #ddd;
   font-size: 12px;
   border-radius: 4px;
-  cursor: pointer;
   overflow: hidden;
-  transition: width 0.5s ease, opacity 0.5s ease, background-color 0.3s ease;
 }
 
-.floor-item:hover {
-  transform: scale(1.05);
-}
 
 /* === Номер квартиры === */
 .kv-background {
