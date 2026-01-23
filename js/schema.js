@@ -623,10 +623,10 @@ function addFloorItemHandlers() {
       pressTimer = null;
     };
 
-    floorItem.addEventListener("touchstart", onTouchStart);
-    floorItem.addEventListener("touchend", cancel);
-    floorItem.addEventListener("touchmove", cancel);
-    floorItem.addEventListener("touchcancel", cancel);
+    floorItem.addEventListener("touchstart", onTouchStart, { passive: true });
+    floorItem.addEventListener("touchend", cancel, { passive: true });
+    floorItem.addEventListener("touchmove", cancel, { passive: true });
+    floorItem.addEventListener("touchcancel", cancel, { passive: true });
   });
 }
 

@@ -601,10 +601,10 @@ function addRowHandler(row) {
 
     const cancel = () => clearTimeout(pressTimer);
 
-    row.addEventListener("touchstart", start);
-    row.addEventListener("touchend", cancel);
-    row.addEventListener("touchmove", cancel);
-    row.addEventListener("touchcancel", cancel);
+    row.addEventListener("touchstart", start, { passive: true });
+    row.addEventListener("touchend", cancel, { passive: true });
+    row.addEventListener("touchmove", cancel, { passive: true });
+    row.addEventListener("touchcancel", cancel, { passive: true });
   }
 }
 

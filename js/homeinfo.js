@@ -830,7 +830,7 @@ compute(replacements) {
         return "";
       }
       const diff = newTariff - oldTariff;
-      return (diff/oldTariff).toFixedWithComma();
+      return (diff/oldTariff).toFixedWithComma()*100;
 }
 },
 
