@@ -346,6 +346,7 @@ function filterFilesByRole(filesObj, role) {
     "*Рух коштів з січня*",
     "*ОР по квартирам з січня*",
     "*Оплата співвласників з січня.pdf",
+    "*Переразунки з січня.pdf",
   ];
 
   const excludeRegexes = excludeMasks.map(wildcardToRegExp);
