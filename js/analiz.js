@@ -366,7 +366,7 @@ function renderMigrationTable(splitIndex, resultData, fullMonths) {
     tbody.onclick = (e) => {
         const tr = e.target.closest("tr");
         if (tr && tr.dataset.accountId) {
-            initLS();addStuff(tr.dataset.accountId); // Твоя внешняя функция
+            goToAccount(tr.dataset.accountId); // Твоя внешняя функция
         }
     };
 

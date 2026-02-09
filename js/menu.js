@@ -199,21 +199,27 @@ async function handleMenuClick(homeCode, actionCode, actionLink, { fromHistory =
   plat = home.plat;
   us = home.us;
 
-  // --- HISTORY ---
+// --- HISTORY (Оптимизировано: без setParam) ---
   const homeObj = homes.find(h => h.code === homeCode);
   const actionObj = actions.find(a => a.actionCode === actionCode);
   document.title = `${homeObj?.name || ""} — ${actionObj?.name || ""}`;
 
-  const params = new URLSearchParams();
-  setParam("homeCode", homeCode);
-  setParam("actionCode", actionCode);
-  const url = `${location.pathname}?${params}`;
+  // Формируем чистую строку параметров
+  const newUrl = `?homeCode=${homeCode}&actionCode=${actionCode}`;
+  const newState = { homeCode, actionCode };
 
   if (initial || fromHistory) {
-    history.replaceState({ homeCode, actionCode }, document.title, url);
+    // Обновляем текущую запись (важно для правильной работы кнопки "Назад")
+    history.replaceState(newState, document.title, newUrl);
   } else {
-    history.pushState({ homeCode, actionCode }, document.title, url);
+    // Создаем ОДНУ новую запись в истории
+    history.pushState(newState, document.title, newUrl);
   }
+
+  // Если вам всё ещё нужно сохранять эти данные в localStorage для других скриптов, 
+  // сделайте это вручную здесь, чтобы не вызывать тяжелую setParam:
+  localStorage.setItem("last_homeCode", homeCode);
+  localStorage.setItem("last_actionCode", actionCode);
 
   // --- ДЕЙСТВИЕ ---
   switch (actionCode) {
@@ -309,15 +315,6 @@ function blinkHamburger() {
   btn.classList.add('blink');
 }
 
-
-// ================================
-// POPSTATE
-// ================================
-window.addEventListener("popstate", e => {
-  if (e.state) {
-    handleMenuClick(e.state.homeCode, e.state.actionCode, null, { fromHistory: true });
-  }
-});
 
 // ================================
 // ФИЛЬТРАЦИЯ ФАЙЛОВ
@@ -773,3 +770,16 @@ function unlockBodyScroll() {
   document.body.style.top = "";
   window.scrollTo(0, scrollTopBeforeLock);
 }
+
+// Если вы хотите, чтобы при нажатии "Назад" страница реально менялась:
+// Этот обработчик у вас уже есть выше в коде, проверьте чтобы он был ОДИН:
+
+window.addEventListener("popstate", e => {
+  if (e.state && e.state.homeCode && e.state.actionCode) {
+    // Просто перерисовываем интерфейс
+    handleMenuClick(e.state.homeCode, e.state.actionCode, null, { fromHistory: true });
+  } else {
+    // Если мы вернулись в самое начало (пустой state), пробуем активировать из URL или не делаем ничего
+    activateMenuFromParams();
+  }
+});
