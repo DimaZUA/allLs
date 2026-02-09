@@ -1,16 +1,21 @@
+/* === Общие стили основной таблицы === */
 .analiz-table {
   border-collapse: collapse;
   font-family: Arial, sans-serif;
   font-size: 18px;
-  width: auto; /* вместо 100% */
-  table-layout: auto; /* разрешаем браузеру подгонять ширину */
-  margin: 0 auto; /* выравнивание по центру */
+  width: auto; 
+  margin: 0 auto;
+  table-layout: fixed; /* Фиксируем ширину ячеек */
 }
+
 .analiz-table th,
 .analiz-table td {
   border: 1px solid #ccc;
   padding: 0px 10px;
   text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Общий стиль заголовков */
@@ -21,92 +26,87 @@
 }
 
 /* Заголовки групп */
-.th-total  { background-color: #e0e0e0; }  /* серый */
-.th-overpay { background-color: #f5d6d6; } /* светло-красный */
-.th-debtor  { background-color: #d6e5f5; } /* светло-синий */
+.th-total  { background-color: #d0d0d0; } 
+.th-overpay { background-color: #f0bcbc; } 
+.th-debtor  { background-color: #bcd0f0; }
 
-/* Для верхнего ряда заголовков — немного темнее, чтобы было видно границу секций */
-.analiz-table thead tr:first-child .th-total  { background-color: #d0d0d0; }
-.analiz-table thead tr:first-child .th-overpay { background-color: #f0bcbc; }
-.analiz-table thead tr:first-child .th-debtor  { background-color: #bcd0f0; }
-
-/* Данные */
+/* Цвета ячеек данных */
 .td-total  { background-color: #fafafa; }
-.td-overpay { background-color: #fff0f0; }  /* светло-красный */
-.td-debtor  { background-color: #f0f8ff; }  /* светло-синий */
+.td-overpay { background-color: #fff0f0; }
+.td-debtor  { background-color: #f0f8ff; }
 
 /* Итоговые строки */
-.analiz-table td.summary-total,
-.analiz-table td.summary-overpay,
-.analiz-table td.summary-debtor {
-  padding: 10px 10px;
-  font-weight: bold;
+.summary-total   { background-color: #e0e0e0; font-weight: bold; }
+.summary-overpay { background-color: #f5d6d6; font-weight: bold; }
+.summary-debtor  { background-color: #c8dbf0; font-weight: bold; }
+
+.top-summary td, .bottom-summary td { 
+  border-top: 2px solid #000; 
+  padding: 10px;
 }
 
-.summary-total  { background-color: #e0e0e0; } /* серый */
-.summary-overpay { background-color: #f5d6d6; } /* тёмно-красный */
-.summary-debtor  { background-color: #c8dbf0; } /* синий */
-
-/* Верхняя итоговая строка выделение */
-.top-summary td { border-top: 2px solid #000; }
-
-/* Нижняя итоговая строка выделение */
-.bottom-summary td { border-top: 2px solid #000; }
-
-/* Отступ между верхней итоговой строкой и остальными */
+/* Отступ между периодами */
 .spacer td { border: none; background: transparent; height: 10px; }
 
-/* Надпись над ползунком */
-.slider-label {
-  text-align: center;
-  font-weight: bold;
-  margin-bottom: 5px;
-  font-size: 16px; /* соответствует таблице */
+/* Подсветка всей строки через изменение яркости всех её ячеек */
+.analiz-table tbody tr:hover td { 
+    background-color: #eef !important;
 }
-
-/* Ползунок */
-input[type=range] {
-  width: 100%;
-  margin-bottom: 10px;
-}
-
-/* Подсветка строки при наведении — с сохранением трёхцветности */
-.analiz-table tbody tr:hover .td-total {
-  background-color: #dcdcdc; /* немного темнее серого */
-}
-.analiz-table tbody tr:hover .td-overpay {
-  background-color: #f0c8c8; /* ярче красный */
-}
-.analiz-table tbody tr:hover .td-debtor {
-  background-color: #c8dcf0; /* ярче синий */
-}
-.analiz-table tbody tr:hover td:first-child {
-  background-color: #f2f2f2; /* месяц — нейтральный фон */
-}
-.analiz-table tbody tr:hover td {
-  font-weight: bold;
-}
-
-/* Строка итого — не подсвечивать как обычную */
-.analiz-table .summary-row:hover td {
-  background-color: inherit !important;
-  font-weight: normal;
-  cursor: default;
-}
-
-/* ✅ Только верхняя строка итого — курсор вверх-вниз и легкая подсветка */
 .analiz-table .top-summary:hover td {
   background-color: #eef !important;
   cursor: ns-resize !important;
-/*  font-weight: bold; */
 }
 
+/* === Стили второй таблицы (Траектория / Міграція) === */
+.trajectory-table {
+  margin-top: 30px;
+  width: auto;
+}
+
+/* Фиксированная ширина колонок второй таблицы */
+.trajectory-table th:nth-child(1) { width: 50px; }  /* Кв */
+.trajectory-table th:nth-child(2) { width: 300px; } /* ПІБ */
+.trajectory-table th:nth-child(3) { width: 160px; } /* Статус */
+.trajectory-table th:nth-child(4) { width: 180px; } /* станом на (було) */
+.trajectory-table th:nth-child(5) { width: 180px; } /* станом на (стало) */
+.trajectory-table th:nth-child(6) { width: 100px; } /* Зміна */
+
+.trajectory-table th {
+  cursor: pointer;
+  background: #eee;
+  padding: 8px;
+  user-select: none;
+}
+.trajectory-table th:hover { background: #ddd; }
+
+.trajectory-table tbody tr { cursor: pointer; }
+.trajectory-table tbody tr:hover td {
+  background-color: #f0f7ff !important;
+}
+
+/* Баджи и Динамика */
+.badge {
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 13px;
+  color: white;
+  display: inline-block;
+  text-align: center;
+  width: 130px;
+}
+.badge-green { background: #006400; }
+.badge-red { background: #8B0000; }
+.badge-gray { background: #444; }
+
+.diff-up { color: #8B0000; font-weight: bold; }
+.diff-down { color: #006400; font-weight: bold; }
+
+/* Вспомогательные элементы */
+.slider-label { text-align: center; font-weight: bold; margin: 10px 0; font-size: 16px; }
+input[type=range] { width: 100%; cursor: pointer; }
 
 @keyframes shake {
-  0% { transform: translateX(0); }
-  20% { transform: translateX(-2px); }
-  40% { transform: translateX(2px); }
-  60% { transform: translateX(-2px); }
-  80% { transform: translateX(2px); }
-  100% { transform: translateX(0); }
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-2px); }
+  75% { transform: translateX(2px); }
 }
