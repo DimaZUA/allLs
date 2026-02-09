@@ -1525,12 +1525,11 @@ function parseCellValue2(value) {
 
   // Проверка на числа
   var numberPattern = /^[+-]?\d{1,3}([ \u00A0\d]*)?([.,]\d+)?$/;
-  if (
-    numberPattern.test(trimmedValue) &&
-    !trimmedValue.startsWith("0") &&
-    trimmedValue !== "0"
-  ) {
-    var normalizedNumber = trimmedValue
+// Разрешаем начинаться с 0, если после него идет запятая или точка
+var startsWithZeroValid = trimmedValue.startsWith("0") ? /^0[.,]/.test(trimmedValue) : true;
+
+if (numberPattern.test(trimmedValue) && trimmedValue !== "0" && startsWithZeroValid) {
+     var normalizedNumber = trimmedValue
       .replace(/[\s\u00A0]+/g, "")
       .replace(",", ".");
     var parsedNumber = parseFloat(normalizedNumber);
