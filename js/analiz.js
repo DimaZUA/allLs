@@ -268,7 +268,7 @@ function renderMigrationTable(splitIndex, resultData, fullMonths) {
     const dateWas = resultData[splitIndex - 1]?.month || "початок";
     const dateNow = resultData[resultData.length - 1]?.month || "кінець";
 
-    container.innerHTML = `<h3 style="margin-top:25px; text-align:center;">Підсумок міграції боржників</h3>`;
+    container.innerHTML = `<h3 style="margin-top:25px; text-align:center;">Результати роботи з боржниками</h3>`;
     
     const table = document.createElement("table");
     table.className = "analiz-table trajectory-table";
@@ -304,10 +304,10 @@ function renderMigrationTable(splitIndex, resultData, fullMonths) {
         let status = "", badgeClass = "";
         if (isWas && !isNow) { 
             status = "ПОГАШЕННЯ"; 
-            badgeClass = "badge-green"; 
+            badgeClass = "green"; 
         } else if (!isWas && isNow) { 
             status = "НОВИЙ боржник"; 
-            badgeClass = "badge-red"; 
+            badgeClass = "red"; 
         } else { 
             status = "БОРЖНИК"; 
             badgeClass = "badge-gray"; 
@@ -346,7 +346,7 @@ function renderMigrationTable(splitIndex, resultData, fullMonths) {
                 <td><span class="badge ${item.badgeClass}">${item.status}</span></td>
                 <td style="text-align:right">${item.ageWas.toFixed(1)} <small style="color:gray;">(${Math.round(item.debtWas)})</small></td>
                 <td style="text-align:right">${item.ageNow.toFixed(1)} <small style="color:gray;">(${Math.round(item.debtNow)})</small></td>
-                <td style="text-align:right" class="${item.diff > 0 ? 'diff-up' : 'diff-down'}">
+                <td style="text-align:right" class="${item.diff > 0 ? 'red' : 'green'}">
                     ${item.diff > 0 ? '+' : ''}${item.diff.toFixed(1)}
                 </td>
             </tr>`).join('');
