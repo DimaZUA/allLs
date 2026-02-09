@@ -303,13 +303,13 @@ function renderMigrationTable(splitIndex, resultData, fullMonths) {
 
         let status = "", badgeClass = "";
         if (isWas && !isNow) { 
-            status = "Виправлений"; 
+            status = "ПОГАШЕННЯ"; 
             badgeClass = "badge-green"; 
         } else if (!isWas && isNow) { 
-            status = "Новий боржник"; 
+            status = "НОВИЙ боржник"; 
             badgeClass = "badge-red"; 
         } else { 
-            status = "Стабільний борг"; 
+            status = "БОРЖНИК"; 
             badgeClass = "badge-gray"; 
         }
 
