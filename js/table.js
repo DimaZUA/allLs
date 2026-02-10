@@ -280,89 +280,103 @@ function calculateDebtMonthsFromCache(accountId, debtEnd, endDate) {
     let currentYear = endDate.getFullYear();
     let currentMonth = endDate.getMonth() + 1;
 
-    // Собираем все месяцы с начислениями
-    const years = Object.keys(nach[accountId]).map(Number).sort((a,b)=>a-b);
+    // 1. Собираем все имеющиеся в кэше месяцы
+    const years = Object.keys(nach[accountId]).map(Number).sort((a, b) => a - b);
     const allMonths = [];
     for (const y of years) {
         for (let m = 1; m <= 12; m++) {
             if (nach[accountId][y] && nach[accountId][y][m]) {
-                allMonths.push({year: y, month: m});
+                allMonths.push({ year: y, month: m });
             }
         }
     }
 
-    // Первые 3 реально существующих месяца с начислениями (НЕ исключая код 13)
+    // 2. Определяем первые 3 "живых" месяца для исключения кодов 10/13
     const firstThreeMonths = [];
-    for (const {year: y, month: m} of allMonths) {
+    for (const { year: y, month: m } of allMonths) {
         const monthCharges = nach[accountId][y][m];
         const monthSum = Object.values(monthCharges).reduce((s, v) => s + v, 0);
         if (monthSum > EPS) {
-            firstThreeMonths.push({year: y, month: m});
+            firstThreeMonths.push({ year: y, month: m });
             if (firstThreeMonths.length >= 3) break;
         }
     }
     const firstThreeSet = new Set(firstThreeMonths.map(x => x.year + "-" + x.month));
 
-    const debugLog = [];
+    // 3. Находим точку начала реальной истории и сумму для прогноза
+    let firstRealMonthKey = null; 
+    let earliestNonZeroSum = 0;
+
+    for (const { year: y, month: m } of allMonths) {
+        let monthCharges = { ...nach[accountId][y][m] };
+        if (firstThreeSet.has(y + "-" + m)) {
+            delete monthCharges[13];
+            delete monthCharges[10];
+        }
+        const monthSum = Object.values(monthCharges).reduce((a, b) => a + b, 0);
+
+        if (monthSum > EPS) {
+            if (!firstRealMonthKey) {
+                firstRealMonthKey = `${y}-${m}`; // Первый месяц, когда начали реально работать
+                earliestNonZeroSum = monthSum;
+            }
+        }
+    }
 
     // --- ДОЛГ ---
     if (remaining > EPS) {
-        // Самый ранний месяц с ненулевым начислением
-        let earliestNonZeroSum = 0;
-        for (const {year: y, month: m} of allMonths) {
-            let monthCharges = {...nach[accountId][y][m]};
-            if (firstThreeSet.has(y + "-" + m)) delete monthCharges[13];
-            if (firstThreeSet.has(y + "-" + m)) delete monthCharges[10];
-            const monthSum = Object.values(monthCharges).reduce((a,b)=>a+b,0);
-            if (monthSum > EPS) {
-                earliestNonZeroSum = monthSum;
-                break;
-            }
-        }
-
         while (remaining > EPS) {
-            let monthSum = 0;
-            let chargesUsed = false;
+            const currentKey = `${currentYear}-${currentMonth}`;
+            let hasDataInCache = !!(nach[accountId][currentYear] && nach[accountId][currentYear][currentMonth]);
 
-            if (nach[accountId][currentYear] && nach[accountId][currentYear][currentMonth]) {
-                let monthCharges = {...nach[accountId][currentYear][currentMonth]};
-                debugLog.push(`Месяц ${currentYear}-${currentMonth}: исходные начисления: ${JSON.stringify(monthCharges)}`);
-                if (firstThreeSet.has(currentYear + "-" + currentMonth)) {
-                    delete monthCharges[13];
-                    debugLog.push(`Месяц ${currentYear}-${currentMonth}: после удаления кода 13: ${JSON.stringify(monthCharges)}`);
-                } else {
-                    debugLog.push(`Месяц ${currentYear}-${currentMonth}: код 13 НЕ удаляется, т.к. месяц не в первых трёх`);
+            // Проверка на технические нули: если мы ушли вглубь до начала реальной работы
+            if (firstRealMonthKey) {
+                const [fYear, fMonth] = firstRealMonthKey.split('-').map(Number);
+                if (currentYear < fYear || (currentYear === fYear && currentMonth < fMonth)) {
+                    hasDataInCache = false; // Всё, что раньше первого реального месяца — не история
                 }
-                monthSum = Object.values(monthCharges).reduce((a,b)=>a+b,0);
-                chargesUsed = true;
             }
 
-            if (monthSum > EPS) {
-                if (remaining >= monthSum) {
-                    remaining -= monthSum;
-                    months += 1;
-                } else {
+            if (hasDataInCache) {
+                let monthCharges = { ...nach[accountId][currentYear][currentMonth] };
+                if (firstThreeSet.has(currentKey)) {
+                    delete monthCharges[13];
+                    delete monthCharges[10];
+                }
+                const monthSum = Object.values(monthCharges).reduce((a, b) => a + b, 0);
+
+                // Если начисление положительное и оно больше остатка долга — берем долю месяца
+                if (monthSum > EPS && remaining < monthSum) {
                     months += remaining / monthSum;
                     remaining = 0;
+                } else {
+                    // Отрицательные суммы увеличивают долг, 0 не меняет, но оба дают +1 месяц
+                    remaining -= monthSum;
+                    months += 1;
                 }
-            } else if (earliestNonZeroSum > EPS) {
-                months += remaining / earliestNonZeroSum;
-                debugLog.push(`Прогнозный месяц: ${currentYear}-${currentMonth}, сумма: ${earliestNonZeroSum}, остаток: ${remaining}`);
-                remaining = 0;
             } else {
-                months += 1;
+                // Если история в кэше кончилась (или дошли до тех. нулей), а долг остался
+                if (earliestNonZeroSum > EPS) {
+                    months += remaining / earliestNonZeroSum;
+                } else {
+                    months += 1; // Костыль на случай полного отсутствия начислений
+                }
                 remaining = 0;
             }
 
-
+            // Уходим назад в историю
             currentMonth -= 1;
             if (currentMonth < 1) {
                 currentYear -= 1;
                 currentMonth = 12;
-                if (currentYear < years[0]) break;
+                if (currentYear < years[0] && remaining > EPS) {
+                    // Если вышли за границы самого раннего года в кэше — на след. итерации сработает прогноз
+                    continue; 
+                } else if (currentYear < years[0]) {
+                    break;
+                }
             }
         }
-
         return +months.toFixed(1);
     }
 
@@ -371,10 +385,11 @@ function calculateDebtMonthsFromCache(accountId, debtEnd, endDate) {
         remaining = -remaining;
         let lastNonZeroSum = 0;
 
-        for (const y of Object.keys(nach[accountId]).sort((a,b)=>a-b)) {
+        // Ищем последнюю известную сумму начисления для прогноза переплаты
+        for (const y of years) {
             for (let m = 1; m <= 12; m++) {
                 if (nach[accountId][y] && nach[accountId][y][m]) {
-                    const monthSum = Object.values(nach[accountId][y][m]).reduce((a,b)=>a+b,0);
+                    const monthSum = Object.values(nach[accountId][y][m]).reduce((a, b) => a + b, 0);
                     if (monthSum > EPS) lastNonZeroSum = monthSum;
                 }
             }
@@ -383,7 +398,7 @@ function calculateDebtMonthsFromCache(accountId, debtEnd, endDate) {
         while (remaining > EPS) {
             let monthSum = 0;
             if (nach[accountId][currentYear] && nach[accountId][currentYear][currentMonth]) {
-                monthSum = Object.values(nach[accountId][currentYear][currentMonth]).reduce((a,b)=>a+b,0);
+                monthSum = Object.values(nach[accountId][currentYear][currentMonth]).reduce((a, b) => a + b, 0);
             }
 
             if (monthSum > EPS) {
@@ -397,6 +412,9 @@ function calculateDebtMonthsFromCache(accountId, debtEnd, endDate) {
             } else if (lastNonZeroSum > EPS) {
                 months += remaining / lastNonZeroSum;
                 remaining = 0;
+            } else {
+                months += 1;
+                remaining = 0;
             }
 
             currentMonth += 1;
@@ -405,12 +423,16 @@ function calculateDebtMonthsFromCache(accountId, debtEnd, endDate) {
                 currentMonth = 1;
             }
         }
-
         return -parseFloat(months.toFixed(1));
     }
 
     return 0;
 }
+
+
+
+
+
 
 
 
