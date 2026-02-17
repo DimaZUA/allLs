@@ -513,7 +513,10 @@ table#main td {
   gap: 10px;
   margin-top: 10px;
 }
-
+.modal-block-1 h4 {
+  grid-column: 1 / -1;
+  margin: 0 0 10px 0;
+}
 .modal-block-1 div {
   padding: 4px 0;
 }

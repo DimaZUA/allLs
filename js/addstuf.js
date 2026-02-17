@@ -1606,7 +1606,7 @@ const firstOfMonthStr = firstOfMonth.getFullYear() + '-' +
   const block1 = document.createElement('div');
   block1.className = 'modal-section modal-block-1';
   block1.innerHTML = `
-    <h4>Основні дані</h4><h6>Старі:</h6><h6>Нові:</h6>
+    <h4>Основні дані</h4>
     <div>Станом на</div>
     <div style="color: gray;">${today.toLocaleDateString()}</div>
     <div><input type="date" name="effectiveDate" value="${firstOfMonthStr}"></div>
