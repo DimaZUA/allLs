@@ -272,7 +272,10 @@ table#main td {
 #filter-container input {
   width: 200px;
 }
-
+#number{
+  font-size: 1.5rem;
+  max-width: 200px
+}
 #filter-container select:focus,
 #filter-container input:focus {
   border-color: #007BFF;
