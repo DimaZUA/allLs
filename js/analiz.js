@@ -89,9 +89,9 @@ function renderAnalizTable(data, monthsList) {
     overpayPaid: { title: "Сплачено", type: "number", isValue: true, visible: false },
     overpayDebtEnd: { title: "Переплата", type: "number", isValue: true, visible: true },
     overpayPercent: { title: "% переплати", type: "percent", isValue: true, visible: false },
-    debtorPaid: { title: "Сплачено", type: "number", isValue: true, visible: true },
+    debtorPaid: { title: "Сплачено", type: "number", isValue: true, visible: false },
     debtorPercent: { title: "% оплати", type: "percent", isValue: true, visible: false },
-    debtorCount: { title: "К-сть", type: "int", isValue: true, visible: false },
+    debtorCount: { title: "К-сть", type: "int", isValue: true, visible: true },
     debtorPercentCount: { title: "% кв", type: "percent", isValue: true, visible: false }
   };
 
