@@ -820,6 +820,44 @@ modal.querySelector("#okBtn").onclick = () => {
 // ==========================================
 
 const computedPlaceholders = {
+"pl": {
+    dependsOn: [],
+    compute() {
+      return Object.values(ls)
+        .filter(item => item.kv !== '0')
+        .reduce((sum, item) => sum + (item.pl || 0), 0)
+        .toFixedWithComma(2);
+    }
+  },
+  "et": {
+    dependsOn: [],
+    compute() {
+      const ets = Object.values(ls)
+        .filter(item => item.kv !== '0')
+        .map(item => item.et || 0);
+      return Math.max(...ets);
+    }
+  },
+  "kv": {
+    dependsOn: [],
+    compute() {
+      return Object.values(ls)
+        .filter(item => item.kv !== '0')
+        .length;
+    }
+  },
+  "pod": {
+    dependsOn: [],
+    compute() {
+      const pods = Object.values(ls)
+        .filter(item => item.kv !== '0')
+        .map(item => item.pod || 0);
+      if (pods.length === 0) return 0;
+      const min = Math.min(...pods);
+      const max = Math.max(...pods);
+      return max - min + 1;
+    }
+  },
 "тарпроц":{
 dependsOn: ["тариф", "тариф старый"],
 compute(replacements) {
