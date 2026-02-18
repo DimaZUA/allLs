@@ -753,7 +753,12 @@ function applyColumnFilter() {
   const table = document.querySelector("#table-container table.main");
   if (!table) return;
 
-  const rows = table.querySelectorAll("tbody tr:not(.itog):not(.header-row-clone)");
+  // Используем > для выбора только прямых потомков tbody (основных строк)
+const rows = Array.from(table.tBodies[0].children).filter(row => 
+  !row.classList.contains("itog") && 
+  !row.classList.contains("header-row-clone") &&
+  !row.classList.contains("filter-row")
+);
   const filterInputs = Array.from(
     table.querySelectorAll("thead .filter-row input")
   );

@@ -435,8 +435,21 @@ function renderFilebar() {
         filebar.appendChild(yearsDiv);
     }
 
+// --- Логика выбора года по умолчанию ---
 if (!selectedYear || !rootDir.years.includes(selectedYear)) {
-  selectedYear = rootDir.years[rootDir.years.length - 1];
+    const now = new Date();
+    const currentDay = now.getDate();
+    const currentMonthNum = now.getMonth() + 1; // 1-12
+    const currentYearStr = String(now.getFullYear());
+    const prevYearStr = String(now.getFullYear() - 1);
+
+    // До 25 января включительно используем прошлый год, если он есть в списке
+    if (currentMonthNum === 1 && currentDay < 25) {
+        selectedYear = rootDir.years.includes(prevYearStr) ? prevYearStr : rootDir.years[rootDir.years.length - 1];
+    } else {
+        // После 25 января (или в другие месяцы) текущий год, если он есть
+        selectedYear = rootDir.years.includes(currentYearStr) ? currentYearStr : rootDir.years[rootDir.years.length - 1];
+    }
 }
 
     // ==================================================
@@ -515,20 +528,37 @@ if (!selectedYear || !rootDir.years.includes(selectedYear)) {
 
     if (availableMonths.length) filebar.appendChild(monthDiv);
 
+// --- Логика выбора месяца по умолчанию ---
 if (!selectedMonth) {
     const now = new Date();
-    const currentYear  = String(now.getFullYear());
-    const currentMonth = String(now.getMonth() + 1).padStart(2, "0");
+    const currentDay = now.getDate();
+    const currentYearStr = String(now.getFullYear());
+    
+    let targetMonthNum;
 
-    if (selectedYear === currentYear && availableMonths.includes(currentMonth)) {
-        // текущий месяц ТОЛЬКО если год совпадает
-        selectedMonth = currentMonth;
+    // Если сегодня 25-е и далее — текущий месяц, иначе — предыдущий
+    if (currentDay >= 25) {
+        targetMonthNum = now.getMonth() + 1;
     } else {
-        // иначе — последний доступный месяц выбранного года
+        targetMonthNum = now.getMonth(); // Предыдущий месяц (0 для января превратится в логику ниже)
+    }
+
+    // Обработка перехода года (если targetMonthNum стал 0)
+    let yearForMonthCheck = selectedYear;
+    if (targetMonthNum === 0) {
+        targetMonthNum = 12;
+    }
+
+    const targetMonthStr = String(targetMonthNum).padStart(2, "0");
+
+    // Проверяем: если мы в выбранном году и целевой месяц доступен
+    if (availableMonths.includes(targetMonthStr)) {
+        selectedMonth = targetMonthStr;
+    } else {
+        // Если целевого месяца нет, берем последний доступный в этом году
         selectedMonth = availableMonths[availableMonths.length - 1];
     }
 }
-
     filebar.querySelectorAll(".month-btn").forEach(btn => {
         const idx = monthLabels.indexOf(btn.textContent);
         const m = String(idx + 1).padStart(2, "0");
