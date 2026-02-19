@@ -277,35 +277,59 @@ window.addEventListener('resize', () => {
 // INIT
 // ================================
 document.addEventListener("DOMContentLoaded", async () => {
-  await loadHomesAndBuildMenu();
-  sidebarState.mode = getScreenMode();
+  // 1. Получаем пользователя ОДИН раз для всей сессии
+  const { data: { user }, error: userError } = await client.auth.getUser();
+  
+  if (userError || !user) {
+    console.error('Ошибка авторизации или пользователь не найден');
+    return;
+  }
 
+  // 2. Настраиваем режим экрана
+  sidebarState.mode = getScreenMode();
   if (sidebarState.mode === 'desktop') {
     openSidebar();
   } else {
     closeSidebar();
   }
 
-  // ======================================
-  // TABLET: закрытие сайдбара по тапу вне
-  // ======================================
+  // 3. Загружаем дома и строим меню (передаем user, чтобы не делать лишний запрос внутри)
+  await loadHomesAndBuildMenu(user);
+
+  // 4. ЛОГИКА ЗАПУСКА (Активируем только что-то одно)
+  const urlHomeCode = getParam("homeCode");
+  const urlActionCode = getParam("actionCode");
+
+  if (urlHomeCode && urlActionCode) {
+    // Если пришли по ссылке с параметрами — активируем их
+    activateMenuFromParams();
+  } else if (homes && homes.length > 0) {
+    // Если параметров нет — выбираем первый дом (только если ничего не выбрано)
+    const firstHome = homes[0];
+    const firstAction = actions[0];
+    const actionEl = document.querySelector(
+      `[data-code="${firstHome.code}"] ul span[data-action="${firstAction.actionCode}"]`
+    );
+
+    // Если мобилка/планшет — при первом входе лучше оставить меню открытым
+    if (sidebarState.mode !== 'desktop') openSidebar();
+
+    handleMenuClick(firstHome.code, firstAction.actionCode, actionEl, { initial: true });
+  }
+
+  // 5. Обработчик закрытия сайдбара для планшетов (оставляем как был)
   document.addEventListener('pointerdown', e => {
     if (sidebarState.mode !== 'tablet') return;
     if (!sidebarIsOpen()) return;
 
     const sidebar = document.querySelector('.sidebar');
-    if (!sidebar) return;
+    if (!sidebar || sidebar.contains(e.target)) return;
+    if (e.target.closest('.hamburger') || e.target.closest('.topbar-back')) return;
 
-    // клик ВНУТРИ сайдбара — игнор
-    if (sidebar.contains(e.target)) return;
-
-    // клик по гамбургеру — тоже игнор
-    if (e.target.closest('.hamburger')) return;
-    if (e.target.closest('.topbar-back')) return;
     closeSidebar();
-    blinkHamburger(); 
+    blinkHamburger();
   });
-});
+});;
 function blinkHamburger() {
   const btn = document.querySelector('.topbar .hamburger');
   if (!btn) return;
@@ -385,19 +409,10 @@ function wildcardToRegExp(pattern) {
     "i"
   );
 }
-async function loadHomesAndBuildMenu() {
-  // Получаем пользователя
-  const {
-    data: { user },
-    error: userError
-  } = await client.auth.getUser();
+async function loadHomesAndBuildMenu(user) {
+  // 1. УБРАЛИ запрос client.auth.getUser(), так как 'user' теперь приходит в аргументах
 
-  if (userError || !user) {
-    console.error('Не удалось получить пользователя:', userError);
-    return;
-  }
-
-  // Загружаем дома из таблицы
+  // 2. Загружаем дома (этот запрос остается, он нужен для меню)
   const { data, error } = await client
     .from('homes')
     .select('data');
@@ -407,133 +422,93 @@ async function loadHomesAndBuildMenu() {
     return;
   }
 
-  // Преобразуем данные и сохраняем в глобальную переменную
+  // Преобразуем данные
   homes = data.map(row => JSON.parse(row.data));
-  roles=await loadHomeRoles();
+  
+  // Загружаем роли (1 запрос)
+  roles = await loadHomeRoles();
+
   if (!homes || homes.length === 0) {
     alert('Нет доступных домов для пользователя');
     return;
   }
+
+  // Настройка поиска
   const searchInput = document.getElementById('searchHomes');
-  if (homes.length > 5) {
-    searchInput.style.display = 'block'; // показываем
-  } else {
-    searchInput.style.display = 'none';  // скрываем
+  if (searchInput) {
+    searchInput.style.display = homes.length > 5 ? 'block' : 'none';
   }
-  // Сортируем дома по имени
+
   homes.sort((a, b) => a.name.localeCompare(b.name));
 
-// Генерируем меню
-const menu = document.getElementById("menu");
-menu.innerHTML = ''; // очистить меню перед добавлением
+  // Генерируем меню
+  const menu = document.getElementById("menu");
+  menu.innerHTML = ''; 
 
-homes.forEach(home => {
-  const homeItem = document.createElement("li");
-  homeItem.setAttribute("data-code", home.code);
-  homeItem.classList.add("menu-item");
+  homes.forEach(home => {
+    const homeItem = document.createElement("li");
+    homeItem.setAttribute("data-code", home.code);
+    homeItem.classList.add("menu-item");
 
-  const homeLink = document.createElement("span");
-  homeLink.textContent = home.name;
-  homeLink.onclick = () => toggleSubMenu(homeItem, home.code);
+    const homeLink = document.createElement("span");
+    homeLink.textContent = home.name;
+    homeLink.onclick = () => toggleSubMenu(homeItem, home.code);
+    homeItem.appendChild(homeLink);
 
-  homeItem.appendChild(homeLink);
+    const actionList = document.createElement("ul");
+    actions.forEach(action => {
+      const actionItem = document.createElement("li");
+      const actionLink = document.createElement("span");
+      actionLink.textContent = action.name;
+      actionLink.setAttribute("data-action", action.actionCode);
+      actionLink.onclick = () => handleMenuClick(home.code, action.actionCode, actionLink);
+      actionItem.appendChild(actionLink);
+      actionList.appendChild(actionItem);
+    });
 
-  const actionList = document.createElement("ul");
-  
-  actions.forEach(action => {
-    const actionItem = document.createElement("li");
-    const actionLink = document.createElement("span");
+    homeItem.appendChild(actionList);
+    menu.appendChild(homeItem);
+  });
 
-    actionLink.textContent = action.name;
-    actionLink.setAttribute("data-action", action.actionCode); // ✅ важный момент
+  // --- УДАЛЕНО: activateMenuFromParams() перенесен в DOMContentLoaded ---
 
-    actionLink.onclick = () => {
-      handleMenuClick(home.code, action.actionCode, actionLink);
+  // Кнопки Настройки и Выход
+  addSystemMenuItems(menu);
+
+  // Логика фильтра (поиск)
+  if (homes.length > 5 && searchInput) {
+    if (localStorage.getItem("searchHomes")) {
+      searchInput.value = localStorage.getItem("searchHomes");
+      filterHomes(searchInput.value);
+    }
+    // Используем 'input' для живого поиска
+    searchInput.oninput = function() {
+      const filter = this.value.trim();
+      localStorage.setItem("searchHomes", filter);
+      filterHomes(filter);
     };
-
-    actionItem.appendChild(actionLink);
-    actionList.appendChild(actionItem);
-  });
-
-  homeItem.appendChild(actionList);
-  menu.appendChild(homeItem);
-});
-
-
-  // Активируем меню по параметрам URL (если есть)
-  activateMenuFromParams();
-
-
-// В конце функции loadHomesAndBuildMenu(), после цикла по домам:
-const logoutItem = document.createElement("li");
-logoutItem.classList.add("menu-item", "logout-item");
-
-const logoutLink = document.createElement("span");
-logoutLink.textContent = "Вийти";
-logoutLink.style.color = "red";
-logoutLink.style.cursor = "pointer";
-logoutLink.onclick = async () => {
-  await client.auth.signOut();
-  window.location.reload(); // Перезагрузить страницу, чтобы сбросить состояние
-};
-logoutItem.appendChild(logoutLink);
-
-const settingsItem = document.createElement("li");
-settingsItem.classList.add("menu-item", "settings-item");
-
-const settingsLink = document.createElement("span");
-settingsLink.id = "settingsLink";
-settingsLink.textContent = "Налаштування";
-settingsLink.style.cursor = "pointer";
-settingsLink.onclick = () => {
-userSettings();
-};
-settingsItem.appendChild(settingsLink);
-
-// Добавляем в меню
-menu.appendChild(settingsItem);
-menu.appendChild(logoutItem);
-  if (homes.length > 5) {
-  // Восстанавливаем значение из localStorage
-  if (localStorage.getItem("searchHomes")) {
-    searchInput.value = localStorage.getItem("searchHomes");
-    filterHomes(searchInput.value);
-  }
-  searchInput.addEventListener("input", function () {
-    var filter = this.value.trim();
-    localStorage.setItem("searchHomes", filter); // Сохраняем в localStorage
-    filterHomes(filter);
-  });
-}
-
-// ================================
-// AUTO-SELECT FIRST HOME (FIRST LOAD)
-// ================================
-const hasParams =
-  getParam("homeCode") && getParam("actionCode");
-
-if (!hasParams && homes.length > 0) {
-  const firstHome = homes[0];
-  const firstAction = actions[0];
-
-  const actionEl = document.querySelector(
-    `[data-code="${firstHome.code}"] ul span[data-action="${firstAction.actionCode}"]`
-  );
-
-  // на mobile / tablet — показать меню
-  if (sidebarState.mode !== 'desktop') {
-    document.body.classList.add("sidebar-open");
   }
 
-  handleMenuClick(
-    firstHome.code,
-    firstAction.actionCode,
-    actionEl,
-    { initial: true }
-  );
+  // --- УДАЛЕНО: AUTO-SELECT FIRST HOME перенесен в DOMContentLoaded ---
 }
 
+// Вспомогательная функция для чистоты кода
+function addSystemMenuItems(menu) {
+  const settingsItem = document.createElement("li");
+  settingsItem.className = "menu-item settings-item";
+  settingsItem.innerHTML = `<span id="settingsLink" style="cursor:pointer">Налаштування</span>`;
+  settingsItem.onclick = userSettings;
 
+  const logoutItem = document.createElement("li");
+  logoutItem.className = "menu-item logout-item";
+  logoutItem.innerHTML = `<span style="color:red; cursor:pointer">Вийти</span>`;
+  logoutItem.onclick = async () => {
+    await client.auth.signOut();
+    window.location.reload();
+  };
+
+  menu.appendChild(settingsItem);
+  menu.appendChild(logoutItem);
 }
 function filterHomes(filter) {
   var regexPattern = filter
