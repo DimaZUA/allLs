@@ -1,5 +1,34 @@
 ﻿var data = {};
 let hk=0;
+// Вспомогательный массив для украинских месяцев
+const ukrMonths = [
+  "січня", "лютого", "березня", "квітня", "травня", "червня",
+  "липня", "серпня", "вересня", "жовтня", "листопада", "грудня"
+];
+
+// Вспомогательная функция для получения смещенной даты
+function getOffsetDate(offsetDays = 0) {
+  const d = new Date();
+  d.setDate(d.getDate() + offsetDays);
+  return d;
+}
+
+// Форматирование: dd.mm.yyyy
+function formatDotted(date) {
+  const dd = String(date.getDate()).padStart(2, "0");
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  const yyyy = date.getFullYear();
+  return `${dd}.${mm}.${yyyy}`;
+}
+
+// Форматирование: dd mmmm yyyy (укр)
+function formatFullUkr(date, quoteDay = false) {
+  const dd = date.getDate();
+  const mm = ukrMonths[date.getMonth()];
+  const yyyy = date.getFullYear();
+  const dayStr = quoteDay ? `"${String(dd).padStart(2, "0")}"` : dd;
+  return `${dayStr} ${mm} ${yyyy} року`;
+}
 function displayHomeInfo(homeCode) {
   hk=homeCode;
   var home = homes.find(function (h) {
@@ -820,6 +849,32 @@ modal.querySelector("#okBtn").onclick = () => {
 // ==========================================
 
 const computedPlaceholders = {
+// Формат dd.mm.yyyy
+  "сегодня": { dependsOn: [], compute: () => formatDotted(getOffsetDate(0)) },
+  "вчера":   { dependsOn: [], compute: () => formatDotted(getOffsetDate(-1)) },
+  "завтра":  { dependsOn: [], compute: () => formatDotted(getOffsetDate(1)) },
+
+  // Формат dd mmmm yyyy (укр)
+  "сегодня1": { dependsOn: [], compute: () => formatFullUkr(getOffsetDate(0)) },
+  "вчера1":   { dependsOn: [], compute: () => formatFullUkr(getOffsetDate(-1)) },
+  "завтра1":  { dependsOn: [], compute: () => formatFullUkr(getOffsetDate(1)) },
+
+  // Отдельные части даты
+  "год":   { dependsOn: [], compute: () => new Date().getFullYear().toString() },
+  "месяц": { dependsOn: [], compute: () => ukrMonths[new Date().getMonth()] },
+
+  // Периоды
+  "началомесяца": { 
+    dependsOn: [], 
+    compute: () => formatDotted(new Date(new Date().getFullYear(), new Date().getMonth(), 1)) 
+  },
+  "началогода": { 
+    dependsOn: [], 
+    compute: () => formatDotted(new Date(new Date().getFullYear(), 0, 1)) 
+  },
+
+  // Специальный формат: "dd" mmmm yyyy
+  "дата": { dependsOn: [], compute: () => formatFullUkr(getOffsetDate(0), true) },
 "pl": {
     dependsOn: [],
     compute() {
