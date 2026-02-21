@@ -281,12 +281,11 @@ keys.forEach(k => {
 
   let val;
   if(k === "ls") {
-    val = state.lsList.length; // просто количество счетов
+    val = state.lsList.length;
   } else if(k === "kv") {
-    // уникальные квартиры, 366 и 366А / 366-А считаем одной
     const seen = new Set();
     state.lsList.forEach(i => {
-      const normalized = String(i.kv).replace(/[^0-9]/g,''); // оставляем только цифры
+      const normalized = String(i.kv).replace(/[^0-9]/g,'');
       if(normalized) seen.add(normalized);
     });
     val = seen.size;
@@ -295,7 +294,19 @@ keys.forEach(k => {
   }
 
   const spanVal = document.createElement("span");
-  spanVal.textContent = ["ls","kv","pers"].includes(k) ? val : val.toLocaleString("ru-RU", {minimumFractionDigits:2, maximumFractionDigits:2});
+  
+  // Вывод значения
+  const formattedVal = ["ls","kv","pers"].includes(k) 
+    ? val 
+    : val.toLocaleString("ru-RU", {minimumFractionDigits:2, maximumFractionDigits:2});
+
+  // Добавляем счетчик только для оплаты
+  if (k === "opl") {
+    const payCount = state.lsList.filter(i => (+i.opl || 0) > 0).length;
+    spanVal.textContent = `${formattedVal} (Платежів: ${payCount})`;
+  } else {
+    spanVal.textContent = formattedVal;
+  }
 
   // окраска долгов
   if(k === "dolg") {
