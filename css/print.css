@@ -49,6 +49,7 @@
     #filter-container,
     .compare-row,
     .act-preview-row,
+    .year-block > label,
     #years-bar,
     .act-icon {
         display: none !important;
