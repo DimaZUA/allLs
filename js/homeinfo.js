@@ -392,6 +392,18 @@ function getReplacementMap(sourceData) {
     return map;
   }
 
+  // 1. Формируем orgfull (берем первое непустое)
+  sourceData.orgfull = sourceData.orgfull || sourceData.name || org || "";
+
+  // 2. Формируем mfo из Iban, если само mfo пустое
+  if (!sourceData.mfo || String(sourceData.mfo).trim() === "") {
+    if (sourceData.Iban && sourceData.Iban.length >= 10) {
+      // 5, 6, 7, 8, 9, 10 символы — это индекс с 4 по 10
+      sourceData.mfo = sourceData.Iban.substring(4, 10);
+    }
+  }
+
+  // Теперь переносим всё в карту замен в нижнем регистре
   Object.keys(sourceData).forEach(function (key) {
     const value = sourceData[key];
     map[key.toLowerCase()] =
