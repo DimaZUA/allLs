@@ -136,6 +136,13 @@ async function handleMenuClick(homeCode, actionCode, actionLink, { fromHistory =
 
   // --- БЛОКИРУЕМ повторные клики ---
   if (handleMenuClick.isLoading) return;
+
+if (actionCode === "reports" && !navigator.onLine) {
+    showMessage("Розділ 'Документи' доступний лише при наявності інтернету.", "err", 5000);
+    handleMenuClick.isLoading = false;
+    return;
+  }
+  
   handleMenuClick.isLoading = true;
 
   // --- ДАННЫЕ ДОМА ---
@@ -145,7 +152,7 @@ async function handleMenuClick(homeCode, actionCode, actionLink, { fromHistory =
   if (!home) {
     // Проверяем онлайн
     if (!navigator.onLine) {
-      alert("Відсутнє підключення до інтернету. Дані не оновлено.");
+      showMessage("Помилка: Дані цього будинку ще не завантажені. Підключіться до інтернету.", "err", 7000);
       handleMenuClick.isLoading = false;
       return;
     }
@@ -782,3 +789,51 @@ window.addEventListener("popstate", e => {
     activateMenuFromParams();
   }
 });
+
+function isHomeAvailable(homeCode) {
+  // Дом доступен, если: 1) Есть интернет ИЛИ 2) Он уже загружен в память
+  return navigator.onLine || (window.homeData && window.homeData[homeCode]);
+}
+
+let isCurrentlyOffline = !navigator.onLine; // Глобальный флаг состояния в menu.js
+
+function updateMenuAvailability() {
+  const isOnline = navigator.onLine;
+
+  // Уведомления через вашу функцию showMessage
+  if (!isOnline && !isCurrentlyOffline) {
+    isCurrentlyOffline = true;
+    showMessage("Відсутнє підключення. Розділ 'Документи' та незавантажені будинки тимчасово недоступні.", "warn", 10000);
+  } else if (isOnline && isCurrentlyOffline) {
+    isCurrentlyOffline = false;
+    showMessage("З'єднання відновлено. Всі розділи доступні.", "suc", 5000);
+  }
+
+  document.querySelectorAll(".menu-item[data-code]").forEach(item => {
+    const homeCode = item.getAttribute("data-code");
+    const isLoaded = !!(window.homeData && window.homeData[homeCode]);
+    
+    // 1. Блокировка всего дома, если он не в кеше
+    if (!isOnline && !isLoaded) {
+      item.classList.add("home-offline");
+    } else {
+      item.classList.remove("home-offline");
+    }
+
+    // 2. Специфическая блокировка пункта "Документи" (reports)
+    const reportsBtn = item.querySelector('span[data-action="reports"]');
+    if (reportsBtn) {
+      if (!isOnline) {
+        reportsBtn.classList.add("action-offline");
+        reportsBtn.title = "Документи доступні тільки онлайн";
+      } else {
+        reportsBtn.classList.remove("action-offline");
+        reportsBtn.removeAttribute("title");
+      }
+    }
+  });
+}
+
+// Слушатели (остаются прежними)
+window.addEventListener('online', updateMenuAvailability);
+window.addEventListener('offline', updateMenuAvailability);
