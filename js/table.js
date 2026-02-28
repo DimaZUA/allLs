@@ -484,6 +484,12 @@ function generateTable() {
       }
     }
   }
+// --- Сортировка услуг по номеру ---
+const sortedArray = Array.from(servicesWithCharges)
+  .map(Number)
+  .sort((a, b) => a - b);
+servicesWithCharges.clear();
+sortedArray.forEach(id => servicesWithCharges.add(id));
 
   const table = document.createElement("table");
   table.classList.add("main");
@@ -813,8 +819,10 @@ const rows = Array.from(table.tBodies[0].children).filter(row =>
         }
 
       } else {
-        const normalized = text.replace(/[\s\u00A0]+/g, "").replace(",", ".");
-        const num = parseFloat(normalized);
+const normalized = text.replace(/[\s\u00A0]+/g, "").replace(",", ".");
+
+// если пусто — считаем это нулём
+const num = normalized === "" ? 0 : parseFloat(normalized);
 
         console.log(
           `   parsed num =`,

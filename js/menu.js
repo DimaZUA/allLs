@@ -46,13 +46,16 @@ var homes, ls, nach, files, adr, dt, org, b, what, kto, oplat, plat, us, nachnot
 function activateMenuFromParams() {
   const homeCode = getParam("homeCode");
   const actionCode = getParam("actionCode");
+
   if (!homes || homes.length === 0) return;
   if (!homeCode || !actionCode) return;
 
+  // Находим элемент действия в меню, если он есть
   const actionSpan = document.querySelector(
     `[data-code="${homeCode}"] ul span[data-action="${actionCode}"]`
   );
 
+  // --- Вызов handleMenuClick, UI обновится только после загрузки данных ---
   handleMenuClick(homeCode, actionCode, actionSpan, { fromHistory: true, initial: true });
 }
 
@@ -60,18 +63,21 @@ function activateMenuFromParams() {
 // ПОДМЕНЮ ДОМА
 // ================================
 function toggleSubMenu(homeItem, homeCode) {
-  var previousActionCode = getParam("actionCode");
+  const previousActionCode = getParam("actionCode");
 
+  // Скрываем все подменю и убираем подсветку
   document.querySelectorAll(".menu-item").forEach(item => {
     item.classList.remove("active");
     const ul = item.querySelector("ul");
     if (ul) ul.style.display = "none";
   });
 
+  // Открываем текущее подменю
   homeItem.classList.add("active");
   const actionList = homeItem.querySelector("ul");
   if (actionList) actionList.style.display = "block";
 
+  // Находим действие, которое нужно активировать
   let actionItem = Array.from(actionList.querySelectorAll("li")).find(item => {
     const span = item.querySelector("span");
     return actions.some(a =>
@@ -81,16 +87,13 @@ function toggleSubMenu(homeItem, homeCode) {
   });
 
   if (!actionItem) actionItem = actionList.querySelector("li");
+  if (!actionItem) return;
 
-  if (actionItem) {
-    const actionLink = actionItem.querySelector("span");
-    actionLink.classList.add("active-action");
-    handleMenuClick(
-      homeCode,
-      actions.find(a => a.name === actionLink.textContent).actionCode,
-      actionLink
-    );
-  }
+  const actionLink = actionItem.querySelector("span");
+  const actionCode = actions.find(a => a.name === actionLink.textContent).actionCode;
+
+  // --- ТОЛЬКО ВЫЗОВ handleMenuClick, UI внутри него обновится ПОСЛЕ загрузки данных ---
+  handleMenuClick(homeCode, actionCode, actionLink);
 }
 
 // ================================
@@ -131,6 +134,44 @@ function parseHomeRow(row) {
 // ================================
 async function handleMenuClick(homeCode, actionCode, actionLink, { fromHistory = false, initial = false } = {}) {
 
+  // --- БЛОКИРУЕМ повторные клики ---
+  if (handleMenuClick.isLoading) return;
+  handleMenuClick.isLoading = true;
+
+  // --- ДАННЫЕ ДОМА ---
+  window.homeData = window.homeData || {};
+  let home = window.homeData[homeCode];
+
+  if (!home) {
+    // Проверяем онлайн
+    if (!navigator.onLine) {
+      alert("Відсутнє підключення до інтернету. Дані не оновлено.");
+      handleMenuClick.isLoading = false;
+      return;
+    }
+
+    try {
+      const { data, error } = await client
+        .from("homes")
+        .select("us, b, org, adr, dt, what, kto, nach, oplat, ls, plat, files, nachnote, allnach")
+        .eq("code", homeCode)
+        .single();
+
+      if (error || !data) throw error;
+
+      home = parseHomeRow(data);
+      window.homeData[homeCode] = home;
+
+    } catch (err) {
+      console.error("Ошибка загрузки дома:", err);
+      alert("Не удалось загрузить данные дома. Проверьте соединение.");
+      handleMenuClick.isLoading = false;
+      return; // НИЧЕГО не меняем в UI
+    }
+  }
+
+  // --- ТОЛЬКО ТЕПЕРЬ ОБНОВЛЯЕМ UI ---
+
   // --- MOBILE / TABLET: закрываем меню ---
   if (sidebarState.mode !== 'desktop' && sidebarIsOpen() && actionCode !== 'reports') {
     closeSidebar();
@@ -168,22 +209,7 @@ async function handleMenuClick(homeCode, actionCode, actionLink, { fromHistory =
     if (ul) ul.style.display = "block";
   }
 
-  // --- ДАННЫЕ ДОМА ---
-  window.homeData = window.homeData || {};
-  let home = window.homeData[homeCode];
-
-  if (!home) {
-    const { data, error } = await client
-      .from("homes")
-      .select("us, b, org, adr, dt, what, kto, nach, oplat, ls, plat, files, nachnote, allnach")
-      .eq("code", homeCode)
-      .single();
-
-    if (error || !data) return;
-    home = parseHomeRow(data);
-    window.homeData[homeCode] = home;
-  }
-
+  // --- ИНИЦИАЛИЗАЦИЯ ПЕРЕМЕННЫХ ---
   ls = home.ls;
   nach = home.nach;
   nachnote = home.nachnote;
@@ -199,25 +225,20 @@ async function handleMenuClick(homeCode, actionCode, actionLink, { fromHistory =
   plat = home.plat;
   us = home.us;
 
-// --- HISTORY (Оптимизировано: без setParam) ---
+  // --- HISTORY / URL ---
   const homeObj = homes.find(h => h.code === homeCode);
   const actionObj = actions.find(a => a.actionCode === actionCode);
   document.title = `${homeObj?.name || ""} — ${actionObj?.name || ""}`;
 
-  // Формируем чистую строку параметров
   const newUrl = `?homeCode=${homeCode}&actionCode=${actionCode}`;
   const newState = { homeCode, actionCode };
 
   if (initial || fromHistory) {
-    // Обновляем текущую запись (важно для правильной работы кнопки "Назад")
     history.replaceState(newState, document.title, newUrl);
   } else {
-    // Создаем ОДНУ новую запись в истории
     history.pushState(newState, document.title, newUrl);
   }
 
-  // Если вам всё ещё нужно сохранять эти данные в localStorage для других скриптов, 
-  // сделайте это вручную здесь, чтобы не вызывать тяжелую setParam:
   localStorage.setItem("last_homeCode", homeCode);
   localStorage.setItem("last_actionCode", actionCode);
 
@@ -232,8 +253,11 @@ async function handleMenuClick(homeCode, actionCode, actionLink, { fromHistory =
     case "schema": initSchema(); break;
     case "debitorka": initDashboard(); break;
   }
+
   updateTopbarTitle(homeCode);
 
+  // --- СНИМАЕМ блокировку ---
+  handleMenuClick.isLoading = false;
 }
 
 // ================================
