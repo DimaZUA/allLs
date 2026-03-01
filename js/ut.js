@@ -1801,7 +1801,7 @@ function handleRows(tableCopy, ws) {
             nestedRows.forEach(function (nestedRow, nestedRowIndex) {
               if (nestedRowIndex > 0) {
                 var nestedCells = nestedRow.querySelectorAll("td");
-                var nextRowData = Array(rowData.length).fill(""); // Заполняем пустыми ячейками
+                var nextRowData = Array(rowData.length).fill(null); // Заполняем пустыми ячейками
                 nextRowData[paySubtableColumnIndex] =
                   nestedCells[1].innerText.trim();
                 nextRowDataArray.push(nextRowData);
