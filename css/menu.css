@@ -375,12 +375,21 @@ body.sidebar-scroll-lock {
   touch-action: none;
 }
 
+/* Блокировка отдельного действия (Документы) */
+.action-offline {
+  color: #aaa !important;
+  text-decoration: line-through;
+  pointer-events: none; /* Отключает клик */
+  cursor: not-allowed !important;
+}
+
+/* Визуальный стиль для всего дома (если не загружен) */
 .menu-item.home-offline {
   opacity: 0.5;
   filter: grayscale(0.8);
   cursor: not-allowed;
 }
-
-.menu-item.home-offline span {
-  pointer-events: none; /* Отключаем клики на текст внутри */
+.menu-item.home-offline > span {
+  pointer-events: none;
+  cursor: not-allowed !important;
 }
