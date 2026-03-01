@@ -1438,6 +1438,9 @@ function isElementVisible(el) {
   return true;
 }
 function parseCellValue2(value) {
+if (value === null || value === undefined || value.toString().trim() === ""||value==0) {
+    return null; // Именно null скажет ExcelJS, что ячейка пустая
+  }
   var trimmedValue = value.replace(/\u00A0/g, " ").trim();
 
   // Списки месяцев
