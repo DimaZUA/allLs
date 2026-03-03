@@ -199,19 +199,28 @@
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJvbGxhcnBuZXdiaHppd2xkempuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTEzNjY4MjYsImV4cCI6MjA2Njk0MjgyNn0.KhmT9U5wKm0irQbidZjZXCSOfzfr1gYYmo_21VL1JPw"
   );
 
-  async function enterAppMode() {
-    document.getElementById("auth-section").style.display = "none";
+async function enterAppMode() {
+  // 1. Скрываем интерфейс авторизации
+  const authSection = document.getElementById("auth-section");
+  if (authSection) authSection.style.display = "none";
 
-    document.body.classList.add("authenticated", "app");
-    document.body.classList.remove("files-mode");
-    document.body.classList.remove("sidebar-open");
+  // 2. Подготавливаем классы body
+  document.body.classList.add("authenticated", "app");
+  document.body.classList.remove("files-mode");
 
-    document.querySelector(".sidebar").style.display = "block";
-    document.querySelector(".content").style.display = "block";
-    document.getElementById("hamburger").style.display = "flex";
+  // 3. Показываем контейнеры приложения
+  const sidebarEl = document.querySelector(".sidebar");
+  const contentEl = document.querySelector(".content");
+  const hamburgerBtn = document.getElementById("hamburger");
 
-    await loadHomesAndBuildMenu();
-  }
+  if (sidebarEl) sidebarEl.style.display = "block";
+  if (contentEl) contentEl.style.display = "block";
+  if (hamburgerBtn) hamburgerBtn.style.display = "flex";
+
+  // 4. ВЫЗОВ НАШЕЙ НОВОЙ ФУНКЦИИ ИНИЦИАЛИЗАЦИИ
+  // Она загрузит пользователя, дома, построит меню и откроет первый дом
+  await initApp();
+}
 
   async function enterAuthMode() {
     document.getElementById("auth-section").style.display = "block";

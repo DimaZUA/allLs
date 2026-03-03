@@ -307,12 +307,13 @@ window.addEventListener('resize', () => {
 // ================================
 // INIT
 // ================================
-document.addEventListener("DOMContentLoaded", async () => {
-  // 1. Получаем пользователя ОДИН раз для всей сессии
+async function initApp() {
+  // 1. Проверяем сессию пользователя
   const { data: { user }, error: userError } = await client.auth.getUser();
   
   if (userError || !user) {
-    console.error('Ошибка авторизации или пользователь не найден');
+    console.warn('Пользователь не авторизован');
+    // Здесь можно перенаправить на страницу логина или показать форму
     return;
   }
 
@@ -324,31 +325,31 @@ document.addEventListener("DOMContentLoaded", async () => {
     closeSidebar();
   }
 
-  // 3. Загружаем дома и строим меню (передаем user, чтобы не делать лишний запрос внутри)
+  // 3. Загружаем данные и строим меню
   await loadHomesAndBuildMenu(user);
 
-  // 4. ЛОГИКА ЗАПУСКА (Активируем только что-то одно)
+  // 4. Логика запуска (URL или первый доступный дом)
   const urlHomeCode = getParam("homeCode");
   const urlActionCode = getParam("actionCode");
 
   if (urlHomeCode && urlActionCode) {
-    // Если пришли по ссылке с параметрами — активируем их
     activateMenuFromParams();
   } else if (homes && homes.length > 0) {
-    // Если параметров нет — выбираем первый дом (только если ничего не выбрано)
     const firstHome = homes[0];
     const firstAction = actions[0];
     const actionEl = document.querySelector(
       `[data-code="${firstHome.code}"] ul span[data-action="${firstAction.actionCode}"]`
     );
 
-    // Если мобилка/планшет — при первом входе лучше оставить меню открытым
     if (sidebarState.mode !== 'desktop') openSidebar();
-
     handleMenuClick(firstHome.code, firstAction.actionCode, actionEl, { initial: true });
   }
+};
+document.addEventListener("DOMContentLoaded", async () => {
+  // Запускаем основную инициализацию
+  await initApp();
 
-  // 5. Обработчик закрытия сайдбара для планшетов (оставляем как был)
+  // Оставляем только глобальные слушатели событий, которые вешаются ОДИН раз
   document.addEventListener('pointerdown', e => {
     if (sidebarState.mode !== 'tablet') return;
     if (!sidebarIsOpen()) return;
@@ -360,7 +361,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     closeSidebar();
     blinkHamburger();
   });
-});;
+});
 function blinkHamburger() {
   const btn = document.querySelector('.topbar .hamburger');
   if (!btn) return;
