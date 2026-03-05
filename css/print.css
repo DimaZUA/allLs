@@ -26,10 +26,16 @@
     #maincontainer * {
         visibility: visible;
     }
-
+    table#main thead{
+    position:static;
+    }
+    .box table#main {
+    width: 100%;
+    }
     #header,
     #header * {
         visibility: visible;
+        top:0
     }
     #header{border:none}
     /* ===============================
@@ -61,6 +67,7 @@
         outline: none !important;
         box-shadow: none !important;
         background: transparent !important;
+        width:100px;
     }
         /* убрать все тени при печати */
     *,
@@ -80,6 +87,8 @@
         left: 0 !important;
         //width: 95% !important;
         max-width: 95% !important;
+        padding-top:0px;
+        padding:0px;
     }
 
     .box {
@@ -95,11 +104,12 @@
         width: auto;
         border-collapse: collapse;
         margin: 0;
+
     }
 
     th,
     td {
-        padding: 4px 10px !important;
+        padding: 0px !important;
         text-align: center;
     }
 
