@@ -167,4 +167,11 @@
 
     /* ❗ НИКАКИХ * ДЛЯ print-act-sign */
 
+.box table#main tbody .paysubtable td:nth-child(1),
+.box table#main tbody .paysubtable td:nth-child(3) {
+  vertical-align: bottom;
+  font-size: 8px;
+}
+
+
 }
