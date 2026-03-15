@@ -610,133 +610,220 @@ requestAnimationFrame(() => {
 
 
 function renderLiabilitiesCards(liabilities) {
+    const [d, m, y] = dt.split(' ')[0].split('.');
+    const dateLabel = new Intl.DateTimeFormat('uk-UA', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+    }).format(new Date(y, m - 1, d));
 
-const [d, m, y] = dt.split(' ')[0].split('.');
-const dateLabel = new Intl.DateTimeFormat('uk-UA', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric'
-}).format(new Date(y, m - 1, d));
+    function getDetailView(detail, cat) {
+        const isSalary = detail.account === '661';
+        const isTaxOrNoWho = ['641', '651', '652', '482'].includes(detail.account);
 
+        let onClick = '';
 
-    function renderSide(title, side) {
+        if (isSalary) {
+            onClick = 'openSalaryHistory()';
+        } else if (isTaxOrNoWho) {
+            onClick = `openLiabilityHistory({ account: "${detail.account}", who: null })`;
+        } else {
+            onClick = `openLiabilityHistory({ account: "${detail.account}", who: "${detail.detailsKey}" })`;
+        }
 
-        const rows = [];
+        const title = isSalary
+            ? 'Заробітна плата'
+            : (cat.key === 'TAX' ? getAccountTitle(detail.account) : detail.label);
 
-        for (const cat of LIABILITY_CATEGORIES) {
+        return {
+            key: `${title}__${detail.account}__${detail.detailsKey || ''}`,
+            title,
+            sum: detail.sum,
+            onClick
+        };
+    }
 
-            let catSum = 0;
-            let details = [];
+    function collectCategorySide(side, cat) {
+        let sum = 0;
+        const rawDetails = [];
 
-            if (cat.key === 'TAX') {
-                // агрегируем 641+651+652
-                side.rows.forEach(r => {
-                    if (cat.accounts.includes(r.account)) {
-                        catSum += r.sum;
-                        details.push(r);
-                    }
-                });
+        if (cat.key === 'TAX') {
+            side.rows.forEach(row => {
+                if (cat.accounts.includes(row.account)) {
+                    sum += row.sum;
+                    rawDetails.push(row);
+                }
+            });
+        } else {
+            side.rows.forEach(row => {
+                if (row.account === cat.key) {
+                    sum += row.sum;
+                    rawDetails.push(row);
+                }
+            });
+        }
+
+        const detailMap = new Map();
+        rawDetails.forEach(detail => {
+            const view = getDetailView(detail, cat);
+            const existing = detailMap.get(view.key);
+
+            if (existing) {
+                existing.sum += view.sum;
             } else {
-                side.rows.forEach(r => {
-                    if (r.account === cat.key) {
-                        catSum += r.sum;
-                        details.push(r);
-                    }
+                detailMap.set(view.key, { ...view });
+            }
+        });
+
+        return {
+            sum,
+            details: Array.from(detailMap.values())
+        };
+    }
+
+    function mergeDetails(leftDetails, rightDetails) {
+        const merged = new Map();
+
+        leftDetails.forEach(detail => {
+            merged.set(detail.key, {
+                title: detail.title,
+                leftSum: detail.sum,
+                rightSum: 0,
+                leftClick: detail.onClick,
+                rightClick: ''
+            });
+        });
+
+        rightDetails.forEach(detail => {
+            const existing = merged.get(detail.key);
+            if (existing) {
+                existing.rightSum += detail.sum;
+                existing.rightClick = detail.onClick;
+            } else {
+                merged.set(detail.key, {
+                    title: detail.title,
+                    leftSum: 0,
+                    rightSum: detail.sum,
+                    leftClick: '',
+                    rightClick: detail.onClick
                 });
             }
+        });
 
-            if (catSum < EPS) continue;
-
-            const id = `liab_${title}_${cat.key}`;
-
-            rows.push(`
-                <tr class="liab-cat" onclick='toggleLiab("${id}")'>
-                    <td>${cat.title}</td>
-                    <td>${catSum.toFixedWithComma(2)} ₴</td>
-                </tr>
-                <tr id="${id}" class="liab-details" style="display:none">
-                    <td colspan="2">
-                        <table class="dash-table inner">
-${details.map(d => {
-
-    const isSalary = d.account === '661';
-    const isTaxOrNoWho = ['641','651','652','482'].includes(d.account);
-
-    let onClick;
-
-    if (isSalary) {
-        // спец-экран зарплаты
-        onClick = `openSalaryHistory()`;
-    }
-    else if (isTaxOrNoWho) {
-        // налоги и прочие БЕЗ контрагента
-        onClick = `openLiabilityHistory({
-            account: "${d.account}",
-            who: null
-        })`;
-    }
-    else {
-        // обычные счета с аналитикой по контрагенту
-        onClick = `openLiabilityHistory({
-            account: "${d.account}",
-            who: "${d.detailsKey}"
-        })`;
+        return Array.from(merged.values());
     }
 
-    const title =
-        isSalary
-            ? 'Заробітна плата'
-            : (cat.key === 'TAX'
-                ? getAccountTitle(d.account)
-                : d.label);
+    function getRowClick(detail) {
+        if (detail.leftClick && detail.rightClick) {
+            return detail.leftClick === detail.rightClick ? detail.leftClick : '';
+        }
+
+        return detail.leftClick || detail.rightClick || '';
+    }
+
+    const rows = [];
+
+    LIABILITY_CATEGORIES.forEach(cat => {
+        const receivableCat = collectCategorySide(liabilities.receivable, cat);
+        const payableCat = collectCategorySide(liabilities.payable, cat);
+
+        if (receivableCat.sum < EPS && payableCat.sum < EPS) {
+            return;
+        }
+
+        const details = mergeDetails(receivableCat.details, payableCat.details);
+        const rowId = `liab_${cat.key}`;
+
+        rows.push(`
+            <tr class="liab-cat" onclick='toggleLiab("${rowId}")'>
+                <td class="liab-amount liab-amount-left">
+                    ${receivableCat.sum >= EPS ? `${receivableCat.sum.toFixedWithComma(2)} ₴` : ''}
+                </td>
+                <td class="liab-title-cell">${cat.title}</td>
+                <td class="liab-amount liab-amount-right">
+                    ${payableCat.sum >= EPS ? `${payableCat.sum.toFixedWithComma(2)} ₴` : ''}
+                </td>
+            </tr>
+            <tr id="${rowId}" class="liab-details" style="display:none">
+                <td colspan="3">
+                    <table class="dash-table inner liab-inner-table">
+                        <tbody>
+                            ${details.map(detail => `
+                                ${(() => {
+                                    const rowClick = getRowClick(detail);
+                                    const rowClickableClass = rowClick ? 'liab-clickable' : '';
+
+                                    return `
+                                <tr class="liab-item ${rowClickableClass}"
+                                    ${rowClick ? `onclick='${rowClick}'` : ''}>
+                                    <td class="liab-amount liab-amount-left">
+                                        ${detail.leftSum >= EPS ? `${detail.leftSum.toFixedWithComma(2)} ₴` : ''}
+                                    </td>
+                                    <td class="liab-title-cell">
+                                        ${detail.title}
+                                    </td>
+                                    <td class="liab-amount liab-amount-right">
+                                        ${detail.rightSum >= EPS ? `${detail.rightSum.toFixedWithComma(2)} ₴` : ''}
+                                    </td>
+                                </tr>
+                                    `;
+                                })()}
+                            `).join("")}
+                        </tbody>
+                    </table>
+                </td>
+            </tr>
+        `);
+    });
+
+    if (!rows.length) {
+        rows.push(`
+            <tr>
+                <td class="liab-amount liab-amount-left">—</td>
+                <td class="liab-title-cell">Немає даних</td>
+                <td class="liab-amount liab-amount-right">—</td>
+            </tr>
+        `);
+    }
 
     return `
-        <tr class="liab-item"
-            style="cursor:pointer"
-            onclick='${onClick}'>
-            <td>${title}</td>
-            <td>${d.sum.toFixedWithComma(2)} ₴</td>
-        </tr>
-    `;
-}).join("")}
+        <div class="dash-card dash-card-wide">
+            <div class="dash-title">
+                РОЗРАХУНКИ
+                <div class="dash-subtitle">
+                    станом на ${dateLabel}
+                </div>
+            </div>
 
-
-
-
-
-                        </table>
-                    </td>
-                </tr>
-            `);
-        }
-
-        if (!rows.length) {
-            rows.push(`<tr><td colspan="2">—</td></tr>`);
-        }
-
-        return `
-            <div class="dash-card">
-                <div class="dash-title">
-                    ${title}
-                    <div class="dash-subtitle">
-                        станом на ${dateLabel}
+            <div class="liab-summary-head">
+                <div class="liab-summary-side">
+                    <div class="liab-summary-label">Нам винні</div>
+                    <div class="dash-total green liab-summary-total">
+                        ${liabilities.receivable.total.toFixedWithComma(2)} ₴
                     </div>
                 </div>
-
-                <div class="dash-total ${title === 'НАМ ВИННІ' ? 'green' : 'red'}">
-                    ${side.total.toFixedWithComma(2)} ₴
+                <div class="liab-summary-center">Категорія / контрагент</div>
+                <div class="liab-summary-side liab-summary-side-right">
+                    <div class="liab-summary-label">Ми винні</div>
+                    <div class="dash-total red liab-summary-total">
+                        ${liabilities.payable.total.toFixedWithComma(2)} ₴
+                    </div>
                 </div>
-
-                <table class="dash-table">
-                    ${rows.join("")}
-                </table>
             </div>
-        `;
-    }
 
-    return `
-        ${renderSide('НАМ ВИННІ', liabilities.receivable)}
-        ${renderSide('МИ ВИННІ',  liabilities.payable)}
+            <table class="dash-table liab-merged-table">
+                <thead>
+                    <tr>
+                        <th class="liab-amount liab-amount-left">Нам винні</th>
+                        <th class="liab-title-cell">Категорія</th>
+                        <th class="liab-amount liab-amount-right">Ми винні</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${rows.join("")}
+                </tbody>
+            </table>
+        </div>
     `;
 }
 

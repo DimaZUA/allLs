@@ -32,6 +32,10 @@
     flex-direction: column;
 }
 
+.dash-card-wide {
+    grid-column: auto;
+}
+
 .dash-title {
     font-size: 18px;
     font-weight: 600;
@@ -147,6 +151,86 @@
 
 .liab-item:hover {
     background: #eef2ff;
+}
+
+.liab-summary-head {
+    display: grid;
+    grid-template-columns: 140px 1fr 140px;
+    gap: 12px;
+    align-items: end;
+    margin-bottom: 14px;
+}
+
+.liab-summary-side {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.liab-summary-side-right {
+    text-align: right;
+}
+
+.liab-summary-label {
+    font-size: 12px;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.liab-summary-center {
+    text-align: center;
+    font-size: 14px;
+    color: #6b7280;
+    padding-bottom: 8px;
+}
+
+.liab-summary-total {
+    margin: 0;
+    font-size: 22px;
+}
+
+.liab-merged-table {
+    table-layout: fixed;
+}
+
+.liab-merged-table th,
+.liab-merged-table td,
+.liab-inner-table td {
+    vertical-align: top;
+}
+
+.liab-title-cell {
+    text-align: left !important;
+}
+
+.liab-amount {
+    width: 140px;
+    white-space: nowrap;
+}
+
+.liab-amount-left {
+    text-align: left !important;
+    font-weight: 600;
+    color: #166534;
+}
+
+.liab-amount-right {
+    text-align: right !important;
+    font-weight: 600;
+    color: #991b1b;
+}
+
+.liab-clickable {
+    cursor: pointer;
+}
+
+.liab-clickable:hover {
+    text-decoration: underline;
+}
+
+.liab-inner-table {
+    width: 100%;
 }
 
 
@@ -318,6 +402,23 @@
     margin-top: 8px;
     border: 1px solid #ddd;
     height: 400px;
+
+}
+
+@media (max-width: 900px) {
+    .liab-summary-head {
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+
+    .liab-summary-side-right,
+    .liab-summary-center {
+        text-align: left;
+    }
+
+    .liab-amount {
+        width: 100px;
+    }
 }
 
 .act-preview iframe {

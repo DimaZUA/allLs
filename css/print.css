@@ -49,7 +49,7 @@
     .sidebar,
     .hamburger,
     .preloader,
-    input:not(#number) ,
+    input:not(#number):not(#recent-payments-inline) ,
     #datetime,
     .descr,
     #filter-container,
@@ -62,12 +62,34 @@
         visibility: hidden !important;
     }
     /* убрать рамку у печатаемого input */
-    #number {
+    #number,
+    #recent-payments-inline {
         border: none !important;
         outline: none !important;
         box-shadow: none !important;
         background: transparent !important;
+        appearance: none !important;
+        -webkit-appearance: none !important;
+        -moz-appearance: textfield !important;
+    }
+    #number {
         width:100px;
+    }
+    #recent-payments-inline {
+        width: 2.2em !important;
+        min-width: 0 !important;
+        padding: 0 !important;
+        margin: 0 .1em !important;
+        font: inherit !important;
+        color: inherit !important;
+        text-align: center !important;
+        vertical-align: baseline !important;
+    }
+    .recent-payments-screen {
+        display: none !important;
+    }
+    .recent-payments-print {
+        display: inline !important;
     }
         /* убрать все тени при печати */
     *,

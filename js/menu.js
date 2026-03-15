@@ -346,10 +346,6 @@ async function initApp() {
   }
 };
 document.addEventListener("DOMContentLoaded", async () => {
-  // Запускаем основную инициализацию
-  await initApp();
-
-  // Оставляем только глобальные слушатели событий, которые вешаются ОДИН раз
   document.addEventListener('pointerdown', e => {
     if (sidebarState.mode !== 'tablet') return;
     if (!sidebarIsOpen()) return;

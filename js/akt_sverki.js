@@ -18,6 +18,27 @@ function parseDt(dt) {
     return new Date(y, m - 1, d);
 }
 
+function parseLocalDateValue(value) {
+    if (!value || typeof value !== "string") return null;
+
+    const match = value.trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!match) return null;
+
+    const [, yyyy, mm, dd] = match;
+    const date = new Date(Number(yyyy), Number(mm) - 1, Number(dd));
+
+    if (
+        date.getFullYear() !== Number(yyyy) ||
+        date.getMonth() !== Number(mm) - 1 ||
+        date.getDate() !== Number(dd)
+    ) {
+        return null;
+    }
+
+    date.setHours(0, 0, 0, 0);
+    return date;
+}
+
 function toISO(value) {
 
     if (!value) return "";
@@ -44,7 +65,7 @@ function toISO(value) {
         }
         // Формат yyyy-mm-dd
         else if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
-            d = new Date(s);
+            d = parseLocalDateValue(s);
         }
         // Пытаемся распарсить универсально
         else {
@@ -55,7 +76,7 @@ function toISO(value) {
         return "";
     }
 
-    if (isNaN(d)) return "";
+    if (!d || isNaN(d)) return "";
 
     const yyyy = d.getFullYear();
     const mm   = String(d.getMonth() + 1).padStart(2, "0");
@@ -1239,20 +1260,28 @@ function renderLiabPage(account, dateFrom, dateTo, who) {
     updatePrintHeader(account, selectedWho, dateTo);
 
     // --- bind elements ---
-    window.dateFromEl = document.getElementById("dateFrom");
-    window.dateToEl   = document.getElementById("dateTo");
-    window.whoSelect  = document.getElementById("whoSelect");
-    window.whatContainer = document.querySelector(".liab-what-list");
-    window.tableContainer = document.getElementById("tableContainer");
+    const dateFromEl = document.getElementById("dateFrom");
+    const dateToEl = document.getElementById("dateTo");
+    const whoSelect = document.getElementById("whoSelect");
+    const whatContainer = document.querySelector(".liab-what-list");
+    const tableContainer = document.getElementById("tableContainer");
+
+    window.dateFromEl = dateFromEl;
+    window.dateToEl = dateToEl;
+    window.whoSelect = whoSelect;
+    window.whatContainer = whatContainer;
+    window.tableContainer = tableContainer;
 
     // === Навешиваем обработчики ===
-    whoSelect.addEventListener("change", () => {
-        if (account === "631") update631ServicesByWho();
-        reloadLiabAdvanced();
-    });
+    if (whoSelect) {
+        whoSelect.addEventListener("change", () => {
+            if (account === "631") update631ServicesByWho();
+            reloadLiabAdvanced();
+        });
+    }
 
-    dateFromEl.addEventListener("change", triggerLiabRecalc);
-    dateToEl.addEventListener("change", triggerLiabRecalc);
+    bindDebouncedDateReload(dateFromEl, triggerLiabRecalc, isValidDateInput);
+    bindDebouncedDateReload(dateToEl, triggerLiabRecalc, isValidDateInput);
 
     document
         .querySelectorAll(".what-checkbox")
@@ -1387,6 +1416,32 @@ function triggerLiabRecalc() {
     }, 300);
 }
 
+function bindDebouncedDateReload(inputEl, callback, isValid, delay = 450) {
+    if (!inputEl) return;
+
+    let timer = null;
+
+    function scheduleReload() {
+        clearTimeout(timer);
+
+        const rawValue = (inputEl.value || "").trim();
+        const yearPart = rawValue.slice(0, 4);
+        const year = Number(yearPart);
+
+        if (rawValue.length < 10) return;
+        if (!Number.isFinite(year) || year < 2000) return;
+
+        timer = setTimeout(() => {
+            if (!isValid(inputEl)) return;
+            callback();
+        }, delay);
+    }
+
+    inputEl.addEventListener("input", scheduleReload);
+    inputEl.addEventListener("change", scheduleReload);
+    inputEl.addEventListener("blur", scheduleReload);
+}
+
 
 
 //
@@ -1397,12 +1452,24 @@ function triggerLiabRecalc() {
 
 function reloadLiabAdvanced() {
 
-    if (!window.dateFromEl || !window.dateToEl || !window.tableContainer) return;
+    const dateFromEl = document.getElementById("dateFrom");
+    const dateToEl = document.getElementById("dateTo");
+    const whoSelect = document.getElementById("whoSelect");
+    const tableContainer = document.getElementById("tableContainer");
+    const whatContainer = document.querySelector(".liab-what-list");
 
-    const dateFrom = new Date(dateFromEl.value);
-    const dateTo   = new Date(dateToEl.value);
+    window.dateFromEl = dateFromEl;
+    window.dateToEl = dateToEl;
+    window.whoSelect = whoSelect;
+    window.tableContainer = tableContainer;
+    window.whatContainer = whatContainer;
 
-    if (isNaN(dateFrom) || isNaN(dateTo)) return;
+    if (!dateFromEl || !dateToEl || !tableContainer || !whoSelect) return;
+
+    const dateFrom = parseLocalDateValue(dateFromEl.value);
+    const dateTo = parseLocalDateValue(dateToEl.value);
+
+    if (!dateFrom || !dateTo || isNaN(dateFrom) || isNaN(dateTo)) return;
 
     const account = window.currentLiabAccount;
     const accInfo = LIABILITY_ACCOUNTS[account];
@@ -1755,8 +1822,8 @@ function ensureContainer(selector, msg) {
 let last631Who = null;
 
 function update631ServicesByWho() {
-    const dateFrom = new Date(dateFromEl.value);
-    const dateTo   = new Date(dateToEl.value);
+    const dateFrom = parseLocalDateValue(dateFromEl.value);
+    const dateTo = parseLocalDateValue(dateToEl.value);
     const who = whoSelect.value || null;
 
     // Собираем услуги по ТЕКУЩЕМУ контрагенту
@@ -1787,8 +1854,8 @@ function update631ServicesByWho() {
 function isValidDateInput(el) {
     if (!el || !el.value) return false;
 
-    const d = new Date(el.value);
-    if (isNaN(d)) return false;
+    const d = parseLocalDateValue(el.value);
+    if (!d || isNaN(d)) return false;
 
     const year = d.getFullYear();
 
@@ -1914,12 +1981,24 @@ function renderSalaryPage(dateFrom, dateTo) {
         </div>
     `;
 
-    window.salaryDateFromEl = document.getElementById("salaryDateFrom");
-    window.salaryDateToEl   = document.getElementById("salaryDateTo");
-    window.salaryTableContainer = document.getElementById("salaryTableContainer");
+    const salaryDateFromEl = document.getElementById("salaryDateFrom");
+    const salaryDateToEl = document.getElementById("salaryDateTo");
+    const salaryTableContainer = document.getElementById("salaryTableContainer");
 
-    salaryDateFromEl.addEventListener("change", reloadSalaryAdvanced);
-    salaryDateToEl.addEventListener("change", reloadSalaryAdvanced);
+    window.salaryDateFromEl = salaryDateFromEl;
+    window.salaryDateToEl = salaryDateToEl;
+    window.salaryTableContainer = salaryTableContainer;
+
+    bindDebouncedDateReload(
+        salaryDateFromEl,
+        reloadSalaryAdvanced,
+        el => isValidSalaryDate(parseLocalDateValue(el.value))
+    );
+    bindDebouncedDateReload(
+        salaryDateToEl,
+        reloadSalaryAdvanced,
+        el => isValidSalaryDate(parseLocalDateValue(el.value))
+    );
 }
 
 function calcSalaryReconciliation(dateFrom, dateTo) {
@@ -1989,10 +2068,20 @@ function calcSalaryReconciliation(dateFrom, dateTo) {
 
 function reloadSalaryAdvanced() {
 
-    const dateFrom = new Date(salaryDateFromEl.value);
-    const dateTo   = new Date(salaryDateToEl.value);
+    const salaryDateFromEl = document.getElementById("salaryDateFrom");
+    const salaryDateToEl = document.getElementById("salaryDateTo");
+    const salaryTableContainer = document.getElementById("salaryTableContainer");
 
-    if (isNaN(dateFrom) || isNaN(dateTo)) return;
+    window.salaryDateFromEl = salaryDateFromEl;
+    window.salaryDateToEl = salaryDateToEl;
+    window.salaryTableContainer = salaryTableContainer;
+
+    if (!salaryDateFromEl || !salaryDateToEl || !salaryTableContainer) return;
+
+    const dateFrom = parseLocalDateValue(salaryDateFromEl.value);
+    const dateTo = parseLocalDateValue(salaryDateToEl.value);
+
+    if (!dateFrom || !dateTo || isNaN(dateFrom) || isNaN(dateTo)) return;
 
     const { rows, totals } = calcSalaryReconciliation(dateFrom, dateTo);
 

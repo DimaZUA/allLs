@@ -61,17 +61,16 @@ function setDefaultDates() {
   `;
 
   // Восстанавливаем значения из параметров, если есть
-// Восстанавливаем значения из параметров, если есть
-const hasPresetParam = !!getParam("preset");
-const hasStartParam  = !!getParam("start");
-const hasEndParam    = !!getParam("end");
+  const hasPresetParam = !!getParam("preset");
+  const hasStartParam = !!getParam("start");
+  const hasEndParam = !!getParam("end");
 
-if (hasPresetParam) presets.value = getParam("preset");
-if (hasEndParam) endInput.value   = getParam("end");
-if (hasStartParam) startInput.value = getParam("start");
+  if (hasPresetParam) presets.value = getParam("preset");
+  if (hasEndParam) endInput.value = getParam("end");
+  if (hasStartParam) startInput.value = getParam("start");
 
-// === Устанавливаем значения по умолчанию, если параметров нет ===
-if (!hasPresetParam && !hasStartParam && !hasEndParam) {
+  // === Устанавливаем значения по умолчанию, если параметров нет ===
+  if (!hasPresetParam && !hasStartParam && !hasEndParam) {
     const today = new Date();
 
     // Предыдущий месяц
@@ -88,9 +87,9 @@ if (!hasPresetParam && !hasStartParam && !hasEndParam) {
 
     // Вручную ставим пресет custom
     presets.value = "custom";
-} else {
+  } else {
     applyPreset();
-}
+  }
 }
 
 // Применяет выбранный пресет к полям дат.
@@ -161,7 +160,7 @@ function createDebetChart() {
   var rowDataList = [];
 
   rows.forEach(function (row) {
-    var columns = Array.from(row.querySelectorAll("td")).filteёr(td => !td.closest("table.subtable"));
+    var columns = Array.from(row.querySelectorAll("td")).filter(td => !td.closest("table.subtable"));
     if (columns.length > 0) {
       var totalPaymentsForMonth = parseCellValue(columns[columns.length - 2].textContent);
       var totalChargesForMonth = 0;
@@ -185,6 +184,71 @@ function createDebetChart() {
 
   console.log(rowDataList);
 }
+
+function getRecentPaymentsMonths() {
+  const input = document.getElementById("recent-payments-inline");
+  const rawValue = input?.value ?? getParam("recentMonths") ?? "3";
+  const parsed = parseInt(rawValue, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 3;
+}
+
+function normalizeRecentPaymentsMonths(value) {
+  const parsed = parseInt(value, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 3;
+}
+
+function applyRecentPaymentsMonths(value) {
+  const normalized = normalizeRecentPaymentsMonths(value);
+  setParam("recentMonths", String(normalized));
+  generateTable();
+  return false;
+}
+
+function handleRecentPaymentsWheel(event) {
+  event.preventDefault();
+  event.stopPropagation();
+
+  const input = document.getElementById("recent-payments-inline");
+  if (!input) return false;
+
+  const current = normalizeRecentPaymentsMonths(input.value);
+  const next = event.deltaY < 0 ? current + 1 : Math.max(1, current - 1);
+  input.value = String(next);
+  return applyRecentPaymentsMonths(next);
+}
+
+function handleRecentPaymentsChange(event) {
+  event.stopPropagation();
+  const input = event.target;
+  input.value = String(normalizeRecentPaymentsMonths(input.value));
+  return applyRecentPaymentsMonths(input.value);
+}
+
+function handleRecentPaymentsKeydown(event) {
+  event.stopPropagation();
+  if (event.key === "Enter") {
+    return handleRecentPaymentsChange(event);
+  }
+  return true;
+}
+
+function sumPaymentsInRange(accountId, rangeStart, rangeEnd) {
+  let total = 0;
+  const paymentsByYear = oplat[accountId] || {};
+
+  for (const year in paymentsByYear) {
+    for (const month in paymentsByYear[year]) {
+      const date = new Date(year, month - 1, 1, 12);
+      if (date < rangeStart || date > rangeEnd) continue;
+
+      const paymentsArr = paymentsByYear[year][month] || [];
+      total += paymentsArr.reduce((sum, payment) => sum + payment.sum, 0);
+    }
+  }
+
+  return total;
+}
+
 function sortTable(header) {
   const table = header.closest("table");
   const tbody = table.querySelector("tbody");
@@ -254,6 +318,16 @@ function sortTable(header) {
   if (theadRow) {
     const footerClone = theadRow.cloneNode(true);
     footerClone.classList.add("footer-header-clone");
+
+    const recentHeaderClone = footerClone.querySelector("#recent-payments-header");
+    if (recentHeaderClone) {
+      recentHeaderClone.removeAttribute("id");
+      const recentInputClone = recentHeaderClone.querySelector("#recent-payments-inline");
+      if (recentInputClone) {
+        const recentMonths = getRecentPaymentsMonths();
+        recentHeaderClone.textContent = `Оплати за ост. ${recentMonths} міс.`;
+      }
+    }
 
     // Повесим на клон обработчики сортировки
     footerClone.querySelectorAll("th").forEach((th, idx) => {
@@ -445,7 +519,6 @@ function calculateDebtMonthsFromCache(accountId, debtEnd, endDate) {
 function generateTable() {
   const isTouch=isMobile();
   const tableContainer = document.getElementById("table-container");
-  tableContainer.innerHTML = "";
 
   const start = new Date(document.getElementById("start-date").value);
   const end = new Date(document.getElementById("end-date").value);
@@ -455,8 +528,12 @@ function generateTable() {
   end.setHours(23, 59, 59, 999);
 
   const displayMode = document.getElementById("display-mode").value;
+  const recentPaymentsMonths = getRecentPaymentsMonths();
+  const recentPaymentsStart = new Date(end.getFullYear(), end.getMonth() - recentPaymentsMonths + 1, 1, 12);
+  tableContainer.innerHTML = "";
   //const filterValue = document.getElementById("record-filter").value;
   setParam("displayMode", displayMode);
+  setParam("recentMonths", String(recentPaymentsMonths));
   if (displayMode === "analiz") {
   	tableContainer.appendChild(generateAnaliz(start,end));
   	initPosters();
@@ -499,13 +576,13 @@ sortedArray.forEach(id => servicesWithCharges.add(id));
   table.appendChild(tbody);
 
   // Заголовок
-  let headerRow = '<tr><th onclick="sortTable(this)">Квартира</th><th onclick="sortTable(this)">П.І. по Б.</th></th><th onclick="sortTable(this)">Площа</th></th><th onclick="sortTable(this)">Мешк</th><th onclick="sortTable(this)">Борг початковий</th>';
+  let headerRow = '<tr><th onclick="sortTable(this)">Квартира</th><th onclick="sortTable(this)">П.І. по Б.</th><th onclick="sortTable(this)">Площа</th><th onclick="sortTable(this)">Мешк</th><th onclick="sortTable(this)">Борг початковий</th><th onclick="sortTable(this)">Місяців боргу на початок</th>';
 
   if (displayMode === "summarized") {
     for (const serviceId of servicesWithCharges) {
       headerRow += `<th onclick="sortTable(this)">${us[serviceId]}</th>`;
     }
-    headerRow += '<th onclick="sortTable(this)">Оплати</th><th onclick="sortTable(this)">Борг кінцевий</th><th onclick="sortTable(this)">Місяців боргу</th></tr>';
+    headerRow += `<th onclick="sortTable(this)">Оплати</th><th id="recent-payments-header" onclick="sortTable(this)" onwheel="return handleRecentPaymentsWheel(event)"><span class="recent-payments-screen">Оплати за ост. <input id="recent-payments-inline" type="number" min="1" step="1" value="${recentPaymentsMonths}" style="width:3.5em" onclick="event.stopPropagation()" onmousedown="event.stopPropagation()" onwheel="return handleRecentPaymentsWheel(event)" onchange="return handleRecentPaymentsChange(event)" onblur="return handleRecentPaymentsChange(event)" onkeydown="return handleRecentPaymentsKeydown(event)"> міс.</span><span class="recent-payments-print" style="display:none">Оплати за ост. ${recentPaymentsMonths} міс.</span></th><th onclick="sortTable(this)">Борг кінцевий</th><th onclick="sortTable(this)">Місяців боргу</th></tr>`;
   } else {
     let currentDate = new Date(start);
     while (currentDate <= end) {
@@ -546,6 +623,8 @@ sortedArray.forEach(id => servicesWithCharges.add(id));
       totalEndDebt = 0,
       totalCharges = {},
       totalPayments = {},
+      totalRecentPayments = 0,
+      totalStartDebtMonths = 0,
       totalDebtMonths = 0,
       rowCount = 0;
 
@@ -583,6 +662,10 @@ sortedArray.forEach(id => servicesWithCharges.add(id));
     }
 
     const debitStart = calculateInitialDebit(accountId, start);
+    // "На початок періоду" должно начинать отсчет с предыдущего месяца,
+    // иначе первый шаг ошибочно съедает начисление самого стартового месяца.
+    const startDebtAnchor = new Date(start.getFullYear(), start.getMonth(), 0, 12);
+    const startDebtMonths = calculateDebtMonthsFromCache(accountId, debitStart, startDebtAnchor);
     const debitEnd = debitStart + totalChargesSumFull - totalPaymentsSumFull;
     const debtMonths = calculateDebtMonthsFromCache(accountId, debitEnd, end);
 
@@ -643,7 +726,9 @@ addRowHandler(row);
     row.innerHTML += `<td>${ls[accountId].pl||0}</td>`;
     row.innerHTML += `<td>${ls[accountId].pers||0}</td>`;
     row.innerHTML += `<td>${debitStart.toFixedWithComma()}</td>`;
+    row.innerHTML += `<td>${startDebtMonths}</td>`;
     totalStartDebt += debitStart;
+    totalStartDebtMonths += startDebtMonths;
 
     if (displayMode === "summarized") {
       for (const serviceId of servicesWithCharges) {
@@ -653,13 +738,16 @@ addRowHandler(row);
       }
   // собираем все оплаты всех месяцев в один массив
   const allPayments = monthData.flatMap(m => m.paymentsArr || []);
+  const recentPaymentsSum = sumPaymentsInRange(accountId, recentPaymentsStart, end);
 
   const paymentsSumRow = monthData.reduce((s, m) => s + m.paymentsSum, 0);
   totalPayments["all"] = (totalPayments["all"] || 0) + paymentsSumRow;
+  totalRecentPayments += recentPaymentsSum;
 
   // создаем ячейку с подробностями оплат
   const paymentCell = generatePaymentCell(allPayments);
   row.appendChild(paymentCell);
+      row.innerHTML += `<td v="${recentPaymentsSum}">${recentPaymentsSum ? recentPaymentsSum.toFixedWithComma() : "–"}</td>`;
       row.innerHTML += `<td>${debitEnd.toFixedWithComma()}</td>`;
       row.innerHTML += `<td>${debtMonths}</td>`;
       totalEndDebt += debitEnd;
@@ -705,7 +793,7 @@ const totalPers = Object.values(ls)
   .reduce((sum, item) => sum + (item.pers || 0), 0);
 
   footerRow.classList.add("itog");
-  footerRow.innerHTML = `<td colspan=2>Разом</td><td>${totalPl.toFixedWithComma()}</td><td>${totalPers}</td><td>${totalStartDebt.toFixedWithComma()}</td>`;
+  footerRow.innerHTML = `<td colspan=2>Разом</td><td>${totalPl.toFixedWithComma()}</td><td>${totalPers}</td><td>${totalStartDebt.toFixedWithComma()}</td><td>${rowCount ? (totalStartDebtMonths / rowCount).toFixed(1) : "–"}</td>`;
 
   if (displayMode === "summarized") {
     for (const serviceId of servicesWithCharges) {
@@ -713,6 +801,7 @@ const totalPers = Object.values(ls)
     }
     const totalPaymentsSumAll = totalPayments["all"] || 0;
     footerRow.innerHTML += `<td>${totalPaymentsSumAll.toFixedWithComma()}</td>`;
+    footerRow.innerHTML += `<td>${totalRecentPayments ? totalRecentPayments.toFixedWithComma() : "–"}</td>`;
     footerRow.innerHTML += `<td>${totalEndDebt.toFixedWithComma()}</td>`;
     footerRow.innerHTML += `<td>${rowCount ? (totalDebtMonths / rowCount).toFixed(1) : "–"}</td>`;
   } else {

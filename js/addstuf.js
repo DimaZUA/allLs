@@ -1,118 +1,3 @@
-﻿function _toConsumableArray(r) {
-  return (
-    _arrayWithoutHoles(r) ||
-    _iterableToArray(r) ||
-    _unsupportedIterableToArray2(r) ||
-    _nonIterableSpread()
-  );
-}
-function _nonIterableSpread() {
-  throw new TypeError(
-    "Invalid attempt to spread non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."
-  );
-}
-function _unsupportedIterableToArray2(r, a) {
-  if (r) {
-    if ("string" == typeof r) return _arrayLikeToArray2(r, a);
-    var t = {}.toString.call(r).slice(8, -1);
-    return (
-      "Object" === t && r.constructor && (t = r.constructor.name),
-      "Map" === t || "Set" === t
-        ? Array.from(r)
-        : "Arguments" === t ||
-          /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(t)
-        ? _arrayLikeToArray2(r, a)
-        : void 0
-    );
-  }
-}
-function _iterableToArray(r) {
-  if (
-    ("undefined" != typeof Symbol && null != r[Symbol.iterator]) ||
-    null != r["@@iterator"]
-  )
-    return Array.from(r);
-}
-function _arrayWithoutHoles(r) {
-  if (Array.isArray(r)) return _arrayLikeToArray2(r);
-}
-function _arrayLikeToArray2(r, a) {
-  (null == a || a > r.length) && (a = r.length);
-  for (var e = 0, n = Array(a); e < a; e++) n[e] = r[e];
-  return n;
-}
-function _slicedToArray(r, e) {
-  return (
-    _arrayWithHoles(r) ||
-    _iterableToArrayLimit(r, e) ||
-    _unsupportedIterableToArray(r, e) ||
-    _nonIterableRest()
-  );
-}
-function _nonIterableRest() {
-  throw new TypeError(
-    "Invalid attempt to destructure non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method."
-  );
-}
-function _unsupportedIterableToArray(r, a) {
-  if (r) {
-    if ("string" == typeof r) return _arrayLikeToArray(r, a);
-    var t = {}.toString.call(r).slice(8, -1);
-    return (
-      "Object" === t && r.constructor && (t = r.constructor.name),
-      "Map" === t || "Set" === t
-        ? Array.from(r)
-        : "Arguments" === t ||
-          /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(t)
-        ? _arrayLikeToArray(r, a)
-        : void 0
-    );
-  }
-}
-function _arrayLikeToArray(r, a) {
-  (null == a || a > r.length) && (a = r.length);
-  for (var e = 0, n = Array(a); e < a; e++) n[e] = r[e];
-  return n;
-}
-function _iterableToArrayLimit(r, l) {
-  var t =
-    null == r
-      ? null
-      : ("undefined" != typeof Symbol && r[Symbol.iterator]) || r["@@iterator"];
-  if (null != t) {
-    var e,
-      n,
-      i,
-      u,
-      a = [],
-      f = !0,
-      o = !1;
-    try {
-      if (((i = (t = t.call(r)).next), 0 === l)) {
-        if (Object(t) !== t) return;
-        f = !1;
-      } else
-        for (
-          ;
-          !(f = (e = i.call(t)).done) && (a.push(e.value), a.length !== l);
-          f = !0
-        );
-    } catch (r) {
-      (o = !0), (n = r);
-    } finally {
-      try {
-        if (!f && null != t["return"] && ((u = t["return"]()), Object(u) !== u))
-          return;
-      } finally {
-        if (o) throw n;
-      }
-    }
-    return a;
-  }
-}
-function _arrayWithHoles(r) {
-  if (Array.isArray(r)) return r;
-}
 var isTableFocused = false; // Флаг состояния таблицы
 var originalParentTable = null; // Оригинальный родитель для таблицы
 
@@ -135,7 +20,7 @@ function handleHeaderClick(event) {
       _document$getElementB === void 0
         ? void 0
         : _document$getElementB.parentElement;
-    originalSiblings = _toConsumableArray(body.children);
+    originalSiblings = Array.from(body.children);
 
     // Получаем элементы с классом "balance-info" и с id="header"
     //var balanceInfo = document.querySelector(".balance-info");
@@ -281,10 +166,10 @@ if (link && currentKv && currentKv > 0) {
 
     // Настройка чекбокса для разворачивания/сворачивания
     yearToggle.className = "toggle-box";
-    yearToggle.id = "block-".concat(year);
+    yearToggle.id = `block-${year}`;
     yearToggle.type = "checkbox";
-    yearLabel.setAttribute("for", "block-".concat(year));
-    yearLabel.innerHTML = "<div>".concat(year, "</div>");
+    yearLabel.setAttribute("for", `block-${year}`);
+    yearLabel.innerHTML = `<div>${year}</div>`;
     yearContent.className = "box";
     var table = document.createElement("table");
     table.id = "main";
@@ -381,9 +266,7 @@ if (cumulativeBalance !== 0) {
 
       var transactions = accountData[year][_month];
       var row = document.createElement("tr");
-      row.innerHTML = '<td align="LEFT">'
-        .concat(getMonthName(_month), " ")
-        .concat(year, "</td>");
+      row.innerHTML = `<td align="LEFT">${getMonthName(_month)} ${year}</td>`;
       var rowCharges = {};
       var monthlyChargesTotal = 0;
       services.forEach(function (serviceId) {
@@ -400,14 +283,7 @@ if (cumulativeBalance !== 0) {
         cell.textContent = charge != 0 ? charge.toFixedWithComma() : "";
         if (serviceId == 1 && rowCharges[7]) {
           cell.className = "poster"; // Добавляем класс оформления
-          cell.innerHTML = "".concat(
-            charge.toFixedWithComma(),
-            '<div class="descr">Утримання будинку:' +
-              rowCharges[1].toFixedWithComma() +
-              " грн.<br>Вивіз ТПВ:" +
-              rowCharges[7].toFixedWithComma() +
-              " грн.</div>"
-          );
+          cell.innerHTML = `${charge.toFixedWithComma()}<div class="descr">Утримання будинку:${rowCharges[1].toFixedWithComma()} грн.<br>Вивіз ТПВ:${rowCharges[7].toFixedWithComma()} грн.</div>`;
         }
         if (serviceId == 13){
         const val = nachnote?.[accountId]?.[year]?.[_month]?.[13];
@@ -419,10 +295,7 @@ if (cumulativeBalance !== 0) {
         if (noteText) {
           //console.log(noteText);
           cell.className = "poster"; // Добавляем класс оформления
-          cell.innerHTML = "".concat(
-            charge.toFixedWithComma(),
-            '<div class="descr">' + noteText.replace(/\n/g, '<br>') + '</div>'
-          );
+          cell.innerHTML = `${charge.toFixedWithComma()}<div class="descr">${noteText.replace(/\n/g, "<br>")}</div>`;
         }
         }
         if (serviceId != 7) row.appendChild(cell);
@@ -474,7 +347,7 @@ if (cumulativeBalance !== 0) {
     }
     // Итоги по году
     if (
-      _toConsumableArray(services).filter(function (n) {
+      Array.from(services).filter(function (n) {
         return n !== "7";
       }).length > 1
     ) {
@@ -541,10 +414,7 @@ _totalRow.innerHTML =
         _Object$values$ !== void 0
           ? _Object$values$
           : 0;
-      _totalRow.innerHTML += "<td>".concat(
-        totalChargeForOneService.toFixedWithComma(),
-        "</td>"
-      );
+      _totalRow.innerHTML += `<td>${totalChargeForOneService.toFixedWithComma()}</td>`;
 
       // Итог по оплатам (без учета текущего месяца текущего года)
       var totalPaymentsForOneService = 0;
@@ -562,15 +432,10 @@ _totalRow.innerHTML =
           totalPaymentsForOneService += monthPaymentsSum;
         }
       }
-      _totalRow.innerHTML += "<td>".concat(
-        totalPaymentsForOneService.toFixedWithComma(),
-        "</td>"
-      );
+      _totalRow.innerHTML += `<td>${totalPaymentsForOneService.toFixedWithComma()}</td>`;
 
       // Общий долг/переплата на конец года
-      _totalRow.innerHTML += '<td class="'
-        .concat(cumulativeBalance > 0 ? "red" : "green", '">')
-        .concat(cumulativeBalance.toFixedWithComma(), "</td>");
+      _totalRow.innerHTML += `<td class="${cumulativeBalance > 0 ? "red" : "green"}">${cumulativeBalance.toFixedWithComma()}</td>`;
       tbody.appendChild(_totalRow);
     }
     if (lastRow) tbody.appendChild(lastRow);
@@ -831,33 +696,31 @@ var headerRow = `
     // Формируем строки с данными платежей
     var tableRows = monthlyPayments
       .map(function (payment) {
-        return '\n    <tr>\n        <td class="big">'
-          .concat(payment.date, "</td>\n        <td>")
-          .concat(b[payment.yur], "</td>\n        ")
-          .concat(
-            hasKvit ? "<td>".concat(payment.kvit || "", "</td>") : "",
-            '\n        <td class="big">'
-          )
-          .concat(payment.sum.toFixedWithComma(), "</td>\n        ")
-          .concat(
-            hasNazn ? "<td>".concat(payment.nazn || "", "</td>") : "",
-            "\n    </tr>\n"
-          );
+        return `
+    <tr>
+        <td class="big">${payment.date}</td>
+        <td>${b[payment.yur]}</td>
+        ${hasKvit ? `<td>${payment.kvit || ""}</td>` : ""}
+        <td class="big">${payment.sum.toFixedWithComma()}</td>
+        ${hasNazn ? `<td>${payment.nazn || ""}</td>` : ""}
+    </tr>
+`;
       })
       .join("");
 
     // Устанавливаем содержимое ячейки оплаты
 
-    paymentCell.innerHTML = ""
-      .concat(
-        totalPayments.toFixedWithComma(),
-        '\n    <div class="descr">\n        <table class="subtable">\n            <tbody>\n                '
-      )
-      .concat(headerRow, "\n                ")
-      .concat(
-        tableRows,
-        "\n            </tbody>\n        </table>\n    </div>\n        "
-      );
+    paymentCell.innerHTML = `
+      ${totalPayments.toFixedWithComma()}
+      <div class="descr">
+        <table class="subtable">
+          <tbody>
+            ${headerRow}
+            ${tableRows}
+          </tbody>
+        </table>
+      </div>
+    `;
   }
   row.appendChild(paymentCell);
   return totalPayments;

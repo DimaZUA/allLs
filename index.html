@@ -75,6 +75,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<script src="js/supabase-client.js"></script>
 <!-- ================= AUTH ================= -->
 
 <div id="auth-section">
@@ -192,132 +193,7 @@
 <script src="js/reports.js"></script>
 <script src="js/dashboard.js"></script>
 <script src="js/akt_sverki.js"></script>
-
-<script>
-  const client = window.supabase.createClient(
-    "https://bollarpnewbhziwldzjn.supabase.co",
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJvbGxhcnBuZXdiaHppd2xkempuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTEzNjY4MjYsImV4cCI6MjA2Njk0MjgyNn0.KhmT9U5wKm0irQbidZjZXCSOfzfr1gYYmo_21VL1JPw"
-  );
-
-async function enterAppMode() {
-  // 1. Скрываем интерфейс авторизации
-  const authSection = document.getElementById("auth-section");
-  if (authSection) authSection.style.display = "none";
-
-  // 2. Подготавливаем классы body
-  document.body.classList.add("authenticated", "app");
-  document.body.classList.remove("files-mode");
-
-  // 3. Показываем контейнеры приложения
-  const sidebarEl = document.querySelector(".sidebar");
-  const contentEl = document.querySelector(".content");
-  const hamburgerBtn = document.getElementById("hamburger");
-
-  if (sidebarEl) sidebarEl.style.display = "block";
-  if (contentEl) contentEl.style.display = "block";
-  if (hamburgerBtn) hamburgerBtn.style.display = "flex";
-
-  // 4. ВЫЗОВ НАШЕЙ НОВОЙ ФУНКЦИИ ИНИЦИАЛИЗАЦИИ
-  // Она загрузит пользователя, дома, построит меню и откроет первый дом
-  await initApp();
-}
-
-  async function enterAuthMode() {
-    document.getElementById("auth-section").style.display = "block";
-
-    document.body.classList.remove(
-      "authenticated",
-      "app",
-      "files-mode",
-      "sidebar-open"
-    );
-
-    document.querySelector(".sidebar").style.display = "none";
-    document.querySelector(".content").style.display = "none";
-    document.getElementById("hamburger").style.display = "none";
-  }
-
-  // ===== INITIAL SESSION CHECK =====
-  (async () => {
-    const preloader = document.getElementById("preloader");
-
-    try {
-      let { data: { session } } = await client.auth.getSession();
-
-      if (!session) {
-        const res = await client.auth.refreshSession();
-        session = res.data.session;
-      }
-
-      if (session) {
-        await enterAppMode();
-      } else {
-        enterAuthMode();
-      }
-    } finally {
-      // снимаем блокировку интерфейса
-      document.body.classList.add("auth-checked");
-
-      // убираем прелоадер
-      if (preloader) preloader.classList.add("hidden");
-    }
-  })();
-
-
-  // ===== FORM TOGGLES =====
-  document.getElementById("show-signup").onclick = () => {
-    document.getElementById("login-form").style.display = "none";
-    document.getElementById("signup-form").style.display = "block";
-  };
-
-  document.getElementById("show-login").onclick = () => {
-    document.getElementById("signup-form").style.display = "none";
-    document.getElementById("login-form").style.display = "block";
-  };
-
-  // ===== LOGIN =====
-  document.getElementById("login-form").addEventListener("submit", async e => {
-    e.preventDefault();
-
-    const email = document.getElementById("email").value;
-    const password = document.getElementById("password").value;
-    const statusEl = document.getElementById("login-status");
-
-    const { error } = await client.auth.signInWithPassword({ email, password });
-
-    if (error) {
-      statusEl.textContent = "❌ Помилка входу: " + error.message;
-      return;
-    }
-
-    statusEl.textContent = "✅ Успішний вхід";
-    await enterAppMode();
-  });
-
-  // ===== SIGNUP =====
-  document.getElementById("signup-form").addEventListener("submit", async e => {
-    e.preventDefault();
-
-    const email = document.getElementById("signup-email").value;
-    const password = document.getElementById("signup-password").value;
-    const confirm = document.getElementById("signup-password-confirm").value;
-    const statusEl = document.getElementById("signup-status");
-
-    if (password !== confirm) {
-      statusEl.textContent = "❌ Пароли не совпадают";
-      return;
-    }
-
-    const { error } = await client.auth.signUp({ email, password });
-
-    if (error) {
-      statusEl.textContent = "❌ Ошибка регистрации: " + error.message;
-    } else {
-      statusEl.style.color = "green";
-      statusEl.textContent = "✅ Регистрация успешна! Проверьте почту.";
-    }
-  });
-</script>
+<script src="js/app-auth.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/exceljs@4.3.0/dist/exceljs.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
