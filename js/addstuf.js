@@ -1337,6 +1337,7 @@ function initLS() {
 
   document.getElementById("adr").textContent = adr + " / ";
   document.title = org + " " + adr;
+  ensureTopbarHistoryButton();
 
   const input = document.getElementById("number");
   const list  = document.getElementById("number-list");
@@ -1431,6 +1432,39 @@ function initLS() {
   addStuff(ind);
   input.value = ls[ind]?.kv || "";
 initLSAutocomplete(input, ls);
+}
+
+function ensureTopbarHistoryButton() {
+  const topbar = document.getElementById("topbar");
+  if (!topbar) return;
+
+  let btn = document.getElementById("topbarHistoryBtn");
+  if (!btn) {
+    btn = document.createElement("button");
+    btn.id = "topbarHistoryBtn";
+    btn.type = "button";
+    btn.textContent = "Історія запитів";
+    btn.style.marginLeft = "auto";
+    btn.style.height = "32px";
+    btn.style.padding = "0 10px";
+    btn.style.border = "1px solid rgba(255,255,255,0.35)";
+    btn.style.borderRadius = "6px";
+    btn.style.background = "rgba(255,255,255,0.12)";
+    btn.style.color = "#fff";
+    btn.style.cursor = "pointer";
+    btn.style.whiteSpace = "nowrap";
+    topbar.appendChild(btn);
+  }
+
+  btn.onclick = () => {
+    ShowHistory({
+      accountId: null,
+      myOnly: false,
+      orgOnly: false,
+      showFilters: true,
+      title: "Історія запитів на зміну"
+    });
+  };
 }
 
 
@@ -1801,7 +1835,55 @@ function showLoader(message = "Завантаження...", cancelCallback) {
 
 
 // --- Получение истории из Supabase ---
-async function ShowHistory(accountId) {
+async function fetchHistoryRows(params) {
+  const accountId = params.accountId || null;
+  const myOnly = !!params.myOnly;
+  const orgOnly = !!params.orgOnly;
+  const sender = params.sender || "";
+  const activeHomeCode = params.activeHomeCode || "";
+  const accessibleHomeCodes = Array.isArray(params.accessibleHomeCodes)
+    ? params.accessibleHomeCodes.filter(Boolean)
+    : [];
+
+  let query = client
+    .from('corrections')
+    .select('*');
+
+  if (accessibleHomeCodes.length > 0) {
+    query = query.in('home_code', accessibleHomeCodes);
+  }
+  if (accountId) query = query.eq('account_id', accountId);
+  if (myOnly) query = query.eq('sender', sender);
+  if (orgOnly && activeHomeCode) {
+    query = query.eq('home_code', activeHomeCode);
+  } else if (orgOnly && typeof org !== "undefined" && org) {
+    query = query.eq('org', org);
+  }
+
+  const { data, error } = await query.order('submitted_at', { ascending: false });
+  if (error) throw error;
+  if (!Array.isArray(data)) throw new Error("Supabase returned data is not an array");
+  return data;
+}
+
+async function ShowHistory(params = {}) {
+  const isObjectParams = params && typeof params === "object" && !Array.isArray(params);
+  const options = isObjectParams ? params : { accountId: params };
+  const accountId = options.accountId || null;
+  const myOnly = !!options.myOnly;
+  const orgOnly = !!options.orgOnly;
+  const showFilters = !!options.showFilters;
+  const title = options.title || "Історія запитів на зміну";
+  const activeHomeCode = String(getParam("homeCode") || "");
+  let accessibleHomeCodes = Array.isArray(homes)
+    ? homes.map(h => h && h.code).filter(Boolean)
+    : [];
+  if (accessibleHomeCodes.length === 0 && activeHomeCode) {
+    accessibleHomeCodes = [activeHomeCode];
+  }
+  const showOrgFilter = accessibleHomeCodes.length > 1;
+  const effectiveOrgOnly = showOrgFilter ? orgOnly : false;
+
   const { data: { user } } = await client.auth.getUser();
   if (!user) return showMessage("Потрібно увійти в систему","warn");
 
@@ -1811,25 +1893,33 @@ async function ShowHistory(accountId) {
 
   const loader = showLoader("Завантаження історії...");
   try {
-const { data, error } = await client
-  .from('corrections')
-  .select('*')
-  .eq('account_id', accountId)   // фильтр по accountId
-  .order('submitted_at', { ascending: false });
-
+    const data = await fetchHistoryRows({
+      accountId,
+      myOnly,
+      orgOnly: effectiveOrgOnly,
+      sender,
+      activeHomeCode,
+      accessibleHomeCodes
+    });
     loader.close();
 
-    if (error) {
-      console.error(error);
-      return showMessage("Помилка отримання історії","err");
-    }
-
-    if (!Array.isArray(data)) {
-      console.error("Supabase returned data is not an array", data);
-      return showMessage("Неправильний формат історії","err");
-    }
-
-    showHistoryModal(data, sender);
+    showHistoryModal(data, {
+      sender,
+      title,
+      showFilters,
+      showOrgFilter,
+      filters: { myOnly, orgOnly: effectiveOrgOnly },
+      onFilterChange: async nextFilters => {
+        return fetchHistoryRows({
+          accountId,
+          myOnly: !!nextFilters?.myOnly,
+          orgOnly: showOrgFilter ? !!nextFilters?.orgOnly : false,
+          sender,
+          activeHomeCode,
+          accessibleHomeCodes
+        });
+      }
+    });
 
   } catch (err) {
     loader.close();
@@ -1838,55 +1928,8 @@ const { data, error } = await client
   }
 }
 
-function showHistoryModal(data, sender) {
-  const modal = document.createElement("div");
-  modal.className = "modal-overlay";
-  modal.style = `
-    position:fixed;
-    top:0; left:0; width:100%; height:100%;
-    background: rgba(0,0,0,0.8);
-    display:flex; justify-content:center; align-items:flex-start;
-    padding-top:40px;
-    overflow-y:auto;
-    z-index:10000;
-  `;
-
-  const modalWindow = document.createElement("div");
-  modalWindow.className = "modal-window";
-  modalWindow.style = `
-    background:#fff;
-    max-width:650px;
-    width:90%;
-    padding:20px;
-    border-radius:10px;
-    position:relative;
-  `;
-
-  const title = document.createElement("h3");
-  title.textContent = "Історія запитів на зміну";
-
-  const closeBtn = document.createElement("button");
-  closeBtn.textContent = "✖";
-  closeBtn.style = `
-    position:absolute;
-    top:15px;
-    right:15px;
-    cursor:pointer;
-    background:transparent;
-    border:none;
-    font-size:18px;
-  `;
-  closeBtn.addEventListener("click", () => modal.remove());
-
-  const list = document.createElement("div");
-  list.id = "historyList";
-  list.style.marginTop = "20px";
-
-  modalWindow.appendChild(title);
-  modalWindow.appendChild(closeBtn);
-  modalWindow.appendChild(list);
-  modal.appendChild(modalWindow);
-  document.body.appendChild(modal);
+function renderHistoryList(list, data) {
+  list.innerHTML = "";
 
   if (!data || data.length === 0) {
     const emptyMsg = document.createElement("p");
@@ -1894,6 +1937,11 @@ function showHistoryModal(data, sender) {
     list.appendChild(emptyMsg);
     return;
   }
+
+  const uniqueHomeCodes = Array.from(
+    new Set((data || []).map(r => String(r?.home_code || "")).filter(Boolean))
+  );
+  const singleHomeMode = uniqueHomeCodes.length <= 1;
 
   data.forEach(row => {
     const item = document.createElement("div");
@@ -1906,8 +1954,7 @@ function showHistoryModal(data, sender) {
       position:relative;
     `;
 
-    // Крестик для удаления, только если статус "очікує обробки"
-    if (row.status?.includes("очікує") && row.sender==sender) {
+    if (String(row.status || "").toLowerCase().includes("очікує")) {
       const deleteBtn = document.createElement("button");
       deleteBtn.textContent = "✖";
       deleteBtn.style = `
@@ -1933,7 +1980,7 @@ function showHistoryModal(data, sender) {
             console.error(error);
             alert("Помилка видалення запису");
           } else {
-            item.remove(); // убираем блок из модалки
+            item.remove();
           }
         } catch (err) {
           console.error(err);
@@ -1943,37 +1990,44 @@ function showHistoryModal(data, sender) {
       item.appendChild(deleteBtn);
     }
 
-    // Контейнер для содержимого
     const contentDiv = document.createElement("div");
 
-    // Даты
     const dateEntry = row.submitted_at ? new Date(row.submitted_at) : null;
     const dateChange = row.effective_date ? new Date(row.effective_date) : null;
-const dateDiv = document.createElement("div");
-dateDiv.style.fontWeight = "bold";
+    const dateDiv = document.createElement("div");
+    dateDiv.style.fontWeight = "bold";
 
-const line1 = dateEntry ? row.sender+" "+dateEntry.toLocaleString("uk-UA") : "";
-const line2 = dateChange ? "зміни з: "+dateChange.toLocaleDateString("uk-UA") : "";
+    const line1 = dateEntry ? row.sender + " " + dateEntry.toLocaleString("uk-UA") : "";
+    const line2 = dateChange ? "зміни з: " + dateChange.toLocaleDateString("uk-UA") : "";
 
-dateDiv.innerHTML = [line1, line2].filter(x => x).join("<br>");
+    dateDiv.innerHTML = [line1, line2].filter(x => x).join("<br>");
     contentDiv.appendChild(dateDiv);
 
-// Замена символов на текст
-if (row.status === "+") {
-    row.status = "Зміни внесено";
-} else if (row.status === "-") {
-    row.status = "Відхилено";
-}
+    const addrDiv = document.createElement("div");
+    const address = String(row.address || "").trim();
+    if (singleHomeMode) {
+      const lastPart = address.split(",").map(x => x.trim()).filter(Boolean).pop() || "";
+      const looksLikeKv = /^(кв\.?\s*)?\d+[а-яa-z\-\/]*$/i.test(lastPart);
+      const kvText = looksLikeKv ? lastPart.replace(/^кв\.?\s*/i, "") : (row.account_id || "");
+      addrDiv.innerHTML = `кв.: <b>${kvText || "—"}</b>`;
+    } else {
+      addrDiv.innerHTML = `Адреса: <b>${address || "—"}</b>`;
+    }
+    contentDiv.appendChild(addrDiv);
 
-// Цвет статуса
-let statusColor = "#ffe79a"; // оранжевый по умолчанию
-if (row.status?.toLowerCase().includes("внесено")) {
-    statusColor = "#b6ffb3"; // зелёный
-} else if (row.status?.toLowerCase().includes("відхилено")) {
-    statusColor = "#ffb3b3"; // красный
-}
+    if (row.status === "+") {
+      row.status = "Зміни внесено";
+    } else if (row.status === "-") {
+      row.status = "Відхилено";
+    }
 
-    // Поля
+    let statusColor = "#ffe79a";
+    if (row.status?.toLowerCase().includes("внесено")) {
+      statusColor = "#b6ffb3";
+    } else if (row.status?.toLowerCase().includes("відхилено")) {
+      statusColor = "#ffb3b3";
+    }
+
     const fields = [
       { label: "ФІО", old: row.fio_old, new: row.fio_new },
       { label: "Площа", old: row.pl_old, new: row.pl_new },
@@ -1993,21 +2047,18 @@ if (row.status?.toLowerCase().includes("внесено")) {
       }
     });
 
-    // Коррекция
     if (row.correction_amount) {
       const corrDiv = document.createElement("div");
       corrDiv.innerHTML = `Корекція: ${row.correction_amount} за ${row.correction_month ? new Date(row.correction_month).toLocaleDateString("uk-UA", {
-  month: "long",
-  year: "numeric"
-}) : ""}<br>Підстава: ${row.correction_text || ""}`;
+        month: "long",
+        year: "numeric"
+      }) : ""}<br>Підстава: ${row.correction_text || ""}`;
       contentDiv.appendChild(corrDiv);
     }
 
-    // Статус
     const statusDiv = document.createElement("div");
     statusDiv.className = "modal-status";
     statusDiv.style.background = statusColor;
-
 
     statusDiv.textContent = row.status;
     contentDiv.appendChild(statusDiv);
@@ -2015,13 +2066,170 @@ if (row.status?.toLowerCase().includes("внесено")) {
     item.appendChild(contentDiv);
     list.appendChild(item);
   });
-
-  // Закрытие модалки по клику на фон
-  modal.addEventListener("click", e => {
-    if (e.target === modal) modal.remove();
-  });
 }
 
+function showHistoryModal(data, options = {}) {
+  const titleText = options.title || "Історія запитів на зміну";
+  const showFilters = !!options.showFilters;
+  const showOrgFilter = !!options.showOrgFilter;
+  const filters = options.filters || { myOnly: false, orgOnly: false };
+  const onFilterChange = typeof options.onFilterChange === "function" ? options.onFilterChange : null;
+
+  let modal = document.getElementById("historyModalOverlay");
+  let list;
+  let statusLine;
+  let titleEl;
+  let mineInput;
+  let orgInput;
+
+  if (!modal) {
+    modal = document.createElement("div");
+    modal.id = "historyModalOverlay";
+    modal.className = "modal-overlay";
+    modal.style = `
+      position:fixed;
+      top:0; left:0; width:100%; height:100%;
+      background: rgba(0,0,0,0.8);
+      display:flex; justify-content:center; align-items:flex-start;
+      padding-top:40px;
+      overflow-y:auto;
+      z-index:10000;
+    `;
+
+    const modalWindow = document.createElement("div");
+    modalWindow.className = "modal-window";
+    modalWindow.style = `
+      background:#fff;
+      max-width:650px;
+      width:90%;
+      padding:20px;
+      border-radius:10px;
+      position:relative;
+    `;
+
+    titleEl = document.createElement("h3");
+    titleEl.id = "historyModalTitle";
+
+    const closeBtn = document.createElement("button");
+    closeBtn.textContent = "✖";
+    closeBtn.style = `
+      position:absolute;
+      top:15px;
+      right:15px;
+      cursor:pointer;
+      background:transparent;
+      border:none;
+      font-size:18px;
+    `;
+    closeBtn.addEventListener("click", () => modal.remove());
+
+    const filtersWrap = document.createElement("div");
+    filtersWrap.id = "historyFiltersWrap";
+    filtersWrap.style.marginTop = "8px";
+    filtersWrap.style.marginBottom = "8px";
+    filtersWrap.style.display = "none";
+    filtersWrap.style.gap = "14px";
+    filtersWrap.style.flexWrap = "wrap";
+
+    const mineLabel = document.createElement("label");
+    mineLabel.style.display = "inline-flex";
+    mineLabel.style.alignItems = "center";
+    mineLabel.style.gap = "6px";
+    mineLabel.innerHTML = `<input type="checkbox" id="historyFilterMine"> Лише мої запити`;
+
+    const orgLabel = document.createElement("label");
+    orgLabel.id = "historyFilterOrgLabel";
+    orgLabel.style.display = "inline-flex";
+    orgLabel.style.alignItems = "center";
+    orgLabel.style.gap = "6px";
+    orgLabel.innerHTML = `<input type="checkbox" id="historyFilterOrg"> Лише по ${org || "активному дому"}`;
+
+    filtersWrap.appendChild(mineLabel);
+    filtersWrap.appendChild(orgLabel);
+
+    statusLine = document.createElement("div");
+    statusLine.id = "historyFilterStatus";
+    statusLine.style.marginTop = "4px";
+    statusLine.style.fontSize = "12px";
+    statusLine.style.color = "#666";
+
+    list = document.createElement("div");
+    list.id = "historyList";
+    list.style.marginTop = "20px";
+
+    modalWindow.appendChild(titleEl);
+    modalWindow.appendChild(closeBtn);
+    modalWindow.appendChild(filtersWrap);
+    modalWindow.appendChild(statusLine);
+    modalWindow.appendChild(list);
+    modal.appendChild(modalWindow);
+    document.body.appendChild(modal);
+
+    mineInput = mineLabel.querySelector("#historyFilterMine");
+    orgInput = orgLabel.querySelector("#historyFilterOrg");
+
+    const triggerFilterChange = async () => {
+      const state = modal._historyState || {};
+      if (!state.onFilterChange || state.updating) return;
+
+      state.updating = true;
+      statusLine.textContent = "Оновлення...";
+      mineInput.disabled = true;
+      orgInput.disabled = true;
+
+      try {
+        const newData = await state.onFilterChange({
+          myOnly: mineInput.checked,
+          orgOnly: orgInput.checked
+        });
+        renderHistoryList(list, newData);
+      } catch (err) {
+        console.error(err);
+        showMessage("Помилка отримання історії","err");
+      } finally {
+        state.updating = false;
+        statusLine.textContent = "";
+        mineInput.disabled = false;
+        orgInput.disabled = false;
+      }
+    };
+
+    mineInput.addEventListener("change", triggerFilterChange);
+    orgInput.addEventListener("change", triggerFilterChange);
+
+    modal.addEventListener("click", e => {
+      if (e.target === modal) modal.remove();
+    });
+  } else {
+    titleEl = modal.querySelector("#historyModalTitle");
+    list = modal.querySelector("#historyList");
+    statusLine = modal.querySelector("#historyFilterStatus");
+    mineInput = modal.querySelector("#historyFilterMine");
+    orgInput = modal.querySelector("#historyFilterOrg");
+  }
+
+  const filtersWrap = modal.querySelector("#historyFiltersWrap");
+  if (titleEl) titleEl.textContent = titleText;
+
+  modal._historyState = {
+    onFilterChange,
+    updating: false
+  };
+
+  const orgLabel = modal.querySelector("#historyFilterOrgLabel");
+
+  if (filtersWrap && mineInput && orgInput) {
+    filtersWrap.style.display = showFilters ? "flex" : "none";
+    if (orgLabel) orgLabel.style.display = showOrgFilter ? "inline-flex" : "none";
+    mineInput.checked = !!filters.myOnly;
+    orgInput.checked = !!filters.orgOnly;
+    mineInput.disabled = !showFilters;
+    orgInput.disabled = !showFilters || !showOrgFilter;
+  }
+
+  if (statusLine) statusLine.textContent = "";
+  renderHistoryList(list, data);
+}
 let headerResizeObserver = null;
 
 function updateStickyTop() {
