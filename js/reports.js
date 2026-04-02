@@ -127,8 +127,6 @@ function getDownloadName(f) {
 
 // --- Скачать файл ---
 async function downloadFile(f) {
-    alert("FETCH MODE");
-
     const name = getDownloadName(f);
 
     const url =
@@ -140,11 +138,17 @@ async function downloadFile(f) {
     try {
         const resp = await fetch(url);
 
-        alert("FETCH OK: " + resp.status);
+        if (!resp.ok) {
+            let text = "";
+            try { text = await resp.text(); } catch {}
+            throw new Error(`HTTP ${resp.status} ${resp.statusText} ${text}`);
+        }
 
         const blob = await resp.blob();
 
-        alert("BLOB SIZE: " + blob.size);
+        if (!blob || blob.size === 0) {
+            throw new Error("Пустой файл");
+        }
 
         const blobUrl = URL.createObjectURL(blob);
 
@@ -156,8 +160,17 @@ async function downloadFile(f) {
         link.click();
         document.body.removeChild(link);
 
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
+
     } catch (e) {
-        alert("ERROR: " + e.message);
+        console.error("Download failed:", e);
+
+        // fallback — прямой переход (на случай редких сбоев)
+        try {
+            window.location.href = url;
+        } catch {}
+
+        alert("Не удалось скачать файл: " + (e?.message || e));
     }
 }
 
