@@ -133,63 +133,83 @@ async function downloadFile(f) {
     let error1 = null;
     let error2 = null;
 
-    // === 1. Попытка через fetch + blob ===
+    // 1) Как раньше: fetch -> blob -> download с переименованием
     try {
-        const resp = await fetch(url, {
-            credentials: "include"
-        });
+        const resp = await fetch(url);
+
+        const contentType = resp.headers.get("content-type") || "";
+        const contentLength = resp.headers.get("content-length") || "";
 
         if (!resp.ok) {
             let text = "";
             try { text = await resp.text(); } catch {}
-            throw new Error(`HTTP ${resp.status} ${resp.statusText} ${text.slice(0, 200)}`);
+            throw new Error(
+                `HTTP ${resp.status} ${resp.statusText}` +
+                (contentType ? `; content-type=${contentType}` : "") +
+                (contentLength ? `; content-length=${contentLength}` : "") +
+                (text ? `; body=${text.slice(0, 300)}` : "")
+            );
         }
 
         const blob = await resp.blob();
 
         if (!blob || blob.size === 0) {
-            throw new Error("Пустой blob");
+            throw new Error(
+                `Получен пустой blob` +
+                (contentType ? `; content-type=${contentType}` : "")
+            );
         }
 
         const blobUrl = URL.createObjectURL(blob);
 
-        const link = document.createElement("a");
-        link.href = blobUrl;
-        link.download = name;
+        try {
+            const link = document.createElement("a");
+            link.href = blobUrl;
+            link.download = name;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        } finally {
+            setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
+        }
 
+        return;
+    } catch (e) {
+        error1 = e;
+        console.error("download step 1 failed:", {
+            url,
+            message: e?.message,
+            error: e
+        });
+    }
+
+    // 2) fallback: прямое скачивание/открытие ссылки без переименования
+    try {
+        const link = document.createElement("a");
+        link.href = url;
+        link.rel = "noopener noreferrer";
+        link.target = "_blank";
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
 
-        setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
-
-        return; // успех — выходим
-
-    } catch (e) {
-        error1 = e;
-        console.error("fetch/blob failed:", e);
-    }
-
-    // === 2. fallback — прямое открытие ===
-    try {
-        const win = window.open(url, "_blank");
-
-        if (!win) {
-            throw new Error("window.open вернул null (возможно блокировка попапов)");
-        }
-
-        return; // считаем успехом (дальше уже браузер разбирается)
-
+        return;
     } catch (e) {
         error2 = e;
-        console.error("fallback failed:", e);
+        console.error("download step 2 failed:", {
+            url,
+            message: e?.message,
+            error: e
+        });
     }
 
-    // === 3. обе попытки провалились ===
+    // 3) если обе попытки не удались
     alert(
         "Не удалось скачать файл.\n\n" +
-        "1) fetch/blob: " + (error1?.message || error1) + "\n\n" +
-        "2) fallback: " + (error2?.message || error2)
+        "1) Попытка с переименованием:\n" +
+        (error1?.message || String(error1)) + "\n\n" +
+        "2) Попытка без переименования:\n" +
+        (error2?.message || String(error2))
     );
 }
 
