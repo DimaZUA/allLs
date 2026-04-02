@@ -129,17 +129,68 @@ function getDownloadName(f) {
 async function downloadFile(f) {
     const url = nocache(BASE_URL + f);
     const name = getDownloadName(f);
+
+    let error1 = null;
+    let error2 = null;
+
+    // === 1. Попытка через fetch + blob ===
     try {
-        const resp = await fetch(url);
-        if (!resp.ok) throw new Error("Ошибка загрузки файла");
+        const resp = await fetch(url, {
+            credentials: "include"
+        });
+
+        if (!resp.ok) {
+            let text = "";
+            try { text = await resp.text(); } catch {}
+            throw new Error(`HTTP ${resp.status} ${resp.statusText} ${text.slice(0, 200)}`);
+        }
+
         const blob = await resp.blob();
+
+        if (!blob || blob.size === 0) {
+            throw new Error("Пустой blob");
+        }
+
+        const blobUrl = URL.createObjectURL(blob);
+
         const link = document.createElement("a");
-        link.href = URL.createObjectURL(blob);
+        link.href = blobUrl;
         link.download = name;
+
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-    } catch (e) { alert("Не удалось скачать файл: " + e.message); }
+
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
+
+        return; // успех — выходим
+
+    } catch (e) {
+        error1 = e;
+        console.error("fetch/blob failed:", e);
+    }
+
+    // === 2. fallback — прямое открытие ===
+    try {
+        const win = window.open(url, "_blank");
+
+        if (!win) {
+            throw new Error("window.open вернул null (возможно блокировка попапов)");
+        }
+
+        return; // считаем успехом (дальше уже браузер разбирается)
+
+    } catch (e) {
+        error2 = e;
+        console.error("fallback failed:", e);
+    }
+
+    // === 3. обе попытки провалились ===
+    alert(
+        "Не удалось скачать файл.\n\n" +
+        "1) fetch/blob: " + (error1?.message || error1) + "\n\n" +
+        "2) fallback: " + (error2?.message || error2)
+    );
 }
 
 // --- Скачать PDF как PNG ---
