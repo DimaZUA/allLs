@@ -129,20 +129,43 @@ function getDownloadName(f) {
 async function downloadFile(f) {
     const name = getDownloadName(f);
 
-    const downloadUrl =
+    const url =
         "https://snowy-morning-ec72.dimaz-khua.workers.dev/?key=" +
         encodeURIComponent(f) +
         "&name=" +
         encodeURIComponent(name);
 
-    const link = document.createElement("a");
-    link.href = downloadUrl;
-    link.target = "_blank";
-    link.rel = "noopener noreferrer";
+    try {
+        const resp = await fetch(url);
 
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+        if (!resp.ok) {
+            throw new Error(`HTTP ${resp.status}`);
+        }
+
+        const blob = await resp.blob();
+
+        if (!blob || blob.size === 0) {
+            throw new Error("Пустой файл");
+        }
+
+        const blobUrl = URL.createObjectURL(blob);
+
+        const link = document.createElement("a");
+        link.href = blobUrl;
+        link.download = name;
+
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
+
+    } catch (e) {
+        console.error("Download failed:", e);
+
+        // fallback (на всякий случай)
+        window.location.href = url;
+    }
 }
 
 // --- Скачать PDF как PNG ---
