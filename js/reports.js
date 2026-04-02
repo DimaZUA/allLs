@@ -132,8 +132,9 @@ async function downloadFile(f) {
 
     let error1 = null;
     let error2 = null;
+    let error3 = null;
 
-    // 1) Как раньше: fetch -> blob -> download с переименованием
+    // 1) Основная попытка: fetch -> blob -> download с переименованием
     try {
         const resp = await fetch(url);
 
@@ -176,19 +177,19 @@ async function downloadFile(f) {
         return;
     } catch (e) {
         error1 = e;
-        console.error("download step 1 failed:", {
+        console.error("download step 1 failed (fetch/blob rename):", {
             url,
             message: e?.message,
             error: e
         });
     }
 
-    // 2) fallback: прямое скачивание/открытие ссылки без переименования
+    // 2) fallback: прямая ссылка через <a download> без fetch
     try {
         const link = document.createElement("a");
         link.href = url;
+        link.download = "";
         link.rel = "noopener noreferrer";
-        link.target = "_blank";
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -196,20 +197,40 @@ async function downloadFile(f) {
         return;
     } catch (e) {
         error2 = e;
-        console.error("download step 2 failed:", {
+        console.error("download step 2 failed (direct link with download attr):", {
             url,
             message: e?.message,
             error: e
         });
     }
 
-    // 3) если обе попытки не удались
+    // 3) fallback: открыть в новой вкладке
+    try {
+        const win = window.open(url, "_blank", "noopener,noreferrer");
+
+        if (!win) {
+            throw new Error("window.open вернул null (возможно блокировка всплывающих окон)");
+        }
+
+        return;
+    } catch (e) {
+        error3 = e;
+        console.error("download step 3 failed (window.open):", {
+            url,
+            message: e?.message,
+            error: e
+        });
+    }
+
+    // 4) если дошли сюда — все три шага не удались
     alert(
         "Не удалось скачать файл.\n\n" +
-        "1) Попытка с переименованием:\n" +
+        "1) С переименованием (fetch/blob):\n" +
         (error1?.message || String(error1)) + "\n\n" +
-        "2) Попытка без переименования:\n" +
-        (error2?.message || String(error2))
+        "2) Прямая ссылка через download:\n" +
+        (error2?.message || String(error2)) + "\n\n" +
+        "3) Открытие в новой вкладке:\n" +
+        (error3?.message || String(error3))
     );
 }
 
