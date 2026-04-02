@@ -127,6 +127,8 @@ function getDownloadName(f) {
 
 // --- Скачать файл ---
 async function downloadFile(f) {
+    alert("FETCH MODE");
+
     const name = getDownloadName(f);
 
     const url =
@@ -138,15 +140,11 @@ async function downloadFile(f) {
     try {
         const resp = await fetch(url);
 
-        if (!resp.ok) {
-            throw new Error(`HTTP ${resp.status}`);
-        }
+        alert("FETCH OK: " + resp.status);
 
         const blob = await resp.blob();
 
-        if (!blob || blob.size === 0) {
-            throw new Error("Пустой файл");
-        }
+        alert("BLOB SIZE: " + blob.size);
 
         const blobUrl = URL.createObjectURL(blob);
 
@@ -158,13 +156,8 @@ async function downloadFile(f) {
         link.click();
         document.body.removeChild(link);
 
-        setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
-
     } catch (e) {
-        console.error("Download failed:", e);
-
-        // fallback (на всякий случай)
-        window.location.href = url;
+        alert("ERROR: " + e.message);
     }
 }
 
