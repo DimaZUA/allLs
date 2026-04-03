@@ -730,7 +730,7 @@ function openFile(f, { userClick = false } = {}) {
 
         // ---------- DESKTOP ----------
         const iframe = document.createElement("iframe");
-        iframe.src = pdfUrl + "#page=1&zoom=page-width";
+        iframe.src = pdfUrl + "#page=1&zoom=page-width&navpanes=0&scrollbar=1";
         iframe.style.width = "100%";
         iframe.style.height = "99%";
         iframe.style.border = "0";
