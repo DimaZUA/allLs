@@ -51,25 +51,24 @@ function testCanvasReady() {
 }
 
 
-let CAN_SHARE_IMAGE = canMobileShareImage();
+let CAN_SHARE_IMAGE = canShareImageFiles();
 
-function canMobileShareImage() {
-    const ua = navigator.userAgent.toLowerCase();
+function canShareImageFiles() {
+    if (!isMobile()) return false;
+    if (!navigator.share || !navigator.canShare) return false;
 
-    // только android
-    if (!/android/.test(ua)) return false;
+    try {
+        const testFile = new File(
+            [new Blob(["x"], { type: "text/plain" })],
+            "test.txt",
+            { type: "text/plain" }
+        );
 
-    // chrome mobile: есть Chrome, но нет Opera/Edge
-    const isChrome =
-        /chrome/.test(ua) &&
-        !/opr/.test(ua) &&
-        !/opera/.test(ua) &&
-        !/edg/.test(ua) &&
-        !/samsungbrowser/.test(ua);
-
-    return isChrome;
+        return navigator.canShare({ files: [testFile] });
+    } catch (e) {
+        return false;
+    }
 }
-
 
 
 
@@ -84,7 +83,7 @@ function buildButtonsHtml(canvasOK) {
                 '  </button>\n';
         } else {
             thirdButton =
-                '  <button onclick="captureAndCopy()" class="xls-button" title="${org}">\n' +
+                '  <button onclick="captureAndCopy()" class="xls-button" title="Скриншот">\n' +
                 '    <img src="img/screenshot.png" class="xls-icon">\n' +
                 '  </button>\n';
         }
