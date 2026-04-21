@@ -230,6 +230,23 @@ body.files-mode .sidebar-files {
    MOBILE / TABLET
 ===================================================== */
 @media (max-width: 640px) {
+  html,
+  body {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .content {
+    width: 100vw;
+    max-width: 100vw;
+    margin-left: 0 !important;
+    box-sizing: border-box;
+  }
+
+  body.sidebar-open .content {
+    margin-left: 0 !important;
+  }
+
   .sidebar {
     width: 100vw;
     font-size: 18px;

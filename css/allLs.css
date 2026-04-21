@@ -695,6 +695,47 @@ button:hover {
 
 /* Модалка мобильная */
 @media (max-width: 640px) {
+  .header-row {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .header-left {
+    max-width: 100%;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .header-right {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  #number {
+    width: 92px;
+    max-width: 92px;
+    font-size: 1.2rem;
+  }
+
+  .buttons-container {
+    gap: 6px;
+  }
+
+  .buttons-container .xls-button {
+    width: 36px !important;
+    min-width: 36px;
+    max-width: 36px;
+    height: 36px;
+  }
+
+  #maincontainer,
+  #header,
+  #din {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
   .modal-container {
     padding: 10px;
     font-size: 16px;
