@@ -4,6 +4,10 @@ html {
   font-size: 20px;
 }
 
+body {
+  overflow-x: auto;
+}
+
 
 .box table#main tbody td {
   font-size: 1.2rem;
