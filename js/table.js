@@ -793,7 +793,7 @@ const totalPers = Object.values(ls)
   .reduce((sum, item) => sum + (item.pers || 0), 0);
 
   footerRow.classList.add("itog");
-  footerRow.innerHTML = `<td colspan=2>Разом</td><td>${totalPl.toFixedWithComma()}</td><td>${totalPers}</td><td>${totalStartDebt.toFixedWithComma()}</td><td>${rowCount ? (totalStartDebtMonths / rowCount).toFixed(1) : "–"}</td>`;
+  footerRow.innerHTML = `<td>${rowCount}</td><td>Разом</td><td>${totalPl.toFixedWithComma()}</td><td>${totalPers}</td><td>${totalStartDebt.toFixedWithComma()}</td><td>${rowCount ? (totalStartDebtMonths / rowCount).toFixed(1) : "–"}</td>`;
 
   if (displayMode === "summarized") {
     for (const serviceId of servicesWithCharges) {
