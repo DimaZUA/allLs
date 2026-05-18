@@ -229,7 +229,7 @@ async function ensureResidentCabinetButton(accountId) {
   };
 }
 
-function ensurePayButton(payUrl) {
+function ensurePayButton(payUrl, isResidentMode) {
   const host = document.querySelector("#header .buttons-container");
   if (!host) return;
 
@@ -245,7 +245,7 @@ function ensurePayButton(payUrl) {
     host.appendChild(button);
   }
 
-  if (!payUrl) {
+  if (!isResidentMode || !payUrl) {
     button.style.display = "none";
     button.onclick = null;
     return;
@@ -286,7 +286,7 @@ if (payUrl && !isResidentMode) {
   adrLink.removeAttribute("target");
   adrLink.removeAttribute("rel");
 }
-  ensurePayButton(payUrl);
+  ensurePayButton(payUrl, isResidentMode);
   ensureResidentCabinetButton(accountId);
 
   var container = document.getElementById("din"); // Контейнер для таблицы
