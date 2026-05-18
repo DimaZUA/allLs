@@ -118,6 +118,145 @@ document.getElementById("message").style.display='none';
   }
 }
 
+function isUserAuthenticated() {
+  return document.body.classList.contains("authenticated");
+}
+
+function getPageBaseUrl() {
+  const base = new URL(window.location.href);
+  base.search = "";
+  base.hash = "";
+  return base.toString();
+}
+
+function buildPrivat24PayUrl(homeToken, personalAccount) {
+  const token = String(homeToken || "").trim();
+  const account = String(personalAccount || "").trim();
+  if (!token || !account || Number(account) <= 0) return "";
+  const payload = JSON.stringify({
+    token: token,
+    personalAccount: account
+  });
+  return `https://next.privat24.ua/payments/form/${encodeURIComponent(payload)}`;
+}
+
+async function buildResidentCabinetUrl(accountId) {
+  const homeCode = String(getParam("homeCode") || "");
+  const kv = String(ls?.[accountId]?.kv || "").trim();
+  const params = new URLSearchParams();
+
+  try {
+    if (window.client && typeof client.rpc === "function" && homeCode && accountId) {
+      const { data, error } = await client.rpc("resident_token_make", {
+        p_okpo: homeCode,
+        p_account_id: String(accountId)
+      });
+      if (!error && data) {
+        const token = String(data);
+        params.set("rt", token);
+        return `${getPageBaseUrl()}?${params.toString()}`;
+      }
+    }
+  } catch (e) {
+    // Fallback: URL without token if RPC is unavailable.
+  }
+
+  if (homeCode) params.set("homeCode", homeCode);
+  params.set("actionCode", "accounts");
+  if (kv) params.set("kv", kv);
+  return `${getPageBaseUrl()}?${params.toString()}`;
+}
+
+async function copyTextPortable(text) {
+  if (!text) return false;
+  if (navigator.clipboard && window.isSecureContext) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch (e) {
+      // fallback below
+    }
+  }
+  const area = document.createElement("textarea");
+  area.value = text;
+  area.setAttribute("readonly", "");
+  area.style.position = "fixed";
+  area.style.top = "-9999px";
+  area.style.left = "-9999px";
+  document.body.appendChild(area);
+  area.select();
+  area.setSelectionRange(0, area.value.length);
+  let ok = false;
+  try {
+    ok = document.execCommand("copy");
+  } catch (e) {
+    ok = false;
+  }
+  document.body.removeChild(area);
+  return ok;
+}
+
+async function ensureResidentCabinetButton(accountId) {
+  const host = document.querySelector("#header .buttons-container");
+  if (!host) return;
+
+  let button = document.getElementById("residentCabinetCopyBtn");
+  if (!button) {
+    button = document.createElement("button");
+    button.type = "button";
+    button.id = "residentCabinetCopyBtn";
+    button.className = "xls-button resident-link-button";
+    button.title = "\u0421\u043A\u043E\u043F\u0456\u044E\u0432\u0430\u0442\u0438 \u043F\u043E\u0441\u0438\u043B\u0430\u043D\u043D\u044F \u043E\u0441\u043E\u0431\u0438\u0441\u0442\u043E\u0433\u043E \u043A\u0430\u0431\u0456\u043D\u0435\u0442\u0443";
+    button.setAttribute("aria-label", button.title);
+    button.textContent = "\u041E\u041A";
+    host.appendChild(button);
+  }
+
+  if (!isUserAuthenticated()) {
+    button.style.display = "none";
+    return;
+  }
+
+  const url = await buildResidentCabinetUrl(accountId);
+  button.style.display = "";
+  button.onclick = async function () {
+    const copied = await copyTextPortable(url);
+    if (copied) {
+      showMessage("\u041F\u043E\u0441\u0438\u043B\u0430\u043D\u043D\u044F \u041E\u041A \u0441\u043A\u043E\u043F\u0456\u0439\u043E\u0432\u0430\u043D\u043E");
+    } else {
+      showMessage("\u041D\u0435 \u0432\u0434\u0430\u043B\u043E\u0441\u044F \u0441\u043A\u043E\u043F\u0456\u044E\u0432\u0430\u0442\u0438 \u043F\u043E\u0441\u0438\u043B\u0430\u043D\u043D\u044F", "err");
+    }
+  };
+}
+
+function ensurePayButton(payUrl) {
+  const host = document.querySelector("#header .buttons-container");
+  if (!host) return;
+
+  let button = document.getElementById("payLinkBtn");
+  if (!button) {
+    button = document.createElement("button");
+    button.type = "button";
+    button.id = "payLinkBtn";
+    button.className = "xls-button pay-link-button";
+    button.title = "Оплатити";
+    button.setAttribute("aria-label", button.title);
+    button.textContent = "Оплатити";
+    host.appendChild(button);
+  }
+
+  if (!payUrl) {
+    button.style.display = "none";
+    button.onclick = null;
+    return;
+  }
+
+  button.style.display = "";
+  button.onclick = function () {
+    window.open(payUrl, "_blank", "noopener,noreferrer");
+  };
+}
+
 function addStuff(accountId) {
   var accountData = nach[accountId] || {}; // Данные для указанного accountId
   var paymentData = oplat[accountId] || {}; // Данные оплат для указанного accountId
@@ -132,11 +271,14 @@ function addStuff(accountId) {
             }
         }
     }  
-  const link=homes.find(h => h.code == getParam('homeCode'))?.token ?? "";
+  const link=(Array.isArray(homes) ? homes.find(h => h.code == getParam('homeCode')) : null)?.token ?? "";
   const adrLink=document.getElementById("adr")
   const currentKv=ls[accountId].kv;
-if (link && currentKv && currentKv > 0) {
-  adrLink.href = `https://next.privat24.ua/payments/form/%7B%22token%22:%22${link}%22,%22personalAccount%22:%22${currentKv}%22%7D`;
+const payUrl = buildPrivat24PayUrl(link, currentKv);
+const isResidentMode = document.body.classList.contains("resident-mode");
+
+if (payUrl && !isResidentMode) {
+  adrLink.href = payUrl;
   adrLink.target = "_blank";       // открывать в новой вкладке
   adrLink.rel = "noopener noreferrer"; // безопасное открытие
 } else {
@@ -144,6 +286,8 @@ if (link && currentKv && currentKv > 0) {
   adrLink.removeAttribute("target");
   adrLink.removeAttribute("rel");
 }
+  ensurePayButton(payUrl);
+  ensureResidentCabinetButton(accountId);
 
   var container = document.getElementById("din"); // Контейнер для таблицы
   container.innerHTML = ""; // Очищаем контейнер перед добавлением новой таблицы
@@ -489,7 +633,11 @@ if (lastYearToggle) {
 
   var curLS = ls[accountId];
 container = document.getElementById("datetime");
-container.style.cursor = "pointer";
+container.style.cursor = "default";
+const showChangeRequestButton = isUserAuthenticated();
+const changeButtonHtml = showChangeRequestButton
+  ? '<div class="change-request-wrap"><button id="changeRequestBtn" type="button" class="change-request-btn">\u041F\u043E\u0432\u0456\u0434\u043E\u043C\u0438\u0442\u0438 \u043F\u0440\u043E \u0437\u043C\u0456\u043D\u0438</button></div>'
+  : "";
 
 const content = `
   <span class="original">
@@ -506,22 +654,24 @@ const content = `
       ${curLS.tel ? `Телефон: ${curLS.tel}<br>` : ""}
       ${curLS.note ? `Примітка: ${curLS.note.replace(/\n/g, "<br>")}<br>` : ""}
       ${curLS.email ? `e-mail: ${curLS.email}<br>` : ""}
+      ${changeButtonHtml}
       <br>Дані вказані станом на <br>${dt} (${timeAgo(dt)} тому.)
     </div>
   </span>
-  <span class="hover-text">Повідомити про зміні</span>
 `;
 
 container.innerHTML = content;
+const changeBtn = document.getElementById("changeRequestBtn");
+if (changeBtn) {
+  changeBtn.onclick = function () {
+    handleChangeRequest(accountId);
+  };
+}
 
 initPosters();
 setParam("kv", ls[accountId].kv);
 
 //lastRow.scrollIntoView({ behavior: "smooth", block: "end" });
-
-container.addEventListener("click", function () {
-  handleChangeRequest(accountId);
-});
 
   updateStickyTop(); 
 }
@@ -1284,6 +1434,7 @@ window.addEventListener("popstate", () => {
 
 
 function initLS() {
+  const isResidentMode = document.body.classList.contains("resident-mode");
 
   document.getElementById("maincontainer").innerHTML = `
 <div id="ls-picker" class="ls-picker hidden">
@@ -1341,6 +1492,36 @@ function initLS() {
 
   const input = document.getElementById("number");
   const list  = document.getElementById("number-list");
+
+  if (isResidentMode) {
+    const allKeys = Object.keys(ls || {});
+    const fallbackId = allKeys[0] || null;
+    const kvParam = getParam("kv");
+    let ind = null;
+
+    if (kvParam) {
+      ind = allKeys.find(key => ls[key].kv === kvParam || ls[key].ls === kvParam) || null;
+    }
+    if (!ind) ind = fallbackId;
+    if (!ind || !ls[ind]) return;
+
+    if (input) {
+      const numberText = document.createElement("span");
+      numberText.id = "number-static";
+      numberText.className = "number-static";
+      numberText.textContent = ls[ind].kv || "";
+      input.replaceWith(numberText);
+    }
+    if (list) {
+      list.remove();
+    }
+
+    addStuff(ind);
+    if (ls[ind]?.kv) {
+      setParam("kv", ls[ind].kv);
+    }
+    return;
+  }
 
   // ================================
   // datalist

@@ -280,6 +280,14 @@ table#main td {
   font-size: 1.5rem;
   max-width: 200px
 }
+
+.number-static {
+  display: inline-block;
+  font-size: 1.5rem;
+  min-width: 36px;
+  padding: 0 2px;
+}
+
 #filter-container select:focus,
 #filter-container input:focus {
   border-color: #007BFF;
@@ -417,32 +425,7 @@ table#main td {
 }
 
 #datetime .hover-text {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  background-color: rgba(0,0,0,0.6);
-  opacity: 0;
-  transition: opacity 0.2s;
-  pointer-events: none;
-  font-size: 2rem;
-}
-
-#datetime:hover .hover-text {
-  opacity: 1;
-}
-
-#datetime span.original {
-  transition: opacity 0.2s;
-}
-
-#datetime:hover span.original {
-  opacity: 0.3;
+  display: none;
 }
 
 /* ===== MODALS ===== */
@@ -691,6 +674,53 @@ button:hover {
 
 .buttons-container button {
   width: auto !important;
+}
+
+.buttons-container .resident-link-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid #9a9a9a;
+  background: #efefef;
+  font-weight: 700;
+  font-size: 15px;
+  line-height: 1;
+  color: #1b1b1b;
+  cursor: pointer;
+}
+
+.buttons-container .resident-link-button:hover {
+  background: #e4e4e4;
+}
+
+.buttons-container .pay-link-button {
+  width: auto !important;
+  min-width: 84px;
+  padding: 0 10px;
+  border: 1px solid #9a9a9a;
+  background: #efefef;
+  font-size: 14px;
+}
+
+.buttons-container .pay-link-button:hover {
+  background: #e4e4e4;
+}
+
+.change-request-wrap {
+  margin-top: 8px;
+}
+
+.change-request-btn {
+  padding: 6px 12px;
+  border: 1px solid #8d8d8d;
+  border-radius: 4px;
+  background: #f3f3f3;
+  cursor: pointer;
+}
+
+.change-request-btn:hover {
+  background: #e9e9e9;
 }
 
 /* Модалка мобильная */
