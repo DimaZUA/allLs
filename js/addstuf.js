@@ -301,7 +301,16 @@ if (payUrl && !isResidentMode) {
   var currentYear = new Date().getFullYear();
   var lastYearToggle; // Переменная для хранения чекбокса последнего года
   var lastRow;
-  var _loop = function _loop() {
+  var yearsToRender = Object.keys(accountData)
+    .filter(function (yearKey) {
+      if (!isResidentMode) return true;
+      var yearNum = Number(yearKey);
+      return Number.isFinite(yearNum) && yearNum >= 2025;
+    })
+    .sort(function (a, b) {
+      return Number(a) - Number(b);
+    });
+  var _loop = function _loop(year) {
     var yearDiv = document.createElement("div");
     var balanceDiv = document.createElement("div");
     var yearToggle = document.createElement("input");
@@ -612,9 +621,9 @@ var yearsBar = document.createElement("div");
 yearsBar.id = "years-bar";
 container.appendChild(yearsBar);
 
-  for (var year in accountData) {
-    _loop();
-  }
+  yearsToRender.forEach(function (year) {
+    _loop(year);
+  });
 if (lastYearToggle) {
     lastYearToggle.checked = true;
 
