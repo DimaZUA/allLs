@@ -220,6 +220,10 @@ body.files-mode .sidebar-files {
   transition: margin-left 0.25s ease;
 }
 
+body.resident-mode .content {
+  padding-top: 10px;
+}
+
 @media (min-width: 1200px) {
   body.sidebar-open .content {
     margin-left: 240px;

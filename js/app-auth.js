@@ -96,6 +96,7 @@
       "files-mode",
       "sidebar-open"
     );
+    document.documentElement.style.setProperty("--topbar-offset", "0px");
 
     const { data, error } = await client.rpc("resident_get_ls", {
       p_token: token

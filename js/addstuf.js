@@ -1485,7 +1485,7 @@ function initLS() {
 
         <div class="header-right">
           <div class="buttons-container">
-            ${buttons}
+            ${isResidentMode ? "" : buttons}
           </div>
         </div>
       </div>
@@ -2426,9 +2426,14 @@ function updateStickyTop() {
   const header = document.querySelector(".header-row");
   if (!header) return;
 
+  const topbarOffset = document.body.classList.contains("resident-mode") ? 0 : 48;
   const rect = header.getBoundingClientRect();
-  const stickyTop = Math.ceil(48 + rect.height);
+  const stickyTop = Math.ceil(topbarOffset + rect.height);
 
+  document.documentElement.style.setProperty(
+    "--topbar-offset",
+    `${topbarOffset}px`
+  );
 
   document.documentElement.style.setProperty(
     "--header-height",
