@@ -301,15 +301,43 @@ if (payUrl && !isResidentMode) {
   var currentYear = new Date().getFullYear();
   var lastYearToggle; // Переменная для хранения чекбокса последнего года
   var lastRow;
-  var yearsToRender = Object.keys(accountData)
-    .filter(function (yearKey) {
-      if (!isResidentMode) return true;
+  var allYearsSorted = Object.keys(accountData).sort(function (a, b) {
+    return Number(a) - Number(b);
+  });
+  var yearsToRender = allYearsSorted.filter(function (yearKey) {
+    if (!isResidentMode) return true;
+    var yearNum = Number(yearKey);
+    return Number.isFinite(yearNum) && yearNum >= 2025;
+  });
+
+  // В resident-режиме считаем входящее сальдо по "скрытым" годам (< 2025),
+  // чтобы долги в отображаемых годах были корректными.
+  if (isResidentMode) {
+    var hiddenYears = allYearsSorted.filter(function (yearKey) {
       var yearNum = Number(yearKey);
-      return Number.isFinite(yearNum) && yearNum >= 2025;
-    })
-    .sort(function (a, b) {
-      return Number(a) - Number(b);
+      return Number.isFinite(yearNum) && yearNum < 2025;
     });
+
+    hiddenYears.forEach(function (hiddenYear) {
+      var months = Object.keys(accountData[hiddenYear] || {}).sort(function (a, b) {
+        return Number(a) - Number(b);
+      });
+
+      months.forEach(function (monthKey) {
+        var monthChargesByService = accountData[hiddenYear][monthKey] || {};
+        var monthCharge = Object.values(monthChargesByService).reduce(function (sum, value) {
+          return sum + (Number(value) || 0);
+        }, 0);
+
+        var monthPayments = ((paymentData[hiddenYear] || {})[monthKey] || []).reduce(function (sum, payment) {
+          return sum + (Number(payment && payment.sum) || 0);
+        }, 0);
+
+        cumulativeBalance += monthCharge - monthPayments;
+      });
+    });
+  }
+
   var _loop = function _loop(year) {
     var yearDiv = document.createElement("div");
     var balanceDiv = document.createElement("div");
