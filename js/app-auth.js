@@ -1,4 +1,51 @@
 (function () {
+  function firstNonEmpty() {
+    for (let i = 0; i < arguments.length; i++) {
+      const v = arguments[i];
+      if (v === null || v === undefined) continue;
+      const s = String(v).trim();
+      if (s) return s;
+    }
+    return "";
+  }
+
+  function findByKeyVariants(root, variants, maxDepth) {
+    const keys = (variants || []).map(k => String(k).toLowerCase());
+    const depthLimit = Number.isFinite(maxDepth) ? maxDepth : 3;
+    const queue = [{ node: root, depth: 0 }];
+    const seen = new Set();
+
+    while (queue.length) {
+      const item = queue.shift();
+      const node = item.node;
+      const depth = item.depth;
+      if (!node || typeof node !== "object") continue;
+      if (seen.has(node)) continue;
+      seen.add(node);
+
+      const entries = Array.isArray(node)
+        ? node.map((v, idx) => [String(idx), v])
+        : Object.entries(node);
+
+      for (const [k, v] of entries) {
+        const keyLower = String(k).toLowerCase();
+        if (keys.includes(keyLower)) {
+          const found = firstNonEmpty(v);
+          if (found) return found;
+        }
+      }
+
+      if (depth >= depthLimit) continue;
+      for (const [, v] of entries) {
+        if (v && typeof v === "object") {
+          queue.push({ node: v, depth: depth + 1 });
+        }
+      }
+    }
+
+    return "";
+  }
+
   function getResidentTokenFromUrl() {
     try {
       const params = new URLSearchParams(window.location.search || "");
@@ -52,12 +99,53 @@
     plat = window.plat;
     files = window.files;
 
-    const homeCode = String(payload.home_code || getParam("homeCode") || "");
+    const homeCode = String(payload.home_code || payload.code || getParam("homeCode") || "");
+    const homeMeta = payload.home && typeof payload.home === "object" ? payload.home : {};
+    const ibanValue = firstNonEmpty(
+      payload.Iban,
+      payload.iban,
+      homeMeta.Iban,
+      homeMeta.iban,
+      findByKeyVariants(payload, ["Iban", "iban", "IBAN"], 4)
+    );
+    const bankValue = firstNonEmpty(
+      payload.Bank,
+      payload.bank,
+      homeMeta.Bank,
+      homeMeta.bank,
+      findByKeyVariants(payload, ["Bank", "bank", "Банк"], 4)
+    );
+    let mfoValue =
+      payload.MFO ||
+      payload.mfo ||
+      payload["МФО"] ||
+      homeMeta.MFO ||
+      homeMeta.mfo ||
+      homeMeta["МФО"] ||
+      findByKeyVariants(payload, ["MFO", "mfo", "МФО"], 4) ||
+      "";
+    if (!mfoValue && ibanValue && String(ibanValue).length >= 10) {
+      mfoValue = String(ibanValue).substring(4, 10);
+    }
+    window.residentHomeMeta = {
+      code: homeCode,
+      okpo: payload.okpo || homeMeta.okpo || homeCode,
+      name: firstNonEmpty(payload.name, payload.ORGKR, homeMeta.name, homeMeta.ORGKR, org),
+      Iban: ibanValue,
+      Bank: bankValue,
+      mfo: mfoValue,
+      token: String(payload.token || homeMeta.token || "")
+    };
+
     window.homes = [
       {
-        code: homeCode,
-        name: payload.name || org || "",
-        token: String(payload.token || "")
+        code: window.residentHomeMeta.code,
+        okpo: window.residentHomeMeta.okpo,
+        name: window.residentHomeMeta.name,
+        Iban: window.residentHomeMeta.Iban,
+        Bank: window.residentHomeMeta.Bank,
+        mfo: window.residentHomeMeta.mfo,
+        token: window.residentHomeMeta.token
       }
     ];
     homes = window.homes;

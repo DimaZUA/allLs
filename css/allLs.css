@@ -1101,3 +1101,306 @@ table#main thead {
 .toggle-box:checked + label + .year-table {
   display: block;
 }
+
+/* ===========================
+   RESIDENT CABINET LAYOUT
+=========================== */
+body.resident-mode {
+  background: #eef1f5;
+}
+
+body.resident-mode #maincontainer {
+  max-width: 1120px;
+}
+
+body.resident-mode #header {
+  top: 0;
+  border-radius: 10px;
+  margin-bottom: 10px;
+}
+
+body.resident-mode .header {
+  padding: 12px 14px;
+}
+
+body.resident-mode .header-row {
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+body.resident-mode .header-left {
+  max-width: none;
+}
+
+body.resident-mode .header-left .line {
+  margin-bottom: 6px;
+}
+
+body.resident-mode .buttons-container {
+  justify-content: flex-end;
+}
+
+body.resident-mode .buttons-container .pay-link-button {
+  min-width: 128px;
+  height: 42px;
+  border: 1px solid #1f8a45;
+  background: #26a455;
+  color: #fff;
+  border-radius: 8px;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+body.resident-mode .buttons-container .pay-link-button:hover {
+  background: #1f8a45;
+}
+
+body.resident-mode #din {
+  display: block;
+}
+
+body.resident-mode .resident-overview-card,
+body.resident-mode .resident-requisites-card,
+body.resident-mode .resident-history-block,
+body.resident-mode .resident-flat-card {
+  background: #fff;
+  border: 1px solid #dce3eb;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  padding: 14px;
+  margin-bottom: 12px;
+}
+
+body.resident-mode .resident-overview-card h2,
+body.resident-mode .resident-history-block h3,
+body.resident-mode .resident-flat-card h3 {
+  margin: 0 0 10px;
+}
+
+body.resident-mode .resident-status {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+body.resident-mode .resident-status strong {
+  font-size: 1.5rem;
+}
+
+body.resident-mode .resident-debt {
+  color: #8b0000;
+}
+
+body.resident-mode .resident-credit,
+body.resident-mode .resident-neutral {
+  color: #0b6a35;
+}
+
+body.resident-mode .resident-status.resident-debt {
+  background: #ffecec;
+}
+
+body.resident-mode .resident-status.resident-credit,
+body.resident-mode .resident-status.resident-neutral {
+  background: #ebfaef;
+}
+
+body.resident-mode .resident-recommended {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+body.resident-mode .resident-recommended-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+body.resident-mode .resident-recommended strong {
+  font-size: 1.35rem;
+}
+
+body.resident-mode #resident-pay-slot {
+  flex: 0 0 auto;
+}
+
+body.resident-mode .resident-main-pay-btn {
+  min-width: 210px;
+  height: 44px;
+  padding: 0 14px;
+  border: 1px solid #1f8a45;
+  background: #26a455;
+  color: #fff;
+  border-radius: 8px;
+  font-size: 17px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+body.resident-mode .resident-main-pay-btn:hover {
+  background: #1f8a45;
+}
+
+body.resident-mode .resident-main-pay-btn.soft-pay {
+  border-color: #9fb7aa;
+  background: #e7f2eb;
+  color: #245a3a;
+}
+
+body.resident-mode .resident-main-pay-btn.soft-pay:hover {
+  background: #d8eadf;
+}
+
+body.resident-mode .resident-updated,
+body.resident-mode .resident-updated-note {
+  color: #5f6876;
+  font-size: 0.95rem;
+}
+
+body.resident-mode .resident-overview-details {
+  margin-top: 10px;
+}
+
+body.resident-mode .resident-overview-details p {
+  margin: 6px 0;
+}
+
+body.resident-mode .resident-overview-details p + p,
+body.resident-mode .resident-flat-grid span,
+body.resident-mode .resident-requisites-grid span {
+  color: #5f6876;
+}
+
+body.resident-mode .resident-requisites-details summary {
+  cursor: pointer;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+body.resident-mode .resident-requisites-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(220px, 1fr));
+  gap: 8px 14px;
+}
+
+body.resident-mode .resident-requisites-grid > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+body.resident-mode .resident-requisites-grid .resident-purpose-row {
+  grid-column: 1 / -1;
+}
+
+body.resident-mode .resident-requisites-actions {
+  margin-top: 10px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+body.resident-mode .resident-copy-btn {
+  border: 1px solid #b9c4d0;
+  background: #f5f8fb;
+}
+
+body.resident-mode .resident-history-block h3 {
+  margin-bottom: 10px;
+}
+
+body.resident-mode #years-bar {
+  margin-bottom: 8px;
+}
+
+body.resident-mode .toggle-box + label {
+  border-radius: 10px;
+  padding: 6px 12px;
+}
+
+body.resident-mode .year-table {
+  overflow-x: auto;
+}
+
+body.resident-mode .box table#main {
+  width: 100%;
+  min-width: 720px;
+  background: #fff;
+}
+
+body.resident-mode table#main thead {
+  position: static;
+}
+
+body.resident-mode #datetime {
+  max-width: 1120px;
+  margin: 0 auto 20px;
+}
+
+body.resident-mode .resident-flat-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(220px, 1fr));
+  gap: 8px 14px;
+}
+
+body.resident-mode .resident-flat-grid > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+@media (max-width: 860px) {
+  body.resident-mode .resident-requisites-grid,
+  body.resident-mode .resident-flat-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  body.resident-mode .header-row {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  body.resident-mode .header-right,
+  body.resident-mode .buttons-container {
+    width: 100%;
+  }
+
+  body.resident-mode .buttons-container .pay-link-button {
+    width: 100% !important;
+    min-width: 100%;
+  }
+
+  body.resident-mode .line {
+    flex-wrap: wrap;
+  }
+
+  body.resident-mode .resident-recommended {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  body.resident-mode #resident-pay-slot {
+    width: 100%;
+  }
+
+  body.resident-mode .resident-main-pay-btn {
+    width: 100%;
+    min-width: 100%;
+  }
+
+  body.resident-mode .resident-overview-card,
+  body.resident-mode .resident-requisites-card,
+  body.resident-mode .resident-history-block,
+  body.resident-mode .resident-flat-card {
+    padding: 10px;
+  }
+}

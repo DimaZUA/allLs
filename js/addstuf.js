@@ -257,7 +257,153 @@ function ensurePayButton(payUrl, isResidentMode) {
   };
 }
 
+function moneyText(value) {
+  const num = Number(value) || 0;
+  return `${num.toFixedWithComma()} грн`;
+}
+
+function moneySigned(value) {
+  return `${(Number(value) || 0).toFixedWithComma()} грн`;
+}
+
+function balanceMeta(balance) {
+  const value = Number(balance) || 0;
+  if (value > 0) {
+    return {
+      cls: "debt",
+      status: "Заборгованість",
+      currentLabel: "Поточна заборгованість складає"
+    };
+  }
+  if (value < 0) {
+    return {
+      cls: "credit",
+      status: "Переплата",
+      currentLabel: "Поточна переплата складає"
+    };
+  }
+  return {
+    cls: "neutral",
+    status: "Заборгованості немає",
+    currentLabel: "Поточний баланс складає"
+  };
+}
+
+function openingBalanceLabel(value) {
+  const num = Number(value) || 0;
+  if (num > 0) return "На початок року заборгованість складала";
+  if (num < 0) return "На початок року була переплата";
+  return "На початок року баланс рахунку складав";
+}
+
+function pickRequisites(homeCode, accountData) {
+  const home = Array.isArray(homes)
+    ? homes.find(h => String(h?.code || "") === String(homeCode || ""))
+    : null;
+  const details = Object.assign({}, window.residentHomeMeta || {}, home || {});
+  let ibanValue = details.Iban || details.iban || "";
+  let mfoValue = details.MFO || details.mfo || details["МФО"] || "";
+  if (!mfoValue && ibanValue && String(ibanValue).length >= 10) {
+    mfoValue = String(ibanValue).substring(4, 10);
+  }
+  const destination = `ОР ${accountData?.ls || ""}, ${adr || ""}/${accountData?.kv || ""}, ${accountData?.fio || ""}, внесок на управління будинком`;
+
+  return {
+    receiver: details.name || details.ORGKR || org || "—",
+    code: details.code || details.okpo || homeCode || "—",
+    iban: ibanValue || "—",
+    bank: details.Bank || details.bank || "—",
+    mfo: mfoValue || "—",
+    purpose: destination
+  };
+}
+
+function requisitesNeedHydration(requisites) {
+  if (!requisites || typeof requisites !== "object") return true;
+  const iban = String(requisites.iban || "").trim();
+  const bank = String(requisites.bank || "").trim();
+  return !iban || iban === "—" || !bank || bank === "—";
+}
+
+async function fetchHomeMetaByCode(homeCode) {
+  const code = String(homeCode || "").trim();
+  if (!code || !window.client || typeof client.from !== "function") return null;
+  try {
+    const { data, error } = await client
+      .from("homes")
+      .select("data")
+      .eq("code", code)
+      .limit(1)
+      .maybeSingle();
+
+    if (error || !data) return null;
+    const raw = data.data;
+    const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+    if (!parsed || typeof parsed !== "object") return null;
+    return parsed;
+  } catch (_) {
+    return null;
+  }
+}
+
+function mergeRequisites(requisites, meta, homeCode) {
+  const merged = Object.assign({}, requisites || {});
+  const source = meta || {};
+  merged.receiver = merged.receiver === "—" ? (source.name || source.ORGKR || merged.receiver) : merged.receiver;
+  merged.code = merged.code === "—" ? (source.code || source.okpo || homeCode || merged.code) : merged.code;
+  merged.iban = merged.iban === "—" ? (source.Iban || source.iban || merged.iban) : merged.iban;
+  merged.bank = merged.bank === "—" ? (source.Bank || source.bank || merged.bank) : merged.bank;
+  if (merged.mfo === "—") {
+    merged.mfo = source.MFO || source.mfo || source["МФО"] || merged.mfo;
+  }
+  if ((merged.mfo === "—" || !merged.mfo) && merged.iban && merged.iban !== "—" && String(merged.iban).length >= 10) {
+    merged.mfo = String(merged.iban).substring(4, 10);
+  }
+  return merged;
+}
+
+function renderRequisitesFields(requisites) {
+  const setText = function (id, text) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = text || "—";
+  };
+  setText("resident-rec-receiver", requisites.receiver);
+  setText("resident-rec-code", requisites.code);
+  setText("resident-iban-value", requisites.iban);
+  setText("resident-rec-bank", requisites.bank);
+  setText("resident-rec-mfo", requisites.mfo);
+}
+
+async function bindCopyButton(buttonId, textProvider, okText) {
+  const btn = document.getElementById(buttonId);
+  if (!btn) return;
+  btn.onclick = async function () {
+    const text = typeof textProvider === "function" ? textProvider() : textProvider;
+    const copied = await copyTextPortable(String(text || ""));
+    if (copied) {
+      showMessage(okText);
+    } else {
+      showMessage("Не вдалося скопіювати", "err");
+    }
+  };
+}
+
 function addStuff(accountId) {
+  if (document.body.classList.contains("resident-mode")) {
+    return addStuffResident(accountId);
+  }
+  return addStuffRegular(accountId);
+}
+
+function addStuffRegular(accountId) {
+  return addStuffCore(accountId, false);
+}
+
+function addStuffResident(accountId) {
+  return addStuffCore(accountId, true);
+}
+
+function addStuffCore(accountId, isResidentMode) {
   var accountData = nach[accountId] || {}; // Данные для указанного accountId
   var paymentData = oplat[accountId] || {}; // Данные оплат для указанного accountId
 
@@ -275,7 +421,6 @@ function addStuff(accountId) {
   const adrLink=document.getElementById("adr")
   const currentKv=ls[accountId].kv;
 const payUrl = buildPrivat24PayUrl(link, currentKv);
-const isResidentMode = document.body.classList.contains("resident-mode");
 
 if (payUrl && !isResidentMode) {
   adrLink.href = payUrl;
@@ -287,20 +432,51 @@ if (payUrl && !isResidentMode) {
   adrLink.removeAttribute("rel");
 }
   ensurePayButton(payUrl, isResidentMode);
-  ensureResidentCabinetButton(accountId);
+  if (!isResidentMode) {
+    ensureResidentCabinetButton(accountId);
+  }
 
   var container = document.getElementById("din"); // Контейнер для таблицы
   container.innerHTML = ""; // Очищаем контейнер перед добавлением новой таблицы
-  document.getElementById("fio").textContent = ls[accountId].fio;
+  var curLS = ls[accountId] || {};
+  document.getElementById("fio").textContent = curLS.fio || "";
+  const lsHeadEl = document.getElementById("ls-head");
+  if (lsHeadEl) {
+    lsHeadEl.textContent = curLS.ls || "—";
+  }
   if (!accountData) {
     container.innerHTML = "<p>Дані для ID " + accountId + " не знайдено.</p>";
     return;
+  }
+  if (isResidentMode) {
+    container.classList.add("resident-cabinet");
+  } else {
+    container.classList.remove("resident-cabinet");
   }
   var cumulativeBalance = 0;
   var currentMonth = new Date().getMonth(); // Текущий месяц
   var currentYear = new Date().getFullYear();
   var lastYearToggle; // Переменная для хранения чекбокса последнего года
   var lastRow;
+  var yearSummaries = {};
+  var residentOverviewRoot = null;
+  var residentRequisitesRoot = null;
+  var historyHost = container;
+
+  if (isResidentMode) {
+    residentOverviewRoot = document.createElement("section");
+    residentOverviewRoot.className = "resident-overview-card";
+    container.appendChild(residentOverviewRoot);
+
+    residentRequisitesRoot = document.createElement("section");
+    residentRequisitesRoot.className = "resident-requisites-card";
+    container.appendChild(residentRequisitesRoot);
+
+    historyHost = document.createElement("section");
+    historyHost.className = "resident-history-block";
+    historyHost.innerHTML = "<h3>Історія нарахувань та оплат</h3>";
+    container.appendChild(historyHost);
+  }
   var allYearsSorted = Object.keys(accountData).sort(function (a, b) {
     return Number(a) - Number(b);
   });
@@ -344,6 +520,7 @@ if (payUrl && !isResidentMode) {
     var yearToggle = document.createElement("input");
     var yearLabel = document.createElement("label");
     var yearContent = document.createElement("div");
+    var openingBalanceForYear = cumulativeBalance;
 
     // Настройка чекбокса для разворачивания/сворачивания
     yearToggle.className = "toggle-box";
@@ -636,74 +813,190 @@ yearBlock.appendChild(yearToggle);
 yearBlock.appendChild(yearLabel);
 yearBlock.appendChild(yearContent);
 
-container.appendChild(yearBlock);
+historyHost.appendChild(yearBlock);
 
 //yearsBar.appendChild(yearToggle);
 //yearsBar.appendChild(yearLabel);
 //yearContent.classList.add("year-table");
 //container.appendChild(yearContent);
 
+    var totalAccruedForYear = Object.values(totalChargesByService).reduce(function (sum, value) {
+      return sum + (Number(value) || 0);
+    }, 0);
+    yearSummaries[year] = {
+      openingBalance: openingBalanceForYear,
+      accrued: totalAccruedForYear,
+      paid: totalPaymentsForYear,
+      closingBalance: cumulativeBalance
+    };
+
     lastYearToggle = yearToggle; // Сохраняем чекбокс последнего года
   };
 var yearsBar = document.createElement("div");
 yearsBar.id = "years-bar";
-container.appendChild(yearsBar);
+historyHost.appendChild(yearsBar);
 
   yearsToRender.forEach(function (year) {
     _loop(year);
   });
-if (lastYearToggle) {
-    lastYearToggle.checked = true;
+const preferredYearToggle = document.getElementById(`block-${currentYear}`);
+const toggleToOpen = preferredYearToggle || lastYearToggle;
+if (toggleToOpen) {
+    toggleToOpen.checked = true;
 
-    const id = lastYearToggle.id;
+    const id = toggleToOpen.id;
     const table = document.querySelector(`.year-table[data-id="${id}"]`);
     if (table) {
         table.classList.add("active");
     }
 
-    // (опционально) подсветка кнопки года
     const label = document.querySelector(`label[for="${id}"]`);
     if (label) {
         label.classList.add("active");
     }
 }
 
-  var curLS = ls[accountId];
-container = document.getElementById("datetime");
-container.style.cursor = "default";
-const showChangeRequestButton = isUserAuthenticated();
-const changeButtonHtml = showChangeRequestButton
-  ? '<div class="change-request-wrap"><button id="changeRequestBtn" type="button" class="change-request-btn">\u041F\u043E\u0432\u0456\u0434\u043E\u043C\u0438\u0442\u0438 \u043F\u0440\u043E \u0437\u043C\u0456\u043D\u0438</button></div>'
-  : "";
+  if (isResidentMode && residentOverviewRoot) {
+    const summaryYear =
+      yearSummaries[String(currentYear)] ? String(currentYear) :
+      (yearsToRender[yearsToRender.length - 1] || allYearsSorted[allYearsSorted.length - 1] || String(currentYear));
 
-const content = `
-  <span class="original">
-    <br>
-    <div>
-      ОР: ${curLS.ls}<br>
-      П.І.Б.: ${curLS.fio}<br>
-      ${curLS.pl ? `Площа: ${curLS.pl} м²<br>` : ""}
-      ${curLS.pers ? `Мешканців: ${curLS.pers}<br>` : ""}
-      ${curLS.komn ? `Кімнат: ${curLS.komn}<br>` : ""}
-      ${curLS.et ? `Поверх: ${curLS.et}<br>` : ""}
-      ${curLS.pod ? `Під'їзд: ${curLS.pod}<br>` : ""}
-      ${curLS.lgota ? `Пільговик: ${curLS.lgota}<br>` : ""}
-      ${curLS.tel ? `Телефон: ${curLS.tel}<br>` : ""}
-      ${curLS.note ? `Примітка: ${curLS.note.replace(/\n/g, "<br>")}<br>` : ""}
-      ${curLS.email ? `e-mail: ${curLS.email}<br>` : ""}
-      ${changeButtonHtml}
-      <br>Дані вказані станом на <br>${dt} (${timeAgo(dt)} тому.)
-    </div>
-  </span>
-`;
+    const summary = yearSummaries[summaryYear] || {
+      openingBalance: 0,
+      accrued: 0,
+      paid: 0,
+      closingBalance: cumulativeBalance
+    };
 
-container.innerHTML = content;
-const changeBtn = document.getElementById("changeRequestBtn");
-if (changeBtn) {
-  changeBtn.onclick = function () {
-    handleChangeRequest(accountId);
-  };
-}
+    const currentBalance = Number(summary.closingBalance) || 0;
+    const recommendedToPay = Math.max(currentBalance, 0);
+    const meta = balanceMeta(currentBalance);
+    const currentResultLabel =
+      currentBalance > 0
+        ? "Поточна заборгованість"
+        : currentBalance < 0
+          ? "Поточна переплата"
+          : "Поточний баланс";
+    const updatedAtText = dt ? `${dt}${typeof timeAgo === "function" ? ` (${timeAgo(dt)} тому.)` : ""}` : "—";
+    const requisites = pickRequisites(getParam("homeCode"), curLS);
+
+    residentOverviewRoot.innerHTML = `
+      <h2>Поточний стан рахунку</h2>
+      <div class="resident-status resident-${meta.cls}">
+        <span>${meta.status}:</span>
+        <strong>${moneyText(Math.abs(currentBalance))}</strong>
+      </div>
+      <div class="resident-recommended">
+        <div class="resident-recommended-main">
+          <span>Рекомендовано до сплати:</span>
+          <strong>${moneyText(recommendedToPay)}</strong>
+        </div>
+        <div id="resident-pay-slot"></div>
+      </div>
+      <div class="resident-updated">Станом на: ${updatedAtText}</div>
+      <div class="resident-overview-details">
+        <p>${openingBalanceLabel(summary.openingBalance)} ${moneyText(Math.abs(summary.openingBalance))}.</p>
+        <p>За ${summaryYear} рік було нараховано ${moneyText(summary.accrued)}.</p>
+        <p>За ${summaryYear} рік було сплачено ${moneyText(summary.paid)}.</p>
+        <p><strong>${currentResultLabel}: <span class="resident-${meta.cls}">${moneyText(Math.abs(summary.closingBalance))}</span>.</strong></p>
+      </div>
+    `;
+
+    const paySlot = document.getElementById("resident-pay-slot");
+    const payBtn = document.getElementById("payLinkBtn");
+    if (paySlot && payBtn) {
+      paySlot.appendChild(payBtn);
+      payBtn.classList.add("resident-main-pay-btn");
+      if (recommendedToPay > 0) {
+        payBtn.textContent = `Сплатити ${moneyText(recommendedToPay)}`;
+        payBtn.title = "Сплатити";
+        payBtn.classList.remove("soft-pay");
+      } else {
+        payBtn.textContent = "Поповнити рахунок";
+        payBtn.title = "Поповнити рахунок";
+        payBtn.classList.add("soft-pay");
+      }
+    }
+
+    residentRequisitesRoot.innerHTML = `
+      <details class="resident-requisites-details">
+        <summary>Реквізити для оплати вручну</summary>
+        <div class="resident-requisites-grid">
+          <div><span>Отримувач</span><strong>${requisites.receiver}</strong></div>
+          <div><span>Код ЄДРПОУ</span><strong>${requisites.code}</strong></div>
+          <div><span>IBAN</span><strong id="resident-iban-value">${requisites.iban}</strong></div>
+          <div><span>Банк</span><strong>${requisites.bank}</strong></div>
+          <div><span>МФО</span><strong>${requisites.mfo}</strong></div>
+          <div class="resident-purpose-row"><span>Призначення платежу</span><strong id="resident-purpose-value">${requisites.purpose}</strong></div>
+        </div>
+        <div class="resident-requisites-actions">
+          <button id="copyIbanBtn" type="button" class="resident-copy-btn">Скопіювати IBAN</button>
+          <button id="copyPurposeBtn" type="button" class="resident-copy-btn">Скопіювати призначення платежу</button>
+        </div>
+      </details>
+    `;
+
+    bindCopyButton("copyIbanBtn", function () {
+      return requisites.iban;
+    }, "IBAN скопійовано");
+
+    bindCopyButton("copyPurposeBtn", function () {
+      return requisites.purpose;
+    }, "Призначення платежу скопійовано");
+  }
+
+  container = document.getElementById("datetime");
+  container.style.cursor = "default";
+  const showChangeRequestButton = isUserAuthenticated();
+  const changeButtonHtml = showChangeRequestButton
+    ? '<div class="change-request-wrap"><button id="changeRequestBtn" type="button" class="change-request-btn">Повідомити про зміни</button></div>'
+    : "";
+  const updatedAt = dt ? `${dt}${typeof timeAgo === "function" ? ` (${timeAgo(dt)} тому.)` : ""}` : "—";
+
+  const content = isResidentMode
+    ? `
+      <section class="resident-flat-card">
+        <h3>Інформація про квартиру</h3>
+        <div class="resident-flat-grid">
+          <div><span>Особовий рахунок</span><strong>${curLS.ls || "—"}</strong></div>
+          <div><span>П.І.Б.</span><strong>${curLS.fio || "—"}</strong></div>
+          <div><span>Площа</span><strong>${curLS.pl ? `${curLS.pl} м²` : "—"}</strong></div>
+          <div><span>Кількість мешканців</span><strong>${curLS.pers || "—"}</strong></div>
+          <div><span>Поверх</span><strong>${curLS.et || "—"}</strong></div>
+          <div><span>Під'їзд</span><strong>${curLS.pod || "—"}</strong></div>
+        </div>
+        ${changeButtonHtml}
+        <div class="resident-updated-note">Дані вказані станом на ${updatedAt}</div>
+      </section>
+    `
+    : `
+      <span class="original">
+        <br>
+        <div>
+          ОР: ${curLS.ls}<br>
+          П.І.Б.: ${curLS.fio}<br>
+          ${curLS.pl ? `Площа: ${curLS.pl} м²<br>` : ""}
+          ${curLS.pers ? `Мешканців: ${curLS.pers}<br>` : ""}
+          ${curLS.komn ? `Кімнат: ${curLS.komn}<br>` : ""}
+          ${curLS.et ? `Поверх: ${curLS.et}<br>` : ""}
+          ${curLS.pod ? `Під'їзд: ${curLS.pod}<br>` : ""}
+          ${curLS.lgota ? `Пільговик: ${curLS.lgota}<br>` : ""}
+          ${curLS.tel ? `Телефон: ${curLS.tel}<br>` : ""}
+          ${curLS.note ? `Примітка: ${curLS.note.replace(/\n/g, "<br>")}<br>` : ""}
+          ${curLS.email ? `e-mail: ${curLS.email}<br>` : ""}
+          ${changeButtonHtml}
+          <br>Дані вказані станом на <br>${updatedAt}
+        </div>
+      </span>
+    `;
+
+  container.innerHTML = content;
+  const changeBtn = document.getElementById("changeRequestBtn");
+  if (changeBtn) {
+    changeBtn.onclick = function () {
+      handleChangeRequest(accountId);
+    };
+  }
 
 initPosters();
 setParam("kv", ls[accountId].kv);
@@ -1486,7 +1779,7 @@ function initLS() {
 </div>
 
 </div>
-    <div id="header" class="header">
+    <div id="header" class="header ${isResidentMode ? "resident-header" : ""}">
       <div class="header-row">
         <div class="header-left">
 
@@ -1503,6 +1796,13 @@ function initLS() {
               <datalist id="number-list"></datalist>
             </span>
           </div>
+
+          ${isResidentMode ? `
+          <div class="line">
+            <span class="label">Особовий рахунок:</span>
+            <span class="value" id="ls-head">—</span>
+          </div>
+          ` : ""}
 
           <div class="line">
             <span class="label">П.І.Б.:</span>
