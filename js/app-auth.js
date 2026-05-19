@@ -124,6 +124,13 @@
       homeMeta["МФО"] ||
       findByKeyVariants(payload, ["MFO", "mfo", "МФО"], 4) ||
       "";
+    const viberQrValue = firstNonEmpty(
+      payload.ViberQr,
+      payload.viberQr,
+      homeMeta.ViberQr,
+      homeMeta.viberQr,
+      findByKeyVariants(payload, ["ViberQr", "viberQr", "viberqr"], 4)
+    );
     if (!mfoValue && ibanValue && String(ibanValue).length >= 10) {
       mfoValue = String(ibanValue).substring(4, 10);
     }
@@ -134,6 +141,7 @@
       Iban: ibanValue,
       Bank: bankValue,
       mfo: mfoValue,
+      ViberQr: viberQrValue,
       token: String(payload.token || homeMeta.token || "")
     };
 
@@ -145,6 +153,7 @@
         Iban: window.residentHomeMeta.Iban,
         Bank: window.residentHomeMeta.Bank,
         mfo: window.residentHomeMeta.mfo,
+        ViberQr: window.residentHomeMeta.ViberQr,
         token: window.residentHomeMeta.token
       }
     ];

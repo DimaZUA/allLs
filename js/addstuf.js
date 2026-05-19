@@ -266,8 +266,24 @@ function moneySigned(value) {
   return `${(Number(value) || 0).toFixedWithComma()} грн`;
 }
 
+function normalizeMoney(value) {
+  const num = Number(value) || 0;
+  const rounded = Math.round((num + Number.EPSILON) * 100) / 100;
+  return Math.abs(rounded) < 0.005 ? 0 : rounded;
+}
+
+function formatResidentAsOfDate(rawDateTime) {
+  const raw = String(rawDateTime || "").trim();
+  if (!raw) return "—";
+  const datePart = raw.split(" ")[0] || "";
+  if (/^\d{1,2}\.\d{1,2}\.\d{4}$/.test(datePart)) {
+    return `${datePart} року`;
+  }
+  return raw;
+}
+
 function balanceMeta(balance) {
-  const value = Number(balance) || 0;
+  const value = normalizeMoney(balance);
   if (value > 0) {
     return {
       cls: "debt",
@@ -314,6 +330,7 @@ function pickRequisites(homeCode, accountData) {
     iban: ibanValue || "—",
     bank: details.Bank || details.bank || "—",
     mfo: mfoValue || "—",
+    viberQr: String(details.ViberQr || details.viberQr || "").trim(),
     purpose: destination
   };
 }
@@ -461,6 +478,7 @@ if (payUrl && !isResidentMode) {
   var yearSummaries = {};
   var residentOverviewRoot = null;
   var residentRequisitesRoot = null;
+  var residentViberRoot = null;
   var historyHost = container;
 
   if (isResidentMode) {
@@ -476,6 +494,11 @@ if (payUrl && !isResidentMode) {
     historyHost.className = "resident-history-block";
     historyHost.innerHTML = "<h3>Історія нарахувань та оплат</h3>";
     container.appendChild(historyHost);
+
+    residentViberRoot = document.createElement("section");
+    residentViberRoot.className = "resident-viber-card";
+    residentViberRoot.style.display = "none";
+    container.appendChild(residentViberRoot);
   }
   var allYearsSorted = Object.keys(accountData).sort(function (a, b) {
     return Number(a) - Number(b);
@@ -868,7 +891,17 @@ if (toggleToOpen) {
       closingBalance: cumulativeBalance
     };
 
-    const currentBalance = Number(summary.closingBalance) || 0;
+    const currentMonthKey = String(currentMonth + 1);
+    const currentYearKey = String(currentYear);
+    const currentMonthPaidNowRaw =
+      summaryYear === currentYearKey
+        ? (((paymentData[currentYearKey] || {})[currentMonthKey] || []).reduce(function (sum, payment) {
+            return sum + (Number(payment && payment.sum) || 0);
+          }, 0))
+        : 0;
+    const currentMonthPaidNow = normalizeMoney(currentMonthPaidNowRaw);
+
+    const currentBalance = normalizeMoney((Number(summary.closingBalance) || 0) - currentMonthPaidNow);
     const recommendedToPay = Math.max(currentBalance, 0);
     const meta = balanceMeta(currentBalance);
     const currentResultLabel =
@@ -877,8 +910,45 @@ if (toggleToOpen) {
         : currentBalance < 0
           ? "Поточна переплата"
           : "Поточний баланс";
-    const updatedAtText = dt ? `${dt}${typeof timeAgo === "function" ? ` (${timeAgo(dt)} тому.)` : ""}` : "—";
+    const updatedAtText = formatResidentAsOfDate(dt);
     const requisites = pickRequisites(getParam("homeCode"), curLS);
+    const viberUrl = String(requisites.viberQr || "").trim();
+    const hasViberQr = viberUrl.length > 0;
+    const monthNamesNom = [
+      "січень", "лютий", "березень", "квітень", "травень", "червень",
+      "липень", "серпень", "вересень", "жовтень", "листопад", "грудень"
+    ];
+    const monthNamesLoc = [
+      "січні", "лютому", "березні", "квітні", "травні", "червні",
+      "липні", "серпні", "вересні", "жовтні", "листопаді", "грудні"
+    ];
+    const completedMonthsCount =
+      summaryYear === currentYearKey
+        ? Math.max(0, Math.min(12, currentMonth))
+        : 12;
+    let periodLabel = `за ${summaryYear} р.`;
+    if (completedMonthsCount > 0 && completedMonthsCount < 12) {
+      const firstMonth = monthNamesNom[0];
+      const lastMonth = monthNamesNom[completedMonthsCount - 1];
+      periodLabel =
+        completedMonthsCount === 1
+          ? `за ${firstMonth} ${summaryYear} р.`
+          : `за ${firstMonth}-${lastMonth} ${summaryYear} р.`;
+    }
+    const currentMonthPaidLine =
+      currentMonthPaidNow >= 0.01
+        ? `<p>У ${monthNamesLoc[Math.max(0, Math.min(11, currentMonth))]} ${summaryYear} р. вже сплачено ${moneyText(currentMonthPaidNow)}.</p>`
+        : "";
+
+    const showRecommendedAmount = recommendedToPay >= 0.01;
+    const recommendedBlockHtml = showRecommendedAmount
+      ? `
+        <div class="resident-recommended-main">
+          <span>Рекомендовано до сплати:</span>
+          <strong>${moneyText(recommendedToPay)}</strong>
+        </div>
+      `
+      : "";
 
     residentOverviewRoot.innerHTML = `
       <h2>Поточний стан рахунку</h2>
@@ -887,18 +957,16 @@ if (toggleToOpen) {
         <strong>${moneyText(Math.abs(currentBalance))}</strong>
       </div>
       <div class="resident-recommended">
-        <div class="resident-recommended-main">
-          <span>Рекомендовано до сплати:</span>
-          <strong>${moneyText(recommendedToPay)}</strong>
-        </div>
+        ${recommendedBlockHtml}
         <div id="resident-pay-slot"></div>
       </div>
       <div class="resident-updated">Станом на: ${updatedAtText}</div>
       <div class="resident-overview-details">
         <p>${openingBalanceLabel(summary.openingBalance)} ${moneyText(Math.abs(summary.openingBalance))}.</p>
-        <p>За ${summaryYear} рік було нараховано ${moneyText(summary.accrued)}.</p>
-        <p>За ${summaryYear} рік було сплачено ${moneyText(summary.paid)}.</p>
-        <p><strong>${currentResultLabel}: <span class="resident-${meta.cls}">${moneyText(Math.abs(summary.closingBalance))}</span>.</strong></p>
+        <p>${periodLabel} було нараховано ${moneyText(summary.accrued)}.</p>
+        <p>${periodLabel} було сплачено ${moneyText(summary.paid)}.</p>
+        ${currentMonthPaidLine}
+        <p><strong>${currentResultLabel}: <span class="resident-${meta.cls}">${moneyText(Math.abs(currentBalance))}</span>.</strong></p>
       </div>
     `;
 
@@ -907,7 +975,7 @@ if (toggleToOpen) {
     if (paySlot && payBtn) {
       paySlot.appendChild(payBtn);
       payBtn.classList.add("resident-main-pay-btn");
-      if (recommendedToPay > 0) {
+      if (recommendedToPay >= 0.01) {
         payBtn.textContent = `Сплатити ${moneyText(recommendedToPay)}`;
         payBtn.title = "Сплатити";
         payBtn.classList.remove("soft-pay");
@@ -934,7 +1002,35 @@ if (toggleToOpen) {
           <button id="copyPurposeBtn" type="button" class="resident-copy-btn">Скопіювати призначення платежу</button>
         </div>
       </details>
+      ${hasViberQr ? `
+        <div class="resident-viber-block">
+          <a id="resident-viber-link" class="resident-viber-link" target="_blank" rel="noopener noreferrer">
+            Приєднуйтесь до групи будинку у Viber.
+          </a>
+          <a id="resident-viber-qr-link" class="resident-viber-qr-link" target="_blank" rel="noopener noreferrer">
+            <img id="resident-viber-qr" alt="Viber QR" class="resident-viber-qr-img">
+          </a>
+        </div>
+      ` : ""}
     `;
+
+    if (residentViberRoot) {
+      residentViberRoot.innerHTML = "";
+      residentViberRoot.style.display = "none";
+      const viberBlock = residentRequisitesRoot.querySelector(".resident-viber-block");
+      if (viberBlock) {
+        residentViberRoot.innerHTML = `
+          <details class="resident-viber-details">
+            <summary>Група будинку у Viber</summary>
+          </details>
+        `;
+        const details = residentViberRoot.querySelector(".resident-viber-details");
+        if (details) {
+          details.appendChild(viberBlock);
+        }
+        residentViberRoot.style.display = "";
+      }
+    }
 
     bindCopyButton("copyIbanBtn", function () {
       return requisites.iban;
@@ -943,11 +1039,22 @@ if (toggleToOpen) {
     bindCopyButton("copyPurposeBtn", function () {
       return requisites.purpose;
     }, "Призначення платежу скопійовано");
+
+    if (hasViberQr) {
+      const viberLink = document.getElementById("resident-viber-link");
+      const viberQrLink = document.getElementById("resident-viber-qr-link");
+      const viberQrImg = document.getElementById("resident-viber-qr");
+      if (viberLink) viberLink.href = viberUrl;
+      if (viberQrLink) viberQrLink.href = viberUrl;
+      if (viberQrImg) {
+        viberQrImg.src = "https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=" + encodeURIComponent(viberUrl);
+      }
+    }
   }
 
   container = document.getElementById("datetime");
   container.style.cursor = "default";
-  const showChangeRequestButton = isUserAuthenticated();
+  const showChangeRequestButton = isResidentMode || isUserAuthenticated();
   const changeButtonHtml = showChangeRequestButton
     ? '<div class="change-request-wrap"><button id="changeRequestBtn" type="button" class="change-request-btn">Повідомити про зміни</button></div>'
     : "";
@@ -966,7 +1073,6 @@ if (toggleToOpen) {
           <div><span>Під'їзд</span><strong>${curLS.pod || "—"}</strong></div>
         </div>
         ${changeButtonHtml}
-        <div class="resident-updated-note">Дані вказані станом на ${updatedAt}</div>
       </section>
     `
     : `
@@ -994,7 +1100,11 @@ if (toggleToOpen) {
   const changeBtn = document.getElementById("changeRequestBtn");
   if (changeBtn) {
     changeBtn.onclick = function () {
-      handleChangeRequest(accountId);
+      if (isResidentMode) {
+        handleResidentChangeRequest(accountId);
+      } else {
+        handleChangeRequest(accountId);
+      }
     };
   }
 
@@ -1857,6 +1967,7 @@ function initLS() {
     if (ls[ind]?.kv) {
       setParam("kv", ls[ind].kv);
     }
+    updateHeaderCompactState();
     return;
   }
 
@@ -1949,6 +2060,7 @@ function initLS() {
   lastFoundId = ind;
   addStuff(ind);
   input.value = ls[ind]?.kv || "";
+  updateHeaderCompactState();
 initLSAutocomplete(input, ls);
 }
 
@@ -1988,6 +2100,207 @@ function ensureTopbarHistoryButton() {
 
 
 // script.js
+function stripEmailFlags(email) {
+  return String(email || "").replace(/^\s*-+/, "").trim();
+}
+
+function isEmailSubscribed(email) {
+  const raw = String(email || "").trim();
+  if (!raw) return false;
+  return !raw.startsWith("-");
+}
+
+function hasNoKvit(noteText) {
+  return /(^|\s)NoKvit(\s|$)/i.test(String(noteText || ""));
+}
+
+function applyNoKvitFlag(noteText, noPaperReceipt) {
+  let value = String(noteText || "");
+  value = value.replace(/(^|\s)NoKvit(?=\s|$)/gi, " ");
+  value = value.replace(/\s{2,}/g, " ").trim();
+  if (noPaperReceipt) {
+    value = value ? `${value} NoKvit` : "NoKvit";
+  }
+  return value;
+}
+
+async function sendResidentChangeRequest(accountId, payload) {
+  const token = String(getParam("rt") || "").trim();
+  if (!token) {
+    showMessage("Не знайдено токен доступу", "err");
+    return false;
+  }
+
+  const rpcPayload = {
+    p_token: token,
+    p_fio: payload.fio || "",
+    p_email: payload.email || "",
+    p_tel: payload.tel || "",
+    p_subscribed: !!payload.subscribed,
+    p_paperless: !!payload.paperless
+  };
+
+  const loader = showLoader("Відправка даних...");
+  try {
+    const { data, error } = await client.rpc("resident_submit_change", rpcPayload);
+    loader.close();
+    if (error) {
+      showMessage("Помилка при відправці даних", "err");
+      return false;
+    }
+    if (data && data.ok === false) {
+      showMessage(data.message || "Зміни відсутні", "warn");
+      return false;
+    }
+    showMessage("Запит успішно відправлено");
+
+    if (ls[accountId]) {
+      ls[accountId].fio = payload.fio;
+      ls[accountId].email = payload.storedEmail;
+      ls[accountId].tel = payload.tel;
+      ls[accountId].note = payload.note;
+    }
+    addStuff(accountId);
+    return true;
+  } catch (e) {
+    loader.close();
+    showMessage("Не вдалося відправити дані", "err");
+    return false;
+  }
+}
+
+function handleResidentChangeRequest(accountId) {
+  const data = ls[accountId] || {};
+  const existingModal = document.getElementById("residentChangeModal");
+  if (existingModal) existingModal.remove();
+
+  const emailVisible = stripEmailFlags(data.email || "");
+  const subscribedDefault = isEmailSubscribed(data.email || "");
+  const noPaperDefault = hasNoKvit(data.note || "");
+
+  const modal = document.createElement("div");
+  modal.id = "residentChangeModal";
+  modal.className = "modal-overlay";
+  modal.addEventListener("click", function (e) {
+    if (e.target === modal) modal.remove();
+  });
+
+  const container = document.createElement("div");
+  container.className = "modal-container";
+  container.innerHTML = `
+    <h3>Повідомити про зміни</h3>
+    <div class="modal-section">
+      <div class="resident-change-form">
+        <div class="resident-field">
+          <label for="residentFio">П.І.Б.</label>
+          <input type="text" id="residentFio" value="${data.fio || ""}">
+        </div>
+        <div class="resident-field">
+          <label for="residentTel">Телефон</label>
+          <input type="text" id="residentTel" value="${data.tel || ""}">
+        </div>
+        <div class="resident-field">
+          <label for="residentEmail">E-mail</label>
+          <input type="email" id="residentEmail" value="${emailVisible}">
+        </div>
+        <label class="resident-check">
+          <input type="checkbox" id="residentSubscribed" ${subscribedDefault ? "checked" : ""}>
+          <span>Отримувати e-mail розсилку</span>
+        </label>
+        <label class="resident-check">
+          <input type="checkbox" id="residentNoPaper" ${noPaperDefault ? "checked" : ""}>
+          <span>Відмовитись від паперової квитанції</span>
+        </label>
+        <div class="resident-change-note">
+          Повідомлення буде передано для перевірки. Дані змінюються після підтвердження адміністратором.
+        </div>
+      </div>
+    </div>
+    <div class="form-actions">
+      <div class="left-buttons">
+        <button type="button" id="residentSaveBtn" class="primary">Надіслати заявку</button>
+        <button type="button" id="residentCancelBtn" class="secondary">Скасувати</button>
+      </div>
+    </div>
+  `;
+
+  modal.appendChild(container);
+  document.body.appendChild(modal);
+
+  const cancelBtn = container.querySelector("#residentCancelBtn");
+  if (cancelBtn) {
+    cancelBtn.onclick = function () {
+      modal.remove();
+    };
+  }
+
+  const emailInput = container.querySelector("#residentEmail");
+  const subscribedInput = container.querySelector("#residentSubscribed");
+  const noPaperInput = container.querySelector("#residentNoPaper");
+  const syncResidentEmailRequired = function () {
+    if (!emailInput) return;
+    const requiredNow = !!(subscribedInput?.checked || noPaperInput?.checked);
+    emailInput.required = requiredNow;
+    emailInput.setAttribute("aria-required", requiredNow ? "true" : "false");
+  };
+  if (subscribedInput) subscribedInput.addEventListener("change", syncResidentEmailRequired);
+  if (noPaperInput) noPaperInput.addEventListener("change", syncResidentEmailRequired);
+  syncResidentEmailRequired();
+
+  const saveBtn = container.querySelector("#residentSaveBtn");
+  if (saveBtn) {
+    saveBtn.onclick = async function () {
+      const fio = String(container.querySelector("#residentFio")?.value || "").trim();
+      const tel = String(container.querySelector("#residentTel")?.value || "").trim();
+      const emailInput = container.querySelector("#residentEmail");
+      const emailVisibleInput = stripEmailFlags(emailInput?.value || "");
+      const subscribed = !!container.querySelector("#residentSubscribed")?.checked;
+      const noPaper = !!container.querySelector("#residentNoPaper")?.checked;
+      const emailRequired = subscribed || noPaper;
+
+      if (emailRequired && !emailVisibleInput) {
+        showMessage("Вкажіть e-mail, якщо увімкнено розсилку або відмову від паперової квитанції", "warn");
+        if (emailInput) emailInput.focus();
+        return;
+      }
+
+      if (emailVisibleInput && emailInput && !emailInput.checkValidity()) {
+        showMessage("Перевірте формат e-mail", "warn");
+        emailInput.focus();
+        return;
+      }
+
+      const storedEmail = emailVisibleInput
+        ? (subscribed ? emailVisibleInput : `-${emailVisibleInput}`)
+        : "";
+      const noteOld = String(data.note || "");
+      const noteNew = applyNoKvitFlag(noteOld, noPaper);
+
+      const changed =
+        fio !== String(data.fio || "").trim() ||
+        tel !== String(data.tel || "").trim() ||
+        storedEmail !== String(data.email || "").trim() ||
+        noteNew !== String(data.note || "");
+
+      if (!changed) {
+        showMessage("Зміни відсутні", "warn");
+        return;
+      }
+
+      const ok = await sendResidentChangeRequest(accountId, {
+        fio: fio,
+        tel: tel,
+        email: emailVisibleInput,
+        subscribed: subscribed,
+        paperless: noPaper,
+        storedEmail: storedEmail,
+        note: noteNew
+      });
+      if (ok) modal.remove();
+    };
+  }
+}
+
 function handleChangeRequest(accountId) {
   const data = ls[accountId] || {};
 
@@ -2749,6 +3062,19 @@ function showHistoryModal(data, options = {}) {
   renderHistoryList(list, data);
 }
 let headerResizeObserver = null;
+let isHeaderCompact = false;
+
+function updateHeaderCompactState() {
+  const header = document.getElementById("header");
+  if (!header) return;
+
+  const compactNow = window.scrollY > 24;
+  if (compactNow === isHeaderCompact) return;
+
+  isHeaderCompact = compactNow;
+  header.classList.toggle("header-compact", compactNow);
+  updateStickyTop();
+}
 
 function updateStickyTop() {
   const header = document.querySelector(".header-row");
@@ -2780,6 +3106,9 @@ function updateStickyTop() {
 // fallback
 window.addEventListener("load", updateStickyTop);
 window.addEventListener("resize", updateStickyTop);
+window.addEventListener("load", updateHeaderCompactState);
+window.addEventListener("resize", updateHeaderCompactState);
+window.addEventListener("scroll", updateHeaderCompactState, { passive: true });
 document.addEventListener("click", function (e) {
     const label = e.target.closest("label[for^='block-']");
     if (!label) return;
