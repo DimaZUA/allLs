@@ -222,7 +222,7 @@ async function ensureResidentCabinetButton(accountId) {
   button.onclick = async function () {
     const copied = await copyTextPortable(url);
     if (copied) {
-      showMessage("\u041F\u043E\u0441\u0438\u043B\u0430\u043D\u043D\u044F \u041E\u041A \u0441\u043A\u043E\u043F\u0456\u0439\u043E\u0432\u0430\u043D\u043E");
+      showMessage("\u041F\u043E\u0441\u0438\u043B\u0430\u043D\u043D\u044F \u043D\u0430 \u043E\u0441\u043E\u0431\u0438\u0441\u0442\u0438\u0439 \u043A\u0430\u0431\u0456\u043D\u0435\u0442 \u0441\u043A\u043E\u043F\u0456\u0439\u043E\u0432\u0430\u043D\u043E \u0434\u043E \u0431\u0443\u0444\u0435\u0440\u0443 \u043E\u0431\u043C\u0456\u043D\u0443");
     } else {
       showMessage("\u041D\u0435 \u0432\u0434\u0430\u043B\u043E\u0441\u044F \u0441\u043A\u043E\u043F\u0456\u044E\u0432\u0430\u0442\u0438 \u043F\u043E\u0441\u0438\u043B\u0430\u043D\u043D\u044F", "err");
     }
@@ -2461,6 +2461,10 @@ async function sendResidentChangeRequest(accountId, payload) {
     // Email notification for resident-mode requests (same channel as regular mode).
     try {
       const current = ls[accountId] || {};
+      const displayFio = String(payload.fio || current.fio || "").trim();
+      const senderLabelRaw = displayFio || `ОР ${current.ls || accountId}`;
+      const senderLabel = String(senderLabelRaw).replace(/^resident\s*:\s*/i, "").trim() || `ОР ${current.ls || accountId}`;
+      const senderEmail = String(payload.email || "").trim();
       const oldFio = String(current.fio || "");
       const oldTel = String(current.tel || "");
       const oldEmail = stripEmailFlags(current.email || "");
@@ -2479,8 +2483,9 @@ async function sendResidentChangeRequest(accountId, payload) {
       }
 
       const templateParams = {
-        name: `resident:${current.fio || accountId}`,
-        sender: `resident:${current.fio || accountId}`,
+        name: senderLabel,
+        from_name: senderLabel,
+        sender: senderEmail ? `${senderLabel} (${senderEmail})` : senderLabel,
         subject: `Зміни по ${org || ""} (особистий кабінет)`,
         address: `${adr || ""}/${current.kv || ""}`,
         changes: changes.join("\r\n"),
