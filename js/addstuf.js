@@ -2618,7 +2618,7 @@ function handleResidentChangeRequest(accountId) {
   const noPaperInput = container.querySelector("#residentNoPaper");
   const syncResidentEmailRequired = function () {
     if (!emailInput) return;
-    const requiredNow = !!(subscribedInput?.checked || noPaperInput?.checked);
+    const requiredNow = !!(subscribedInput?.checked);
     emailInput.required = requiredNow;
     emailInput.setAttribute("aria-required", requiredNow ? "true" : "false");
   };
@@ -2635,10 +2635,10 @@ function handleResidentChangeRequest(accountId) {
       const emailVisibleInput = stripEmailFlags(emailInput?.value || "");
       const subscribed = !!container.querySelector("#residentSubscribed")?.checked;
       const noPaper = !!container.querySelector("#residentNoPaper")?.checked;
-      const emailRequired = subscribed || noPaper;
+      const emailRequired = subscribed;
 
       if (emailRequired && !emailVisibleInput) {
-        showMessage("Вкажіть e-mail, якщо увімкнено розсилку або відмову від паперової квитанції", "warn");
+        showMessage("Вкажіть e-mail, якщо увімкнено e-mail розсилку", "warn");
         if (emailInput) emailInput.focus();
         return;
       }
