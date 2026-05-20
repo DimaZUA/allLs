@@ -134,6 +134,19 @@ table#main td {
   white-space: nowrap;
 }
 
+.box table#main tbody tr.tarif-note-row td {
+  text-align: left !important;
+  font-size: 0.84rem;
+  line-height: 1.3;
+  color: #5f6a7d;
+  background: #f8fafd;
+  padding: 5px 9px;
+}
+
+.box table#main tbody tr.tarif-note-row td .tarif-note-line + .tarif-note-line {
+  margin-top: 3px;
+}
+
 #maincontainer {
   margin-left: auto;
   margin-right: auto;
@@ -1853,6 +1866,13 @@ body.resident-mode .resident-current-month-note {
   font-size: 0.78rem;
   color: #7a8493;
   line-height: 1.1;
+}
+
+body.resident-mode .box table#main tbody tr.tarif-note-row td {
+  font-size: 0.8rem;
+  line-height: 1.25;
+  color: #6a7487;
+  padding: 5px 8px;
 }
 
 body.resident-mode .box table#main > tbody > tr:nth-child(even):not(.itog):not(.grey) > td {

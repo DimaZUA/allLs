@@ -129,6 +129,96 @@ function getPageBaseUrl() {
   return base.toString();
 }
 
+function getMonthNameByCase(month, monthCase) {
+  const idx = Math.max(1, Math.min(12, Number(month) || 1)) - 1;
+  const names = {
+    gen: [
+      "січня", "лютого", "березня", "квітня", "травня", "червня",
+      "липня", "серпня", "вересня", "жовтня", "листопада", "грудня"
+    ],
+    loc: [
+      "січні", "лютому", "березні", "квітні", "травні", "червні",
+      "липні", "серпні", "вересні", "жовтні", "листопаді", "грудні"
+    ]
+  };
+  return (names[monthCase] || names.gen)[idx];
+}
+
+function getTarifUnitPhrase(formula) {
+  const f = String(formula || "").trim().toUpperCase();
+  if (f === "SQR") return "за 1 м.кв.";
+  if (f === "PERS") return "з 1 мешканця.";
+  return "";
+}
+
+function formatTarifMoney(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return "";
+  return n.toFixedWithComma();
+}
+
+function buildTarifMonthNotes(year, month) {
+  const source = Array.isArray(tarifs)
+    ? tarifs
+    : (tarifs && typeof tarifs === "object" ? Object.values(tarifs) : []);
+
+  if (!source.length) return [];
+
+  const y = Number(year);
+  const m = Number(month);
+  const out = [];
+
+  source.forEach(function (row) {
+    if (!row || typeof row !== "object") return;
+    if (Number(row.year) !== y || Number(row.month) !== m) return;
+
+    const serviceId = String(row.us || "").trim();
+    const serviceName = String((us && us[serviceId]) || "").trim();
+    const noteText = String(row.note || "").trim().replace(/\s+/g, " ");
+    const unitPhrase = getTarifUnitPhrase(row.formula);
+    const tariffRaw = row.tarif;
+    const tariffNum = Number(tariffRaw);
+    const hasTariff = Number.isFinite(tariffNum) && tariffNum !== -1;
+    const tariffText = hasTariff ? formatTarifMoney(tariffNum) : "";
+    const monthGen = getMonthNameByCase(m, "gen");
+    const monthLoc = getMonthNameByCase(m, "loc");
+
+    if (serviceId === "10") {
+      let text = `В ${monthLoc} ${y} р. було нараховано цільовий внесок`;
+      if (noteText) text += ` на ${noteText}`;
+      if (hasTariff) text += ` в розмірі ${tariffText} грн`;
+      if (unitPhrase) text += ` ${unitPhrase}`;
+      out.push(text + ".");
+      return;
+    }
+
+    if (!unitPhrase || !hasTariff) return;
+    const title = serviceName || "внесок";
+    out.push(`З 1 ${monthGen} ${y} р. встановлено ${title} в розмірі ${tariffText} грн ${unitPhrase}`);
+  });
+
+  return out;
+}
+
+function buildTarifNoteRows(notes, colSpan, isCurrentMonth) {
+  if (!Array.isArray(notes) || !notes.length || !colSpan) return [];
+  const row = document.createElement("tr");
+  row.className = "tarif-note-row";
+  if (isCurrentMonth) row.classList.add("grey");
+
+  const cell = document.createElement("td");
+  cell.colSpan = colSpan;
+  cell.className = "tarif-note-cell";
+  cell.innerHTML = notes
+    .map(function (text) {
+      return `<div class="tarif-note-line">• ${String(text || "").trim()}</div>`;
+    })
+    .join("");
+
+  row.appendChild(cell);
+  return [row];
+}
+
 function buildPrivat24PayUrl(homeToken, personalAccount) {
   const token = String(homeToken || "").trim();
   const account = String(personalAccount || "").trim();
@@ -564,6 +654,7 @@ if (payUrl && !isResidentMode) {
   var currentYear = new Date().getFullYear();
   var lastYearToggle; // Переменная для хранения чекбокса последнего года
   var lastRow;
+  var lastRowExtraRows = [];
   var yearSummaries = {};
   var residentOverviewRoot = null;
   var residentRequisitesRoot = null;
@@ -744,6 +835,7 @@ if (cumulativeBalance !== 0) {
 
       var transactions = accountData[year][_month];
       var cur = _month == currentMonth + 1 && year == currentYear;
+      var monthTarifNotes = buildTarifMonthNotes(year, _month);
       var row = document.createElement("tr");
       var monthTitleText = `${getMonthName(_month)} ${year}`;
       row.innerHTML = `<td align="LEFT">${monthTitleText}${isResidentMode && cur ? '<div class="resident-current-month-note">попередньо</div>' : ""}</td>`;
@@ -814,11 +906,16 @@ if (cumulativeBalance !== 0) {
         else balanceCell.classList.add("green");
       }
       row.appendChild(balanceCell);
+      var noteRows = buildTarifNoteRows(monthTarifNotes, row.children.length, cur);
       if (cur) {
         row.classList.add("grey");
         lastRow = row;
+        lastRowExtraRows = noteRows;
       } else {
         tbody.appendChild(row);
+        noteRows.forEach(function (noteRow) {
+          tbody.appendChild(noteRow);
+        });
       }
     };
     for (var _month in accountData[year]) {
@@ -917,7 +1014,12 @@ _totalRow.innerHTML =
       _totalRow.innerHTML += `<td class="${cumulativeBalance > 0 ? "red" : "green"}">${cumulativeBalance.toFixedWithComma()}</td>`;
       tbody.appendChild(_totalRow);
     }
-    if (lastRow) tbody.appendChild(lastRow);
+    if (lastRow) {
+      tbody.appendChild(lastRow);
+      lastRowExtraRows.forEach(function (noteRow) {
+        tbody.appendChild(noteRow);
+      });
+    }
     table.appendChild(thead);
     table.appendChild(tbody);
     yearContent.appendChild(table);
