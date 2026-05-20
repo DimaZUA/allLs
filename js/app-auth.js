@@ -79,6 +79,7 @@
     window.nach = payload.nach || {};
     window.nachnote = payload.nachnote || {};
     window.allnach = payload.allnach || {};
+    window.tarifs = payload.tarifs || {};
     window.oplat = payload.oplat || {};
     window.ls = payload.ls || {};
     window.plat = payload.plat || {};
@@ -94,6 +95,7 @@
     nach = window.nach;
     nachnote = window.nachnote;
     allnach = window.allnach;
+    tarifs = window.tarifs;
     oplat = window.oplat;
     ls = window.ls;
     plat = window.plat;

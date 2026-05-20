@@ -38,7 +38,7 @@ const actions = [
   { name: "Заборгованість", actionCode: "debitorka" }
 ];
 
-var homes, ls, nach, files, adr, dt, org, b, what, kto, oplat, plat, us, nachnote, allnach;
+var homes, ls, nach, files, adr, dt, org, b, what, kto, oplat, plat, us, nachnote, allnach, tarifs;
 
 // ================================
 // АКТИВАЦИЯ ИЗ URL
@@ -122,6 +122,7 @@ function parseHomeRow(row) {
     nach: tryParse(row.nach, {}),
     nachnote: tryParse(row.nachnote, {}),
     allnach: tryParse(row.allnach, {}),
+    tarifs: tryParse(row.tarifs, {}),
     oplat: tryParse(row.oplat, {}),
     ls: tryParse(row.ls, {}),
     plat: tryParse(row.plat, {}),
@@ -160,7 +161,7 @@ if (actionCode === "reports" && !navigator.onLine) {
     try {
       const { data, error } = await client
         .from("homes")
-        .select("us, b, org, adr, dt, what, kto, nach, oplat, ls, plat, files, nachnote, allnach")
+        .select("us, b, org, adr, dt, what, kto, nach, oplat, ls, plat, files, nachnote, allnach, tarifs")
         .eq("code", homeCode)
         .single();
 
@@ -221,6 +222,7 @@ if (actionCode === "reports" && !navigator.onLine) {
   nach = home.nach;
   nachnote = home.nachnote;
   allnach = home.allnach;
+  tarifs = home.tarifs;
   files = filterFilesByRole(home.files, roles?.[homeCode] || 'Правление');
   adr = home.adr;
   dt = home.dt;

@@ -145,6 +145,7 @@ declare
   v_nachnote_text text;
   v_plat_text text;
   v_allnach_text text;
+  v_tarifs_text text;
   v_data_text text;
 
   j_us jsonb;
@@ -157,6 +158,7 @@ declare
   j_nachnote_all jsonb;
   j_plat jsonb;
   j_allnach jsonb;
+  j_tarifs jsonb;
   j_data jsonb;
 
   j_ls_item jsonb;
@@ -226,6 +228,7 @@ begin
     nachnote::text,
     plat::text,
     allnach::text,
+    tarifs::text,
     data::text
   into
     v_code,
@@ -243,6 +246,7 @@ begin
     v_nachnote_text,
     v_plat_text,
     v_allnach_text,
+    v_tarifs_text,
     v_data_text
   from public.homes
   where code = v_home_code
@@ -262,6 +266,7 @@ begin
   j_nachnote_all := try_parse_jsonb(v_nachnote_text);
   j_plat := try_parse_jsonb(v_plat_text);
   j_allnach := try_parse_jsonb(v_allnach_text);
+  j_tarifs := try_parse_jsonb(v_tarifs_text);
   j_data := try_parse_jsonb(v_data_text);
 
   if j_us = '{}'::jsonb then j_us := coalesce(j_data -> 'us', '{}'::jsonb); end if;
@@ -274,6 +279,7 @@ begin
   if j_nachnote_all = '{}'::jsonb then j_nachnote_all := coalesce(j_data -> 'nachnote', '{}'::jsonb); end if;
   if j_plat = '{}'::jsonb then j_plat := coalesce(j_data -> 'plat', '{}'::jsonb); end if;
   if j_allnach = '{}'::jsonb then j_allnach := coalesce(j_data -> 'allnach', '{}'::jsonb); end if;
+  if j_tarifs = '{}'::jsonb then j_tarifs := coalesce(j_data -> 'tarifs', '{}'::jsonb); end if;
 
   j_ls_item := j_ls_all -> v_account_id;
   if j_ls_item is null and jsonb_typeof(j_ls_all) = 'object' and (j_ls_all ? 'kv' or j_ls_all ? 'fio') then
@@ -316,7 +322,8 @@ begin
     'oplat', jsonb_build_object(v_account_id, coalesce(j_oplat_item, '{}'::jsonb)),
     'nachnote', jsonb_build_object(v_account_id, coalesce(j_nachnote_item, '{}'::jsonb)),
     'plat', coalesce(j_plat, '{}'::jsonb),
-    'allnach', coalesce(j_allnach, '{}'::jsonb)
+    'allnach', coalesce(j_allnach, '{}'::jsonb),
+    'tarifs', coalesce(j_tarifs, '{}'::jsonb)
   );
 end;
 $$;
