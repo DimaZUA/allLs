@@ -973,6 +973,10 @@ table#main thead {
   display: none;
 }
 
+#header.header-compact .org-head-inline {
+  display: none;
+}
+
 #header.header-compact .header-left .value {
   overflow: hidden;
   white-space: nowrap;
@@ -1020,6 +1024,21 @@ table#main thead {
   display: flex;
   gap: 6px;
   margin-bottom: 4px;
+}
+
+.line-address {
+  align-items: baseline;
+}
+
+.org-head-inline {
+  margin-left: auto;
+  font-size: 0.95rem;
+  color: #4a5568;
+  font-weight: 600;
+  white-space: nowrap;
+  max-width: 44%;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .label {
@@ -1884,6 +1903,12 @@ body.resident-mode .resident-flat-grid > div strong {
 
   body.resident-mode .line {
     flex-wrap: wrap;
+  }
+
+  body.resident-mode .org-head-inline {
+    width: 100%;
+    margin-left: 0;
+    max-width: 100%;
   }
 
   body.resident-mode .resident-recommended {

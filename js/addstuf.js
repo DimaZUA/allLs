@@ -1260,16 +1260,6 @@ if (toggleToOpen) {
           <button id="copyPurposeBtn" type="button" class="resident-copy-btn">Скопіювати призначення платежу</button>
         </div>
       </details>
-      ${hasViberQr ? `
-        <div class="resident-viber-block">
-          <a id="resident-viber-link" class="resident-viber-link" target="_blank" rel="noopener noreferrer">
-            Приєднуйтесь до групи будинку у Viber.
-          </a>
-          <a id="resident-viber-qr-link" class="resident-viber-qr-link" target="_blank" rel="noopener noreferrer">
-            <img id="resident-viber-qr" alt="Viber QR" class="resident-viber-qr-img">
-          </a>
-        </div>
-      ` : ""}
     `;
 
     if (!payUrl) {
@@ -1280,17 +1270,20 @@ if (toggleToOpen) {
     if (residentViberRoot) {
       residentViberRoot.innerHTML = "";
       residentViberRoot.style.display = "none";
-      const viberBlock = residentRequisitesRoot.querySelector(".resident-viber-block");
-      if (viberBlock) {
+      if (hasViberQr) {
         residentViberRoot.innerHTML = `
           <details class="resident-viber-details">
             <summary>Група будинку у Viber</summary>
+            <div class="resident-viber-block">
+              <a id="resident-viber-link" class="resident-viber-link" target="_blank" rel="noopener noreferrer">
+                Приєднуйтесь до групи будинку у Viber.
+              </a>
+              <a id="resident-viber-qr-link" class="resident-viber-qr-link" target="_blank" rel="noopener noreferrer">
+                <img id="resident-viber-qr" alt="Viber QR" class="resident-viber-qr-img">
+              </a>
+            </div>
           </details>
         `;
-        const details = residentViberRoot.querySelector(".resident-viber-details");
-        if (details) {
-          details.appendChild(viberBlock);
-        }
         residentViberRoot.style.display = "";
       }
     }
@@ -2156,7 +2149,7 @@ function initLS() {
       <div class="header-row">
         <div class="header-left">
 
-          <div class="line">
+          <div class="line line-address">
             <span class="label">Адреса:</span>
             <span class="value">
               <a id="adr"></a>
@@ -2168,6 +2161,7 @@ function initLS() {
                 autocomplete="off">
               <datalist id="number-list"></datalist>
             </span>
+            ${isResidentMode ? '<span id="org-head" class="org-head-inline"></span>' : ""}
           </div>
 
           ${isResidentMode ? `
@@ -2197,6 +2191,8 @@ function initLS() {
   `;
 
   document.getElementById("adr").textContent = adr + " / ";
+  const orgHead = document.getElementById("org-head");
+  if (orgHead) orgHead.textContent = String(org || "");
   document.title = org + " " + adr;
   ensureTopbarHistoryButton();
 
@@ -3427,7 +3423,10 @@ function updateHeaderCompactState() {
   const header = document.getElementById("header");
   if (!header) return;
 
-  const compactNow = window.scrollY > 24;
+  const y = window.scrollY || window.pageYOffset || document.documentElement.scrollTop || 0;
+  const COMPACT_ON = 56;
+  const COMPACT_OFF = 24;
+  const compactNow = isHeaderCompact ? y > COMPACT_OFF : y > COMPACT_ON;
   if (compactNow === isHeaderCompact) return;
 
   isHeaderCompact = compactNow;
