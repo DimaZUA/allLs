@@ -470,6 +470,30 @@ async function bindCopyButton(buttonId, textProvider, okText) {
   };
 }
 
+async function bindCopyRows(root) {
+  const container = typeof root === "string" ? document.querySelector(root) : root;
+  if (!container) return;
+
+  const rows = container.querySelectorAll(".resident-copy-row");
+  rows.forEach(function (row) {
+    row.style.cursor = "copy";
+    row.title = "Натисніть, щоб скопіювати значення";
+    row.onclick = async function (e) {
+      if (e.target.closest("a,button,input,textarea,select")) return;
+      const valueEl = row.querySelector(".resident-copy-value");
+      const value = String(valueEl ? valueEl.textContent : "").trim();
+      if (!value || value === "—") return;
+
+      const copied = await copyTextPortable(value);
+      if (copied) {
+        showMessage("Скопійовано");
+      } else {
+        showMessage("Не вдалося скопіювати", "err");
+      }
+    };
+  });
+}
+
 function addStuff(accountId) {
   if (document.body.classList.contains("resident-mode")) {
     return addStuffResident(accountId);
@@ -1255,12 +1279,12 @@ if (toggleToOpen) {
       <details class="resident-requisites-details">
         <summary>Реквізити для оплати вручну</summary>
         <div class="resident-requisites-grid">
-          <div><span>Отримувач</span><strong>${requisites.receiver}</strong></div>
-          <div><span>Код ЄДРПОУ</span><strong>${requisites.code}</strong></div>
-          <div><span>IBAN</span><strong id="resident-iban-value">${requisites.iban}</strong></div>
-          <div><span>Банк</span><strong>${requisites.bank}</strong></div>
-          <div><span>МФО</span><strong>${requisites.mfo}</strong></div>
-          <div class="resident-purpose-row"><span>Призначення платежу</span><strong id="resident-purpose-value">${requisites.purpose}</strong></div>
+          <div class="resident-copy-row"><span>Отримувач</span><strong class="resident-copy-value">${requisites.receiver}</strong></div>
+          <div class="resident-copy-row"><span>Код ЄДРПОУ</span><strong class="resident-copy-value">${requisites.code}</strong></div>
+          <div class="resident-copy-row"><span>IBAN</span><strong id="resident-iban-value" class="resident-copy-value">${requisites.iban}</strong></div>
+          <div class="resident-copy-row"><span>Банк</span><strong class="resident-copy-value">${requisites.bank}</strong></div>
+          <div class="resident-copy-row"><span>МФО</span><strong class="resident-copy-value">${requisites.mfo}</strong></div>
+          <div class="resident-purpose-row resident-copy-row"><span>Призначення платежу</span><strong id="resident-purpose-value" class="resident-copy-value">${requisites.purpose}</strong></div>
         </div>
         <div class="resident-requisites-actions">
           <button id="copyIbanBtn" type="button" class="resident-copy-btn">Скопіювати IBAN</button>
@@ -1295,13 +1319,15 @@ if (toggleToOpen) {
       }
     }
 
-    bindCopyButton("copyIbanBtn", function () {
+bindCopyButton("copyIbanBtn", function () {
       return requisites.iban;
     }, "IBAN скопійовано");
 
     bindCopyButton("copyPurposeBtn", function () {
       return requisites.purpose;
     }, "Призначення платежу скопійовано");
+
+    bindCopyRows(residentRequisitesRoot.querySelector(".resident-requisites-grid"));
 
     if (hasViberQr) {
       const viberLink = document.getElementById("resident-viber-link");
@@ -1328,12 +1354,12 @@ if (toggleToOpen) {
       <section class="resident-flat-card">
         <h3>Інформація про квартиру</h3>
         <div class="resident-flat-grid">
-          <div><span>Особовий рахунок</span><strong>${curLS.ls || "—"}</strong></div>
-          <div><span>П.І.Б.</span><strong>${curLS.fio || "—"}</strong></div>
-          <div><span>Площа</span><strong>${curLS.pl ? `${curLS.pl} м²` : "—"}</strong></div>
-          <div><span>Кількість мешканців</span><strong>${curLS.pers || "—"}</strong></div>
-          <div><span>Поверх</span><strong>${curLS.et || "—"}</strong></div>
-          <div><span>Під'їзд</span><strong>${curLS.pod || "—"}</strong></div>
+          <div class="resident-copy-row"><span>Особовий рахунок</span><strong class="resident-copy-value">${curLS.ls || "—"}</strong></div>
+          <div class="resident-copy-row"><span>П.І.Б.</span><strong class="resident-copy-value">${curLS.fio || "—"}</strong></div>
+          <div class="resident-copy-row"><span>Площа</span><strong class="resident-copy-value">${curLS.pl ? `${curLS.pl} м²` : "—"}</strong></div>
+          <div class="resident-copy-row"><span>Кількість мешканців</span><strong class="resident-copy-value">${curLS.pers || "—"}</strong></div>
+          <div class="resident-copy-row"><span>Поверх</span><strong class="resident-copy-value">${curLS.et || "—"}</strong></div>
+          <div class="resident-copy-row"><span>Під'їзд</span><strong class="resident-copy-value">${curLS.pod || "—"}</strong></div>
         </div>
         ${changeButtonHtml}
       </section>
@@ -1359,7 +1385,10 @@ if (toggleToOpen) {
       </span>
     `;
 
-  container.innerHTML = content;
+container.innerHTML = content;
+  if (isResidentMode) {
+    bindCopyRows(container.querySelector(".resident-flat-grid"));
+  }
   const changeBtn = document.getElementById("changeRequestBtn");
   if (changeBtn) {
     changeBtn.onclick = function () {

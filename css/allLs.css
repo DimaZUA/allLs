@@ -1711,6 +1711,18 @@ body.resident-mode .resident-requisites-grid > div {
   gap: 2px;
 }
 
+body.resident-mode .resident-copy-row {
+  transition: background-color 0.15s ease;
+}
+
+body.resident-mode .resident-copy-row:hover {
+  background: #f2f6fb;
+}
+
+body.resident-mode .resident-copy-row:active {
+  background: #e7eef8;
+}
+
 body.resident-mode .resident-requisites-grid .resident-purpose-row {
   grid-column: 1 / -1;
 }
