@@ -1580,6 +1580,13 @@ body.resident-mode .resident-advice-contact a {
   margin-left: 4px;
 }
 
+body.resident-mode .resident-field-hint {
+  display: block;
+  margin-top: 2px;
+  color: #6b7380;
+  font-size: 0.78rem;
+}
+
 body.resident-mode .resident-requisites-details summary,
 body.resident-mode .resident-viber-details summary {
   cursor: pointer;

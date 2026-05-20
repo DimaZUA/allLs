@@ -2497,7 +2497,6 @@ async function sendResidentChangeRequest(accountId, payload) {
     showMessage("Запит успішно відправлено");
 
     if (ls[accountId]) {
-      ls[accountId].fio = payload.fio;
       ls[accountId].email = payload.storedEmail;
       ls[accountId].tel = payload.tel;
       ls[accountId].note = payload.note;
