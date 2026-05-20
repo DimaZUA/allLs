@@ -1320,10 +1320,10 @@ body.resident-mode .resident-status.resident-neutral {
 
 body.resident-mode .resident-recommended {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  justify-content: flex-end;
+  align-items: flex-start;
   gap: 10px;
-  margin-bottom: 6px;
+  margin-bottom: 0;
 }
 
 body.resident-mode .resident-recommended-main {
@@ -1458,6 +1458,17 @@ body.resident-mode .resident-balance-explain {
 
 body.resident-mode .resident-overview-details {
   margin-top: 10px;
+}
+
+body.resident-mode .resident-overview-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px 18px;
+  align-items: start;
+}
+
+body.resident-mode .resident-overview-main {
+  min-width: 0;
 }
 
 body.resident-mode .resident-overview-details p {
@@ -1746,6 +1757,10 @@ body.resident-mode .resident-flat-grid > div strong {
   body.resident-mode .resident-recommended {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  body.resident-mode .resident-overview-body {
+    grid-template-columns: 1fr;
   }
 
   body.resident-mode #resident-pay-slot {

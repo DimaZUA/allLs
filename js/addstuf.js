@@ -333,6 +333,7 @@ function pickRequisites(homeCode, accountData) {
     viberQr: String(details.ViberQr || details.viberQr || "").trim(),
     privatToken: String(details.privatToken || details.PrivatToken || details.privat_token || "").trim(),
     privatQr: String(details.PrivatQr || details.privatQr || details.privat_qr || "").trim(),
+    privatQrLen: String(details.PrivatQRLen || details.privatQrLen || details.privat_qr_len || "").trim(),
     purpose: destination
   };
 }
@@ -383,6 +384,9 @@ function mergeRequisites(requisites, meta, homeCode) {
   }
   if (!merged.privatQr) {
     merged.privatQr = String(source.PrivatQr || source.privatQr || source.privat_qr || "").trim();
+  }
+  if (!merged.privatQrLen) {
+    merged.privatQrLen = String(source.PrivatQRLen || source.privatQrLen || source.privat_qr_len || "").trim();
   }
   return merged;
 }
@@ -442,11 +446,7 @@ function addStuffCore(accountId, isResidentMode) {
             }
         }
     }  
-  const selectedHomeMeta = Array.isArray(homes) ? homes.find(h => h.code == getParam('homeCode')) : null;
-  const link =
-    (selectedHomeMeta && (selectedHomeMeta.token || selectedHomeMeta.privatToken || selectedHomeMeta.PrivatToken)) ||
-    (window.residentHomeMeta && (window.residentHomeMeta.token || window.residentHomeMeta.privatToken || window.residentHomeMeta.PrivatToken)) ||
-    "";
+  const link=(Array.isArray(homes) ? homes.find(h => h.code == getParam('homeCode')) : null)?.token ?? "";
   const adrLink=document.getElementById("adr")
   const currentKv=ls[accountId].kv;
 const payUrl = buildPrivat24PayUrl(link, currentKv);
@@ -936,7 +936,15 @@ if (toggleToOpen) {
     const hasViberQr = viberUrl.length > 0;
     const privatQrValue = String(requisites.privatQr || "").trim();
     const privatTokenValue = String(requisites.privatToken || "").trim();
-    const hasPrivatQr = privatQrValue.length > 0 && privatTokenValue.length > 0;
+    const privatQrLenRaw = String(requisites.privatQrLen || "").trim();
+    const accountLsRaw = String(curLS.ls || "").trim();
+    const privatQrLenNum = Number(privatQrLenRaw);
+    let qrLsPart = accountLsRaw;
+    if (Number.isFinite(privatQrLenNum) && privatQrLenNum > 0 && privatQrLenNum > accountLsRaw.length) {
+      qrLsPart = "0".repeat(privatQrLenNum - accountLsRaw.length) + accountLsRaw;
+    }
+    const privatQrPayload = `EK_V3_ls_${qrLsPart}_${privatQrValue}`;
+    const hasPrivatQr = privatQrValue.length > 0 && (privatTokenValue.length > 0 || !!payUrl);
     const monthNamesNom = [
       "січень", "лютий", "березень", "квітень", "травень", "червень",
       "липень", "серпень", "вересень", "жовтень", "листопад", "грудень"
@@ -980,27 +988,31 @@ if (toggleToOpen) {
         <span>Поточний баланс на ${updatedAtText}: ${meta.status}</span>
         <strong>${moneyText(Math.abs(currentBalance))}</strong>
       </div>
-      <div class="resident-recommended">
-        <div id="resident-pay-slot">
-          ${hasPrivatQr ? `
-            <a id="resident-privat-qr-link" class="resident-privat-qr-link" target="_blank" rel="noopener noreferrer">
-              <span class="resident-privat-qr-frame">
-                <img id="resident-privat-qr-img" alt="Privat24 QR" class="resident-privat-qr-img">
-                <img src="img/24.png" alt="" aria-hidden="true" class="resident-privat-qr-icon">
-              </span>
-              <span class="resident-privat-qr-note">Скануй в мобільному застосунку Privat24</span>
-            </a>
-          ` : ""}
+      <div class="resident-overview-body">
+        <div class="resident-overview-main">
+          <div class="resident-updated">Станом на: ${updatedAtText}</div>
+          ${balanceExplainHtml}
+          <div class="resident-overview-details">
+            <p>${openingBalanceLabel(summary.openingBalance)} ${moneyText(Math.abs(summary.openingBalance))}.</p>
+            <p>${periodLabel} було нараховано ${moneyText(summary.accrued)}.</p>
+            <p>${periodLabel} було сплачено ${moneyText(summary.paid)}.</p>
+            ${currentMonthPaidLine}
+            <p><strong>${meta.currentLabel}: <span class="resident-${meta.cls}">${moneyText(Math.abs(currentBalance))}</span>.</strong></p>
+          </div>
         </div>
-      </div>
-      <div class="resident-updated">Станом на: ${updatedAtText}</div>
-      ${balanceExplainHtml}
-      <div class="resident-overview-details">
-        <p>${openingBalanceLabel(summary.openingBalance)} ${moneyText(Math.abs(summary.openingBalance))}.</p>
-        <p>${periodLabel} було нараховано ${moneyText(summary.accrued)}.</p>
-        <p>${periodLabel} було сплачено ${moneyText(summary.paid)}.</p>
-        ${currentMonthPaidLine}
-        <p><strong>${meta.currentLabel}: <span class="resident-${meta.cls}">${moneyText(Math.abs(currentBalance))}</span>.</strong></p>
+        <div class="resident-recommended">
+          <div id="resident-pay-slot">
+            ${hasPrivatQr ? `
+              <a id="resident-privat-qr-link" class="resident-privat-qr-link" target="_blank" rel="noopener noreferrer">
+                <span class="resident-privat-qr-frame">
+                  <img id="resident-privat-qr-img" alt="Privat24 QR" class="resident-privat-qr-img">
+                  <img src="img/24.png" alt="" aria-hidden="true" class="resident-privat-qr-icon">
+                </span>
+                <span class="resident-privat-qr-note">Скануй в мобільному застосунку Privat24</span>
+              </a>
+            ` : ""}
+          </div>
+        </div>
       </div>
     `;
 
@@ -1031,7 +1043,7 @@ if (toggleToOpen) {
         privatQrLink.href = privatQrValue;
       }
       if (privatQrImg) {
-        privatQrImg.src = "https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=" + encodeURIComponent(privatQrValue);
+        privatQrImg.src = "https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=" + encodeURIComponent(privatQrPayload);
       }
     }
 

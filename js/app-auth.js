@@ -178,6 +178,18 @@
       homeMetaData.privat_qr,
       findByKeyVariants(payload, ["PrivatQr", "privatQr", "privat_qr"], 4)
     );
+    const privatQrLenValue = firstNonEmpty(
+      payload.PrivatQRLen,
+      payload.privatQrLen,
+      payload.privat_qr_len,
+      homeMeta.PrivatQRLen,
+      homeMeta.privatQrLen,
+      homeMeta.privat_qr_len,
+      homeMetaData.PrivatQRLen,
+      homeMetaData.privatQrLen,
+      homeMetaData.privat_qr_len,
+      findByKeyVariants(payload, ["PrivatQRLen", "privatQrLen", "privat_qr_len"], 4)
+    );
     if (!mfoValue && ibanValue && String(ibanValue).length >= 10) {
       mfoValue = String(ibanValue).substring(4, 10);
     }
@@ -191,7 +203,8 @@
       ViberQr: viberQrValue,
       privatToken: privatTokenValue,
       PrivatQr: privatQrValue,
-      token: String(payload.token || homeMeta.token || homeMetaData.token || homeMetaData.privatToken || "")
+      PrivatQRLen: privatQrLenValue,
+      token: String(payload.token || homeMeta.token || "")
     };
 
     window.homes = [
@@ -205,6 +218,7 @@
         ViberQr: window.residentHomeMeta.ViberQr,
         privatToken: window.residentHomeMeta.privatToken,
         PrivatQr: window.residentHomeMeta.PrivatQr,
+        PrivatQRLen: window.residentHomeMeta.PrivatQRLen,
         token: window.residentHomeMeta.token
       }
     ];
