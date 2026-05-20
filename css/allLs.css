@@ -1281,6 +1281,17 @@ body.resident-mode .resident-flat-card h3 {
   margin: 0 0 10px;
 }
 
+body.resident-mode .resident-history-details > summary {
+  cursor: pointer;
+  font-size: 1.6rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+body.resident-mode .resident-history-details[open] > summary {
+  margin-bottom: 10px;
+}
+
 body.resident-mode .resident-status {
   display: flex;
   justify-content: space-between;
@@ -1444,6 +1455,47 @@ body.resident-mode .resident-privat-qr-note {
   text-align: center;
 }
 
+body.resident-mode .resident-pay-details {
+  width: 100%;
+}
+
+body.resident-mode .resident-pay-details > summary {
+  cursor: pointer;
+  font-size: 0.92rem;
+  color: #1f2b3a;
+  margin: 0;
+}
+
+body.resident-mode .resident-pay-details[open] > summary {
+  margin-bottom: 6px;
+}
+
+body.resident-mode .resident-pay-details-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+body.resident-mode .resident-pay-pane {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+body.resident-mode .resident-pay-pane[hidden] {
+  display: none !important;
+}
+
+body.resident-mode .resident-pay-switch {
+  border: 0;
+  background: transparent;
+  color: #1f2b3a;
+  font-size: 0.9rem;
+  cursor: pointer;
+  padding: 0;
+}
+
 body.resident-mode .resident-updated,
 body.resident-mode .resident-updated-note {
   color: #5f6876;
@@ -1479,6 +1531,53 @@ body.resident-mode .resident-overview-details p + p,
 body.resident-mode .resident-flat-grid span,
 body.resident-mode .resident-requisites-grid span {
   color: #5f6876;
+}
+
+body.resident-mode .resident-advice {
+  margin-top: 10px;
+  padding: 9px 11px;
+  border-radius: 9px;
+  border: 1px solid #dbe5ee;
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+
+body.resident-mode .resident-advice-good {
+  background: #eef8f0;
+  border-color: #cfe4d3;
+  color: #305f3d;
+}
+
+body.resident-mode .resident-advice-neutral {
+  background: #f5f8fc;
+  border-color: #d8e1ea;
+  color: #3f4c5d;
+}
+
+body.resident-mode .resident-advice-warn,
+body.resident-mode .resident-advice-danger {
+  background: #fff7ea;
+  border-color: #f0d8ad;
+  color: #6a4a1d;
+}
+
+body.resident-mode .resident-advice-critical {
+  background: #fdeeee;
+  border-color: #e7c2c2;
+  color: #7b2d2d;
+}
+
+body.resident-mode .resident-advice-contact {
+  margin-top: 8px;
+  font-size: 0.86rem;
+  line-height: 1.35;
+  color: #5f6876;
+}
+
+body.resident-mode .resident-advice-contact a {
+  color: #1b4f9c;
+  text-decoration: underline;
+  margin-left: 4px;
 }
 
 body.resident-mode .resident-requisites-details summary,
@@ -1596,7 +1695,7 @@ body.resident-mode .year-table {
 
 body.resident-mode .box table#main {
   width: 100%;
-  min-width: 720px;
+  min-width: 0;
   background: #fff;
   table-layout: auto;
 }
@@ -1671,6 +1770,19 @@ body.resident-mode .box table#main tbody .paysubtable td {
   font-size: 0.9rem;
 }
 
+body.resident-mode .box table#main tbody .paysubtable {
+  width: auto;
+  table-layout: fixed;
+  margin-left: auto;
+}
+
+body.resident-mode .box table#main tbody .paysubtable td:nth-child(1) {
+  width: 16px;
+  text-align: left;
+  padding-right: 0;
+  padding-left: 2px;
+}
+
 body.resident-mode .box table#main tbody .paysubtable td:nth-child(1),
 body.resident-mode .box table#main tbody .paysubtable td:nth-child(3) {
   font-size: 0.72rem;
@@ -1680,6 +1792,19 @@ body.resident-mode .box table#main tbody .paysubtable td:nth-child(3) {
 body.resident-mode .box table#main tbody .paysubtable td:nth-child(2) {
   font-size: 1.12rem !important;
   font-weight: 700;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  width: auto;
+  padding-left: 3px;
+  padding-right: 3px;
+}
+
+body.resident-mode .box table#main tbody .paysubtable td:nth-child(3) {
+  width: 58px;
+  text-align: left;
+  white-space: nowrap;
+  padding-left: 2px;
 }
 
 body.resident-mode .box table#main > tbody > tr:hover:not(.itog) > td .paysubtable td {
@@ -1786,6 +1911,7 @@ body.resident-mode .resident-flat-grid > div strong {
   body.resident-mode .box table#main {
     min-width: 560px;
   }
+
 
   body.resident-mode .box table#main thead td {
     font-size: 12px;

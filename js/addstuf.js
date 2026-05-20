@@ -262,6 +262,59 @@ function moneyText(value) {
   return `${num.toFixedWithComma()} грн`;
 }
 
+function base64UrlEncodeUtf8(input) {
+  const text = String(input || "");
+  let binary = "";
+  const bytes = new TextEncoder().encode(text);
+  for (let i = 0; i < bytes.length; i += 1) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  const b64 = btoa(binary);
+  return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+function buildNbuQrLink(params) {
+  const receiver = String(params?.receiver || "").trim();
+  const iban = String(params?.iban || "").trim();
+  if (!receiver || !iban || receiver === "—" || iban === "—") return "";
+
+  const code = String(params?.code || "").trim();
+  const purpose = String(params?.purpose || "").trim();
+  const amountNum = Math.max(Number(params?.amount) || 0, 0);
+  const amount = amountNum.toFixed(2);
+
+  let payload = [
+    "BCD",
+    "002",
+    "2",
+    "UCT",
+    "",
+    receiver,
+    iban,
+    `UAH${amount}`,
+    code,
+    "",
+    "",
+    purpose,
+    "",
+    ""
+  ].join("\n");
+
+  if (payload.length > 500) payload = payload.slice(0, 500);
+  payload = payload.replace(/і/g, "i").replace(/І/g, "I");
+  return `https://bank.gov.ua/qr/${base64UrlEncodeUtf8(payload)}`;
+}
+
+function buildQrImageUrl(data, size) {
+  const safeSize = Number(size) > 0 ? Number(size) : 220;
+  return "https://api.qrserver.com/v1/create-qr-code/?" +
+    "size=" + encodeURIComponent(`${safeSize}x${safeSize}`) +
+    "&ecc=L" +
+    "&qzone=4" +
+    "&format=svg" +
+    "&data=" + encodeURIComponent(String(data || ""));
+}
+
 function moneySigned(value) {
   return `${(Number(value) || 0).toFixedWithComma()} грн`;
 }
@@ -492,6 +545,8 @@ if (payUrl && !isResidentMode) {
   var residentRequisitesRoot = null;
   var residentViberRoot = null;
   var historyHost = container;
+  var historyContentHost = container;
+  var residentHistoryDetails = null;
 
   if (isResidentMode) {
     residentOverviewRoot = document.createElement("section");
@@ -504,7 +559,13 @@ if (payUrl && !isResidentMode) {
 
     historyHost = document.createElement("section");
     historyHost.className = "resident-history-block";
-    historyHost.innerHTML = "<h3>Історія нарахувань та оплат</h3>";
+    historyHost.innerHTML =
+      '<details class="resident-history-details">' +
+      '  <summary>Історія нарахувань та оплат</summary>' +
+      '  <div class="resident-history-content"></div>' +
+      '</details>';
+    residentHistoryDetails = historyHost.querySelector(".resident-history-details");
+    historyContentHost = historyHost.querySelector(".resident-history-content") || historyHost;
     container.appendChild(historyHost);
 
     residentViberRoot = document.createElement("section");
@@ -849,7 +910,7 @@ yearBlock.appendChild(yearToggle);
 yearBlock.appendChild(yearLabel);
 yearBlock.appendChild(yearContent);
 
-historyHost.appendChild(yearBlock);
+historyContentHost.appendChild(yearBlock);
 
 //yearsBar.appendChild(yearToggle);
 //yearsBar.appendChild(yearLabel);
@@ -870,7 +931,7 @@ historyHost.appendChild(yearBlock);
   };
 var yearsBar = document.createElement("div");
 yearsBar.id = "years-bar";
-historyHost.appendChild(yearsBar);
+historyContentHost.appendChild(yearsBar);
 
   yearsToRender.forEach(function (year) {
     _loop(year);
@@ -885,7 +946,7 @@ if (isResidentMode) {
   var historyNote = document.createElement("p");
   historyNote.className = "resident-history-note";
   historyNote.textContent = `* За ${historyNoteMonthName} ${currentYear} р. показано попередній розрахунок. Остаточна сума може змінитися після надходження та обробки оплат.`;
-  historyHost.appendChild(historyNote);
+  historyContentHost.appendChild(historyNote);
 }
 
 const preferredYearToggle = document.getElementById(`block-${currentYear}`);
@@ -926,11 +987,32 @@ if (toggleToOpen) {
           }, 0))
         : 0;
     const currentMonthPaidNow = normalizeMoney(currentMonthPaidNowRaw);
+    const currentMonthAccruedRaw =
+      summaryYear === currentYearKey
+        ? Object.values(((accountData[currentYearKey] || {})[currentMonthKey] || {})).reduce(function (sum, value) {
+            return sum + (Number(value) || 0);
+          }, 0)
+        : 0;
+    const currentMonthAccrued = normalizeMoney(currentMonthAccruedRaw);
+    const hasPaymentThisMonth = currentMonthPaidNow >= 0.01;
 
     const currentBalance = normalizeMoney((Number(summary.closingBalance) || 0) - currentMonthPaidNow);
+    const shouldCollapseHistory =
+      currentBalance <= 0 ||
+      (currentMonthAccrued > 0.005 && currentBalance < 3 * currentMonthAccrued);
+    if (residentHistoryDetails) {
+      residentHistoryDetails.open = !shouldCollapseHistory;
+    }
     const recommendedToPay = Math.max(currentBalance, 0);
     const meta = balanceMeta(currentBalance);
     const updatedAtText = formatResidentAsOfDate(dt);
+    const updatedAtShort = String(updatedAtText || "").replace(/\s*року$/i, "");
+    const statusHeadline =
+      currentBalance > 0
+        ? `Заборгованість станом на ${updatedAtShort}`
+        : currentBalance < 0
+          ? `Переплата станом на ${updatedAtShort}`
+          : "Заборгованість відсутня";
     const requisites = pickRequisites(getParam("homeCode"), curLS);
     const viberUrl = String(requisites.viberQr || "").trim();
     const hasViberQr = viberUrl.length > 0;
@@ -944,7 +1026,7 @@ if (toggleToOpen) {
       qrLsPart = "0".repeat(privatQrLenNum - accountLsRaw.length) + accountLsRaw;
     }
     const privatQrPayload = `EK_V3_ls_${qrLsPart}_${privatQrValue}`;
-    const hasPrivatQr = privatQrValue.length > 0 && (privatTokenValue.length > 0 || !!payUrl);
+    const hasPrivatQr = !!payUrl && privatQrValue.length > 0 && (privatTokenValue.length > 0 || !!payUrl);
     const monthNamesNom = [
       "січень", "лютий", "березень", "квітень", "травень", "червень",
       "липень", "серпень", "вересень", "жовтень", "листопад", "грудень"
@@ -961,6 +1043,16 @@ if (toggleToOpen) {
     const currentMonthNameNom = monthNamesNom[Math.max(0, Math.min(11, currentMonth))];
     const currentMonthNameLoc = monthNamesLoc[Math.max(0, Math.min(11, currentMonth))];
     const currentMonthYearLocLabel = `${currentMonthNameLoc} ${summaryYear} р.`;
+    const nbuPurpose = `кв.${curLS.ls || ""}`.trim();
+    const nbuQrLink = buildNbuQrLink({
+      receiver: requisites.receiver,
+      iban: requisites.iban,
+      code: requisites.code,
+      purpose: nbuPurpose,
+      amount: recommendedToPay
+    });
+    const hasNbuQr = nbuQrLink.length > 0;
+    const hasBothPayOptions = hasPrivatQr && hasNbuQr;
     const completedMonthsCount =
       summaryYear === currentYearKey
         ? Math.max(0, Math.min(12, currentMonth))
@@ -978,39 +1070,116 @@ if (toggleToOpen) {
       currentMonthPaidNow >= 0.01
         ? `<p>У ${monthNamesLoc[Math.max(0, Math.min(11, currentMonth))]} ${summaryYear} р. вже сплачено ${moneyText(currentMonthPaidNow)}.</p>`
         : "";
+    const periodPaidLine =
+      normalizeMoney(summary.paid) >= 0.01
+        ? `<p>${periodLabel} було сплачено ${moneyText(summary.paid)}.</p>`
+        : "";
+    let advisoryTone = "neutral";
+    let advisoryText = "";
+    const debtNow = Math.max(currentBalance, 0);
+    if (currentBalance < 0) {
+      advisoryTone = "good";
+      advisoryText = "Дякуємо за випереджувальну сплату внесків. Переплата на особовому рахунку допомагає будинку своєчасно оплачувати необхідні послуги, здійснювати обслуговування та виконувати поточні роботи.";
+    } else if (currentBalance === 0) {
+      advisoryTone = "good";
+      advisoryText = "Дякуємо за своєчасну сплату внесків. Регулярна оплата допомагає будинку своєчасно оплачувати необхідні послуги, здійснювати обслуговування та виконувати поточні роботи.";
+    } else {
+      const hasMonthBase = currentMonthAccrued > 0.005;
+      const triple = hasMonthBase ? 3 * currentMonthAccrued : Number.POSITIVE_INFINITY;
+      const sixfold = hasMonthBase ? 6 * currentMonthAccrued : Number.POSITIVE_INFINITY;
+      if (debtNow > sixfold && !hasPaymentThisMonth) {
+        advisoryTone = "critical";
+        advisoryText = "За особовим рахунком обліковується тривала заборгованість, оплата останнім часом не надходила. Просимо терміново погасити борг або звернутися для звірки. У разі подальшої несплати матеріали можуть бути передані для претензійно-позовної роботи, що може призвести до додаткових витрат боржника.";
+      } else if (debtNow > triple && !hasPaymentThisMonth) {
+        advisoryTone = "danger";
+        advisoryText = "За особовим рахунком обліковується значна заборгованість, а у поточному місяці оплата не надходила. Просимо здійснити оплату або звернутися для звірки. Накопичення боргу ускладнює своєчасну оплату послуг, здійснення обслуговування та виконання робіт, необхідних для утримання будинку.";
+      } else if (debtNow > triple && hasPaymentThisMonth) {
+        advisoryTone = "warn";
+        advisoryText = "Дякуємо, що у поточному місяці була здійснена оплата. Разом з тим, за особовим рахунком ще залишається заборгованість. Просимо поступово погасити залишок або звернутися для звірки, якщо сума потребує уточнення.";
+      } else {
+        advisoryTone = "neutral";
+        advisoryText = "Дякуємо за участь у забезпеченні роботи будинку. За особовим рахунком є поточна сума до сплати. Просимо за можливості сплатити внески своєчасно, щоб будинок міг без затримок оплачувати необхідні послуги, обслуговування та виконувати поточні роботи.";
+      }
+    }
+    const advisoryHtml = `<div class="resident-advice resident-advice-${advisoryTone}">${advisoryText}</div>`;
+    const advisoryContactHtml = `
+      <div class="resident-advice-contact">
+        Якщо у Вас є питання щодо нарахувань або оплат, зверніться для звірки:
+        <a href="mailto:abon.omega@gmail.com">abon.omega@gmail.com</a>
+      </div>
+    `;
     const balanceExplainHtml =
       currentMonthPaidNow >= 0.01
         ? `<div class="resident-balance-explain">Поточний баланс враховує оплати, що вже надійшли у ${currentMonthYearLocLabel} Нарахування за ${currentMonthNameNom} ${summaryYear} р. показано нижче у таблиці як попередній розрахунок.</div>`
         : "";
+    const payOptionsHtml = hasBothPayOptions
+      ? `
+        <div id="resident-pay-privat-pane" class="resident-pay-pane">
+          <div id="resident-privat-pay-content" class="resident-pay-details-content">
+            <a id="resident-privat-qr-link" class="resident-privat-qr-link" target="_blank" rel="noopener noreferrer">
+              <span class="resident-privat-qr-frame">
+                <img id="resident-privat-qr-img" alt="Privat24 QR" class="resident-privat-qr-img">
+                <img src="img/24.png" alt="" aria-hidden="true" class="resident-privat-qr-icon">
+              </span>
+              <span class="resident-privat-qr-note">Скануйте в мобільному застосунку Privat24</span>
+            </a>
+          </div>
+          <button id="resident-switch-to-nbu" type="button" class="resident-pay-switch">▸ Оплатити з іншого банку</button>
+        </div>
+        <div id="resident-pay-nbu-pane" class="resident-pay-pane" hidden>
+          <div class="resident-pay-details-content">
+            <a id="resident-nbu-qr-link" class="resident-privat-qr-link" target="_blank" rel="noopener noreferrer">
+              <span class="resident-privat-qr-frame">
+                <img id="resident-nbu-qr-img" alt="NBU QR" class="resident-privat-qr-img">
+              </span>
+              <span class="resident-privat-qr-note">Скануйте у мобільному застосунку банку</span>
+            </a>
+          </div>
+          <button id="resident-switch-to-privat" type="button" class="resident-pay-switch">▸ Оплатити з Приватбанку</button>
+        </div>
+      `
+      : hasPrivatQr
+        ? `
+          <a id="resident-privat-qr-link" class="resident-privat-qr-link" target="_blank" rel="noopener noreferrer">
+            <span class="resident-privat-qr-frame">
+              <img id="resident-privat-qr-img" alt="Privat24 QR" class="resident-privat-qr-img">
+              <img src="img/24.png" alt="" aria-hidden="true" class="resident-privat-qr-icon">
+            </span>
+            <span class="resident-privat-qr-note">Скануйте в мобільному застосунку Privat24</span>
+          </a>
+        `
+        : hasNbuQr
+          ? `
+            <a id="resident-nbu-qr-link" class="resident-privat-qr-link" target="_blank" rel="noopener noreferrer">
+              <span class="resident-privat-qr-frame">
+                <img id="resident-nbu-qr-img" alt="NBU QR" class="resident-privat-qr-img">
+              </span>
+              <span class="resident-privat-qr-note">Скануйте у мобільному застосунку банку</span>
+            </a>
+          `
+          : "";
     residentOverviewRoot.innerHTML = `
       <h2>Поточний стан рахунку</h2>
       <div class="resident-status resident-${meta.cls}">
-        <span>Поточний баланс на ${updatedAtText}: ${meta.status}</span>
+        <span>${statusHeadline}</span>
         <strong>${moneyText(Math.abs(currentBalance))}</strong>
       </div>
       <div class="resident-overview-body">
         <div class="resident-overview-main">
-          <div class="resident-updated">Станом на: ${updatedAtText}</div>
           ${balanceExplainHtml}
           <div class="resident-overview-details">
             <p>${openingBalanceLabel(summary.openingBalance)} ${moneyText(Math.abs(summary.openingBalance))}.</p>
             <p>${periodLabel} було нараховано ${moneyText(summary.accrued)}.</p>
-            <p>${periodLabel} було сплачено ${moneyText(summary.paid)}.</p>
+            ${periodPaidLine}
             ${currentMonthPaidLine}
             <p><strong>${meta.currentLabel}: <span class="resident-${meta.cls}">${moneyText(Math.abs(currentBalance))}</span>.</strong></p>
           </div>
+          ${advisoryHtml}
+          ${advisoryContactHtml}
         </div>
         <div class="resident-recommended">
           <div id="resident-pay-slot">
-            ${hasPrivatQr ? `
-              <a id="resident-privat-qr-link" class="resident-privat-qr-link" target="_blank" rel="noopener noreferrer">
-                <span class="resident-privat-qr-frame">
-                  <img id="resident-privat-qr-img" alt="Privat24 QR" class="resident-privat-qr-img">
-                  <img src="img/24.png" alt="" aria-hidden="true" class="resident-privat-qr-icon">
-                </span>
-                <span class="resident-privat-qr-note">Скануй в мобільному застосунку Privat24</span>
-              </a>
-            ` : ""}
+            ${payOptionsHtml}
           </div>
         </div>
       </div>
@@ -1019,10 +1188,11 @@ if (toggleToOpen) {
     const paySlot = document.getElementById("resident-pay-slot");
     const payBtn = document.getElementById("payLinkBtn");
     if (paySlot && payBtn) {
-      const qrNode = paySlot.querySelector("#resident-privat-qr-link");
-      paySlot.appendChild(payBtn);
+      const privatContent = document.getElementById("resident-privat-pay-content") || paySlot;
+      const qrNode = privatContent.querySelector("#resident-privat-qr-link") || paySlot.querySelector("#resident-privat-qr-link");
+      privatContent.appendChild(payBtn);
       if (qrNode) {
-        paySlot.appendChild(qrNode);
+        privatContent.appendChild(qrNode);
       }
       payBtn.classList.add("resident-main-pay-btn");
       if (recommendedToPay >= 0.01) {
@@ -1036,14 +1206,41 @@ if (toggleToOpen) {
       }
     }
 
+    if (hasBothPayOptions) {
+      const privatPane = document.getElementById("resident-pay-privat-pane");
+      const nbuPane = document.getElementById("resident-pay-nbu-pane");
+      const toNbuBtn = document.getElementById("resident-switch-to-nbu");
+      const toPrivatBtn = document.getElementById("resident-switch-to-privat");
+      if (privatPane && nbuPane && toNbuBtn && toPrivatBtn) {
+        toNbuBtn.onclick = function () {
+          privatPane.hidden = true;
+          nbuPane.hidden = false;
+        };
+        toPrivatBtn.onclick = function () {
+          nbuPane.hidden = true;
+          privatPane.hidden = false;
+        };
+      }
+    }
+
     if (hasPrivatQr) {
       const privatQrLink = document.getElementById("resident-privat-qr-link");
       const privatQrImg = document.getElementById("resident-privat-qr-img");
       if (privatQrLink) {
-        privatQrLink.href = privatQrValue;
+        privatQrLink.href = payUrl;
       }
       if (privatQrImg) {
-        privatQrImg.src = "https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=" + encodeURIComponent(privatQrPayload);
+        privatQrImg.src = buildQrImageUrl(privatQrPayload, 220);
+      }
+    }
+    if (hasNbuQr) {
+      const nbuLinkEl = document.getElementById("resident-nbu-qr-link");
+      const nbuImgEl = document.getElementById("resident-nbu-qr-img");
+      if (nbuLinkEl) {
+        nbuLinkEl.href = nbuQrLink;
+      }
+      if (nbuImgEl) {
+        nbuImgEl.src = buildQrImageUrl(nbuQrLink, 220);
       }
     }
 
@@ -1074,6 +1271,11 @@ if (toggleToOpen) {
         </div>
       ` : ""}
     `;
+
+    if (!payUrl) {
+      const recDetails = residentRequisitesRoot.querySelector(".resident-requisites-details");
+      if (recDetails) recDetails.open = true;
+    }
 
     if (residentViberRoot) {
       residentViberRoot.innerHTML = "";
@@ -2203,6 +2405,7 @@ async function sendResidentChangeRequest(accountId, payload) {
 
   const loader = showLoader("Відправка даних...");
   try {
+    const statusLabel = "очікує обробки";
     const { data, error } = await client.rpc("resident_submit_change", rpcPayload);
     loader.close();
     if (error) {
@@ -2213,6 +2416,84 @@ async function sendResidentChangeRequest(accountId, payload) {
       showMessage(data.message || "Зміни відсутні", "warn");
       return false;
     }
+
+    // Resident-mode fix: force persisted status text in DB.
+    try {
+      const candidateId =
+        Number(data?.id) ||
+        Number(data?.change_id) ||
+        Number(data?.correction_id) ||
+        0;
+
+      if (candidateId > 0) {
+        await client
+          .from("corrections")
+          .update({ status: statusLabel })
+          .eq("id", candidateId);
+      } else {
+        const sinceIso = new Date(Date.now() - 3 * 60 * 1000).toISOString();
+        const { data: latestRows } = await client
+          .from("corrections")
+          .select("id,status,submitted_at")
+          .eq("account_id", String(accountId))
+          .gte("submitted_at", sinceIso)
+          .order("submitted_at", { ascending: false })
+          .limit(3);
+
+        const badRow = Array.isArray(latestRows)
+          ? latestRows.find(function (row) {
+              const st = String(row?.status || "");
+              return !st || /^\?+(\s+\?+)*$/.test(st) || st.toLowerCase() === "pending";
+            })
+          : null;
+
+        if (badRow?.id) {
+          await client
+            .from("corrections")
+            .update({ status: statusLabel })
+            .eq("id", badRow.id);
+        }
+      }
+    } catch (_) {
+      // Ignore: this is a best-effort write fix, main request already succeeded.
+    }
+
+    // Email notification for resident-mode requests (same channel as regular mode).
+    try {
+      const current = ls[accountId] || {};
+      const oldFio = String(current.fio || "");
+      const oldTel = String(current.tel || "");
+      const oldEmail = stripEmailFlags(current.email || "");
+      const oldNoPaper = hasNoKvit(current.note || "");
+      const newNoPaper = !!payload.paperless;
+
+      const changes = [];
+      if (oldFio !== String(payload.fio || "")) changes.push(`ФІО: ${oldFio || "—"} → ${payload.fio || "—"}`);
+      if (oldTel !== String(payload.tel || "")) changes.push(`Телефон: ${oldTel || "—"} → ${payload.tel || "—"}`);
+      if (oldEmail !== String(payload.email || "")) changes.push(`Email: ${oldEmail || "—"} → ${payload.email || "—"}`);
+      if (oldNoPaper !== newNoPaper) {
+        changes.push(`Паперова квитанція: ${oldNoPaper ? "Відмова" : "Так"} → ${newNoPaper ? "Відмова" : "Так"}`);
+      }
+      if (changes.length === 0) {
+        changes.push("Зміни передано через особистий кабінет.");
+      }
+
+      const templateParams = {
+        name: `resident:${current.fio || accountId}`,
+        sender: `resident:${current.fio || accountId}`,
+        subject: `Зміни по ${org || ""} (особистий кабінет)`,
+        address: `${adr || ""}/${current.kv || ""}`,
+        changes: changes.join("\r\n"),
+        correction: "—",
+        correctionText: "—",
+        uvaga: ""
+      };
+
+      await emailjs.send("service_ed425wm", "template_vcrj80e", templateParams, "GieX-9pNBnKJ0Z2HK");
+    } catch (mailErr) {
+      console.error("Resident mail sending error:", mailErr);
+    }
+
     showMessage("Запит успішно відправлено");
 
     if (ls[accountId]) {
@@ -2835,7 +3116,26 @@ function renderHistoryList(list, data) {
   );
   const singleHomeMode = uniqueHomeCodes.length <= 1;
 
+  const normalizeHistoryStatus = function (rawStatus) {
+    const source = String(rawStatus || "").trim();
+    const lower = source.toLowerCase();
+
+    if (source === "+") return "Зміни внесено";
+    if (source === "-") return "Відхилено";
+
+    if (!source || /^\?+(\s+\?+)*$/.test(source) || lower === "pending" || lower === "unknown") {
+      return "очікує обробки";
+    }
+    if (lower.includes("очіку")) return "очікує обробки";
+    if (lower.includes("внесено")) return "Зміни внесено";
+    if (lower.includes("відхил")) return "Відхилено";
+
+    return source;
+  };
+
   data.forEach(row => {
+    row.status = normalizeHistoryStatus(row.status);
+
     const item = document.createElement("div");
     item.style = `
       border:1px solid #ccc;
@@ -2906,12 +3206,6 @@ function renderHistoryList(list, data) {
       addrDiv.innerHTML = `Адреса: <b>${address || "—"}</b>`;
     }
     contentDiv.appendChild(addrDiv);
-
-    if (row.status === "+") {
-      row.status = "Зміни внесено";
-    } else if (row.status === "-") {
-      row.status = "Відхилено";
-    }
 
     let statusColor = "#ffe79a";
     if (row.status?.toLowerCase().includes("внесено")) {
