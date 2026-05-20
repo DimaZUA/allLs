@@ -203,7 +203,15 @@
       return false;
     }
 
-    return applyResidentPayload(data);
+    const applied = applyResidentPayload(data);
+    if (applied) {
+      try {
+        client
+          .rpc("resident_visit_log", { p_token: token, p_source: "resident_web" })
+          .catch(() => {});
+      } catch (_) {}
+    }
+    return applied;
   }
 
   async function enterAppMode() {

@@ -1291,6 +1291,11 @@ body.resident-mode .resident-status {
   font-weight: 600;
 }
 
+body.resident-mode .resident-status-group {
+  display: grid;
+  gap: 8px;
+}
+
 body.resident-mode .resident-status strong {
   font-size: 1.5rem;
 }
@@ -1396,6 +1401,12 @@ body.resident-mode .resident-updated,
 body.resident-mode .resident-updated-note {
   color: #5f6876;
   font-size: 0.95rem;
+}
+
+body.resident-mode .resident-balance-explain {
+  color: #5f6876;
+  font-size: 0.88rem;
+  margin-top: 6px;
 }
 
 body.resident-mode .resident-overview-details {
@@ -1556,6 +1567,13 @@ body.resident-mode .box table#main tbody td {
   vertical-align: middle;
 }
 
+body.resident-mode .resident-current-month-note {
+  margin-top: 3px;
+  font-size: 0.78rem;
+  color: #7a8493;
+  line-height: 1.1;
+}
+
 body.resident-mode .box table#main > tbody > tr:nth-child(even):not(.itog):not(.grey) > td {
   background: #fbfcfe;
 }
@@ -1613,6 +1631,12 @@ body.resident-mode .box table#main > tbody > tr:hover:not(.itog) > td .paysubtab
 body.resident-mode #datetime {
   max-width: 1120px;
   margin: 0 auto 20px;
+}
+
+body.resident-mode .resident-history-note {
+  margin: 10px 2px 0;
+  color: #5f6876;
+  font-size: 0.86rem;
 }
 
 body.resident-mode .resident-flat-grid {

@@ -646,8 +646,10 @@ if (cumulativeBalance !== 0) {
       // Пропускаем текущий месяц
 
       var transactions = accountData[year][_month];
+      var cur = _month == currentMonth + 1 && year == currentYear;
       var row = document.createElement("tr");
-      row.innerHTML = `<td align="LEFT">${getMonthName(_month)} ${year}</td>`;
+      var monthTitleText = `${getMonthName(_month)} ${year}`;
+      row.innerHTML = `<td align="LEFT">${monthTitleText}${isResidentMode && cur ? '<div class="resident-current-month-note">попередньо</div>' : ""}</td>`;
       var rowCharges = {};
       var monthlyChargesTotal = 0;
       services.forEach(function (serviceId) {
@@ -681,7 +683,6 @@ if (cumulativeBalance !== 0) {
         }
         if (serviceId != 7) row.appendChild(cell);
       });
-      var cur = _month == currentMonth + 1 && year == currentYear;
       // Получаем данные оплат за текущий месяц
       var monthlyPayments =
         ((_paymentData$year = paymentData[year]) === null ||
@@ -862,6 +863,14 @@ historyHost.appendChild(yearsBar);
   yearsToRender.forEach(function (year) {
     _loop(year);
   });
+
+if (isResidentMode) {
+  var historyNote = document.createElement("p");
+  historyNote.className = "resident-history-note";
+  historyNote.textContent = "* Сірим кольором показано попередній розрахунок поточного місяця. Остаточна сума може змінитися після надходження та обробки оплат.";
+  historyHost.appendChild(historyNote);
+}
+
 const preferredYearToggle = document.getElementById(`block-${currentYear}`);
 const toggleToOpen = preferredYearToggle || lastYearToggle;
 if (toggleToOpen) {
@@ -901,15 +910,18 @@ if (toggleToOpen) {
         : 0;
     const currentMonthPaidNow = normalizeMoney(currentMonthPaidNowRaw);
 
+    const currentMonthChargesRaw =
+      summaryYear === currentYearKey
+        ? Object.values(((accountData[currentYearKey] || {})[currentMonthKey] || {})).reduce(function (sum, value) {
+            return sum + (Number(value) || 0);
+          }, 0)
+        : 0;
+    const currentMonthCharges = normalizeMoney(currentMonthChargesRaw);
     const currentBalance = normalizeMoney((Number(summary.closingBalance) || 0) - currentMonthPaidNow);
+    const expectedEndMonthBalance = normalizeMoney(currentBalance + currentMonthCharges);
     const recommendedToPay = Math.max(currentBalance, 0);
     const meta = balanceMeta(currentBalance);
-    const currentResultLabel =
-      currentBalance > 0
-        ? "Поточна заборгованість"
-        : currentBalance < 0
-          ? "Поточна переплата"
-          : "Поточний баланс";
+    const expectedMeta = balanceMeta(expectedEndMonthBalance);
     const updatedAtText = formatResidentAsOfDate(dt);
     const requisites = pickRequisites(getParam("homeCode"), curLS);
     const viberUrl = String(requisites.viberQr || "").trim();
@@ -918,10 +930,18 @@ if (toggleToOpen) {
       "січень", "лютий", "березень", "квітень", "травень", "червень",
       "липень", "серпень", "вересень", "жовтень", "листопад", "грудень"
     ];
+    const monthNamesGen = [
+      "січня", "лютого", "березня", "квітня", "травня", "червня",
+      "липня", "серпня", "вересня", "жовтня", "листопада", "грудня"
+    ];
     const monthNamesLoc = [
       "січні", "лютому", "березні", "квітні", "травні", "червні",
       "липні", "серпні", "вересні", "жовтні", "листопаді", "грудні"
     ];
+    const currentMonthNameGen = monthNamesGen[Math.max(0, Math.min(11, currentMonth))];
+    const currentMonthNameLoc = monthNamesLoc[Math.max(0, Math.min(11, currentMonth))];
+    const currentMonthYearLocLabel = `${currentMonthNameLoc} ${summaryYear} р.`;
+    const currentMonthYearLabel = `${currentMonthNameGen} ${summaryYear} р.`;
     const completedMonthsCount =
       summaryYear === currentYearKey
         ? Math.max(0, Math.min(12, currentMonth))
@@ -939,12 +959,18 @@ if (toggleToOpen) {
       currentMonthPaidNow >= 0.01
         ? `<p>У ${monthNamesLoc[Math.max(0, Math.min(11, currentMonth))]} ${summaryYear} р. вже сплачено ${moneyText(currentMonthPaidNow)}.</p>`
         : "";
+    const expectedResultLabel =
+      expectedEndMonthBalance > 0
+        ? `Очікувана заборгованість на кінець ${currentMonthNameGen}`
+        : expectedEndMonthBalance < 0
+          ? `Очікувана переплата на кінець ${currentMonthNameGen}`
+          : `Очікуваний баланс на кінець ${currentMonthNameGen}`;
 
     const showRecommendedAmount = recommendedToPay >= 0.01;
     const recommendedBlockHtml = showRecommendedAmount
       ? `
         <div class="resident-recommended-main">
-          <span>Рекомендовано до сплати:</span>
+          <span>Рекомендовано до сплати на ${updatedAtText}:</span>
           <strong>${moneyText(recommendedToPay)}</strong>
         </div>
       `
@@ -952,21 +978,31 @@ if (toggleToOpen) {
 
     residentOverviewRoot.innerHTML = `
       <h2>Поточний стан рахунку</h2>
-      <div class="resident-status resident-${meta.cls}">
-        <span>${meta.status}:</span>
-        <strong>${moneyText(Math.abs(currentBalance))}</strong>
+      <div class="resident-status-group">
+        <div class="resident-status resident-${meta.cls}">
+          <span>Поточний баланс на ${updatedAtText}: ${meta.status}</span>
+          <strong>${moneyText(Math.abs(currentBalance))}</strong>
+        </div>
+        <div class="resident-status resident-${expectedMeta.cls}">
+          <span>Очікуваний баланс на кінець ${currentMonthNameGen} ${summaryYear}: ${expectedMeta.status}</span>
+          <strong>${moneyText(Math.abs(expectedEndMonthBalance))}</strong>
+        </div>
       </div>
       <div class="resident-recommended">
         ${recommendedBlockHtml}
         <div id="resident-pay-slot"></div>
       </div>
       <div class="resident-updated">Станом на: ${updatedAtText}</div>
+      <div class="resident-balance-explain">
+        Поточний баланс враховує оплати, що вже надійшли у ${currentMonthYearLocLabel} Очікуваний баланс на кінець ${currentMonthYearLabel} додатково враховує нарахування за цей місяць.
+      </div>
       <div class="resident-overview-details">
         <p>${openingBalanceLabel(summary.openingBalance)} ${moneyText(Math.abs(summary.openingBalance))}.</p>
         <p>${periodLabel} було нараховано ${moneyText(summary.accrued)}.</p>
         <p>${periodLabel} було сплачено ${moneyText(summary.paid)}.</p>
         ${currentMonthPaidLine}
-        <p><strong>${currentResultLabel}: <span class="resident-${meta.cls}">${moneyText(Math.abs(currentBalance))}</span>.</strong></p>
+        <p><strong>${meta.currentLabel}: <span class="resident-${meta.cls}">${moneyText(Math.abs(currentBalance))}</span>.</strong></p>
+        <p><strong>${expectedResultLabel}: <span class="resident-${expectedMeta.cls}">${moneyText(Math.abs(expectedEndMonthBalance))}</span>.</strong></p>
       </div>
     `;
 
