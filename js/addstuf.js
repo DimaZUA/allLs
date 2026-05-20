@@ -331,6 +331,8 @@ function pickRequisites(homeCode, accountData) {
     bank: details.Bank || details.bank || "—",
     mfo: mfoValue || "—",
     viberQr: String(details.ViberQr || details.viberQr || "").trim(),
+    privatToken: String(details.privatToken || details.PrivatToken || details.privat_token || "").trim(),
+    privatQr: String(details.PrivatQr || details.privatQr || details.privat_qr || "").trim(),
     purpose: destination
   };
 }
@@ -375,6 +377,12 @@ function mergeRequisites(requisites, meta, homeCode) {
   }
   if ((merged.mfo === "—" || !merged.mfo) && merged.iban && merged.iban !== "—" && String(merged.iban).length >= 10) {
     merged.mfo = String(merged.iban).substring(4, 10);
+  }
+  if (!merged.privatToken) {
+    merged.privatToken = String(source.privatToken || source.PrivatToken || source.privat_token || "").trim();
+  }
+  if (!merged.privatQr) {
+    merged.privatQr = String(source.PrivatQr || source.privatQr || source.privat_qr || "").trim();
   }
   return merged;
 }
@@ -434,7 +442,11 @@ function addStuffCore(accountId, isResidentMode) {
             }
         }
     }  
-  const link=(Array.isArray(homes) ? homes.find(h => h.code == getParam('homeCode')) : null)?.token ?? "";
+  const selectedHomeMeta = Array.isArray(homes) ? homes.find(h => h.code == getParam('homeCode')) : null;
+  const link =
+    (selectedHomeMeta && (selectedHomeMeta.token || selectedHomeMeta.privatToken || selectedHomeMeta.PrivatToken)) ||
+    (window.residentHomeMeta && (window.residentHomeMeta.token || window.residentHomeMeta.privatToken || window.residentHomeMeta.PrivatToken)) ||
+    "";
   const adrLink=document.getElementById("adr")
   const currentKv=ls[accountId].kv;
 const payUrl = buildPrivat24PayUrl(link, currentKv);
@@ -922,6 +934,9 @@ if (toggleToOpen) {
     const requisites = pickRequisites(getParam("homeCode"), curLS);
     const viberUrl = String(requisites.viberQr || "").trim();
     const hasViberQr = viberUrl.length > 0;
+    const privatQrValue = String(requisites.privatQr || "").trim();
+    const privatTokenValue = String(requisites.privatToken || "").trim();
+    const hasPrivatQr = privatQrValue.length > 0 && privatTokenValue.length > 0;
     const monthNamesNom = [
       "січень", "лютий", "березень", "квітень", "травень", "червень",
       "липень", "серпень", "вересень", "жовтень", "листопад", "грудень"
@@ -966,7 +981,17 @@ if (toggleToOpen) {
         <strong>${moneyText(Math.abs(currentBalance))}</strong>
       </div>
       <div class="resident-recommended">
-        <div id="resident-pay-slot"></div>
+        <div id="resident-pay-slot">
+          ${hasPrivatQr ? `
+            <a id="resident-privat-qr-link" class="resident-privat-qr-link" target="_blank" rel="noopener noreferrer">
+              <span class="resident-privat-qr-frame">
+                <img id="resident-privat-qr-img" alt="Privat24 QR" class="resident-privat-qr-img">
+                <img src="img/24.png" alt="" aria-hidden="true" class="resident-privat-qr-icon">
+              </span>
+              <span class="resident-privat-qr-note">Скануй в мобільному застосунку Privat24</span>
+            </a>
+          ` : ""}
+        </div>
       </div>
       <div class="resident-updated">Станом на: ${updatedAtText}</div>
       ${balanceExplainHtml}
@@ -982,7 +1007,11 @@ if (toggleToOpen) {
     const paySlot = document.getElementById("resident-pay-slot");
     const payBtn = document.getElementById("payLinkBtn");
     if (paySlot && payBtn) {
+      const qrNode = paySlot.querySelector("#resident-privat-qr-link");
       paySlot.appendChild(payBtn);
+      if (qrNode) {
+        paySlot.appendChild(qrNode);
+      }
       payBtn.classList.add("resident-main-pay-btn");
       if (recommendedToPay >= 0.01) {
         payBtn.textContent = `Сплатити ${moneyText(recommendedToPay)}`;
@@ -992,6 +1021,17 @@ if (toggleToOpen) {
         payBtn.textContent = "Поповнити рахунок";
         payBtn.title = "Поповнити рахунок";
         payBtn.classList.add("soft-pay");
+      }
+    }
+
+    if (hasPrivatQr) {
+      const privatQrLink = document.getElementById("resident-privat-qr-link");
+      const privatQrImg = document.getElementById("resident-privat-qr-img");
+      if (privatQrLink) {
+        privatQrLink.href = privatQrValue;
+      }
+      if (privatQrImg) {
+        privatQrImg.src = "https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=" + encodeURIComponent(privatQrValue);
       }
     }
 

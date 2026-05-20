@@ -1339,6 +1339,10 @@ body.resident-mode .resident-recommended strong {
 body.resident-mode #resident-pay-slot {
   flex: 0 0 auto;
   margin-left: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
 }
 
 body.resident-mode .resident-main-pay-btn {
@@ -1395,6 +1399,49 @@ body.resident-mode .resident-main-pay-btn.soft-pay:hover {
 body.resident-mode .resident-main-pay-btn.soft-pay::before {
   opacity: 0.72;
   filter: grayscale(0.25);
+}
+
+body.resident-mode .resident-privat-qr-link {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  color: inherit;
+  text-decoration: none;
+}
+
+body.resident-mode .resident-privat-qr-frame {
+  position: relative;
+  display: inline-block;
+  line-height: 0;
+  border: 1px solid #d4dbe3;
+  border-radius: 8px;
+  padding: 6px;
+  background: #fff;
+}
+
+body.resident-mode .resident-privat-qr-img {
+  width: 132px;
+  height: 132px;
+  display: block;
+}
+
+body.resident-mode .resident-privat-qr-icon {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 24px;
+  height: 24px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 0 2px #fff;
+}
+
+body.resident-mode .resident-privat-qr-note {
+  font-size: 0.78rem;
+  color: #5f6876;
+  text-align: center;
 }
 
 body.resident-mode .resident-updated,
@@ -1704,11 +1751,16 @@ body.resident-mode .resident-flat-grid > div strong {
   body.resident-mode #resident-pay-slot {
     width: 100%;
     margin-left: 0;
+    align-items: stretch;
   }
 
   body.resident-mode .resident-main-pay-btn {
     width: 100%;
     min-width: 100%;
+  }
+
+  body.resident-mode .resident-privat-qr-link {
+    align-self: center;
   }
 
   body.resident-mode .toggle-box + label {

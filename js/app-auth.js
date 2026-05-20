@@ -101,11 +101,27 @@
 
     const homeCode = String(payload.home_code || payload.code || getParam("homeCode") || "");
     const homeMeta = payload.home && typeof payload.home === "object" ? payload.home : {};
+    let homeMetaData = {};
+    try {
+      const rawHomeData = homeMeta.data;
+      if (rawHomeData && typeof rawHomeData === "string") {
+        const parsed = JSON.parse(rawHomeData);
+        if (parsed && typeof parsed === "object") {
+          homeMetaData = parsed;
+        }
+      } else if (rawHomeData && typeof rawHomeData === "object") {
+        homeMetaData = rawHomeData;
+      }
+    } catch (_) {
+      homeMetaData = {};
+    }
     const ibanValue = firstNonEmpty(
       payload.Iban,
       payload.iban,
       homeMeta.Iban,
       homeMeta.iban,
+      homeMetaData.Iban,
+      homeMetaData.iban,
       findByKeyVariants(payload, ["Iban", "iban", "IBAN"], 4)
     );
     const bankValue = firstNonEmpty(
@@ -113,6 +129,8 @@
       payload.bank,
       homeMeta.Bank,
       homeMeta.bank,
+      homeMetaData.Bank,
+      homeMetaData.bank,
       findByKeyVariants(payload, ["Bank", "bank", "Банк"], 4)
     );
     let mfoValue =
@@ -122,6 +140,9 @@
       homeMeta.MFO ||
       homeMeta.mfo ||
       homeMeta["МФО"] ||
+      homeMetaData.MFO ||
+      homeMetaData.mfo ||
+      homeMetaData["МФО"] ||
       findByKeyVariants(payload, ["MFO", "mfo", "МФО"], 4) ||
       "";
     const viberQrValue = firstNonEmpty(
@@ -129,20 +150,48 @@
       payload.viberQr,
       homeMeta.ViberQr,
       homeMeta.viberQr,
+      homeMetaData.ViberQr,
+      homeMetaData.viberQr,
       findByKeyVariants(payload, ["ViberQr", "viberQr", "viberqr"], 4)
+    );
+    const privatTokenValue = firstNonEmpty(
+      payload.privatToken,
+      payload.PrivatToken,
+      payload.privat_token,
+      homeMeta.privatToken,
+      homeMeta.PrivatToken,
+      homeMeta.privat_token,
+      homeMetaData.privatToken,
+      homeMetaData.PrivatToken,
+      homeMetaData.privat_token,
+      findByKeyVariants(payload, ["privatToken", "PrivatToken", "privat_token"], 4)
+    );
+    const privatQrValue = firstNonEmpty(
+      payload.PrivatQr,
+      payload.privatQr,
+      payload.privat_qr,
+      homeMeta.PrivatQr,
+      homeMeta.privatQr,
+      homeMeta.privat_qr,
+      homeMetaData.PrivatQr,
+      homeMetaData.privatQr,
+      homeMetaData.privat_qr,
+      findByKeyVariants(payload, ["PrivatQr", "privatQr", "privat_qr"], 4)
     );
     if (!mfoValue && ibanValue && String(ibanValue).length >= 10) {
       mfoValue = String(ibanValue).substring(4, 10);
     }
     window.residentHomeMeta = {
       code: homeCode,
-      okpo: payload.okpo || homeMeta.okpo || homeCode,
-      name: firstNonEmpty(payload.name, payload.ORGKR, homeMeta.name, homeMeta.ORGKR, org),
+      okpo: payload.okpo || homeMeta.okpo || homeMetaData.okpo || homeMetaData.code || homeCode,
+      name: firstNonEmpty(payload.name, payload.ORGKR, homeMeta.name, homeMeta.ORGKR, homeMetaData.name, homeMetaData.ORGKR, org),
       Iban: ibanValue,
       Bank: bankValue,
       mfo: mfoValue,
       ViberQr: viberQrValue,
-      token: String(payload.token || homeMeta.token || "")
+      privatToken: privatTokenValue,
+      PrivatQr: privatQrValue,
+      token: String(payload.token || homeMeta.token || homeMetaData.token || homeMetaData.privatToken || "")
     };
 
     window.homes = [
@@ -154,6 +203,8 @@
         Bank: window.residentHomeMeta.Bank,
         mfo: window.residentHomeMeta.mfo,
         ViberQr: window.residentHomeMeta.ViberQr,
+        privatToken: window.residentHomeMeta.privatToken,
+        PrivatQr: window.residentHomeMeta.PrivatQr,
         token: window.residentHomeMeta.token
       }
     ];
