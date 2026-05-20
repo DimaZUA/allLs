@@ -2193,6 +2193,7 @@ function initLS() {
   document.getElementById("adr").textContent = adr + " / ";
   const orgHead = document.getElementById("org-head");
   if (orgHead) orgHead.textContent = String(org || "");
+  updateResidentAddressLayout();
   document.title = org + " " + adr;
   ensureTopbarHistoryButton();
 
@@ -3418,19 +3419,75 @@ function showHistoryModal(data, options = {}) {
 }
 let headerResizeObserver = null;
 let isHeaderCompact = false;
+let headerCompactLockUntil = 0;
+
+function updateResidentAddressLayout() {
+  if (!document.body.classList.contains("resident-mode")) return;
+  const line = document.querySelector("#header .line-address");
+  if (!line) return;
+
+  const label = line.querySelector(".label");
+  const value = line.querySelector(".value");
+  const orgEl = line.querySelector("#org-head");
+  if (!label || !value || !orgEl) return;
+
+  line.classList.remove("org-stacked");
+
+  const measureTextWidth = function (sourceEl, text) {
+    const probe = document.createElement("span");
+    const cs = window.getComputedStyle(sourceEl);
+    probe.style.position = "absolute";
+    probe.style.left = "-99999px";
+    probe.style.top = "-99999px";
+    probe.style.visibility = "hidden";
+    probe.style.whiteSpace = "nowrap";
+    probe.style.font = cs.font;
+    probe.style.fontWeight = cs.fontWeight;
+    probe.style.letterSpacing = cs.letterSpacing;
+    probe.textContent = String(text || "");
+    document.body.appendChild(probe);
+    const w = Math.ceil(probe.getBoundingClientRect().width);
+    probe.remove();
+    return w;
+  };
+
+  const lineStyles = window.getComputedStyle(line);
+  const gap = parseFloat(lineStyles.columnGap || lineStyles.gap || "0") || 0;
+  const available = Math.max(0, Math.floor(line.clientWidth));
+  const labelWidth = measureTextWidth(label, label.textContent || "");
+  const valueText = value.textContent || "";
+  const valueWidth = measureTextWidth(value, valueText);
+  const orgWidth = measureTextWidth(orgEl, orgEl.textContent || "");
+  const needed = labelWidth + valueWidth + orgWidth + gap * 2;
+
+  if (needed > available + 2) {
+    line.classList.add("org-stacked");
+  }
+}
 
 function updateHeaderCompactState() {
   const header = document.getElementById("header");
   if (!header) return;
+  if (document.body.classList.contains("resident-mode")) {
+    if (isHeaderCompact) {
+      isHeaderCompact = false;
+      header.classList.remove("header-compact");
+    }
+    return;
+  }
+
+  const now = Date.now();
+  if (now < headerCompactLockUntil) return;
 
   const y = window.scrollY || window.pageYOffset || document.documentElement.scrollTop || 0;
-  const COMPACT_ON = 56;
-  const COMPACT_OFF = 24;
+  const COMPACT_ON = 80;
+  const COMPACT_OFF = 1;
   const compactNow = isHeaderCompact ? y > COMPACT_OFF : y > COMPACT_ON;
   if (compactNow === isHeaderCompact) return;
 
   isHeaderCompact = compactNow;
   header.classList.toggle("header-compact", compactNow);
+  headerCompactLockUntil = now + 140;
   updateStickyTop();
 }
 
@@ -3456,6 +3513,7 @@ function updateStickyTop() {
   if ("ResizeObserver" in window && !headerResizeObserver) {
     headerResizeObserver = new ResizeObserver(() => {
       updateStickyTop();
+      updateResidentAddressLayout();
     });
     headerResizeObserver.observe(header);
   }
@@ -3467,6 +3525,8 @@ window.addEventListener("resize", updateStickyTop);
 window.addEventListener("load", updateHeaderCompactState);
 window.addEventListener("resize", updateHeaderCompactState);
 window.addEventListener("scroll", updateHeaderCompactState, { passive: true });
+window.addEventListener("load", updateResidentAddressLayout);
+window.addEventListener("resize", updateResidentAddressLayout);
 document.addEventListener("click", function (e) {
     const label = e.target.closest("label[for^='block-']");
     if (!label) return;
