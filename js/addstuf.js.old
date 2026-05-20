@@ -997,25 +997,21 @@ if (toggleToOpen) {
     const hasPaymentThisMonth = currentMonthPaidNow >= 0.01;
 
     const currentBalance = normalizeMoney((Number(summary.closingBalance) || 0) - currentMonthPaidNow);
-    const debtTolerance = 10;
-    const effectiveBalance = currentBalance > 0 && currentBalance <= debtTolerance ? 0 : currentBalance;
     const shouldCollapseHistory =
-      effectiveBalance <= 0 ||
-      (currentMonthAccrued > 0.005 && effectiveBalance < 3 * currentMonthAccrued);
+      currentBalance <= 0 ||
+      (currentMonthAccrued > 0.005 && currentBalance < 3 * currentMonthAccrued);
     if (residentHistoryDetails) {
       residentHistoryDetails.open = !shouldCollapseHistory;
     }
-    const recommendedToPay = Math.max(effectiveBalance, 0);
-    const meta = balanceMeta(effectiveBalance);
+    const recommendedToPay = Math.max(currentBalance, 0);
+    const meta = balanceMeta(currentBalance);
     const updatedAtText = formatResidentAsOfDate(dt);
     const updatedAtShort = String(updatedAtText || "").replace(/\s*року$/i, "");
-    const asOfDate = updatedAtShort || "—";
-    const statusHeadline = `Станом на ${asOfDate}`;
-    const statusText =
-      effectiveBalance > 0
-        ? "Заборгованість"
-        : effectiveBalance < 0
-          ? "Переплата"
+    const statusHeadline =
+      currentBalance > 0
+        ? `Заборгованість станом на ${updatedAtShort}`
+        : currentBalance < 0
+          ? `Переплата станом на ${updatedAtShort}`
           : "Заборгованість відсутня";
     const requisites = pickRequisites(getParam("homeCode"), curLS);
     const viberUrl = String(requisites.viberQr || "").trim();
@@ -1080,11 +1076,11 @@ if (toggleToOpen) {
         : "";
     let advisoryTone = "neutral";
     let advisoryText = "";
-    const debtNow = Math.max(effectiveBalance, 0);
-    if (effectiveBalance < 0) {
+    const debtNow = Math.max(currentBalance, 0);
+    if (currentBalance < 0) {
       advisoryTone = "good";
       advisoryText = "Дякуємо за випереджувальну сплату внесків. Переплата на особовому рахунку допомагає будинку своєчасно оплачувати необхідні послуги, здійснювати обслуговування та виконувати поточні роботи.";
-    } else if (effectiveBalance === 0) {
+    } else if (currentBalance === 0) {
       advisoryTone = "good";
       advisoryText = "Дякуємо за своєчасну сплату внесків. Регулярна оплата допомагає будинку своєчасно оплачувати необхідні послуги, здійснювати обслуговування та виконувати поточні роботи.";
     } else {
@@ -1165,10 +1161,7 @@ if (toggleToOpen) {
     residentOverviewRoot.innerHTML = `
       <h2>Поточний стан рахунку</h2>
       <div class="resident-status resident-${meta.cls}">
-        <span class="resident-status-left">
-          <span class="resident-status-title">${statusHeadline}</span>
-          <span class="resident-status-pill resident-${meta.cls}">${statusText}</span>
-        </span>
+        <span>${statusHeadline}</span>
         <strong>${moneyText(Math.abs(currentBalance))}</strong>
       </div>
       <div class="resident-overview-body">

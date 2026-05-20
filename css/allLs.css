@@ -1361,10 +1361,36 @@ body.resident-mode .resident-status {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
   border-radius: 10px;
   padding: 10px 12px;
   margin-bottom: 8px;
   font-weight: 600;
+}
+
+body.resident-mode .resident-status-title {
+  color: #1f2b3a;
+  font-weight: 600;
+}
+
+body.resident-mode .resident-status-left {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+body.resident-mode .resident-status-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid #cfd7e3;
+  font-size: 1.02rem;
+  font-weight: 700;
+  line-height: 1.15;
+  background: #f6f9fc;
 }
 
 body.resident-mode .resident-status-group {
@@ -1374,6 +1400,7 @@ body.resident-mode .resident-status-group {
 
 body.resident-mode .resident-status strong {
   font-size: 1.5rem;
+  margin-left: auto;
 }
 
 body.resident-mode .resident-debt {
@@ -1389,9 +1416,22 @@ body.resident-mode .resident-status.resident-debt {
   background: #ffecec;
 }
 
+body.resident-mode .resident-status-pill.resident-debt {
+  color: #8b0000;
+  background: #fff2f2;
+  border-color: #e8bcbc;
+}
+
 body.resident-mode .resident-status.resident-credit,
 body.resident-mode .resident-status.resident-neutral {
   background: #ebfaef;
+}
+
+body.resident-mode .resident-status-pill.resident-credit,
+body.resident-mode .resident-status-pill.resident-neutral {
+  color: #0b6a35;
+  background: #eef8f0;
+  border-color: #c4ddcb;
 }
 
 body.resident-mode .resident-recommended {
