@@ -823,7 +823,7 @@ button:hover {
   #number {
     width: 92px;
     max-width: 92px;
-    font-size: 1.2rem;
+    font-size: 1.35rem;
   }
 
   .buttons-container {
@@ -1141,7 +1141,7 @@ table#main thead {
 
 @media (max-width: 640px) {
   .number-static {
-    font-size: 1.2rem;
+    font-size: 1.35rem;
   }
 }
 
@@ -1298,6 +1298,193 @@ table#main thead {
 /* показываем таблицу сразу после label активного года */
 .toggle-box:checked + label + .year-table {
   display: block;
+}
+
+.mobile-history-cards {
+  display: none;
+}
+
+.mobile-year-summary-card,
+.mobile-month-card {
+  background: #edf2f7;
+  border: 1px solid #c6d0dc;
+  border-radius: 12px;
+  padding: 8px 10px;
+  margin: 8px 0;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.04);
+}
+
+.mobile-year-summary-card h4 {
+  margin: 0 0 8px;
+  font-size: 1.2rem;
+}
+
+.mobile-year-summary-grid {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px 10px;
+}
+
+.mobile-year-summary-grid span {
+  color: #5f6876;
+}
+
+.mobile-year-summary-final {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #e2e8f0;
+  font-weight: 700;
+}
+
+.mobile-month-card summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  list-style: none;
+  cursor: pointer;
+}
+
+.mobile-month-card summary::-webkit-details-marker {
+  display: none;
+}
+
+.mobile-month-name {
+  font-weight: 700;
+  font-size: 1.08rem;
+  color: #111827;
+}
+
+.mobile-month-tag {
+  margin-left: 7px;
+  font-size: 0.8rem;
+  color: #5f6876;
+}
+
+.mobile-month-badge {
+  border-radius: 999px;
+  border: 1px solid #d0dae8;
+  padding: 4px 10px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  white-space: nowrap;
+  color: #111827;
+  background: #f2f5f9;
+}
+
+.mobile-month-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #e7edf5;
+}
+
+.mobile-month-col h5 {
+  margin: 0 0 6px;
+  font-size: 1rem;
+  color: #111827;
+}
+
+.mobile-month-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 2px 0;
+}
+
+.mobile-month-line-wrap + .mobile-month-line-wrap {
+  margin-top: 2px;
+}
+
+.mobile-month-line span {
+  color: #2a3442;
+}
+
+.mobile-month-line strong {
+  font-weight: 700;
+  white-space: nowrap;
+  color: #111827;
+}
+
+.mobile-month-empty {
+  color: #6a7487;
+}
+
+.mobile-line-detail-toggle {
+  appearance: none;
+  -webkit-appearance: none;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  text-align: left;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.mobile-line-detail-name {
+  color: #2a3442;
+  font-weight: 700;
+}
+
+.mobile-line-detail-icon {
+  color: #5f6876;
+  font-weight: 700;
+  font-size: 0.92em;
+}
+
+.mobile-line-detail-body {
+  margin-top: 3px;
+  padding: 8px 10px;
+  border: 1px solid #d8e0ea;
+  border-radius: 8px;
+  background: #f8fbff;
+  color: #3d495a;
+  font-size: 1rem;
+  line-height: 1.35;
+}
+
+.mobile-month-footer {
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid #e7edf5;
+  font-weight: 700;
+}
+
+.mobile-month-notes {
+  margin-top: 8px;
+  color: #5f6876;
+  font-size: 0.9rem;
+}
+
+.mobile-charge-line > span,
+.mobile-charge-line .mobile-line-detail-toggle {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.mobile-charge-line .mobile-line-detail-name {
+  font-size: inherit;
+}
+
+.mobile-year-summary-final.mobile-balance-debt,
+.mobile-month-footer.mobile-balance-debt {
+  color: #8b0000;
+}
+
+.mobile-year-summary-final.mobile-balance-credit,
+.mobile-year-summary-final.mobile-balance-neutral,
+.mobile-month-footer.mobile-balance-credit,
+.mobile-month-footer.mobile-balance-neutral {
+  color: #0b6a35;
 }
 
 /* ===========================
@@ -1872,9 +2059,10 @@ body.resident-mode .year-table {
 
 body.resident-mode .box table#main {
   width: 100%;
-  min-width: 0;
+  min-width: auto;
+  max-width: 100%;
   background: #fff;
-  table-layout: auto;
+  table-layout: fixed;
 }
 
 body.resident-mode table#main thead {
@@ -1889,13 +2077,13 @@ body.resident-mode .box table#main thead td {
   background: #f4f7fb;
   color: #1f2b3a;
   font-weight: 600;
-  font-size: 1rem;
+  font-size: 1.08rem;
   padding: 8px 6px;
   line-height: 1.25;
 }
 
 body.resident-mode .box table#main tbody td {
-  font-size: 1rem;
+  font-size: 1.25rem;
   padding: 7px 6px;
   line-height: 1.25;
   vertical-align: middle;
@@ -1926,16 +2114,38 @@ body.resident-mode .box table#main > tbody > tr:nth-child(even):not(.itog):not(.
 }
 
 body.resident-mode .box table#main tbody td:first-child {
-  position: sticky;
-  left: 0;
-  z-index: 2;
-  background: #fff;
-  box-shadow: 1px 0 0 #dce3eb;
-  min-width: 124px;
+  position: static;
+  left: auto;
+  z-index: auto;
+  background: inherit;
+  box-shadow: none;
+  min-width: 0;
+  width: 18%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+body.resident-mode .box table#main tbody td.year-total-title {
+  white-space: normal !important;
+  overflow: visible;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+  word-break: normal;
+  line-height: 1.12;
+}
+
+body.resident-mode .box table#main thead td:last-child,
+body.resident-mode .box table#main tbody td:last-child {
+  width: 14%;
+}
+
+body.resident-mode .box table#main thead td:nth-last-child(2),
+body.resident-mode .box table#main tbody td:nth-last-child(2) {
+  width: 24%;
 }
 
 body.resident-mode .box table#main > tbody > tr:nth-child(even):not(.itog):not(.grey) > td:first-child {
-  background: #fbfcfe;
+  background: inherit;
 }
 
 body.resident-mode .box table#main > tbody > tr.itog > td:first-child,
@@ -1949,7 +2159,7 @@ body.resident-mode .box table#main > tbody > tr:hover:not(.itog):not(.grey) > td
 
 body.resident-mode .box table#main > tbody > tr:hover:not(.itog):not(.grey) > td:first-child {
   background: #e8edff;
-  z-index: 3;
+  z-index: auto;
 }
 
 body.resident-mode .box .itog td:last-child:not(:only-child) {
@@ -1957,13 +2167,18 @@ body.resident-mode .box .itog td:last-child:not(:only-child) {
 }
 
 body.resident-mode .box table#main tbody .paysubtable td {
-  font-size: 0.9rem;
+  font-size: 1.5rem;
+}
+
+body.resident-mode .box table#main tbody td:has(.paysubtable) {
+  text-align: right;
 }
 
 body.resident-mode .box table#main tbody .paysubtable {
-  width: auto;
+  width: 100%;
   table-layout: fixed;
-  margin-left: auto;
+  margin-left: 0;
+  display: table;
 }
 
 body.resident-mode .box table#main tbody .paysubtable td:nth-child(1) {
@@ -1975,19 +2190,19 @@ body.resident-mode .box table#main tbody .paysubtable td:nth-child(1) {
 
 body.resident-mode .box table#main tbody .paysubtable td:nth-child(1),
 body.resident-mode .box table#main tbody .paysubtable td:nth-child(3) {
-  font-size: 0.72rem;
+  font-size: small;
   color: #5f6876;
 }
 
 body.resident-mode .box table#main tbody .paysubtable td:nth-child(2) {
-  font-size: 1.12rem !important;
+  font-size: 1.5rem !important;
   font-weight: 700;
   text-align: right;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   width: auto;
-  padding-left: 3px;
-  padding-right: 3px;
+  padding-left: 10px;
+  padding-right: 10px;
 }
 
 body.resident-mode .box table#main tbody .paysubtable td:nth-child(3) {
@@ -2064,6 +2279,20 @@ body.resident-mode .resident-flat-grid > div strong {
 }
 
 @media (max-width: 640px) {
+  body.resident-mode .header-left .line {
+    font-size: 1.62rem;
+    margin-bottom: 8px;
+  }
+
+  body.resident-mode .line-address .number-static {
+    font-size: 1em;
+    font-weight: 400;
+  }
+
+  body.resident-mode .line-ls-head.same-as-kv {
+    display: none;
+  }
+
   body.resident-mode .header-row {
     flex-direction: column;
     gap: 10px;
@@ -2098,6 +2327,15 @@ body.resident-mode .resident-flat-grid > div strong {
     grid-template-columns: 1fr;
   }
 
+  body.resident-mode .resident-status-title {
+    font-size: 1.1rem;
+  }
+
+  body.resident-mode .resident-status-pill {
+    font-size: 1.14rem;
+    padding: 5px 12px;
+  }
+
   body.resident-mode #resident-pay-slot {
     width: 100%;
     margin-left: 0;
@@ -2116,6 +2354,82 @@ body.resident-mode .resident-flat-grid > div strong {
   body.resident-mode .toggle-box + label {
     font-size: 1.05rem;
     padding: 6px 11px;
+  }
+
+  body.resident-mode .resident-overview-details p {
+    font-size: 1.575rem;
+    line-height: 1.35;
+  }
+
+  body.resident-mode .resident-advice {
+    font-size: 1.62rem;
+    line-height: 1.4;
+    padding: 11px 12px;
+  }
+
+  body.resident-mode .resident-advice-contact {
+    font-size: 1.05rem;
+    line-height: 1.4;
+  }
+
+  body.resident-mode .resident-status-title {
+    font-size: 1.65rem;
+  }
+
+  body.resident-mode .resident-status strong {
+    font-size: 2.25rem;
+  }
+
+  body.resident-mode .resident-status-pill {
+    font-size: 2.28rem;
+    padding: 7px 16px;
+    line-height: 1.1;
+  }
+
+  body.resident-mode .resident-status {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "title title"
+      "pill amount";
+    align-items: center;
+    row-gap: 8px;
+    column-gap: 10px;
+  }
+
+  body.resident-mode .resident-status-left {
+    display: contents;
+  }
+
+  body.resident-mode .resident-status-title {
+    grid-area: title;
+    display: block;
+  }
+
+  body.resident-mode .resident-status-pill {
+    grid-area: pill;
+    justify-self: stretch;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    white-space: nowrap;
+    box-sizing: border-box;
+  }
+
+  body.resident-mode .resident-status-pill.is-truncated {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  body.resident-mode .resident-status strong {
+    grid-area: amount;
+    justify-self: end;
+    margin-left: 0;
+    white-space: nowrap;
+  }
+
+  body.resident-mode .resident-balance-explain {
+    font-size: 1.32rem;
   }
 
   body.resident-mode .box table#main {
@@ -2140,6 +2454,10 @@ body.resident-mode .resident-flat-grid > div strong {
     font-size: 14px;
   }
 
+  body.resident-mode .box table#main tbody td.year-total-title {
+    min-width: 0;
+  }
+
   body.resident-mode .box .itog td:last-child:not(:only-child) {
     font-size: 1.18rem;
   }
@@ -2154,13 +2472,44 @@ body.resident-mode .resident-flat-grid > div strong {
     font-size: 11px;
   }
 
+  body.resident-mode .resident-current-month-note {
+    font-size: 0.92rem;
+  }
+
+  body.resident-mode .resident-history-note,
+  body.resident-mode .tarif-summary-tail {
+    font-size: 1rem;
+    line-height: 1.35;
+  }
+
+  body.resident-mode .box table#main tbody tr.tarif-note-row td {
+    font-size: 0.96rem;
+    line-height: 1.3;
+  }
+
   body.resident-mode .resident-flat-grid > div {
-    padding: 8px 9px;
+    padding: 10px 11px;
     min-height: 62px;
   }
 
+  body.resident-mode .resident-flat-grid > div span {
+    font-size: 2.06rem;
+    line-height: 1.2;
+  }
+
   body.resident-mode .resident-flat-grid > div strong {
-    font-size: 1.15rem;
+    font-size: 2.44rem;
+    line-height: 1.2;
+  }
+
+  body.resident-mode .resident-privat-qr-note {
+    font-size: 1.35rem;
+    line-height: 1.25;
+  }
+
+  body.resident-mode .resident-pay-details > summary,
+  body.resident-mode .resident-pay-switch {
+    font-size: 1.5rem;
   }
 
   body.resident-mode .resident-viber-qr-img {
@@ -2174,5 +2523,55 @@ body.resident-mode .resident-flat-grid > div strong {
   body.resident-mode .resident-history-block,
   body.resident-mode .resident-flat-card {
     padding: 10px;
+  }
+}
+
+@media (max-width: 640px) {
+  .year-table {
+    border: none !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+  }
+
+  .year-table > table#main {
+    display: none !important;
+  }
+
+  .year-table > .mobile-history-cards {
+    display: block;
+    margin-top: 8px;
+  }
+
+  .mobile-year-summary-card,
+  .mobile-month-card {
+    border-radius: 10px;
+    padding: 10px;
+  }
+
+  .mobile-month-body {
+    grid-template-columns: 1fr;
+  }
+
+  .mobile-month-badge {
+    font-size: 0.9rem;
+    padding: 4px 8px;
+  }
+
+  .mobile-month-name {
+    font-size: 1.2rem;
+  }
+
+  .mobile-month-col h5 {
+    font-size: 1.12rem;
+  }
+
+  .mobile-charge-line > span,
+  .mobile-charge-line .mobile-line-detail-toggle {
+    font-size: 1.12rem;
+  }
+
+  .mobile-month-notes {
+    font-size: 1rem;
+    line-height: 1.35;
   }
 }

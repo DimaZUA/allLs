@@ -865,6 +865,356 @@ function addStuffResident(accountId) {
   return addStuffCore(accountId, true);
 }
 
+function fitResidentStatusPill() {
+  if (!document.body.classList.contains("resident-mode")) return;
+
+  const status = document.querySelector(".resident-overview-card .resident-status");
+  if (!status) return;
+  const pill = status.querySelector(".resident-status-pill-btn");
+  if (!pill) return;
+
+  if (!(window.matchMedia && window.matchMedia("(max-width: 640px)").matches)) {
+    pill.style.fontSize = "";
+    pill.style.paddingTop = "";
+    pill.style.paddingBottom = "";
+    pill.style.paddingLeft = "";
+    pill.style.paddingRight = "";
+    pill.classList.remove("is-truncated");
+    return;
+  }
+
+  // Always start from CSS defaults so repeated recalculations don't lock to previously shrunk inline size.
+  pill.style.fontSize = "";
+  pill.style.paddingTop = "";
+  pill.style.paddingBottom = "";
+  pill.style.paddingLeft = "";
+  pill.style.paddingRight = "";
+  pill.classList.remove("is-truncated");
+
+  const pillStyle = getComputedStyle(pill);
+  const maxFont = parseFloat(pillStyle.fontSize) || 16;
+  const minFont = Math.max(12, maxFont * 0.5);
+  const basePadX = parseFloat(pillStyle.paddingLeft) || 10;
+  const basePadY = parseFloat(pillStyle.paddingTop) || 3;
+  const borderX = (parseFloat(pillStyle.borderLeftWidth) || 0) + (parseFloat(pillStyle.borderRightWidth) || 0);
+  const text = String(pill.textContent || "").trim();
+  const letterSpacing = pillStyle.letterSpacing === "normal" ? 0 : (parseFloat(pillStyle.letterSpacing) || 0);
+
+  let lo = minFont;
+  let hi = maxFont;
+  let best = minFont;
+  let bestPadX = Math.max(4, basePadX * (minFont / maxFont));
+  let bestPadY = Math.max(2, basePadY * (minFont / maxFont));
+
+  const setPillSize = function (fontPx, padX, padY) {
+    pill.style.fontSize = `${fontPx}px`;
+    pill.style.paddingTop = `${padY}px`;
+    pill.style.paddingBottom = `${padY}px`;
+    pill.style.paddingLeft = `${padX}px`;
+    pill.style.paddingRight = `${padX}px`;
+  };
+
+  const measureCanvas = fitResidentStatusPill.__measureCanvas || (fitResidentStatusPill.__measureCanvas = document.createElement("canvas"));
+  const ctx = measureCanvas.getContext("2d");
+  if (!ctx) return;
+
+  const stylePart = pillStyle.fontStyle || "normal";
+  const variantPart = pillStyle.fontVariant || "normal";
+  const weightPart = pillStyle.fontWeight || "700";
+  const familyPart = pillStyle.fontFamily || "sans-serif";
+
+  const measureRequiredWidth = function (fontPx, padX) {
+    ctx.font = `${stylePart} ${variantPart} ${weightPart} ${fontPx}px ${familyPart}`;
+    const pureTextWidth = ctx.measureText(text).width;
+    const spacingWidth = letterSpacing > 0 ? Math.max(0, text.length - 1) * letterSpacing : 0;
+    return pureTextWidth + spacingWidth + (padX * 2) + borderX;
+  };
+
+  const availableWidth = Math.floor(pill.getBoundingClientRect().width);
+  const debugRows = [];
+  if (availableWidth <= 0) {
+    const retry = Number(pill.dataset.fitRetry || "0");
+    if (retry < 5) {
+      pill.dataset.fitRetry = String(retry + 1);
+      // Layout is not ready yet; retry on the next frame instead of freezing to minimal size.
+      window.requestAnimationFrame(fitResidentStatusPill);
+      return;
+    }
+    setPillSize(minFont, bestPadX, bestPadY);
+    pill.classList.add("is-truncated");
+    console.groupCollapsed("[resident-pill-fit] no width fallback");
+    console.log({
+      text,
+      availableWidth,
+      retry,
+      minFont,
+      maxFont,
+      basePadX,
+      basePadY,
+      borderX,
+      pillClientWidth: pill.clientWidth,
+      pillScrollWidth: pill.scrollWidth
+    });
+    console.groupEnd();
+    return;
+  }
+  pill.dataset.fitRetry = "0";
+
+  for (let i = 0; i < 16; i++) {
+    const mid = (lo + hi) / 2;
+    const scale = mid / maxFont;
+    const padX = Math.max(4, basePadX * scale);
+    const padY = Math.max(2, basePadY * scale);
+    setPillSize(mid, padX, padY);
+    const requiredWidth = measureRequiredWidth(mid, padX);
+    const fits = requiredWidth <= (availableWidth + 0.5);
+    debugRows.push({
+      i,
+      mid: Number(mid.toFixed(3)),
+      padX: Number(padX.toFixed(3)),
+      requiredWidth: Number(requiredWidth.toFixed(3)),
+      availableWidth,
+      fits
+    });
+    if (fits) {
+      best = mid;
+      bestPadX = padX;
+      bestPadY = padY;
+      lo = mid;
+    } else {
+      hi = mid;
+    }
+  }
+
+  setPillSize(best, bestPadX, bestPadY);
+  const finalRequiredWidth = measureRequiredWidth(best, bestPadX);
+  const isTruncated = finalRequiredWidth > (availableWidth + 0.5);
+  pill.classList.toggle("is-truncated", isTruncated);
+
+  console.groupCollapsed("[resident-pill-fit]");
+  console.log({
+    text,
+    maxFont,
+    minFont,
+    chosenFont: Number(best.toFixed(3)),
+    basePadX,
+    basePadY,
+    chosenPadX: Number(bestPadX.toFixed(3)),
+    chosenPadY: Number(bestPadY.toFixed(3)),
+    availableWidth,
+    finalRequiredWidth: Number(finalRequiredWidth.toFixed(3)),
+    isTruncated,
+    pillClientWidth: pill.clientWidth,
+    pillScrollWidth: pill.scrollWidth,
+    pillComputedFontSize: getComputedStyle(pill).fontSize
+  });
+  console.table(debugRows);
+  console.groupEnd();
+}
+
+function getMobileMonthShortUa(monthNumber) {
+  var names = [
+    "\u0441\u0456\u0447.",
+    "\u043B\u044E\u0442.",
+    "\u0431\u0435\u0440.",
+    "\u043A\u0432\u0456\u0442.",
+    "\u0442\u0440\u0430\u0432.",
+    "\u0447\u0435\u0440\u0432.",
+    "\u043B\u0438\u043F.",
+    "\u0441\u0435\u0440\u043F.",
+    "\u0432\u0435\u0440.",
+    "\u0436\u043E\u0432\u0442.",
+    "\u043B\u0438\u0441\u0442.",
+    "\u0433\u0440\u0443\u0434."
+  ];
+  var idx = Number(monthNumber) - 1;
+  return names[idx] || "";
+}
+
+function getResidentMonthShortLabel(monthNumber, yearNumber) {
+  var shortMonth = (getMobileMonthShortUa(monthNumber) || "").replace(/\.$/, "");
+  var shortYear = String(yearNumber || "").slice(-2);
+  return shortMonth && shortYear ? `${shortMonth} ${shortYear}` : `${monthNumber}.${yearNumber}`;
+}
+
+function getMobileBalanceMeta(balance, isCurrentMonth, monthYear, monthNumber) {
+  const n = Number(balance) || 0;
+  const abs = Math.abs(n).toFixedWithComma();
+  const y = Number(monthYear) || 0;
+  const m = Number(monthNumber) || 0;
+  const hasMonthCtx = !!(y && m);
+  const dayEnd = hasMonthCtx ? new Date(y, m, 0).getDate() : 0;
+  const shortMonth = hasMonthCtx ? getMobileMonthShortUa(m) : "";
+  const closedPrefix = hasMonthCtx ? `\u043D\u0430 ${dayEnd} ${shortMonth}` : "\u043D\u0430 \u043A\u0456\u043D\u0435\u0446\u044C \u043C\u0456\u0441\u044F\u0446\u044F";
+
+  if (n > 0) {
+    return {
+      cls: "debt",
+      short: isCurrentMonth ? "\u041E\u0447\u0456\u043A\u0443\u0432\u0430\u043D\u0430 \u0437\u0430\u0431\u043E\u0440\u0433\u043E\u0432\u0430\u043D\u0456\u0441\u0442\u044C" : "\u0417\u0430\u0431\u043E\u0440\u0433\u043E\u0432\u0430\u043D\u0456\u0441\u0442\u044C",
+      shortWithAmount: `${isCurrentMonth ? "\u041E\u0447\u0456\u043A\u0443\u0432\u0430\u043D\u0430 \u0437\u0430\u0431\u043E\u0440\u0433\u043E\u0432\u0430\u043D\u0456\u0441\u0442\u044C" : "\u0417\u0430\u0431\u043E\u0440\u0433\u043E\u0432\u0430\u043D\u0456\u0441\u0442\u044C"} ${abs} \u0433\u0440\u043D`,
+      footer: `${isCurrentMonth ? "\u041E\u0447\u0456\u043A\u0443\u0432\u0430\u043D\u0430 \u0437\u0430\u0431\u043E\u0440\u0433\u043E\u0432\u0430\u043D\u0456\u0441\u0442\u044C" : `${closedPrefix} \u0437\u0430\u0431\u043E\u0440\u0433\u043E\u0432\u0430\u043D\u0456\u0441\u0442\u044C:`} ${abs} \u0433\u0440\u043D`
+    };
+  }
+  if (n < 0) {
+    return {
+      cls: "credit",
+      short: isCurrentMonth ? "\u041E\u0447\u0456\u043A\u0443\u0432\u0430\u043D\u0430 \u043F\u0435\u0440\u0435\u043F\u043B\u0430\u0442\u0430" : "\u041F\u0435\u0440\u0435\u043F\u043B\u0430\u0442\u0430",
+      shortWithAmount: `${isCurrentMonth ? "\u041E\u0447\u0456\u043A\u0443\u0432\u0430\u043D\u0430 \u043F\u0435\u0440\u0435\u043F\u043B\u0430\u0442\u0430" : "\u041F\u0435\u0440\u0435\u043F\u043B\u0430\u0442\u0430"} ${abs} \u0433\u0440\u043D`,
+      footer: `${isCurrentMonth ? "\u041E\u0447\u0456\u043A\u0443\u0432\u0430\u043D\u0430 \u043F\u0435\u0440\u0435\u043F\u043B\u0430\u0442\u0430" : `${closedPrefix} \u043F\u0435\u0440\u0435\u043F\u043B\u0430\u0442\u0430:`} ${abs} \u0433\u0440\u043D`
+    };
+  }
+  return {
+    cls: "neutral",
+    short: "\u0417\u0430\u0431\u043E\u0440\u0433\u043E\u0432\u0430\u043D\u0456\u0441\u0442\u044C \u0432\u0456\u0434\u0441\u0443\u0442\u043D\u044F",
+    shortWithAmount: `\u0411\u0435\u0437 \u0431\u043E\u0440\u0433\u0443 0,00 \u0433\u0440\u043D`,
+    footer: `${isCurrentMonth ? "\u041E\u0447\u0456\u043A\u0443\u0432\u0430\u043D\u0438\u0439 \u0431\u0430\u043B\u0430\u043D\u0441" : `${closedPrefix} \u0431\u0435\u0437 \u0431\u043E\u0440\u0433\u0443:`} 0,00 \u0433\u0440\u043D`
+  };
+}
+
+function updateMobileMonthBadgeByState(card, meta) {
+  if (!card || !meta) return;
+  const badge = card.querySelector(".mobile-month-badge");
+  if (!badge) return;
+  if (card.open) {
+    badge.style.display = "none";
+    badge.textContent = "";
+  } else {
+    badge.style.display = "";
+    badge.textContent = meta.shortWithAmount || meta.short;
+  }
+}
+
+function formatMobilePaymentDate(rawDate) {
+  if (!rawDate) return "";
+  const s = String(rawDate).trim();
+  if (!s) return "";
+  return s;
+}
+
+function buildMobileYearCards(yearPayload) {
+  const host = document.createElement("div");
+  host.className = "mobile-history-cards";
+
+  const summary = yearPayload && yearPayload.summary ? yearPayload.summary : null;
+  const yearMonths = (yearPayload && Array.isArray(yearPayload.months)) ? yearPayload.months : [];
+  const summaryMeta = summary ? getMobileBalanceMeta(summary.closingBalance, false) : null;
+  const summaryFinalText = summary
+    ? (Number(summary.closingBalance) > 0
+      ? `На кінець року: заборгованість ${Math.abs(Number(summary.closingBalance) || 0).toFixedWithComma()} грн`
+      : (Number(summary.closingBalance) < 0
+        ? `На кінець року: переплата ${Math.abs(Number(summary.closingBalance) || 0).toFixedWithComma()} грн`
+        : "На кінець року: заборгованість відсутня"))
+    : "";
+
+  if (summary) {
+    const openingLabel = summary.openingBalance > 0
+      ? "Вхідний борг на початок року"
+      : (summary.openingBalance < 0 ? "Вхідна переплата на початок року" : "Вхідний баланс на початок року");
+    const summaryCard = document.createElement("section");
+    summaryCard.className = "mobile-year-summary-card";
+    summaryCard.innerHTML = `
+      <h4>${yearPayload.year} рік</h4>
+      <div class="mobile-year-summary-grid">
+        <span>${openingLabel}:</span><strong>${Math.abs(summary.openingBalance).toFixedWithComma()} грн</strong>
+      </div>
+    `;
+    host.appendChild(summaryCard);
+  }
+
+  let summaryInsertAfterIndex = yearMonths.length - 1;
+  if (summaryInsertAfterIndex >= 0 && yearMonths[summaryInsertAfterIndex] && yearMonths[summaryInsertAfterIndex].isCurrent) {
+    summaryInsertAfterIndex -= 1;
+  }
+
+  const appendYearTailSummary = function () {
+    if (!summary) return;
+    const tail = document.createElement("section");
+    tail.className = "mobile-year-summary-card mobile-year-tail-summary";
+    tail.innerHTML = `
+      <div class="mobile-year-summary-grid">
+        <span>Усього нараховано:</span><strong>${(Number(summary.accrued) || 0).toFixedWithComma()} грн</strong>
+        <span>Сплачено:</span><strong>${(Number(summary.paid) || 0).toFixedWithComma()} грн</strong>
+      </div>
+      <div class="mobile-year-summary-final mobile-balance-${summaryMeta.cls}">${summaryFinalText}</div>
+    `;
+    host.appendChild(tail);
+  };
+
+  if (summary && yearMonths.length === 0) {
+    appendYearTailSummary();
+  }
+  if (summary && yearMonths.length > 0 && summaryInsertAfterIndex < 0) {
+    appendYearTailSummary();
+  }
+
+  yearMonths.forEach(function (month, monthIndex) {
+    const meta = getMobileBalanceMeta(month.balance, !!month.isCurrent, month.year, month.month);
+    const card = document.createElement("details");
+    card.className = `mobile-month-card mobile-balance-${meta.cls}${month.isCurrent ? " current-month" : ""}`;
+    card.open = true;
+
+    const chargesHtml = (month.charges || [])
+      .filter(function (c) { return Number(c.value) !== 0; })
+      .map(function (c) {
+        const detail = String(c.detail || "").trim();
+        if (!detail) {
+          return `<div class="mobile-month-line-wrap"><div class="mobile-month-line mobile-charge-line"><span>${c.name}</span><strong>${(Number(c.value) || 0).toFixedWithComma()} грн</strong></div></div>`;
+        }
+        return `<div class="mobile-month-line-wrap mobile-month-line-wrap-detail"><div class="mobile-month-line mobile-charge-line"><button type="button" class="mobile-line-detail-toggle" aria-expanded="false"><span class="mobile-line-detail-name">${c.name}</span><span class="mobile-line-detail-icon">\u24D8</span></button><strong>${(Number(c.value) || 0).toFixedWithComma()} грн</strong></div><div class="mobile-line-detail-body" hidden>${detail.replace(/\n/g, "<br>")}</div></div>`;
+      }).join("");
+
+    const hasPayments = (month.payments || []).length > 0;
+    const paymentsHtml = hasPayments
+      ? month.payments.map(function (p) {
+          const sum = (Number(p && p.sum) || 0).toFixedWithComma();
+          const date = formatMobilePaymentDate(p && p.date);
+          return `<div class="mobile-month-line mobile-payment-line"><span>${date || "Оплата"}</span><strong>${sum} грн</strong></div>`;
+        }).join("")
+      : "";
+    const paymentsColHtml = hasPayments
+      ? `<div class="mobile-month-col">
+          <h5>Сплачено</h5>
+          ${paymentsHtml}
+        </div>`
+      : "";
+
+    const monthTag = month.isCurrent ? `<span class="mobile-month-tag">попередньо</span>` : "";
+    card.innerHTML = `
+      <summary>
+        <span class="mobile-month-name">${month.title}${monthTag}</span>
+        <span class="mobile-month-badge mobile-balance-${meta.cls}">${meta.short}</span>
+      </summary>
+      <div class="mobile-month-body">
+        <div class="mobile-month-col">
+          ${chargesHtml || `<div class="mobile-month-empty">Нарахувань не було</div>`}
+        </div>
+        ${paymentsColHtml}
+      </div>
+      <div class="mobile-month-footer mobile-balance-${meta.cls}">${meta.footer}</div>
+    `;
+    updateMobileMonthBadgeByState(card, meta);
+    card.addEventListener("toggle", function () {
+      updateMobileMonthBadgeByState(card, meta);
+    });
+
+    if ((month.notes || []).length) {
+      const noteWrap = document.createElement("div");
+      noteWrap.className = "mobile-month-notes";
+      noteWrap.innerHTML = month.notes.map(function (n) {
+        return `<div class="tarif-note-line">• ${String(n || "").trim()}</div>`;
+      }).join("");
+      card.appendChild(noteWrap);
+    }
+
+    host.appendChild(card);
+    if (summary && monthIndex === summaryInsertAfterIndex) {
+      appendYearTailSummary();
+    }
+  });
+
+  return host;
+}
+
 function addStuffCore(accountId, isResidentMode) {
   var accountData = nach[accountId] || {}; // Данные для указанного accountId
   var paymentData = oplat[accountId] || {}; // Данные оплат для указанного accountId
@@ -905,6 +1255,12 @@ if (payUrl && !isResidentMode) {
   const lsHeadEl = document.getElementById("ls-head");
   if (lsHeadEl) {
     lsHeadEl.textContent = curLS.ls || "—";
+  }
+  const lsHeadLineEl = document.getElementById("line-ls-head");
+  if (lsHeadLineEl && isResidentMode) {
+    const kvNorm = String(curLS.kv || "").trim().toLowerCase();
+    const lsNorm = String(curLS.ls || "").trim().toLowerCase();
+    lsHeadLineEl.classList.toggle("same-as-kv", !!kvNorm && !!lsNorm && kvNorm === lsNorm);
   }
   if (!accountData) {
     container.innerHTML = "<p>Дані для ID " + accountId + " не знайдено.</p>";
@@ -999,6 +1355,7 @@ if (payUrl && !isResidentMode) {
     var yearLabel = document.createElement("label");
     var yearContent = document.createElement("div");
     var openingBalanceForYear = cumulativeBalance;
+    var yearMobilePayload = { year: year, months: [], summary: null };
 
     // Настройка чекбокса для разворачивания/сворачивания
     yearToggle.className = "toggle-box";
@@ -1023,6 +1380,7 @@ if (payUrl && !isResidentMode) {
     // Заголовок таблицы
     var headerRow = document.createElement("tr");
 const servicesCount = [...services].filter(n => n !== "7").length;
+const compactResidentMonthLabel = isResidentMode && servicesCount >= 3;
 
 headerRow.innerHTML = `
   <td rowspan="2" align="center" class="clickable">Місяць</td>
@@ -1105,9 +1463,13 @@ if (cumulativeBalance !== 0) {
       var prevMonthTransactions = getPrevMonthTransactions(accountData, year, _month);
       var monthTarifNotes = buildTarifMonthNotes(year, _month, transactions, prevMonthTransactions, curLS, isResidentMode);
       var row = document.createElement("tr");
-      var monthTitleText = `${getMonthName(_month)} ${year}`;
+      var fullMonthTitleText = `${getMonthName(_month)} ${year}`;
+      var monthTitleText = compactResidentMonthLabel
+        ? getResidentMonthShortLabel(_month, year)
+        : fullMonthTitleText;
       row.innerHTML = `<td align="LEFT">${monthTitleText}${isResidentMode && cur ? '<div class="resident-current-month-note">попередньо</div>' : ""}</td>`;
       var rowCharges = {};
+      var monthChargesForMobile = [];
       var monthlyChargesTotal = 0;
       services.forEach(function (serviceId) {
         var charge = transactions[serviceId] || 0;
@@ -1118,12 +1480,16 @@ if (cumulativeBalance !== 0) {
       // Добавляем начисления по каждой услуге в строку
       services.forEach(function (serviceId) {
         var charge = rowCharges[serviceId];
+        var mobileDetail = "";
         var cell = document.createElement("td");
         if (serviceId == 1 && rowCharges[7]) charge += rowCharges[7];
         cell.textContent = charge != 0 ? charge.toFixedWithComma() : "";
         if (serviceId == 1 && rowCharges[7]) {
-          cell.className = "poster"; // Добавляем класс оформления
-          cell.innerHTML = `${charge.toFixedWithComma()}<div class="descr">Утримання будинку:${rowCharges[1].toFixedWithComma()} грн.<br>Вивіз ТПВ:${rowCharges[7].toFixedWithComma()} грн.</div>`;
+          cell.className = "poster"; // merged service tooltip
+          var s1Name = us[1] || "\u0423\u0442\u0440\u0438\u043c\u0430\u043d\u043d\u044f \u0431\u0443\u0434\u0438\u043d\u043a\u0443";
+          var s7Name = us[7] || "\u0412\u0438\u0432\u0456\u0437 \u0422\u041f\u0412";
+          cell.innerHTML = `${charge.toFixedWithComma()}<div class="descr">${s1Name}:${rowCharges[1].toFixedWithComma()} \u0433\u0440\u043d.<br>${s7Name}:${rowCharges[7].toFixedWithComma()} \u0433\u0440\u043d.</div>`;
+          mobileDetail = `${s1Name}: ${(Number(rowCharges[1]) || 0).toFixedWithComma()} \u0433\u0440\u043d.\n${s7Name}: ${(Number(rowCharges[7]) || 0).toFixedWithComma()} \u0433\u0440\u043d.`;
         }
         if (serviceId == 13){
         const val = nachnote?.[accountId]?.[year]?.[_month]?.[13];
@@ -1136,9 +1502,18 @@ if (cumulativeBalance !== 0) {
           //console.log(noteText);
           cell.className = "poster"; // Добавляем класс оформления
           cell.innerHTML = `${charge.toFixedWithComma()}<div class="descr">${noteText.replace(/\n/g, "<br>")}</div>`;
+          mobileDetail = noteText;
         }
         }
-        if (serviceId != 7) row.appendChild(cell);
+        if (serviceId != 7) {
+          row.appendChild(cell);
+          monthChargesForMobile.push({
+            id: serviceId,
+            name: us[serviceId] || `Услуга ${serviceId}`,
+            value: Number(charge) || 0,
+            detail: mobileDetail
+          });
+        }
       });
       // Получаем данные оплат за текущий месяц
       var monthlyPayments =
@@ -1159,20 +1534,33 @@ if (cumulativeBalance !== 0) {
 
       // Добавляем ячейку с долгом/переплатой
       var balanceCell = document.createElement("td");
+      var monthBalanceForMobile = 0;
       if (cur) {
-        balanceCell.textContent = (
+        monthBalanceForMobile = (
           cumulativeBalance +
           monthlyChargesTotal -
           totalPayments
-        ).toFixedWithComma();
+        );
+        balanceCell.textContent = monthBalanceForMobile.toFixedWithComma();
         if (cumulativeBalance + monthlyChargesTotal - totalPayments > 0)
           balanceCell.classList.add("red");
         else balanceCell.classList.add("green");
       } else {
+        monthBalanceForMobile = cumulativeBalance;
         balanceCell.textContent = cumulativeBalance.toFixedWithComma();
         if (cumulativeBalance > 0) balanceCell.classList.add("red");
         else balanceCell.classList.add("green");
       }
+      yearMobilePayload.months.push({
+        year: Number(year),
+        month: Number(_month),
+        title: fullMonthTitleText,
+        isCurrent: !!cur,
+        charges: monthChargesForMobile,
+        payments: monthlyPayments.slice(),
+        balance: Number(monthBalanceForMobile) || 0,
+        notes: monthTarifNotes.slice()
+      });
       row.appendChild(balanceCell);
       var noteRows = buildTarifNoteRows(monthTarifNotes, row.children.length, cur);
       if (noteRows.length) {
@@ -1201,7 +1589,7 @@ if (cumulativeBalance !== 0) {
       // Если несколько услуг
       var totalRow = document.createElement("tr");
       totalRow.classList.add("itog");
-totalRow.innerHTML =`<td rowspan="2" align="center">Разом за ${year} рік</td>`;
+totalRow.innerHTML =`<td rowspan="2" align="center" class="year-total-title">Разом за ${year} рік</td>`;
 
       // Итог по каждой услуге
       services.forEach(function (serviceId) {
@@ -1249,8 +1637,7 @@ chargesSummaryRow.innerHTML =
       // Если одна услуга
       var _totalRow = document.createElement("tr");
       _totalRow.classList.add("itog");
-_totalRow.innerHTML =
-  `<td align="left">Разом за ${year} рік</td>`;
+_totalRow.innerHTML =`<td align="left" class="year-total-title">Разом за ${year} рік</td>`;
 
 
       // Итог начислений по единственной услуге
@@ -1339,6 +1726,8 @@ if (latestTarifSummaryNotes.length) {
       paid: totalPaymentsForYear,
       closingBalance: cumulativeBalance
     };
+    yearMobilePayload.summary = yearSummaries[year];
+    yearContent.appendChild(buildMobileYearCards(yearMobilePayload));
 
     lastYearToggle = yearToggle; // Сохраняем чекбокс последнего года
   };
@@ -1627,6 +2016,16 @@ if (toggleToOpen) {
       statusToggleBtn.onclick = function () {
         setStatusDetailsOpen(statusDetails.hidden);
       };
+    }
+    window.requestAnimationFrame(fitResidentStatusPill);
+    if (!window.__residentStatusFitBound) {
+      window.__residentStatusFitBound = true;
+      window.addEventListener("resize", function () {
+        window.requestAnimationFrame(fitResidentStatusPill);
+      });
+      window.addEventListener("orientationchange", function () {
+        window.requestAnimationFrame(fitResidentStatusPill);
+      });
     }
 
     const paySlot = document.getElementById("resident-pay-slot");
@@ -2614,7 +3013,7 @@ function initLS() {
           </div>
 
           ${isResidentMode ? `
-          <div class="line">
+          <div class="line line-ls-head" id="line-ls-head">
             <span class="label">Особовий рахунок:</span>
             <span class="value" id="ls-head">—</span>
           </div>
@@ -3977,6 +4376,22 @@ window.addEventListener("scroll", updateHeaderCompactState, { passive: true });
 window.addEventListener("load", updateResidentAddressLayout);
 window.addEventListener("resize", updateResidentAddressLayout);
 document.addEventListener("click", function (e) {
+    const detailBtn = e.target.closest(".mobile-line-detail-toggle");
+    if (detailBtn) {
+      const wrap = detailBtn.closest(".mobile-month-line-wrap-detail");
+      const body = wrap ? wrap.querySelector(".mobile-line-detail-body") : null;
+      if (!body) return;
+      const isOpen = !body.hasAttribute("hidden");
+      if (isOpen) {
+        body.setAttribute("hidden", "");
+        detailBtn.setAttribute("aria-expanded", "false");
+      } else {
+        body.removeAttribute("hidden");
+        detailBtn.setAttribute("aria-expanded", "true");
+      }
+      return;
+    }
+
     const label = e.target.closest("label[for^='block-']");
     if (!label) return;
 
@@ -3990,5 +4405,4 @@ document.addEventListener("click", function (e) {
     // (опционально) подсветка активной кнопки
     label.classList.toggle("active", table.classList.contains("active"));
 });
-
 

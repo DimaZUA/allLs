@@ -73,10 +73,11 @@ function canShareImageFiles() {
 
 
 function buildButtonsHtml(canvasOK) {
+    const mobile = isMobile();
     let thirdButton = "";
 
     if (canvasOK) {
-        if (isMobile() && CAN_SHARE_IMAGE) {
+        if (mobile && CAN_SHARE_IMAGE) {
             thirdButton =
                 '  <button onclick="captureAndShare()" class="xls-button" title="Поделиться">\n' +
                 '    <img src="img/share.png" class="xls-icon">\n' +
@@ -89,14 +90,17 @@ function buildButtonsHtml(canvasOK) {
         }
     }
 
-    return (
-        '\n<div class="buttons-container">\n' +
+    const desktopButtons =
         '  <button onclick="exportTableToExcel(\'download\')" class="xls-button" title="Скачать в Excel">\n' +
         '    <img src="img/xlsdownload.png" class="xls-icon">\n' +
         '  </button>\n' +
         '  <button onclick="exportTableToExcel(\'clipboard\')" class="xls-button" title="Копировать">\n' +
         '    <img src="img/copy.svg" class="xls-icon">\n' +
-        '  </button>\n' +
+        '  </button>\n';
+
+    return (
+        '\n<div class="buttons-container">\n' +
+        (mobile ? "" : desktopButtons) +
         thirdButton +
         '</div>\n'
     );
@@ -1691,7 +1695,9 @@ function renderTableToCanvas() {
     var mainContainer = document.getElementById("maincontainer");
 
     var tables = Array.from(
-      mainContainer.querySelectorAll("#banktable, #paytable, .main, #main")
+      mainContainer.querySelectorAll(
+        ".year-table .mobile-history-cards, #banktable, #paytable, table#main, .main, #main"
+      )
     ).filter(function (el) {
       while (el) {
         var style = window.getComputedStyle(el);
@@ -1714,30 +1720,55 @@ function renderTableToCanvas() {
 
     var mainTable = tables[0];
 
-    applyBorders(mainTable);
+    if (mainTable.tagName === "TABLE") {
+      applyBorders(mainTable);
+    }
 
-    mainTable.querySelectorAll("td[rowspan]").forEach(td => {
-      td.style.position = "relative";
-    });
+    if (mainTable.tagName === "TABLE") {
+      mainTable.querySelectorAll("td[rowspan]").forEach(td => {
+        td.style.position = "relative";
+      });
+    }
 
-    // ===== временный caption =====
+    // ===== временный caption / заголовок =====
+    var tmpTitleNode = null;
+    var monthCards = Array.from(mainTable.querySelectorAll("details.mobile-month-card"));
+    var monthCardOpenStates = monthCards.map(function (card) { return !!card.open; });
+    monthCards.forEach(function (card) { card.open = true; });
+    var openedDetailBodies = Array.from(mainTable.querySelectorAll(".mobile-line-detail-body:not([hidden])"));
+    openedDetailBodies.forEach(function (el) { el.setAttribute("hidden", ""); });
+    var expandedDetailButtons = Array.from(mainTable.querySelectorAll(".mobile-line-detail-toggle[aria-expanded='true']"));
+    expandedDetailButtons.forEach(function (btn) { btn.setAttribute("aria-expanded", "false"); });
     if (getParam("actionCode") == "accounts") {
       var address = document.getElementById("adr")?.innerText || "";
       var selectElement = document.getElementById("number");
       var apartmentNumber = selectElement ? selectElement.value.trim() : "";
       var fio = document.getElementById("fio")?.innerText || "";
 
-      var caption = document.createElement("caption");
-      caption.className = "tmp";
-      caption.style.captionSide = "top";
-      caption.style.textAlign = "center";
-      caption.style.fontSize = "18px";
-      caption.style.fontWeight = "600";
-      caption.style.padding = "8px 0 10px";
-      caption.style.lineHeight = "1.3";
-      caption.innerText = address + " " + apartmentNumber + ", " + fio;
-
-      mainTable.insertBefore(caption, mainTable.firstChild);
+      if (mainTable.tagName === "TABLE") {
+        var caption = document.createElement("caption");
+        caption.className = "tmp";
+        caption.style.captionSide = "top";
+        caption.style.textAlign = "center";
+        caption.style.fontSize = "18px";
+        caption.style.fontWeight = "600";
+        caption.style.padding = "8px 0 10px";
+        caption.style.lineHeight = "1.3";
+        caption.innerText = address + " " + apartmentNumber + ", " + fio;
+        mainTable.insertBefore(caption, mainTable.firstChild);
+        tmpTitleNode = caption;
+      } else {
+        var header = document.createElement("div");
+        header.className = "tmp";
+        header.style.textAlign = "center";
+        header.style.fontSize = "18px";
+        header.style.fontWeight = "600";
+        header.style.padding = "8px 0 10px";
+        header.style.lineHeight = "1.3";
+        header.innerText = address + " " + apartmentNumber + ", " + fio;
+        mainTable.insertBefore(header, mainTable.firstChild);
+        tmpTitleNode = header;
+      }
     }
 
     html2canvas(mainTable, {
@@ -1759,9 +1790,22 @@ console.log(
 
 
       // очистка временных элементов
-      document.querySelectorAll(".tmp").forEach(el => el.remove());
+      if (tmpTitleNode && tmpTitleNode.parentNode) {
+        tmpTitleNode.parentNode.removeChild(tmpTitleNode);
+      }
+      monthCards.forEach(function (card, idx) { card.open = monthCardOpenStates[idx]; });
+      openedDetailBodies.forEach(function (el) { el.removeAttribute("hidden"); });
+      expandedDetailButtons.forEach(function (btn) { btn.setAttribute("aria-expanded", "true"); });
       resolve(canvas);
-    }).catch(reject);
+    }).catch(err => {
+      if (tmpTitleNode && tmpTitleNode.parentNode) {
+        tmpTitleNode.parentNode.removeChild(tmpTitleNode);
+      }
+      monthCards.forEach(function (card, idx) { card.open = monthCardOpenStates[idx]; });
+      openedDetailBodies.forEach(function (el) { el.removeAttribute("hidden"); });
+      expandedDetailButtons.forEach(function (btn) { btn.setAttribute("aria-expanded", "true"); });
+      reject(err);
+    });
   });
 
 function applyBorders(table) {
