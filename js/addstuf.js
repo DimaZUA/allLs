@@ -146,7 +146,7 @@ function getMonthNameByCase(month, monthCase) {
 
 function getTarifUnitPhrase(formula) {
   const f = String(formula || "").trim().toUpperCase();
-  if (f === "SQR") return "за 1 м.кв.";
+  if (f === "SQR") return "за 1 м².";
   if (f === "PERS") return "з 1 мешканця.";
   return "";
 }
@@ -157,46 +157,170 @@ function formatTarifMoney(value) {
   return n.toFixedWithComma();
 }
 
-function buildTarifMonthNotes(year, month) {
+function getPrevMonthTransactions(accountData, year, month) {
+  const y = Number(year);
+  const m = Number(month);
+  if (!Number.isFinite(y) || !Number.isFinite(m)) return null;
+  const prevYear = m > 1 ? y : y - 1;
+  const prevMonth = m > 1 ? m - 1 : 12;
+  return ((accountData[String(prevYear)] || {})[String(prevMonth)] || null);
+}
+
+function pickBestTarifRowsForService(serviceRows, serviceId, currentCharge, accountMeta) {
+  if (!Array.isArray(serviceRows) || serviceRows.length <= 1) return serviceRows || [];
+
+  const area = Number((accountMeta && accountMeta.pl) || 0);
+  const persons = Number((accountMeta && accountMeta.pers) || 0);
+  const charge = Number(currentCharge);
+  if (!Number.isFinite(charge)) return serviceRows;
+
+  const candidates = [];
+  serviceRows.forEach(function (row) {
+    const formula = String(row && row.formula || "").trim().toUpperCase();
+    const tarif = Number(row && row.tarif);
+    if (!Number.isFinite(tarif) || tarif === -1) return;
+    let factor = NaN;
+    if (formula === "SQR" && area > 0) factor = area;
+    if (formula === "PERS" && persons > 0) factor = persons;
+    if (!Number.isFinite(factor)) return;
+    const expected = tarif * factor;
+    const diff = Math.abs(expected - charge);
+    const factTarif = charge / factor;
+    const diffPerUnit = Math.abs(factTarif - tarif);
+    candidates.push({ row: row, diff: diff, diffPerUnit: diffPerUnit });
+  });
+
+  if (!candidates.length) return serviceRows;
+
+  candidates.sort(function (a, b) {
+    return a.diffPerUnit - b.diffPerUnit;
+  });
+
+  const best = candidates[0];
+  const second = candidates[1];
+  if (best && best.diffPerUnit <= 0.01 + 1e-9) {
+    return [best.row];
+  }
+
+  if (best && !second) {
+    return [best.row];
+  }
+
+  // Fallback for rounded area/persons or minor legacy posting drift:
+  // when one candidate is clearly closer than the next one, use it.
+  if (best && second && best.diffPerUnit * 2 <= second.diffPerUnit) {
+    return [best.row];
+  }
+
+  return serviceRows;
+}
+
+function getTarifRowsByService(source, y, m, monthTransactions, isResidentMode) {
+  const byService = {};
+  const pushRow = function (serviceId, row) {
+    const sid = String(serviceId || "").trim();
+    if (!sid || !row || typeof row !== "object") return;
+    if (!byService[sid]) byService[sid] = [];
+    byService[sid].push(row);
+  };
+  // Resident mode: for January 2025 use latest tariff rows (<= 01.2025)
+  // for services that are actually charged in January 2025.
+  if (isResidentMode && y === 2025 && m === 1) {
+    const chargedServices = Object.keys(monthTransactions || {}).filter(function (serviceId) {
+      const sid = String(serviceId || "").trim();
+      if (!sid || sid === "7") return false;
+      return Number((monthTransactions && monthTransactions[sid]) || 0) !== 0;
+    });
+    chargedServices.forEach(function (serviceId) {
+      const sid = String(serviceId);
+      const rowsForService = source.filter(function (row) {
+        if (!row || typeof row !== "object") return false;
+        if (String(row.us || "").trim() !== sid) return false;
+        const ry = Number(row.year);
+        const rm = Number(row.month);
+        if (!Number.isFinite(ry) || !Number.isFinite(rm)) return false;
+        return ry < y || (ry === y && rm <= m);
+      });
+      if (!rowsForService.length) return;
+      let latestPeriodKey = -Infinity;
+      rowsForService.forEach(function (row) {
+        const periodKey = Number(row.year) * 12 + Number(row.month);
+        if (Number.isFinite(periodKey) && periodKey > latestPeriodKey) latestPeriodKey = periodKey;
+      });
+      rowsForService.forEach(function (row) {
+        const periodKey = Number(row.year) * 12 + Number(row.month);
+        if (periodKey === latestPeriodKey) pushRow(sid, row);
+      });
+    });
+    return byService;
+  }
+  const monthRows = source.filter(function (row) {
+    return row && typeof row === "object" && Number(row.year) === y && Number(row.month) === m;
+  });
+  monthRows.forEach(function (row) {
+    pushRow(row.us, row);
+  });
+  return byService;
+}
+function buildTarifMonthNotes(year, month, monthTransactions, prevMonthTransactions, accountMeta, isResidentMode) {
   const source = Array.isArray(tarifs)
     ? tarifs
     : (tarifs && typeof tarifs === "object" ? Object.values(tarifs) : []);
-
   if (!source.length) return [];
-
   const y = Number(year);
   const m = Number(month);
   const out = [];
-
-  source.forEach(function (row) {
-    if (!row || typeof row !== "object") return;
-    if (Number(row.year) !== y || Number(row.month) !== m) return;
-
-    const serviceId = String(row.us || "").trim();
+  const isResidentStartMonth = !!isResidentMode && y === 2025 && m === 1;
+  const byService = getTarifRowsByService(source, y, m, monthTransactions, isResidentMode);
+  if (!Object.keys(byService).length) return out;
+  Object.keys(byService).forEach(function (serviceId) {
+    const serviceRows = byService[serviceId];
     const serviceName = String((us && us[serviceId]) || "").trim();
-    const noteText = String(row.note || "").trim().replace(/\s+/g, " ");
-    const unitPhrase = getTarifUnitPhrase(row.formula);
-    const tariffRaw = row.tarif;
-    const tariffNum = Number(tariffRaw);
-    const hasTariff = Number.isFinite(tariffNum) && tariffNum !== -1;
-    const tariffText = hasTariff ? formatTarifMoney(tariffNum) : "";
-    const monthGen = getMonthNameByCase(m, "gen");
-    const monthLoc = getMonthNameByCase(m, "loc");
-
+    const currentCharge = Number((monthTransactions && monthTransactions[serviceId]) || 0);
+    const previousCharge = Number((prevMonthTransactions && prevMonthTransactions[serviceId]) || 0);
     if (serviceId === "10") {
-      let text = `В ${monthLoc} ${y} р. було нараховано цільовий внесок`;
-      if (noteText) text += ` на ${noteText}`;
-      if (hasTariff) text += ` в розмірі ${tariffText} грн`;
-      if (unitPhrase) text += ` ${unitPhrase}`;
-      out.push(text + ".");
+      const targetCharge = Number((monthTransactions && monthTransactions[10]) || 0);
+      if (!(targetCharge > 0)) return;
+      serviceRows.forEach(function (row) {
+        const rowYear = Number(row.year) || y;
+        const rowMonth = Number(row.month) || m;
+        const rowMonthLoc = getMonthNameByCase(rowMonth, "loc");
+        const noteText = String(row.note || "").trim().replace(/\s+/g, " ");
+        const unitPhrase = getTarifUnitPhrase(row.formula);
+        const tariffNum = Number(row.tarif);
+        const hasTariff = Number.isFinite(tariffNum) && tariffNum !== -1;
+        const showTariffAmount = hasTariff && tariffNum !== 0 && tariffNum !== 1;
+        const tariffText = hasTariff ? formatTarifMoney(tariffNum) : "";
+        const noteHasTargetPhrase = /\u0426\u0456\u043B\u044C\u043E\u0432\u0438\u0439\s+\u0432\u043D\u0435\u0441\u043E\u043A/i.test(noteText);
+        let text = `\u0412 ${rowMonthLoc} ${rowYear} \u0440. \u0431\u0443\u043B\u043E \u043D\u0430\u0440\u0430\u0445\u043E\u0432\u0430\u043D\u043E`;
+        if (noteText) {
+          text += noteHasTargetPhrase ? ` ${noteText}` : ` \u0446\u0456\u043B\u044C\u043E\u0432\u0438\u0439 \u0432\u043D\u0435\u0441\u043E\u043A \u043D\u0430 ${noteText}`;
+        } else {
+          text += " \u0446\u0456\u043B\u044C\u043E\u0432\u0438\u0439 \u0432\u043D\u0435\u0441\u043E\u043A";
+        }
+        if (showTariffAmount) text += ` \u0432 \u0440\u043E\u0437\u043C\u0456\u0440\u0456 ${tariffText} \u0433\u0440\u043D`;
+        if (unitPhrase) text += ` ${unitPhrase}`;
+        out.push(text + ".");
+      });
       return;
     }
-
-    if (!unitPhrase || !hasTariff) return;
-    const title = serviceName || "внесок";
-    out.push(`З 1 ${monthGen} ${y} р. встановлено ${title} в розмірі ${tariffText} грн ${unitPhrase}`);
+    if (currentCharge === 0) return;
+    if (!isResidentStartMonth && currentCharge === previousCharge) return;
+    const rowsForOutput = pickBestTarifRowsForService(serviceRows, serviceId, currentCharge, accountMeta);
+    rowsForOutput.forEach(function (row) {
+      const rowYear = Number(row.year) || y;
+      const rowMonth = Number(row.month) || m;
+      const rowMonthGen = getMonthNameByCase(rowMonth, "gen");
+      const unitPhrase = getTarifUnitPhrase(row.formula);
+      const tariffNum = Number(row.tarif);
+      const hasTariff = Number.isFinite(tariffNum) && tariffNum !== -1;
+      const showTariffAmount = hasTariff && tariffNum !== 0 && tariffNum !== 1;
+      const tariffText = hasTariff ? formatTarifMoney(tariffNum) : "";
+      if (!unitPhrase || !showTariffAmount) return;
+      const title = serviceName || "\u0432\u043D\u0435\u0441\u043E\u043A";
+      out.push(`\u0417 1 ${rowMonthGen} ${rowYear} \u0440. \u0432\u0441\u0442\u0430\u043D\u043E\u0432\u043B\u0435\u043D\u043E ${title} \u0432 \u0440\u043E\u0437\u043C\u0456\u0440\u0456 ${tariffText} \u0433\u0440\u043D ${unitPhrase}`);
+    });
   });
-
   return out;
 }
 
@@ -217,6 +341,108 @@ function buildTarifNoteRows(notes, colSpan, isCurrentMonth) {
 
   row.appendChild(cell);
   return [row];
+}
+
+function buildTarifSummaryBlock(notes) {
+  if (!Array.isArray(notes) || !notes.length) return null;
+  const block = document.createElement("div");
+  block.className = "tarif-summary-tail";
+  block.innerHTML = notes.map(function (text) {
+    return `<div class="tarif-note-line">• ${String(text || "").trim()}</div>`;
+  }).join("");
+  return block;
+}
+
+function findLatestNonZeroChargeForService(yearData, serviceId) {
+  const months = Object.keys(yearData || {})
+    .map(function (monthKey) { return Number(monthKey); })
+    .filter(function (monthNum) { return Number.isFinite(monthNum) && monthNum >= 1 && monthNum <= 12; })
+    .sort(function (a, b) { return b - a; });
+
+  for (let i = 0; i < months.length; i += 1) {
+    const monthNum = months[i];
+    const monthTx = (yearData && yearData[String(monthNum)]) || {};
+    const charge = Number((monthTx && monthTx[String(serviceId)]) || 0);
+    if (Math.abs(charge) > 0.005) {
+      return { month: monthNum, charge: charge };
+    }
+  }
+
+  return null;
+}
+
+function buildLatestTarifSummaryNotesForYear(year, yearData, services, accountMeta) {
+  const source = Array.isArray(tarifs)
+    ? tarifs
+    : (tarifs && typeof tarifs === "object" ? Object.values(tarifs) : []);
+  if (!source.length) return [];
+
+  const y = Number(year);
+  const months = Object.keys(yearData || {})
+    .map(function (monthKey) { return Number(monthKey); })
+    .filter(function (monthNum) { return Number.isFinite(monthNum) && monthNum >= 1 && monthNum <= 12; })
+    .sort(function (a, b) { return b - a; });
+  if (!months.length) return [];
+
+  const latestMonth = months[0];
+  const latestPeriodKey = y * 12 + latestMonth;
+  const serviceIds = Array.from(services || []).filter(function (serviceId) {
+    const sid = String(serviceId || "").trim();
+    return sid && sid !== "10";
+  });
+
+  const out = [];
+  serviceIds.forEach(function (serviceId) {
+    const sid = String(serviceId);
+    const chargeInfo = findLatestNonZeroChargeForService(yearData, sid);
+    if (!chargeInfo) return;
+
+    const rowsForService = source.filter(function (row) {
+      if (!row || typeof row !== "object") return false;
+      if (String(row.us || "").trim() !== sid) return false;
+      const rowYear = Number(row.year);
+      const rowMonth = Number(row.month);
+      if (!Number.isFinite(rowYear) || !Number.isFinite(rowMonth)) return false;
+      const rowPeriodKey = rowYear * 12 + rowMonth;
+      return rowPeriodKey <= latestPeriodKey;
+    });
+    if (!rowsForService.length) return;
+
+    let latestTarifPeriodKey = -Infinity;
+    rowsForService.forEach(function (row) {
+      const rowPeriodKey = Number(row.year) * 12 + Number(row.month);
+      if (Number.isFinite(rowPeriodKey) && rowPeriodKey > latestTarifPeriodKey) latestTarifPeriodKey = rowPeriodKey;
+    });
+
+    const latestRows = rowsForService.filter(function (row) {
+      const rowPeriodKey = Number(row.year) * 12 + Number(row.month);
+      return rowPeriodKey === latestTarifPeriodKey;
+    });
+    if (!latestRows.length) return;
+
+    const chosenRows = pickBestTarifRowsForService(latestRows, sid, chargeInfo.charge, accountMeta);
+    const serviceName = String((us && us[sid]) || "").trim() || "\u0432\u043D\u0435\u0441\u043E\u043A";
+
+    chosenRows.forEach(function (row) {
+      const formula = String(row && row.formula || "").trim().toUpperCase();
+      if (formula !== "SQR" && formula !== "PERS") return;
+
+      const tariffNum = Number(row.tarif);
+      const hasTariff = Number.isFinite(tariffNum) && tariffNum !== -1;
+      const showTariffAmount = hasTariff && tariffNum !== 0 && tariffNum !== 1;
+      if (!showTariffAmount) return;
+
+      const rowYear = Number(row.year);
+      const rowMonth = Number(row.month);
+      const rowMonthGen = getMonthNameByCase(rowMonth, "gen");
+      const unitPhrase = getTarifUnitPhrase(formula);
+      const tariffText = formatTarifMoney(tariffNum);
+
+      out.push(`\u0417 1 ${rowMonthGen} ${rowYear} \u0440. \u0432\u0441\u0442\u0430\u043D\u043E\u0432\u043B\u0435\u043D\u043E ${serviceName} \u0432 \u0440\u043E\u0437\u043C\u0456\u0440\u0456 ${tariffText} \u0433\u0440\u043D ${unitPhrase}`);
+    });
+  });
+
+  return out;
 }
 
 function buildPrivat24PayUrl(homeToken, personalAccount) {
@@ -662,6 +888,7 @@ if (payUrl && !isResidentMode) {
   var historyHost = container;
   var historyContentHost = container;
   var residentHistoryDetails = null;
+  var lastYearTarifSummaryBlock = null;
 
   if (isResidentMode) {
     residentOverviewRoot = document.createElement("section");
@@ -835,7 +1062,8 @@ if (cumulativeBalance !== 0) {
 
       var transactions = accountData[year][_month];
       var cur = _month == currentMonth + 1 && year == currentYear;
-      var monthTarifNotes = buildTarifMonthNotes(year, _month);
+      var prevMonthTransactions = getPrevMonthTransactions(accountData, year, _month);
+      var monthTarifNotes = buildTarifMonthNotes(year, _month, transactions, prevMonthTransactions, curLS, isResidentMode);
       var row = document.createElement("tr");
       var monthTitleText = `${getMonthName(_month)} ${year}`;
       row.innerHTML = `<td align="LEFT">${monthTitleText}${isResidentMode && cur ? '<div class="resident-current-month-note">попередньо</div>' : ""}</td>`;
@@ -907,15 +1135,18 @@ if (cumulativeBalance !== 0) {
       }
       row.appendChild(balanceCell);
       var noteRows = buildTarifNoteRows(monthTarifNotes, row.children.length, cur);
+      if (noteRows.length) {
+        row.classList.add("has-tarif-note");
+      }
       if (cur) {
         row.classList.add("grey");
         lastRow = row;
         lastRowExtraRows = noteRows;
       } else {
-        tbody.appendChild(row);
         noteRows.forEach(function (noteRow) {
           tbody.appendChild(noteRow);
         });
+        tbody.appendChild(row);
       }
     };
     for (var _month in accountData[year]) {
@@ -1015,10 +1246,15 @@ _totalRow.innerHTML =
       tbody.appendChild(_totalRow);
     }
     if (lastRow) {
-      tbody.appendChild(lastRow);
       lastRowExtraRows.forEach(function (noteRow) {
         tbody.appendChild(noteRow);
       });
+      tbody.appendChild(lastRow);
+    }
+    var latestTarifSummaryNotes = [];
+    var lastRenderedYear = yearsToRender[yearsToRender.length - 1];
+    if (String(year) === String(lastRenderedYear)) {
+      latestTarifSummaryNotes = buildLatestTarifSummaryNotesForYear(year, accountData[year] || {}, services, curLS);
     }
     table.appendChild(thead);
     table.appendChild(tbody);
@@ -1037,6 +1273,17 @@ yearBlock.appendChild(yearLabel);
 yearBlock.appendChild(yearContent);
 
 historyContentHost.appendChild(yearBlock);
+if (latestTarifSummaryNotes.length) {
+  var tarifSummaryBlock = buildTarifSummaryBlock(latestTarifSummaryNotes);
+  if (tarifSummaryBlock) {
+    if (isResidentMode) {
+      tarifSummaryBlock.classList.add("resident-history-note");
+      lastYearTarifSummaryBlock = tarifSummaryBlock;
+    } else {
+      historyContentHost.appendChild(tarifSummaryBlock);
+    }
+  }
+}
 
 //yearsBar.appendChild(yearToggle);
 //yearsBar.appendChild(yearLabel);
@@ -1073,6 +1320,9 @@ if (isResidentMode) {
   historyNote.className = "resident-history-note";
   historyNote.textContent = `* За ${historyNoteMonthName} ${currentYear} р. показано попередній розрахунок. Остаточна сума може змінитися після надходження та обробки оплат.`;
   historyContentHost.appendChild(historyNote);
+  if (lastYearTarifSummaryBlock) {
+    historyContentHost.appendChild(lastYearTarifSummaryBlock);
+  }
 }
 
 const preferredYearToggle = document.getElementById(`block-${currentYear}`);

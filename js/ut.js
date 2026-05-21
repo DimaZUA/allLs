@@ -867,10 +867,17 @@ function isElementVisible(el) {
   return true;
 }
 function parseCellValue2(value) {
-if (value === null || value === undefined || value.toString().trim() === ""||value==0) {
+if (value === null || value === undefined) {
     return null; // Именно null скажет ExcelJS, что ячейка пустая
   }
-  var trimmedValue = value.replace(/\u00A0/g, " ").trim();
+  var rawValue = String(value).replace(/\u00A0/g, " ").trim();
+  var compactValue = rawValue.replace(/[\s\u00A0\u202F]/g, "");
+  var isDashOnly = rawValue === "-" || rawValue === "–" || rawValue === "—";
+  var isZeroLike = /^[-+]?0+(?:[.,]0+)?$/.test(compactValue);
+  if (rawValue === "" || isDashOnly || isZeroLike) {
+    return null; // Именно null скажет ExcelJS, что ячейка пустая
+  }
+  var trimmedValue = rawValue;
 
   // Списки месяцев
   var monthNamesUA = [
@@ -1124,9 +1131,15 @@ async function exportTableToExcel(action = "download") {
         // Копия таблицы
         const tableCopy = table.cloneNode(true);
         tableCopy.querySelectorAll("tr[data-hidden-by-filter='1']").forEach(tr => tr.remove());
+        tableCopy.querySelectorAll("tr").forEach(tr => {
+            if (tr.classList.contains("tarif-note-row") || tr.querySelector(".tarif-note-line")) {
+                tr.remove();
+            }
+        });
 
         // Удаляем .descr
         tableCopy.querySelectorAll(".descr").forEach(el => el.remove());
+        tableCopy.querySelectorAll(".tarif-note-line").forEach(el => el.remove());
 
         // Обработка заголовков
         handleHeaders(tableCopy, ws);
@@ -1192,7 +1205,11 @@ async function exportTableToExcel(action = "download") {
 function handleRows(tableCopy, ws) {
   var tbody = tableCopy.querySelector("tbody");
   if (tbody) {
-  var rows = Array.from(tbody.querySelectorAll("tr")).filter(row => row.dataset.hiddenByFilter !== "1");
+  var rows = Array.from(tbody.querySelectorAll("tr")).filter(row =>
+    row.dataset.hiddenByFilter !== "1" &&
+    !row.classList.contains("tarif-note-row") &&
+    !row.querySelector(".tarif-note-line")
+  );
 
 
     var colorIndex = 0; // Индекс для смены цветов
@@ -1264,6 +1281,13 @@ function handleRows(tableCopy, ws) {
   }
 }
 function parseCellValue1(value) {
+  if (value === null || value === undefined) return "";
+  var rawValue = String(value).replace(/\u00A0/g, " ").trim();
+  var compactValue = rawValue.replace(/[\s\u00A0\u202F]/g, "");
+  var isDashOnly = rawValue === "-" || rawValue === "–" || rawValue === "—";
+  var isZeroLike = /^[-+]?0+(?:[.,]0+)?$/.test(compactValue);
+  if (rawValue === "" || isDashOnly || isZeroLike) return "";
+
   // Если значение является числом и не равно 0, пропускаем дальнейшую обработку
   if (typeof value === "number") {
     return value.toString().replace(".", ","); // Заменяем точку на запятую для чисел
@@ -1275,7 +1299,7 @@ function parseCellValue1(value) {
   }
 
   // Проверка, является ли значение валидной датой
-  var trimmedValue = value.trim();
+  var trimmedValue = rawValue;
   var date = new Date(trimmedValue);
 
   // Проверка на валидную дату
