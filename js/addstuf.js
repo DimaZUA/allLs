@@ -228,9 +228,28 @@ function getTarifRowsByService(source, y, m, monthTransactions, isResidentMode) 
   if (isResidentMode && y === 2025 && m === 1) {
     const chargedServices = Object.keys(monthTransactions || {}).filter(function (serviceId) {
       const sid = String(serviceId || "").trim();
-      if (!sid || sid === "7") return false;
+      if (!sid) return false;
       return Number((monthTransactions && monthTransactions[sid]) || 0) !== 0;
     });
+    const chargedSet = new Set(chargedServices.map(function (serviceId) {
+      return String(serviceId || "").trim();
+    }));
+    // Fallback for accounts where service 7 is merged into service 1 in month data.
+    // If January has service 1 but no explicit service 7 key, still include service 7
+    // when tariff settings for service 7 exist on/before January 2025.
+    if (chargedSet.has("1") && !chargedSet.has("7")) {
+      const hasService7Tarif = source.some(function (row) {
+        if (!row || typeof row !== "object") return false;
+        if (String(row.us || "").trim() !== "7") return false;
+        const ry = Number(row.year);
+        const rm = Number(row.month);
+        if (!Number.isFinite(ry) || !Number.isFinite(rm)) return false;
+        return ry < y || (ry === y && rm <= m);
+      });
+      if (hasService7Tarif) {
+        chargedSet.add("7");
+      }
+    }
     chargedServices.forEach(function (serviceId) {
       const sid = String(serviceId);
       const rowsForService = source.filter(function (row) {
@@ -252,6 +271,27 @@ function getTarifRowsByService(source, y, m, monthTransactions, isResidentMode) 
         if (periodKey === latestPeriodKey) pushRow(sid, row);
       });
     });
+    if (chargedSet.has("7") && !byService["7"]) {
+      const rowsForService7 = source.filter(function (row) {
+        if (!row || typeof row !== "object") return false;
+        if (String(row.us || "").trim() !== "7") return false;
+        const ry = Number(row.year);
+        const rm = Number(row.month);
+        if (!Number.isFinite(ry) || !Number.isFinite(rm)) return false;
+        return ry < y || (ry === y && rm <= m);
+      });
+      if (rowsForService7.length) {
+        let latestPeriodKey7 = -Infinity;
+        rowsForService7.forEach(function (row) {
+          const periodKey = Number(row.year) * 12 + Number(row.month);
+          if (Number.isFinite(periodKey) && periodKey > latestPeriodKey7) latestPeriodKey7 = periodKey;
+        });
+        rowsForService7.forEach(function (row) {
+          const periodKey = Number(row.year) * 12 + Number(row.month);
+          if (periodKey === latestPeriodKey7) pushRow("7", row);
+        });
+      }
+    }
     return byService;
   }
   const monthRows = source.filter(function (row) {
@@ -1543,19 +1583,27 @@ if (toggleToOpen) {
       <div class="resident-status resident-${meta.cls}">
         <span class="resident-status-left">
           <span class="resident-status-title">${statusHeadline}</span>
-          <span class="resident-status-pill resident-${meta.cls}">${statusText}</span>
+          <button
+            id="residentStatusToggle"
+            type="button"
+            class="resident-status-pill resident-status-pill-btn resident-${meta.cls}"
+            aria-controls="residentStatusDetails"
+            aria-expanded="false"
+          >${statusText}</button>
         </span>
         <strong>${moneyText(Math.abs(currentBalance))}</strong>
       </div>
       <div class="resident-overview-body">
         <div class="resident-overview-main">
-          ${balanceExplainHtml}
-          <div class="resident-overview-details">
-            <p>${openingBalanceLabel(summary.openingBalance)} ${moneyText(Math.abs(summary.openingBalance))}.</p>
-            <p>${periodLabel} було нараховано ${moneyText(summary.accrued)}.</p>
-            ${periodPaidLine}
-            ${currentMonthPaidLine}
-            <p><strong>${meta.currentLabel}: <span class="resident-${meta.cls}">${moneyText(Math.abs(currentBalance))}</span>.</strong></p>
+          <div id="residentStatusDetails" class="resident-status-details" hidden>
+            ${balanceExplainHtml}
+            <div class="resident-overview-details">
+              <p>${openingBalanceLabel(summary.openingBalance)} ${moneyText(Math.abs(summary.openingBalance))}.</p>
+              <p>${periodLabel} було нараховано ${moneyText(summary.accrued)}.</p>
+              ${periodPaidLine}
+              ${currentMonthPaidLine}
+              <p><strong>${meta.currentLabel}: <span class="resident-${meta.cls}">${moneyText(Math.abs(currentBalance))}</span>.</strong></p>
+            </div>
           </div>
           ${advisoryHtml}
           ${advisoryContactHtml}
@@ -1567,6 +1615,19 @@ if (toggleToOpen) {
         </div>
       </div>
     `;
+
+    const statusToggleBtn = document.getElementById("residentStatusToggle");
+    const statusDetails = document.getElementById("residentStatusDetails");
+    if (statusToggleBtn && statusDetails) {
+      const setStatusDetailsOpen = function (isOpen) {
+        statusDetails.hidden = !isOpen;
+        statusToggleBtn.setAttribute("aria-expanded", isOpen ? "true" : "false");
+      };
+      setStatusDetailsOpen(false);
+      statusToggleBtn.onclick = function () {
+        setStatusDetailsOpen(statusDetails.hidden);
+      };
+    }
 
     const paySlot = document.getElementById("resident-pay-slot");
     const payBtn = document.getElementById("payLinkBtn");

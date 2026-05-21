@@ -1428,6 +1428,24 @@ body.resident-mode .resident-status-pill {
   background: #f6f9fc;
 }
 
+body.resident-mode .resident-status-pill-btn {
+  appearance: none;
+  -webkit-appearance: none;
+  border: 1px solid #cfd7e3;
+  margin: 0;
+  cursor: pointer;
+  text-align: left;
+}
+
+body.resident-mode .resident-status-pill-btn:hover {
+  filter: brightness(0.98);
+}
+
+body.resident-mode .resident-status-pill-btn:focus-visible {
+  outline: 2px solid rgba(32, 88, 186, 0.45);
+  outline-offset: 1px;
+}
+
 body.resident-mode .resident-status-group {
   display: grid;
   gap: 8px;
