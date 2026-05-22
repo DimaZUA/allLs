@@ -3038,7 +3038,7 @@ function initLS() {
     <div id="datetime"></div>
   `;
 
-  document.getElementById("adr").textContent = adr + " / ";
+  document.getElementById("adr").textContent = isResidentMode ? adr : (adr + " / ");
   const orgHead = document.getElementById("org-head");
   if (orgHead) orgHead.textContent = String(org || "");
   updateResidentAddressLayout();
@@ -3061,14 +3061,16 @@ function initLS() {
     if (!ind || !ls[ind]) return;
 
     if (input) {
-      const numberText = document.createElement("span");
-      numberText.id = "number-static";
-      numberText.className = "number-static";
-      numberText.textContent = ls[ind].kv || "";
-      input.replaceWith(numberText);
+      input.remove();
     }
     if (list) {
       list.remove();
+    }
+
+    const adrEl = document.getElementById("adr");
+    if (adrEl) {
+      const kvText = String(ls[ind].kv || "").trim();
+      adrEl.textContent = kvText ? `${adr}\u00A0/\u00A0${kvText}` : String(adr || "");
     }
 
     addStuff(ind);
@@ -4308,7 +4310,11 @@ function updateResidentAddressLayout() {
   const orgWidth = measureTextWidth(orgEl, orgEl.textContent || "");
   const needed = labelWidth + valueWidth + orgWidth + gap * 2;
 
-  if (needed > available + 2) {
+  const hasVisibleOverflow =
+    (orgEl.scrollWidth > orgEl.clientWidth + 1) ||
+    (value.scrollWidth > value.clientWidth + 1);
+
+  if (needed > available + 2 || hasVisibleOverflow) {
     line.classList.add("org-stacked");
   }
 }
