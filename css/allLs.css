@@ -313,7 +313,7 @@ table#main td {
 }
 #number{
   font-size: 1.5rem;
-  max-width: 200px
+  max-width: 100px
 }
 
 .number-static {
@@ -821,8 +821,8 @@ button:hover {
   }
 
   #number {
-    width: 92px;
-    max-width: 92px;
+    width: 50px;
+    max-width: 96px;
     font-size: 1.35rem;
   }
 
@@ -1319,6 +1319,13 @@ table#main thead {
   font-size: 1.2rem;
 }
 
+.mobile-year-tail-title {
+  margin: 0 0 8px;
+  font-size: 1.04rem;
+  font-weight: 700;
+  color: #1f2937;
+}
+
 .mobile-year-summary-grid {
   display: grid;
   grid-template-columns: 1fr auto;
@@ -1347,6 +1354,10 @@ table#main thead {
 
 .mobile-month-card summary::-webkit-details-marker {
   display: none;
+}
+
+.mobile-month-card.current-month {
+  opacity: 0.64;
 }
 
 .mobile-month-name {

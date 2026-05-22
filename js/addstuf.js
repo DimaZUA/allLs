@@ -1037,6 +1037,25 @@ function getResidentMonthShortLabel(monthNumber, yearNumber) {
   return shortMonth && shortYear ? `${shortMonth} ${shortYear}` : `${monthNumber}.${yearNumber}`;
 }
 
+function getMonthNameNomUaLower(monthNumber) {
+  var names = [
+    "\u0441\u0456\u0447\u0435\u043D\u044C",
+    "\u043B\u044E\u0442\u0438\u0439",
+    "\u0431\u0435\u0440\u0435\u0437\u0435\u043D\u044C",
+    "\u043A\u0432\u0456\u0442\u0435\u043D\u044C",
+    "\u0442\u0440\u0430\u0432\u0435\u043D\u044C",
+    "\u0447\u0435\u0440\u0432\u0435\u043D\u044C",
+    "\u043B\u0438\u043F\u0435\u043D\u044C",
+    "\u0441\u0435\u0440\u043F\u0435\u043D\u044C",
+    "\u0432\u0435\u0440\u0435\u0441\u0435\u043D\u044C",
+    "\u0436\u043E\u0432\u0442\u0435\u043D\u044C",
+    "\u043B\u0438\u0441\u0442\u043E\u043F\u0430\u0434",
+    "\u0433\u0440\u0443\u0434\u0435\u043D\u044C"
+  ];
+  var idx = Number(monthNumber) - 1;
+  return names[idx] || "";
+}
+
 function getMobileBalanceMeta(balance, isCurrentMonth, monthYear, monthNumber) {
   const n = Number(balance) || 0;
   const abs = Math.abs(n).toFixedWithComma();
@@ -1128,10 +1147,27 @@ function buildMobileYearCards(yearPayload) {
 
   const appendYearTailSummary = function () {
     if (!summary) return;
+    const openingLabel = summary.openingBalance > 0
+      ? "\u0412\u0445\u0456\u0434\u043D\u0438\u0439 \u0431\u043E\u0440\u0433 \u043D\u0430 \u043F\u043E\u0447\u0430\u0442\u043E\u043A \u0440\u043E\u043A\u0443"
+      : (summary.openingBalance < 0
+        ? "\u0412\u0445\u0456\u0434\u043D\u0430 \u043F\u0435\u0440\u0435\u043F\u043B\u0430\u0442\u0430 \u043D\u0430 \u043F\u043E\u0447\u0430\u0442\u043E\u043A \u0440\u043E\u043A\u0443"
+        : "\u0412\u0445\u0456\u0434\u043D\u0438\u0439 \u0431\u0430\u043B\u0430\u043D\u0441 \u043D\u0430 \u043F\u043E\u0447\u0430\u0442\u043E\u043A \u0440\u043E\u043A\u0443");
+
+    const closedMonths = yearMonths.filter(function (m) { return !m.isCurrent; });
+    const rangeSource = closedMonths.length ? closedMonths : yearMonths;
+    const firstRangeMonth = rangeSource.length ? Number(rangeSource[0].month) : 1;
+    const lastRangeMonth = rangeSource.length ? Number(rangeSource[rangeSource.length - 1].month) : 12;
+    const firstMonthName = getMonthNameNomUaLower(firstRangeMonth);
+    const lastMonthName = getMonthNameNomUaLower(lastRangeMonth);
+    const firstMonthCap = firstMonthName ? (firstMonthName.charAt(0).toUpperCase() + firstMonthName.slice(1)) : "";
+    const rangeTitle = `${firstMonthCap}-${lastMonthName} ${yearPayload.year}`;
+
     const tail = document.createElement("section");
     tail.className = "mobile-year-summary-card mobile-year-tail-summary";
     tail.innerHTML = `
+      <h5 class="mobile-year-tail-title">${rangeTitle}</h5>
       <div class="mobile-year-summary-grid">
+        <span>${openingLabel}:</span><strong>${Math.abs(Number(summary.openingBalance) || 0).toFixedWithComma()} грн</strong>
         <span>Усього нараховано:</span><strong>${(Number(summary.accrued) || 0).toFixedWithComma()} грн</strong>
         <span>Сплачено:</span><strong>${(Number(summary.paid) || 0).toFixedWithComma()} грн</strong>
       </div>
