@@ -1633,6 +1633,7 @@ body.resident-mode #din {
 
 body.resident-mode .resident-overview-card,
 body.resident-mode .resident-requisites-card,
+body.resident-mode .resident-spending-card,
 body.resident-mode .resident-viber-card,
 body.resident-mode .resident-history-block,
 body.resident-mode .resident-flat-card {
@@ -1647,6 +1648,7 @@ body.resident-mode .resident-flat-card {
 body.resident-mode .resident-overview-card h2,
 body.resident-mode .resident-history-details > summary,
 body.resident-mode .resident-requisites-details > summary,
+body.resident-mode .resident-spending-details > summary,
 body.resident-mode .resident-viber-details > summary,
 body.resident-mode .resident-flat-card h3 {
   font-size: 1.5rem;
@@ -1669,6 +1671,7 @@ body.resident-mode .resident-history-details > summary {
 
 body.resident-mode .resident-history-details > summary,
 body.resident-mode .resident-requisites-details > summary,
+body.resident-mode .resident-spending-details > summary,
 body.resident-mode .resident-viber-details > summary {
   list-style: none;
   display: flex;
@@ -1680,12 +1683,14 @@ body.resident-mode .resident-viber-details > summary {
 
 body.resident-mode .resident-history-details > summary::-webkit-details-marker,
 body.resident-mode .resident-requisites-details > summary::-webkit-details-marker,
+body.resident-mode .resident-spending-details > summary::-webkit-details-marker,
 body.resident-mode .resident-viber-details > summary::-webkit-details-marker {
   display: none;
 }
 
 body.resident-mode .resident-history-details > summary::after,
 body.resident-mode .resident-requisites-details > summary::after,
+body.resident-mode .resident-spending-details > summary::after,
 body.resident-mode .resident-viber-details > summary::after {
   content: "";
   margin-left: auto;
@@ -1699,6 +1704,7 @@ body.resident-mode .resident-viber-details > summary::after {
 
 body.resident-mode .resident-history-details[open] > summary::after,
 body.resident-mode .resident-requisites-details[open] > summary::after,
+body.resident-mode .resident-spending-details[open] > summary::after,
 body.resident-mode .resident-viber-details[open] > summary::after {
   transform: rotate(45deg);
 }
@@ -1718,6 +1724,7 @@ body.resident-mode .resident-inline-icon {
 body.resident-mode .resident-overview-card h2 > svg.lucide,
 body.resident-mode .resident-history-details > summary > svg.lucide,
 body.resident-mode .resident-requisites-details > summary > svg.lucide,
+body.resident-mode .resident-spending-details > summary > svg.lucide,
 body.resident-mode .resident-viber-details > summary > svg.lucide,
 body.resident-mode .resident-flat-card h3 > svg.lucide,
 body.resident-mode .resident-inline-icon > svg.lucide {
@@ -1729,6 +1736,166 @@ body.resident-mode .resident-inline-icon > svg.lucide {
 
 body.resident-mode .resident-viber-details > summary > svg.lucide {
   color: #7360f2;
+}
+
+body.resident-mode .resident-spending-body {
+  margin-top: 10px;
+  display: grid;
+  grid-template-columns: minmax(130px, 0.52fr) minmax(320px, 1.88fr);
+  gap: 12px;
+}
+
+body.resident-mode .resident-spending-panel {
+  border: 1px solid #dce3eb;
+  border-radius: 10px;
+  background: #f9fbfd;
+  padding: 12px;
+}
+
+body.resident-mode .resident-spending-results {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
+}
+
+body.resident-mode .resident-spending-years,
+body.resident-mode .resident-spending-months {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(64px, 1fr));
+  gap: 8px;
+}
+
+body.resident-mode .resident-spending-months {
+  margin-top: 10px;
+}
+
+body.resident-mode .resident-spending-chip {
+  border: 1px solid #cfd8e3;
+  border-radius: 10px;
+  background: #fff;
+  color: #243248;
+  font: inherit;
+  font-size: 0.96rem;
+  line-height: 1.2;
+  padding: 9px 8px;
+  cursor: pointer;
+}
+
+body.resident-mode .resident-spending-chip.is-active {
+  border-color: #7fb3ff;
+  background: #e8f2ff;
+  color: #1b4c8f;
+  font-weight: 700;
+}
+
+body.resident-mode .resident-spending-chip.is-empty,
+body.resident-mode .resident-spending-chip:disabled {
+  color: #9aa5b5;
+  background: #f5f7fb;
+  cursor: default;
+}
+
+body.resident-mode .resident-spending-caption {
+  margin-top: 14px;
+  color: #5f6d82;
+  display: grid;
+  gap: 4px;
+}
+
+body.resident-mode .resident-spending-caption-month {
+  color: #1f4f9e;
+  font-size: 1.15rem;
+}
+
+body.resident-mode .resident-spending-table {
+  border: 1px solid #dce3eb;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #fff;
+}
+
+body.resident-mode .resident-spending-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(170px, 180px) minmax(170px, 180px);
+  gap: 8px;
+  align-items: center;
+  padding: 10px 12px;
+  border-bottom: 1px solid #e7edf5;
+  color: #4e5f77;
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+body.resident-mode .resident-spending-head > strong {
+  text-align: center;
+  white-space: normal;
+  line-height: 1.2;
+}
+
+body.resident-mode .resident-spending-head > span {
+  text-align: left;
+}
+
+body.resident-mode .resident-spending-rows {
+  background: #fff;
+}
+
+body.resident-mode .resident-spending-desktop-list {
+  display: block;
+}
+
+body.resident-mode .resident-spending-mobile-list {
+  display: none;
+}
+
+body.resident-mode .resident-spending-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(170px, 180px) minmax(170px, 180px);
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid #e7edf5;
+  align-items: center;
+}
+
+body.resident-mode .resident-spending-row:last-child {
+  border-bottom: 0;
+}
+
+body.resident-mode .resident-spending-row > strong {
+  white-space: nowrap;
+  text-align: right;
+}
+
+body.resident-mode .resident-spending-label {
+  display: none;
+}
+
+body.resident-mode .resident-spending-name {
+  min-width: 0;
+}
+
+body.resident-mode .resident-spending-total {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(170px, 180px) minmax(170px, 180px);
+  gap: 8px;
+  align-items: center;
+  padding: 12px;
+  border-top: 1px solid #dce3eb;
+  background: #f7fafc;
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+body.resident-mode .resident-spending-total > strong {
+  text-align: right;
+  white-space: nowrap;
+}
+
+body.resident-mode .resident-spending-empty {
+  margin-top: 8px;
+  color: #6f7d90;
+  font-size: 0.95rem;
 }
 
 body.resident-mode .resident-status {
@@ -2599,6 +2766,7 @@ body.resident-mode .resident-flat-grid > div strong {
   body.resident-mode .resident-overview-card h2,
   body.resident-mode .resident-history-details > summary,
   body.resident-mode .resident-requisites-details > summary,
+  body.resident-mode .resident-spending-details > summary,
   body.resident-mode .resident-viber-details > summary,
   body.resident-mode .resident-flat-card h3 {
     font-size: 1.12rem;
@@ -2851,10 +3019,127 @@ body.resident-mode .resident-flat-grid > div strong {
 
   body.resident-mode .resident-overview-card,
   body.resident-mode .resident-requisites-card,
+  body.resident-mode .resident-spending-card,
   body.resident-mode .resident-viber-card,
   body.resident-mode .resident-history-block,
   body.resident-mode .resident-flat-card {
     padding: 10px;
+  }
+
+  body.resident-mode .resident-spending-body {
+    grid-template-columns: 1fr;
+  }
+
+  body.resident-mode .resident-spending-head {
+    display: none;
+  }
+
+  body.resident-mode .resident-spending-total {
+    display: none;
+  }
+
+  body.resident-mode .resident-spending-desktop-list {
+    display: none;
+  }
+
+  body.resident-mode .resident-spending-mobile-list {
+    display: grid;
+    gap: 10px;
+    padding: 0;
+  }
+
+  body.resident-mode .resident-spending-results {
+    border: 0;
+    background: transparent;
+    padding: 0;
+  }
+
+  body.resident-mode .resident-spending-table {
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+
+  body.resident-mode .resident-spending-mobile-card,
+  body.resident-mode .resident-spending-mobile-total-card {
+    border: 1px solid #dbe3ee;
+    border-radius: 10px;
+    background: #ffffff;
+    overflow: hidden;
+  }
+
+  body.resident-mode .resident-spending-mobile-card-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 10px 8px;
+  }
+
+  body.resident-mode .resident-spending-mobile-card-title {
+    font-size: 1.12rem;
+    line-height: 1.2;
+    color: #1f2b3a;
+  }
+
+  body.resident-mode .resident-spending-mobile-table-head,
+  body.resident-mode .resident-spending-mobile-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(112px, auto) minmax(96px, auto);
+    gap: 8px;
+    align-items: center;
+    padding: 6px 10px;
+  }
+
+  body.resident-mode .resident-spending-mobile-table-head {
+    border-top: 1px solid #e8edf4;
+    color: #7a8799;
+    font-size: 0.86rem;
+    font-weight: 600;
+  }
+
+  body.resident-mode .resident-spending-mobile-table-head > span:nth-child(2),
+  body.resident-mode .resident-spending-mobile-table-head > span:nth-child(3) {
+    text-align: right;
+  }
+
+  body.resident-mode .resident-spending-mobile-row {
+    border-top: 1px solid #eef2f7;
+  }
+
+  body.resident-mode .resident-spending-mobile-month {
+    font-size: 0.98rem;
+    color: #2d3d53;
+  }
+
+  body.resident-mode .resident-spending-mobile-amount,
+  body.resident-mode .resident-spending-mobile-share {
+    text-align: right;
+    font-size: 1.08rem;
+    line-height: 1.2;
+    white-space: nowrap;
+  }
+
+  body.resident-mode .resident-spending-mobile-total-rows {
+    display: grid;
+    gap: 2px;
+    padding: 0 10px 10px;
+  }
+
+  body.resident-mode .resident-spending-mobile-total-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: center;
+    font-size: 0.98rem;
+    color: #5d6d83;
+  }
+
+  body.resident-mode .resident-spending-mobile-total-row strong {
+    text-align: right;
+    font-size: 1.16rem;
+    color: #123d56;
+    white-space: nowrap;
   }
 }
 

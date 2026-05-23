@@ -793,6 +793,15 @@ function spendingMonthTitleLabel(monthNum) {
   return labels[Math.max(1, Math.min(12, Number(monthNum) || 1)) - 1];
 }
 
+function decodeStoredMonth(serialMonth) {
+  const n = Number(serialMonth);
+  if (!Number.isFinite(n)) return null;
+  const year = Math.floor((n - 1) / 12);
+  const month = n - year * 12;
+  if (!Number.isFinite(year) || !Number.isFinite(month) || month < 1 || month > 12) return null;
+  return { year: year, month: month };
+}
+
 function getSpendingMonthEntries(spendingDataByYear, yearKey, monthNum) {
   const yearData = spendingDataByYear && typeof spendingDataByYear === "object" ? spendingDataByYear[String(yearKey)] : null;
   if (!yearData || typeof yearData !== "object") return [];
@@ -824,13 +833,37 @@ function hasSpendingData(spendingPayload) {
   });
 }
 
-function renderResidentSpendingBlock(root, rawSpending) {
+function renderResidentSpendingBlock(root, rawSpending, accountMeta) {
   if (!root) return;
   root.innerHTML = "";
   root.style.display = "none";
 
   const spendingPayload = parseSpendingPayload(rawSpending);
   if (!hasSpendingData(spendingPayload)) return;
+
+  const parseNumeric = function (value) {
+    if (value === null || value === undefined) return NaN;
+    if (typeof value === "number") return Number.isFinite(value) ? value : NaN;
+    const normalized = String(value)
+      .replace(/\s+/g, "")
+      .replace(",", ".")
+      .replace(/[^0-9.\-]/g, "");
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) ? parsed : NaN;
+  };
+
+  const flatArea = parseNumeric(accountMeta && accountMeta.pl);
+  const homeTotalSqr = parseNumeric(
+    window.home_total_sqr ??
+    (window.residentHomeMeta && window.residentHomeMeta.home_total_sqr)
+  );
+  const shareFactor =
+    Number.isFinite(flatArea) &&
+    flatArea > 0 &&
+    Number.isFinite(homeTotalSqr) &&
+    homeTotalSqr > 0
+      ? flatArea / homeTotalSqr
+      : 0;
 
   root.style.display = "";
   root.innerHTML = `
@@ -842,16 +875,22 @@ function renderResidentSpendingBlock(root, rawSpending) {
           <div class="resident-spending-months"></div>
           <div class="resident-spending-caption">
             <strong class="resident-spending-caption-month"></strong>
-            <span>Загальні витрати будинку за місяць</span>
           </div>
         </div>
         <div class="resident-spending-panel resident-spending-results">
-          <div class="resident-spending-rows"></div>
-          <div class="resident-spending-total">
-            <span>Усього витрат</span>
-            <strong class="resident-spending-total-value"></strong>
+          <div class="resident-spending-table">
+            <div class="resident-spending-head">
+              <span></span>
+              <strong>Витрати будинку</strong>
+              <strong>Частка Вашої квартири</strong>
+            </div>
+            <div class="resident-spending-rows"></div>
+            <div class="resident-spending-total">
+              <span>Усього витрат</span>
+              <strong class="resident-spending-total-value"></strong>
+              <strong class="resident-spending-total-share"></strong>
+            </div>
           </div>
-          <div class="resident-spending-footnote">Показано загальні витрати будинку</div>
         </div>
       </div>
     </details>
@@ -865,7 +904,8 @@ function renderResidentSpendingBlock(root, rawSpending) {
   const rowsHost = root.querySelector(".resident-spending-rows");
   const captionMonthEl = root.querySelector(".resident-spending-caption-month");
   const totalEl = root.querySelector(".resident-spending-total-value");
-  if (!yearsHost || !monthsHost || !rowsHost || !captionMonthEl || !totalEl) return;
+  const totalShareEl = root.querySelector(".resident-spending-total-share");
+  if (!yearsHost || !monthsHost || !rowsHost || !captionMonthEl || !totalEl || !totalShareEl) return;
 
   const years = Object.keys(spendingPayload.data || {})
     .filter(function (y) { return /^\d{4}$/.test(String(y)); })
@@ -891,7 +931,9 @@ function renderResidentSpendingBlock(root, rawSpending) {
 
   function renderRows() {
     const entries = getSpendingMonthEntries(spendingPayload.data, state.year, state.month);
-    const grouped = new Map();
+    const groupedRows = new Map();
+    const categoryOrder = [];
+    let rowSeq = 0;
     let total = 0;
 
     entries.forEach(function (entry) {
@@ -902,27 +944,104 @@ function renderResidentSpendingBlock(root, rawSpending) {
 
       const idKey = String(rawId == null ? "" : rawId);
       const categoryName = String(spendingPayload.dict[idKey] || "").trim() || `Категорія ${idKey}`;
-      grouped.set(categoryName, normalizeMoney((grouped.get(categoryName) || 0) + amount));
+      if (!groupedRows.has(idKey)) {
+        groupedRows.set(idKey, []);
+        categoryOrder.push(idKey);
+      }
+      groupedRows.get(idKey).push({
+        baseName: categoryName,
+        amount: normalizeMoney(amount),
+        sortMonth: (function () {
+          const postedMonth = decodeStoredMonth(entry[2]);
+          return postedMonth && Number.isFinite(postedMonth.month) ? postedMonth.month : state.month;
+        })(),
+        seq: rowSeq++
+      });
       total = normalizeMoney(total + amount);
+    });
+
+    const orderedRows = [];
+    categoryOrder.forEach(function (idKey) {
+      const rows = (groupedRows.get(idKey) || []).slice().sort(function (a, b) {
+        if (a.sortMonth !== b.sortMonth) return a.sortMonth - b.sortMonth;
+        return a.seq - b.seq;
+      });
+      rows.forEach(function (row) {
+        orderedRows.push(row);
+      });
     });
 
     captionMonthEl.textContent = `${spendingMonthTitleLabel(state.month)} ${state.year}`;
     totalEl.textContent = `${Math.abs(total).toFixedWithComma()} грн`;
+    const totalShare = normalizeMoney(total * shareFactor);
+    totalShareEl.textContent = `${Math.abs(totalShare).toFixedWithComma()} грн`;
 
-    const items = Array.from(grouped.entries()).sort(function (a, b) {
-      return Math.abs(Number(b[1]) || 0) - Math.abs(Number(a[1]) || 0);
-    });
-
-    if (!items.length) {
+    if (!orderedRows.length) {
       rowsHost.innerHTML = '<div class="resident-spending-empty">Немає витрат за обраний місяць.</div>';
       return;
     }
 
-    rowsHost.innerHTML = items.map(function (item) {
-      const name = escapeHtml(item[0]);
-      const amount = `${Math.abs(Number(item[1]) || 0).toFixedWithComma()} грн`;
-      return `<div class="resident-spending-row"><span>${name}</span><strong>${amount}</strong></div>`;
+    const desktopRowsHtml = orderedRows.map(function (item) {
+      const monthSuffix = item.sortMonth > 1 ? ` за ${spendingMonthShortLabel(item.sortMonth)}.` : "";
+      const name = escapeHtml(`${item.baseName}${monthSuffix}`);
+      const amountNum = Number(item.amount) || 0;
+      const amount = `${Math.abs(amountNum).toFixedWithComma()} грн`;
+      const shareAmount = normalizeMoney(amountNum * shareFactor);
+      const shareText = `${Math.abs(shareAmount).toFixedWithComma()} грн`;
+      return `<div class="resident-spending-row"><span class="resident-spending-name">${name}</span><span class="resident-spending-label resident-spending-label-amount">Витрати будинку:</span><strong class="resident-spending-amount">${amount}</strong><span class="resident-spending-label resident-spending-label-share">Частка Вашої квартири:</span><strong class="resident-spending-share">${shareText}</strong></div>`;
     }).join("");
+
+    const monthLongLabel = function (monthNum) {
+      const labels = ["січень", "лютий", "березень", "квітень", "травень", "червень", "липень", "серпень", "вересень", "жовтень", "листопад", "грудень"];
+      const m = Math.max(1, Math.min(12, Number(monthNum) || 1));
+      return labels[m - 1];
+    };
+
+    const mobileGroupCards = categoryOrder.map(function (idKey) {
+      const rows = (groupedRows.get(idKey) || []).slice().sort(function (a, b) {
+        if (a.sortMonth !== b.sortMonth) return a.sortMonth - b.sortMonth;
+        return a.seq - b.seq;
+      });
+      if (!rows.length) return "";
+      const groupName = escapeHtml(rows[0].baseName || "");
+      const bodyRows = rows.map(function (row) {
+        const amountNum = Number(row.amount) || 0;
+        const amount = `${Math.abs(amountNum).toFixedWithComma()} грн`;
+        const shareAmount = normalizeMoney(amountNum * shareFactor);
+        const shareText = `${Math.abs(shareAmount).toFixedWithComma()} грн`;
+        return `<div class="resident-spending-mobile-row"><span class="resident-spending-mobile-month">${monthLongLabel(row.sortMonth)}</span><strong class="resident-spending-mobile-amount">${amount}</strong><strong class="resident-spending-mobile-share">${shareText}</strong></div>`;
+      }).join("");
+      return `
+        <section class="resident-spending-mobile-card">
+          <header class="resident-spending-mobile-card-head">
+            <strong class="resident-spending-mobile-card-title">${groupName}</strong>
+          </header>
+          <div class="resident-spending-mobile-table-head">
+            <span>Місяць</span>
+            <span>Витрати будинку</span>
+            <span>Ваша частка</span>
+          </div>
+          <div class="resident-spending-mobile-table-body">${bodyRows}</div>
+        </section>
+      `;
+    }).join("");
+
+    const mobileTotalCard = `
+      <section class="resident-spending-mobile-total-card">
+        <header class="resident-spending-mobile-card-head">
+          <strong class="resident-spending-mobile-card-title">Усього</strong>
+        </header>
+        <div class="resident-spending-mobile-total-rows">
+          <div class="resident-spending-mobile-total-row"><span>Витрати будинку</span><strong>${Math.abs(total).toFixedWithComma()} грн</strong></div>
+          <div class="resident-spending-mobile-total-row"><span>Частка Вашої квартири</span><strong>${Math.abs(totalShare).toFixedWithComma()} грн</strong></div>
+        </div>
+      </section>
+    `;
+
+    rowsHost.innerHTML = `
+      <div class="resident-spending-desktop-list">${desktopRowsHtml}</div>
+      <div class="resident-spending-mobile-list">${mobileGroupCards}${mobileTotalCard}</div>
+    `;
   }
 
   function renderMonths() {
@@ -1555,6 +1674,7 @@ if (payUrl && !isResidentMode) {
   var yearSummaries = {};
   var residentOverviewRoot = null;
   var residentRequisitesRoot = null;
+  var residentSpendingRoot = null;
   var residentViberRoot = null;
   var historyHost = container;
   var historyContentHost = container;
@@ -1580,6 +1700,10 @@ if (payUrl && !isResidentMode) {
     residentHistoryDetails = historyHost.querySelector(".resident-history-details");
     historyContentHost = historyHost.querySelector(".resident-history-content") || historyHost;
     container.appendChild(historyHost);
+
+    residentSpendingRoot = document.createElement("section");
+    residentSpendingRoot.className = "resident-spending-card";
+    container.appendChild(residentSpendingRoot);
 
     residentViberRoot = document.createElement("section");
     residentViberRoot.className = "resident-viber-card";
@@ -2408,6 +2532,10 @@ if (toggleToOpen) {
       if (recDetails) recDetails.open = true;
     }
 
+    if (residentSpendingRoot) {
+      renderResidentSpendingBlock(residentSpendingRoot, spending, curLS);
+    }
+
     if (residentViberRoot) {
       residentViberRoot.innerHTML = "";
       residentViberRoot.style.display = "none";
@@ -2495,9 +2623,6 @@ bindCopyButton("copyIbanBtn", function () {
     `;
 
 container.innerHTML = content;
-  if (isResidentMode) {
-    bindCopyRows(container.querySelector(".resident-flat-grid"));
-  }
   const changeBtn = document.getElementById("changeRequestBtn");
   if (changeBtn) {
     changeBtn.onclick = function () {
@@ -4750,4 +4875,5 @@ document.addEventListener("click", function (e) {
     // (опционально) подсветка активной кнопки
     label.classList.toggle("active", table.classList.contains("active"));
 });
+
 
