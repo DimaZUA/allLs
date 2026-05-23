@@ -929,41 +929,24 @@ function fitResidentStatusPill() {
   const minFont = Math.max(12, maxFont * 0.5);
   const basePadX = parseFloat(pillStyle.paddingLeft) || 10;
   const basePadY = parseFloat(pillStyle.paddingTop) || 3;
-  const borderX = (parseFloat(pillStyle.borderLeftWidth) || 0) + (parseFloat(pillStyle.borderRightWidth) || 0);
   const text = String(pill.textContent || "").trim();
-  const letterSpacing = pillStyle.letterSpacing === "normal" ? 0 : (parseFloat(pillStyle.letterSpacing) || 0);
 
   let lo = minFont;
   let hi = maxFont;
   let best = minFont;
-  let bestPadX = Math.max(4, basePadX * (minFont / maxFont));
+  let bestPadLeft = Math.max(6, basePadX * (minFont / maxFont));
+  let bestPadRight = bestPadLeft;
   let bestPadY = Math.max(2, basePadY * (minFont / maxFont));
 
-  const setPillSize = function (fontPx, padX, padY) {
+  const setPillSize = function (fontPx, padLeft, padRight, padY) {
     pill.style.fontSize = `${fontPx}px`;
     pill.style.paddingTop = `${padY}px`;
     pill.style.paddingBottom = `${padY}px`;
-    pill.style.paddingLeft = `${padX}px`;
-    pill.style.paddingRight = `${padX}px`;
+    pill.style.paddingLeft = `${padLeft}px`;
+    pill.style.paddingRight = `${padRight}px`;
   };
 
-  const measureCanvas = fitResidentStatusPill.__measureCanvas || (fitResidentStatusPill.__measureCanvas = document.createElement("canvas"));
-  const ctx = measureCanvas.getContext("2d");
-  if (!ctx) return;
-
-  const stylePart = pillStyle.fontStyle || "normal";
-  const variantPart = pillStyle.fontVariant || "normal";
-  const weightPart = pillStyle.fontWeight || "700";
-  const familyPart = pillStyle.fontFamily || "sans-serif";
-
-  const measureRequiredWidth = function (fontPx, padX) {
-    ctx.font = `${stylePart} ${variantPart} ${weightPart} ${fontPx}px ${familyPart}`;
-    const pureTextWidth = ctx.measureText(text).width;
-    const spacingWidth = letterSpacing > 0 ? Math.max(0, text.length - 1) * letterSpacing : 0;
-    return pureTextWidth + spacingWidth + (padX * 2) + borderX;
-  };
-
-  const availableWidth = Math.floor(pill.getBoundingClientRect().width);
+  const availableWidth = Math.max(0, Math.floor(pill.clientWidth));
   const debugRows = [];
   if (availableWidth <= 0) {
     const retry = Number(pill.dataset.fitRetry || "0");
@@ -973,7 +956,7 @@ function fitResidentStatusPill() {
       window.requestAnimationFrame(fitResidentStatusPill);
       return;
     }
-    setPillSize(minFont, bestPadX, bestPadY);
+    setPillSize(minFont, bestPadLeft, bestPadRight, bestPadY);
     pill.classList.add("is-truncated");
     console.groupCollapsed("[resident-pill-fit] no width fallback");
     console.log({
@@ -984,7 +967,7 @@ function fitResidentStatusPill() {
       maxFont,
       basePadX,
       basePadY,
-      borderX,
+      iconWidth: pill.querySelector(".resident-status-icon")?.getBoundingClientRect().width || 0,
       pillClientWidth: pill.clientWidth,
       pillScrollWidth: pill.scrollWidth
     });
@@ -996,22 +979,25 @@ function fitResidentStatusPill() {
   for (let i = 0; i < 16; i++) {
     const mid = (lo + hi) / 2;
     const scale = mid / maxFont;
-    const padX = Math.max(4, basePadX * scale);
+    const padLeft = Math.max(6, basePadX * scale);
+    const padRight = padLeft;
     const padY = Math.max(2, basePadY * scale);
-    setPillSize(mid, padX, padY);
-    const requiredWidth = measureRequiredWidth(mid, padX);
+    setPillSize(mid, padLeft, padRight, padY);
+    const requiredWidth = pill.scrollWidth;
     const fits = requiredWidth <= (availableWidth + 0.5);
     debugRows.push({
       i,
       mid: Number(mid.toFixed(3)),
-      padX: Number(padX.toFixed(3)),
+      padLeft: Number(padLeft.toFixed(3)),
+      padRight: Number(padRight.toFixed(3)),
       requiredWidth: Number(requiredWidth.toFixed(3)),
       availableWidth,
       fits
     });
     if (fits) {
       best = mid;
-      bestPadX = padX;
+      bestPadLeft = padLeft;
+      bestPadRight = padRight;
       bestPadY = padY;
       lo = mid;
     } else {
@@ -1019,8 +1005,8 @@ function fitResidentStatusPill() {
     }
   }
 
-  setPillSize(best, bestPadX, bestPadY);
-  const finalRequiredWidth = measureRequiredWidth(best, bestPadX);
+  setPillSize(best, bestPadLeft, bestPadRight, bestPadY);
+  const finalRequiredWidth = pill.scrollWidth;
   const isTruncated = finalRequiredWidth > (availableWidth + 0.5);
   pill.classList.toggle("is-truncated", isTruncated);
 
@@ -1032,11 +1018,13 @@ function fitResidentStatusPill() {
     chosenFont: Number(best.toFixed(3)),
     basePadX,
     basePadY,
-    chosenPadX: Number(bestPadX.toFixed(3)),
+    chosenPadLeft: Number(bestPadLeft.toFixed(3)),
+    chosenPadRight: Number(bestPadRight.toFixed(3)),
     chosenPadY: Number(bestPadY.toFixed(3)),
     availableWidth,
     finalRequiredWidth: Number(finalRequiredWidth.toFixed(3)),
     isTruncated,
+    iconWidth: pill.querySelector(".resident-status-icon")?.getBoundingClientRect().width || 0,
     pillClientWidth: pill.clientWidth,
     pillScrollWidth: pill.scrollWidth,
     pillComputedFontSize: getComputedStyle(pill).fontSize
@@ -1368,7 +1356,7 @@ if (payUrl && !isResidentMode) {
     historyHost.className = "resident-history-block";
     historyHost.innerHTML =
       '<details class="resident-history-details">' +
-      '  <summary>Історія нарахувань та оплат</summary>' +
+      '  <summary><span class="resident-title-icon" aria-hidden="true" data-lucide="history"></span><span>Історія нарахувань та оплат</span></summary>' +
       '  <div class="resident-history-content"></div>' +
       '</details>';
     residentHistoryDetails = historyHost.querySelector(".resident-history-details");
@@ -1979,9 +1967,31 @@ if (toggleToOpen) {
         advisoryText = "Дякуємо за участь у забезпеченні роботи будинку. За особовим рахунком є поточна сума до сплати. Просимо за можливості сплатити внески своєчасно, щоб будинок міг без затримок оплачувати необхідні послуги, здійснювати обслуговування та виконувати поточні роботи.";
       }
     }
-    const advisoryHtml = `<div class="resident-advice resident-advice-${advisoryTone}">${advisoryText}</div>`;
+    const statusIconTone =
+      effectiveBalance > 0
+        ? (advisoryTone === "critical" ? "critical" : advisoryTone === "danger" ? "danger" : "warn")
+        : "good";
+    const statusIconName = effectiveBalance > 0 ? "triangle-alert" : "check-circle";
+    const statusIconHtml = `<span class="resident-status-icon resident-status-icon-${statusIconTone}" aria-hidden="true" data-lucide="${statusIconName}"></span>`;
+
+    const adviceIconTone =
+      advisoryTone === "good"
+        ? "good"
+        : advisoryTone === "critical"
+          ? "critical"
+          : advisoryTone === "danger"
+            ? "danger"
+            : "warn";
+    const adviceIconName = advisoryTone === "good" ? "check-circle" : "triangle-alert";
+    const advisoryHtml = `
+      <div class="resident-advice resident-advice-${advisoryTone} resident-advice-tone-${statusIconTone}">
+        <span class="resident-advice-icon resident-advice-icon-${adviceIconTone}" aria-hidden="true" data-lucide="${adviceIconName}"></span>
+        <span class="resident-advice-text">${advisoryText}</span>
+      </div>
+    `;
     const advisoryContactHtml = `
       <div class="resident-advice-contact">
+        <span class="resident-inline-icon" aria-hidden="true" data-lucide="mail"></span>
         Якщо у Вас є питання щодо нарахувань або оплат, зверніться для звірки:
         <a href="mailto:abon.omega@gmail.com">abon.omega@gmail.com</a>
       </div>
@@ -2036,9 +2046,10 @@ if (toggleToOpen) {
             </a>
           `
           : "";
+    residentOverviewRoot.className = `resident-overview-card resident-overview-tone-${statusIconTone}`;
     residentOverviewRoot.innerHTML = `
-      <h2>Поточний стан рахунку</h2>
-      <div class="resident-status resident-${meta.cls}">
+      <h2><span class="resident-title-icon" aria-hidden="true" data-lucide="wallet-cards"></span><span>Поточний стан рахунку</span></h2>
+      <div class="resident-status resident-${meta.cls} resident-status-tone-${statusIconTone}">
         <span class="resident-status-left">
           <span class="resident-status-title">${statusHeadline}</span>
           <button
@@ -2047,7 +2058,7 @@ if (toggleToOpen) {
             class="resident-status-pill resident-status-pill-btn resident-${meta.cls}"
             aria-controls="residentStatusDetails"
             aria-expanded="false"
-          >${statusText}</button>
+          >${statusIconHtml}<span>${statusText}</span></button>
         </span>
         <strong>${moneyText(Math.abs(currentBalance))}</strong>
       </div>
@@ -2158,7 +2169,7 @@ if (toggleToOpen) {
 
     residentRequisitesRoot.innerHTML = `
       <details class="resident-requisites-details">
-        <summary>Реквізити для оплати вручну</summary>
+        <summary><span class="resident-title-icon" aria-hidden="true" data-lucide="landmark"></span><span>Реквізити для оплати вручну</span></summary>
         <div class="resident-requisites-grid">
           <div class="resident-copy-row"><span>Отримувач</span><strong class="resident-copy-value">${requisites.receiver}</strong></div>
           <div class="resident-copy-row"><span>Код ЄДРПОУ</span><strong class="resident-copy-value">${requisites.code}</strong></div>
@@ -2185,7 +2196,7 @@ if (toggleToOpen) {
       if (hasViberQr) {
         residentViberRoot.innerHTML = `
           <details class="resident-viber-details">
-            <summary>Група будинку у Viber</summary>
+            <summary><span class="resident-title-icon" aria-hidden="true" data-lucide="message-circle-more"></span><span>Група будинку у Viber</span></summary>
             <div class="resident-viber-block">
               <a id="resident-viber-link" class="resident-viber-link" target="_blank" rel="noopener noreferrer">
                 Приєднуйтесь до групи будинку у Viber.
@@ -2233,10 +2244,9 @@ bindCopyButton("copyIbanBtn", function () {
   const content = isResidentMode
     ? `
       <section class="resident-flat-card">
-        <h3>Інформація про квартиру</h3>
+        <h3><span class="resident-title-icon" aria-hidden="true" data-lucide="home"></span><span>Інформація про квартиру</span></h3>
         <div class="resident-flat-grid">
           <div class="resident-copy-row"><span>Особовий рахунок</span><strong class="resident-copy-value">${curLS.ls || "—"}</strong></div>
-          <div class="resident-copy-row"><span>П.І.Б.</span><strong class="resident-copy-value">${curLS.fio || "—"}</strong></div>
           <div class="resident-copy-row"><span>Площа</span><strong class="resident-copy-value">${curLS.pl ? `${curLS.pl} м²` : "—"}</strong></div>
           <div class="resident-copy-row"><span>Кількість мешканців</span><strong class="resident-copy-value">${curLS.pers || "—"}</strong></div>
           <div class="resident-copy-row"><span>Поверх</span><strong class="resident-copy-value">${curLS.et || "—"}</strong></div>
@@ -2286,6 +2296,7 @@ setParam("kv", ls[accountId].kv);
 
 //lastRow.scrollIntoView({ behavior: "smooth", block: "end" });
 
+  renderLucideIcons(document.getElementById("maincontainer"));
   updateStickyTop(); 
 }
 function createPaymentCell(row, monthlyPayments, accountId) {
@@ -3066,7 +3077,8 @@ function initLS() {
       <div class="header-row">
         <div class="header-left">
 
-          <div class="line line-address">
+          <div class="line line-address ${isResidentMode ? "line-with-icon" : ""}">
+            ${isResidentMode ? '<span class="resident-line-icon" aria-hidden="true" data-lucide="map-pin"></span>' : ""}
             <span class="label">Адреса:</span>
             <span class="value">
               <a id="adr"></a>
@@ -3082,13 +3094,15 @@ function initLS() {
           </div>
 
           ${isResidentMode ? `
-          <div class="line line-ls-head" id="line-ls-head">
+          <div class="line line-ls-head line-with-icon" id="line-ls-head">
+            <span class="resident-line-icon" aria-hidden="true" data-lucide="wallet"></span>
             <span class="label">Особовий рахунок:</span>
             <span class="value" id="ls-head">—</span>
           </div>
           ` : ""}
 
-          <div class="line">
+          <div class="line ${isResidentMode ? "line-with-icon" : ""}">
+            ${isResidentMode ? '<span class="resident-line-icon" aria-hidden="true" data-lucide="user-round"></span>' : ""}
             <span class="label">П.І.Б.:</span>
             <span class="value" id="fio"></span>
           </div>
@@ -3111,6 +3125,10 @@ function initLS() {
   const orgHead = document.getElementById("org-head");
   if (orgHead) orgHead.textContent = String(org || "");
   updateResidentAddressLayout();
+  window.requestAnimationFrame(updateResidentAddressLayout);
+  window.setTimeout(updateResidentAddressLayout, 80);
+  window.setTimeout(updateResidentAddressLayout, 220);
+  renderLucideIcons(document.getElementById("maincontainer"));
   document.title = org + " " + adr;
   ensureTopbarHistoryButton();
 
@@ -4339,6 +4357,7 @@ function showHistoryModal(data, options = {}) {
 let headerResizeObserver = null;
 let isHeaderCompact = false;
 let headerCompactLockUntil = 0;
+let residentAddressLayoutBound = false;
 
 function updateResidentAddressLayout() {
   if (!document.body.classList.contains("resident-mode")) return;
@@ -4348,6 +4367,7 @@ function updateResidentAddressLayout() {
   const label = line.querySelector(".label");
   const value = line.querySelector(".value");
   const orgEl = line.querySelector("#org-head");
+  const lineIcon = line.querySelector("svg.lucide");
   if (!label || !value || !orgEl) return;
 
   line.classList.remove("org-stacked");
@@ -4377,14 +4397,46 @@ function updateResidentAddressLayout() {
   const valueText = value.textContent || "";
   const valueWidth = measureTextWidth(value, valueText);
   const orgWidth = measureTextWidth(orgEl, orgEl.textContent || "");
-  const needed = labelWidth + valueWidth + orgWidth + gap * 2;
+  const iconWidth = lineIcon ? Math.ceil(lineIcon.getBoundingClientRect().width) : 0;
+  const needed = labelWidth + valueWidth + orgWidth + iconWidth + gap * 3;
 
   const hasVisibleOverflow =
     (orgEl.scrollWidth > orgEl.clientWidth + 1) ||
     (value.scrollWidth > value.clientWidth + 1);
 
-  if (needed > available + 2 || hasVisibleOverflow) {
+  const valueLineHeight = parseFloat(window.getComputedStyle(value).lineHeight || "0") || 0;
+  const valueWrapped = valueLineHeight > 0 && value.getBoundingClientRect().height > (valueLineHeight * 1.35);
+
+  if (needed > available + 2 || hasVisibleOverflow || valueWrapped) {
     line.classList.add("org-stacked");
+  }
+
+  if (!residentAddressLayoutBound) {
+    residentAddressLayoutBound = true;
+    window.addEventListener("resize", function () {
+      window.requestAnimationFrame(updateResidentAddressLayout);
+    });
+    window.addEventListener("orientationchange", function () {
+      window.requestAnimationFrame(updateResidentAddressLayout);
+    });
+  }
+}
+
+function renderLucideIcons(root) {
+  try {
+    if (!window.lucide || typeof window.lucide.createIcons !== "function") return;
+    if (root && root.nodeType === 1) {
+      window.lucide.createIcons({
+        root: root,
+        attrs: { "stroke-width": 1.9 }
+      });
+      return;
+    }
+    window.lucide.createIcons({
+      attrs: { "stroke-width": 1.9 }
+    });
+  } catch (e) {
+    // ignore icon render errors
   }
 }
 

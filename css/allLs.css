@@ -1,4 +1,4 @@
-html {
+﻿html {
   font-family: Calibri, Arial, Helvetica, sans-serif;
   background-color: #f4f4f9;
   font-size: 20px;
@@ -1117,6 +1117,77 @@ table#main thead {
   grid-row: 2;
 }
 
+.line-address.line-with-icon.org-stacked {
+  grid-template-columns: auto auto minmax(0, 1fr);
+  row-gap: 2px;
+}
+
+.line-address.line-with-icon.org-stacked > svg.lucide {
+  grid-column: 1;
+  grid-row: 2;
+  align-self: baseline;
+}
+
+.line-address.line-with-icon.org-stacked .org-head-inline {
+  grid-column: 2 / -1;
+  grid-row: 1;
+  justify-self: start;
+  text-align: left;
+}
+
+.line-address.line-with-icon.org-stacked .label {
+  grid-column: 2;
+  grid-row: 2;
+}
+
+.line-address.line-with-icon.org-stacked .value {
+  grid-column: 3;
+  grid-row: 2;
+}
+
+.line.line-with-icon:not(.line-address) {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  align-items: center;
+  column-gap: 8px;
+}
+
+.line.line-with-icon:not(.line-address) .label {
+  grid-column: 2;
+}
+
+.line.line-with-icon:not(.line-address) .value {
+  grid-column: 3;
+}
+
+.line-address.line-with-icon {
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+}
+
+.line-address.line-with-icon .label {
+  grid-column: 2;
+}
+
+.line-address.line-with-icon .value {
+  grid-column: 3;
+}
+
+.line-address.line-with-icon .org-head-inline {
+  grid-column: 4;
+}
+
+body.resident-mode .line-with-icon > svg.lucide {
+  width: 19px;
+  height: 19px;
+  flex: 0 0 19px;
+  color: #3b485a;
+  margin-right: 2px;
+}
+
+body.resident-mode .line.line-with-icon {
+  padding-left: 8px;
+}
+
 .label {
   white-space: nowrap;
   font-weight: 600;
@@ -1574,6 +1645,16 @@ body.resident-mode .resident-flat-card {
 }
 
 body.resident-mode .resident-overview-card h2,
+body.resident-mode .resident-history-details > summary,
+body.resident-mode .resident-requisites-details > summary,
+body.resident-mode .resident-viber-details > summary,
+body.resident-mode .resident-flat-card h3 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+body.resident-mode .resident-overview-card h2,
 body.resident-mode .resident-history-block h3,
 body.resident-mode .resident-flat-card h3 {
   margin: 0 0 10px;
@@ -1581,13 +1662,73 @@ body.resident-mode .resident-flat-card h3 {
 
 body.resident-mode .resident-history-details > summary {
   cursor: pointer;
-  font-size: 1.6rem;
+  font-size: 1.5rem;
   font-weight: 700;
   margin: 0;
 }
 
+body.resident-mode .resident-history-details > summary,
+body.resident-mode .resident-requisites-details > summary,
+body.resident-mode .resident-viber-details > summary {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-right: 20px;
+  position: relative;
+}
+
+body.resident-mode .resident-history-details > summary::-webkit-details-marker,
+body.resident-mode .resident-requisites-details > summary::-webkit-details-marker,
+body.resident-mode .resident-viber-details > summary::-webkit-details-marker {
+  display: none;
+}
+
+body.resident-mode .resident-history-details > summary::after,
+body.resident-mode .resident-requisites-details > summary::after,
+body.resident-mode .resident-viber-details > summary::after {
+  content: "";
+  margin-left: auto;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid #6b7586;
+  border-bottom: 2px solid #6b7586;
+  transform: rotate(-45deg);
+  transition: transform 0.18s ease;
+}
+
+body.resident-mode .resident-history-details[open] > summary::after,
+body.resident-mode .resident-requisites-details[open] > summary::after,
+body.resident-mode .resident-viber-details[open] > summary::after {
+  transform: rotate(45deg);
+}
+
 body.resident-mode .resident-history-details[open] > summary {
   margin-bottom: 10px;
+}
+
+body.resident-mode .resident-title-icon,
+body.resident-mode .resident-inline-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+}
+
+body.resident-mode .resident-overview-card h2 > svg.lucide,
+body.resident-mode .resident-history-details > summary > svg.lucide,
+body.resident-mode .resident-requisites-details > summary > svg.lucide,
+body.resident-mode .resident-viber-details > summary > svg.lucide,
+body.resident-mode .resident-flat-card h3 > svg.lucide,
+body.resident-mode .resident-inline-icon > svg.lucide {
+  width: 19px;
+  height: 19px;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
+body.resident-mode .resident-viber-details > summary > svg.lucide {
+  color: #7360f2;
 }
 
 body.resident-mode .resident-status {
@@ -1617,6 +1758,7 @@ body.resident-mode .resident-status-left {
 body.resident-mode .resident-status-pill {
   display: inline-flex;
   align-items: center;
+  column-gap: 6px;
   padding: 3px 10px;
   border-radius: 999px;
   border: 1px solid #cfd7e3;
@@ -1678,11 +1820,75 @@ body.resident-mode .resident-status.resident-neutral {
   background: #ebfaef;
 }
 
+body.resident-mode .resident-status-tone-good {
+  background: #ebfaef !important;
+}
+
+body.resident-mode .resident-status-tone-warn {
+  background: #fff8e6 !important;
+}
+
+body.resident-mode .resident-status-tone-danger,
+body.resident-mode .resident-status-tone-critical {
+  background: #ffecec !important;
+}
+
 body.resident-mode .resident-status-pill.resident-credit,
 body.resident-mode .resident-status-pill.resident-neutral {
   color: #0b6a35;
   background: #eef8f0;
   border-color: #c4ddcb;
+}
+
+body.resident-mode .resident-status-tone-good .resident-status-pill {
+  color: #12914b;
+  border-color: #b9ddc7;
+  background: #effaf2;
+}
+
+body.resident-mode .resident-status-tone-warn .resident-status-pill {
+  color: #b17a00;
+  border-color: #ebd59f;
+  background: #fff8ec;
+}
+
+body.resident-mode .resident-status-tone-danger .resident-status-pill,
+body.resident-mode .resident-status-tone-critical .resident-status-pill {
+  color: #b31217;
+  border-color: #e8bcbc;
+  background: #fff2f2;
+}
+
+body.resident-mode .resident-status-pill > svg.lucide {
+  width: 1em;
+  height: 1em;
+  flex: 0 0 1em;
+}
+
+body.resident-mode .resident-status-tone-good .resident-status-pill > svg.lucide {
+  color: #12914b;
+}
+
+body.resident-mode .resident-status-tone-warn .resident-status-pill > svg.lucide {
+  color: #b17a00;
+}
+
+body.resident-mode .resident-status-tone-danger .resident-status-pill > svg.lucide,
+body.resident-mode .resident-status-tone-critical .resident-status-pill > svg.lucide {
+  color: #b31217;
+}
+
+body.resident-mode .resident-overview-card.resident-overview-tone-good h2 > svg.lucide {
+  color: #12914b;
+}
+
+body.resident-mode .resident-overview-card.resident-overview-tone-warn h2 > svg.lucide {
+  color: #b17a00;
+}
+
+body.resident-mode .resident-overview-card.resident-overview-tone-danger h2 > svg.lucide,
+body.resident-mode .resident-overview-card.resident-overview-tone-critical h2 > svg.lucide {
+  color: #b31217;
 }
 
 body.resident-mode .resident-recommended {
@@ -1691,6 +1897,24 @@ body.resident-mode .resident-recommended {
   align-items: flex-start;
   gap: 10px;
   margin-bottom: 0;
+  position: relative;
+  padding-left: 16px;
+}
+
+body.resident-mode .resident-recommended::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 1px;
+  background: linear-gradient(
+    to bottom,
+    rgba(124, 142, 164, 0) 0%,
+    rgba(124, 142, 164, 0.65) 12%,
+    rgba(124, 142, 164, 0.65) 88%,
+    rgba(124, 142, 164, 0) 100%
+  );
 }
 
 body.resident-mode .resident-recommended-main {
@@ -1846,10 +2070,18 @@ body.resident-mode .resident-pay-pane[hidden] {
 body.resident-mode .resident-pay-switch {
   border: 0;
   background: transparent;
-  color: #1f2b3a;
+  color: #1f5fbf;
   font-size: 0.9rem;
+  font-weight: 600;
   cursor: pointer;
   padding: 0;
+  transition: color 0.15s ease;
+}
+
+body.resident-mode .resident-pay-switch:hover,
+body.resident-mode .resident-pay-switch:focus-visible {
+  color: #174c97;
+  text-decoration: underline;
 }
 
 body.resident-mode .resident-updated,
@@ -1898,6 +2130,24 @@ body.resident-mode .resident-advice {
   line-height: 1.35;
 }
 
+body.resident-mode .resident-advice {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: 10px;
+  align-items: center;
+}
+
+body.resident-mode .resident-advice-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+body.resident-mode .resident-advice-icon > svg.lucide {
+  width: 24px;
+  height: 24px;
+}
+
 body.resident-mode .resident-advice-good {
   background: #eef8f0;
   border-color: #cfe4d3;
@@ -1921,6 +2171,52 @@ body.resident-mode .resident-advice-critical {
   background: #fdeeee;
   border-color: #e7c2c2;
   color: #7b2d2d;
+}
+
+body.resident-mode .resident-advice.resident-advice-tone-good {
+  background: #eef8f0;
+  border-color: #cfe4d3;
+}
+
+body.resident-mode .resident-advice.resident-advice-tone-warn {
+  background: #fff7ea;
+  border-color: #f0d8ad;
+}
+
+body.resident-mode .resident-advice.resident-advice-tone-danger,
+body.resident-mode .resident-advice.resident-advice-tone-critical {
+  background: #fdeeee;
+  border-color: #e7c2c2;
+}
+
+body.resident-mode .resident-advice-good .resident-advice-icon > svg.lucide {
+  color: #12914b;
+}
+
+body.resident-mode .resident-advice-neutral .resident-advice-icon > svg.lucide {
+  color: #637085;
+}
+
+body.resident-mode .resident-advice-warn .resident-advice-icon > svg.lucide,
+body.resident-mode .resident-advice-danger .resident-advice-icon > svg.lucide {
+  color: #c18100;
+}
+
+body.resident-mode .resident-advice-critical .resident-advice-icon > svg.lucide {
+  color: #c3191f;
+}
+
+body.resident-mode .resident-advice.resident-advice-tone-good .resident-advice-icon > svg.lucide {
+  color: #12914b;
+}
+
+body.resident-mode .resident-advice.resident-advice-tone-warn .resident-advice-icon > svg.lucide {
+  color: #c18100;
+}
+
+body.resident-mode .resident-advice.resident-advice-tone-danger .resident-advice-icon > svg.lucide,
+body.resident-mode .resident-advice.resident-advice-tone-critical .resident-advice-icon > svg.lucide {
+  color: #c3191f;
 }
 
 body.resident-mode .resident-advice-contact {
@@ -1947,6 +2243,7 @@ body.resident-mode .resident-requisites-details summary,
 body.resident-mode .resident-viber-details summary {
   cursor: pointer;
   font-weight: 700;
+  font-size: 1.5rem;
   margin-bottom: 10px;
 }
 
@@ -2254,7 +2551,7 @@ body.resident-mode .tarif-summary-tail .tarif-note-line + .tarif-note-line {
 
 body.resident-mode .resident-flat-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(220px, 1fr));
+  grid-template-columns: repeat(5, minmax(150px, 1fr));
   gap: 10px 14px;
 }
 
@@ -2283,9 +2580,28 @@ body.resident-mode .resident-flat-grid > div strong {
 }
 
 @media (max-width: 860px) {
-  body.resident-mode .resident-requisites-grid,
-  body.resident-mode .resident-flat-grid {
+  body.resident-mode .resident-requisites-grid {
     grid-template-columns: 1fr;
+  }
+
+  body.resident-mode .resident-flat-grid {
+    grid-template-columns: repeat(2, minmax(180px, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  body.resident-mode .resident-flat-grid {
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  }
+}
+
+@media (min-width: 641px) {
+  body.resident-mode .resident-overview-card h2,
+  body.resident-mode .resident-history-details > summary,
+  body.resident-mode .resident-requisites-details > summary,
+  body.resident-mode .resident-viber-details > summary,
+  body.resident-mode .resident-flat-card h3 {
+    font-size: 1.12rem;
   }
 }
 
@@ -2332,6 +2648,11 @@ body.resident-mode .resident-flat-grid > div strong {
   body.resident-mode .resident-recommended {
     flex-direction: column;
     align-items: stretch;
+    padding-left: 0;
+  }
+
+  body.resident-mode .resident-recommended::before {
+    display: none;
   }
 
   body.resident-mode .resident-overview-body {
@@ -2393,7 +2714,7 @@ body.resident-mode .resident-flat-grid > div strong {
 
   body.resident-mode .resident-status-pill {
     font-size: 2.28rem;
-    padding: 7px 16px;
+    padding: 7px 10px;
     line-height: 1.1;
   }
 
@@ -2405,7 +2726,7 @@ body.resident-mode .resident-flat-grid > div strong {
       "pill amount";
     align-items: center;
     row-gap: 8px;
-    column-gap: 10px;
+    column-gap: 14px;
   }
 
   body.resident-mode .resident-status-left {
