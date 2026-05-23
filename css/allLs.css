@@ -3077,7 +3077,7 @@ body.resident-mode .resident-flat-grid > div strong {
   }
 
   body.resident-mode .resident-spending-mobile-card-title {
-    font-size: 1.12rem;
+    font-size: 1.22rem;
     line-height: 1.2;
     color: #1f2b3a;
   }
@@ -3094,7 +3094,7 @@ body.resident-mode .resident-flat-grid > div strong {
   body.resident-mode .resident-spending-mobile-table-head {
     border-top: 1px solid #e8edf4;
     color: #7a8799;
-    font-size: 0.86rem;
+    font-size: 0.98rem;
     font-weight: 600;
   }
 
@@ -3108,14 +3108,14 @@ body.resident-mode .resident-flat-grid > div strong {
   }
 
   body.resident-mode .resident-spending-mobile-month {
-    font-size: 0.98rem;
+    font-size: 1.08rem;
     color: #2d3d53;
   }
 
   body.resident-mode .resident-spending-mobile-amount,
   body.resident-mode .resident-spending-mobile-share {
     text-align: right;
-    font-size: 1.08rem;
+    font-size: 1.22rem;
     line-height: 1.2;
     white-space: nowrap;
   }
@@ -3131,7 +3131,7 @@ body.resident-mode .resident-flat-grid > div strong {
     grid-template-columns: minmax(0, 1fr) auto;
     gap: 8px;
     align-items: center;
-    font-size: 0.98rem;
+    font-size: 1.06rem;
     color: #5d6d83;
   }
 
