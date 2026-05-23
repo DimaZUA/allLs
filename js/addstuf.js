@@ -175,7 +175,7 @@ function pickBestTarifRowsForService(serviceRows, serviceId, currentCharge, acco
   if (!Number.isFinite(charge)) return serviceRows;
 
   const candidates = [];
-  serviceRows.forEach(function (row) {
+  serviceRows.forEach(function (row, idx) {
     const formula = String(row && row.formula || "").trim().toUpperCase();
     const tarif = Number(row && row.tarif);
     if (!Number.isFinite(tarif) || tarif === -1) return;
@@ -187,10 +187,43 @@ function pickBestTarifRowsForService(serviceRows, serviceId, currentCharge, acco
     const diff = Math.abs(expected - charge);
     const factTarif = charge / factor;
     const diffPerUnit = Math.abs(factTarif - tarif);
-    candidates.push({ row: row, diff: diff, diffPerUnit: diffPerUnit });
+    candidates.push({
+      row: row,
+      diff: diff,
+      diffPerUnit: diffPerUnit,
+      idx: idx,
+      formula: formula,
+      factor: factor,
+      tarif: tarif
+    });
   });
 
   if (!candidates.length) return serviceRows;
+
+  // If multiple tariff rows from one month really compose one combined charge,
+  // show one summarized tariff line instead of dumping all components.
+  const groups = {};
+  candidates.forEach(function (c) {
+    const key = `${c.formula}|${c.factor}`;
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(c);
+  });
+
+  for (const key in groups) {
+    const group = groups[key] || [];
+    if (group.length <= 1) continue;
+    const factor = Number(group[0].factor);
+    const sumTarif = group.reduce(function (s, c) { return s + (Number(c.tarif) || 0); }, 0);
+    if (!Number.isFinite(sumTarif) || !Number.isFinite(factor) || factor <= 0) continue;
+    const expectedSum = sumTarif * factor;
+    const diffSum = Math.abs(expectedSum - charge);
+    const diffPerUnitSum = Math.abs((charge / factor) - sumTarif);
+    if (diffSum <= 0.02 || diffPerUnitSum <= 0.01 + 1e-9) {
+      const base = group.slice().sort(function (a, b) { return a.idx - b.idx; })[0].row;
+      const merged = Object.assign({}, base, { tarif: Number(sumTarif.toFixed(4)) });
+      return [merged];
+    }
+  }
 
   candidates.sort(function (a, b) {
     return a.diffPerUnit - b.diffPerUnit;
