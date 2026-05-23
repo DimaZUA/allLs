@@ -69,6 +69,16 @@
   function applyResidentPayload(payload) {
     if (!payload || typeof payload !== "object") return false;
 
+    function tryParseMaybe(value, fallback) {
+      if (value === null || value === undefined || value === "") return fallback;
+      if (typeof value === "object") return value;
+      try {
+        return JSON.parse(value);
+      } catch (_) {
+        return fallback;
+      }
+    }
+
     window.us = payload.us || {};
     window.b = payload.b || {};
     window.org = payload.org || "";
@@ -80,6 +90,7 @@
     window.nachnote = payload.nachnote || {};
     window.allnach = payload.allnach || {};
     window.tarifs = payload.tarifs || {};
+    window.spending = tryParseMaybe(payload.spending, {});
     window.oplat = payload.oplat || {};
     window.ls = payload.ls || {};
     window.plat = payload.plat || {};
@@ -96,6 +107,7 @@
     nachnote = window.nachnote;
     allnach = window.allnach;
     tarifs = window.tarifs;
+    spending = window.spending;
     oplat = window.oplat;
     ls = window.ls;
     plat = window.plat;
@@ -192,6 +204,18 @@
       homeMetaData.privat_qr_len,
       findByKeyVariants(payload, ["PrivatQRLen", "privatQrLen", "privat_qr_len"], 4)
     );
+    const spendingValue = tryParseMaybe(
+      payload.spending ?? homeMeta.spending ?? homeMetaData.spending,
+      {}
+    );
+    const homeTotalSqrRaw =
+      payload.home_total_sqr ??
+      payload.homeTotalSqr ??
+      homeMeta.home_total_sqr ??
+      homeMeta.homeTotalSqr ??
+      homeMetaData.home_total_sqr ??
+      homeMetaData.homeTotalSqr;
+    const homeTotalSqrValue = Number(homeTotalSqrRaw);
     if (!mfoValue && ibanValue && String(ibanValue).length >= 10) {
       mfoValue = String(ibanValue).substring(4, 10);
     }
@@ -206,6 +230,8 @@
       privatToken: privatTokenValue,
       PrivatQr: privatQrValue,
       PrivatQRLen: privatQrLenValue,
+      spending: spendingValue,
+      home_total_sqr: Number.isFinite(homeTotalSqrValue) ? homeTotalSqrValue : 0,
       token: String(payload.token || homeMeta.token || "")
     };
 
@@ -221,10 +247,13 @@
         privatToken: window.residentHomeMeta.privatToken,
         PrivatQr: window.residentHomeMeta.PrivatQr,
         PrivatQRLen: window.residentHomeMeta.PrivatQRLen,
+        spending: window.residentHomeMeta.spending,
+        home_total_sqr: window.residentHomeMeta.home_total_sqr,
         token: window.residentHomeMeta.token
       }
     ];
     homes = window.homes;
+    window.home_total_sqr = window.residentHomeMeta.home_total_sqr;
 
     const accountId =
       String(payload.account_id || "") || Object.keys(window.ls || {})[0] || "";

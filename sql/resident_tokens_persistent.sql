@@ -146,6 +146,7 @@ declare
   v_plat_text text;
   v_allnach_text text;
   v_tarifs_text text;
+  v_spending_text text;
   v_data_text text;
 
   j_us jsonb;
@@ -159,12 +160,14 @@ declare
   j_plat jsonb;
   j_allnach jsonb;
   j_tarifs jsonb;
+  j_spending jsonb;
   j_data jsonb;
 
   j_ls_item jsonb;
   j_nach_item jsonb;
   j_oplat_item jsonb;
   j_nachnote_item jsonb;
+  v_home_total_sqr numeric := 0;
 begin
   if coalesce(btrim(p_token), '') = '' then
     raise exception 'Token is required';
@@ -229,6 +232,7 @@ begin
     plat::text,
     allnach::text,
     tarifs::text,
+    spending::text,
     data::text
   into
     v_code,
@@ -247,6 +251,7 @@ begin
     v_plat_text,
     v_allnach_text,
     v_tarifs_text,
+    v_spending_text,
     v_data_text
   from public.homes
   where code = v_home_code
@@ -267,6 +272,7 @@ begin
   j_plat := try_parse_jsonb(v_plat_text);
   j_allnach := try_parse_jsonb(v_allnach_text);
   j_tarifs := try_parse_jsonb(v_tarifs_text);
+  j_spending := try_parse_jsonb(v_spending_text);
   j_data := try_parse_jsonb(v_data_text);
 
   if j_us = '{}'::jsonb then j_us := coalesce(j_data -> 'us', '{}'::jsonb); end if;
@@ -280,6 +286,45 @@ begin
   if j_plat = '{}'::jsonb then j_plat := coalesce(j_data -> 'plat', '{}'::jsonb); end if;
   if j_allnach = '{}'::jsonb then j_allnach := coalesce(j_data -> 'allnach', '{}'::jsonb); end if;
   if j_tarifs = '{}'::jsonb then j_tarifs := coalesce(j_data -> 'tarifs', '{}'::jsonb); end if;
+  if j_spending = '{}'::jsonb then j_spending := coalesce(j_data -> 'spending', '{}'::jsonb); end if;
+
+  -- Sum of apartment areas for the whole house (resident-side calculations).
+  with ls_items as (
+    select value
+    from jsonb_each(coalesce(j_ls_all, '{}'::jsonb))
+  ),
+  raw_vals as (
+    select replace(
+      regexp_replace(
+        coalesce(
+          case
+            when jsonb_typeof(value) = 'object' and value ? 'pl' then value ->> 'pl'
+            when jsonb_typeof(value) = 'object' and value ? 'sqr' then value ->> 'sqr'
+            when jsonb_typeof(value) = 'object' and value ? 'SQR' then value ->> 'SQR'
+            else ''
+          end,
+          ''
+        ),
+        '[^0-9,.\-]',
+        '',
+        'g'
+      ),
+      ',',
+      '.'
+    ) as txt
+    from ls_items
+  ),
+  numeric_vals as (
+    select
+      case
+        when txt ~ '^-?[0-9]+(?:\.[0-9]+)?$' then txt::numeric
+        else null
+      end as val
+    from raw_vals
+  )
+  select coalesce(sum(val), 0)
+    into v_home_total_sqr
+  from numeric_vals;
 
   j_ls_item := j_ls_all -> v_account_id;
   if j_ls_item is null and jsonb_typeof(j_ls_all) = 'object' and (j_ls_all ? 'kv' or j_ls_all ? 'fio') then
@@ -323,7 +368,9 @@ begin
     'nachnote', jsonb_build_object(v_account_id, coalesce(j_nachnote_item, '{}'::jsonb)),
     'plat', coalesce(j_plat, '{}'::jsonb),
     'allnach', coalesce(j_allnach, '{}'::jsonb),
-    'tarifs', coalesce(j_tarifs, '{}'::jsonb)
+    'tarifs', coalesce(j_tarifs, '{}'::jsonb),
+    'spending', coalesce(j_spending, '{}'::jsonb),
+    'home_total_sqr', coalesce(v_home_total_sqr, 0)
   );
 end;
 $$;

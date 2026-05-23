@@ -754,6 +754,224 @@ function openingBalanceLabel(value) {
   return "На початок року баланс рахунку складав";
 }
 
+function escapeHtml(value) {
+  return String(value == null ? "" : value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function parseJsonLike(value, fallback) {
+  if (value === null || value === undefined || value === "") return fallback;
+  if (typeof value === "object") return value;
+  try {
+    return JSON.parse(value);
+  } catch (_) {
+    return fallback;
+  }
+}
+
+function parseSpendingPayload(rawSpending) {
+  const parsed = parseJsonLike(rawSpending, {});
+  const dict = parseJsonLike(parsed && parsed.dict, {});
+  const data = parseJsonLike(parsed && parsed.data, {});
+  return {
+    dict: dict && typeof dict === "object" ? dict : {},
+    data: data && typeof data === "object" ? data : {}
+  };
+}
+
+function spendingMonthShortLabel(monthNum) {
+  const labels = ["січ", "лют", "бер", "квіт", "трав", "черв", "лип", "серп", "вер", "жовт", "лист", "груд"];
+  return labels[Math.max(1, Math.min(12, Number(monthNum) || 1)) - 1];
+}
+
+function spendingMonthTitleLabel(monthNum) {
+  const labels = ["Січень", "Лютий", "Березень", "Квітень", "Травень", "Червень", "Липень", "Серпень", "Вересень", "Жовтень", "Листопад", "Грудень"];
+  return labels[Math.max(1, Math.min(12, Number(monthNum) || 1)) - 1];
+}
+
+function getSpendingMonthEntries(spendingDataByYear, yearKey, monthNum) {
+  const yearData = spendingDataByYear && typeof spendingDataByYear === "object" ? spendingDataByYear[String(yearKey)] : null;
+  if (!yearData || typeof yearData !== "object") return [];
+  const num = Math.max(1, Math.min(12, Number(monthNum) || 1));
+  const padded = String(num).padStart(2, "0");
+  const plain = String(num);
+  const raw = yearData[padded] || yearData[plain] || [];
+  return Array.isArray(raw) ? raw : [];
+}
+
+function getSpendingMonthsForYear(spendingDataByYear, yearKey) {
+  const yearData = spendingDataByYear && typeof spendingDataByYear === "object" ? spendingDataByYear[String(yearKey)] : null;
+  if (!yearData || typeof yearData !== "object") return [];
+  const monthsSet = new Set();
+  Object.keys(yearData).forEach(function (monthKey) {
+    const monthNum = Number(monthKey);
+    if (!Number.isFinite(monthNum) || monthNum < 1 || monthNum > 12) return;
+    const entries = getSpendingMonthEntries(spendingDataByYear, yearKey, monthNum);
+    if (Array.isArray(entries) && entries.length > 0) monthsSet.add(monthNum);
+  });
+  return Array.from(monthsSet).sort(function (a, b) { return a - b; });
+}
+
+function hasSpendingData(spendingPayload) {
+  const data = spendingPayload && spendingPayload.data;
+  if (!data || typeof data !== "object") return false;
+  return Object.keys(data).some(function (yearKey) {
+    return getSpendingMonthsForYear(data, yearKey).length > 0;
+  });
+}
+
+function renderResidentSpendingBlock(root, rawSpending) {
+  if (!root) return;
+  root.innerHTML = "";
+  root.style.display = "none";
+
+  const spendingPayload = parseSpendingPayload(rawSpending);
+  if (!hasSpendingData(spendingPayload)) return;
+
+  root.style.display = "";
+  root.innerHTML = `
+    <details class="resident-spending-details">
+      <summary><span class="resident-title-icon" aria-hidden="true" data-lucide="banknote-arrow-down"></span><span>Витрати будинку</span></summary>
+      <div class="resident-spending-body">
+        <div class="resident-spending-panel resident-spending-controls">
+          <div class="resident-spending-years"></div>
+          <div class="resident-spending-months"></div>
+          <div class="resident-spending-caption">
+            <strong class="resident-spending-caption-month"></strong>
+            <span>Загальні витрати будинку за місяць</span>
+          </div>
+        </div>
+        <div class="resident-spending-panel resident-spending-results">
+          <div class="resident-spending-rows"></div>
+          <div class="resident-spending-total">
+            <span>Усього витрат</span>
+            <strong class="resident-spending-total-value"></strong>
+          </div>
+          <div class="resident-spending-footnote">Показано загальні витрати будинку</div>
+        </div>
+      </div>
+    </details>
+  `;
+
+  const details = root.querySelector(".resident-spending-details");
+  if (details) details.open = false;
+
+  const yearsHost = root.querySelector(".resident-spending-years");
+  const monthsHost = root.querySelector(".resident-spending-months");
+  const rowsHost = root.querySelector(".resident-spending-rows");
+  const captionMonthEl = root.querySelector(".resident-spending-caption-month");
+  const totalEl = root.querySelector(".resident-spending-total-value");
+  if (!yearsHost || !monthsHost || !rowsHost || !captionMonthEl || !totalEl) return;
+
+  const years = Object.keys(spendingPayload.data || {})
+    .filter(function (y) { return /^\d{4}$/.test(String(y)); })
+    .sort(function (a, b) { return Number(b) - Number(a); });
+  if (!years.length) {
+    root.innerHTML = "";
+    root.style.display = "none";
+    return;
+  }
+
+  const state = {
+    year: years[0],
+    month: 1
+  };
+
+  function pickDefaultMonth(yearKey) {
+    const months = getSpendingMonthsForYear(spendingPayload.data, yearKey);
+    if (!months.length) return 1;
+    return months[months.length - 1];
+  }
+
+  state.month = pickDefaultMonth(state.year);
+
+  function renderRows() {
+    const entries = getSpendingMonthEntries(spendingPayload.data, state.year, state.month);
+    const grouped = new Map();
+    let total = 0;
+
+    entries.forEach(function (entry) {
+      if (!Array.isArray(entry) || entry.length < 2) return;
+      const rawId = entry[0];
+      const amount = Number(entry[1]);
+      if (!Number.isFinite(amount)) return;
+
+      const idKey = String(rawId == null ? "" : rawId);
+      const categoryName = String(spendingPayload.dict[idKey] || "").trim() || `Категорія ${idKey}`;
+      grouped.set(categoryName, normalizeMoney((grouped.get(categoryName) || 0) + amount));
+      total = normalizeMoney(total + amount);
+    });
+
+    captionMonthEl.textContent = `${spendingMonthTitleLabel(state.month)} ${state.year}`;
+    totalEl.textContent = `${Math.abs(total).toFixedWithComma()} грн`;
+
+    const items = Array.from(grouped.entries()).sort(function (a, b) {
+      return Math.abs(Number(b[1]) || 0) - Math.abs(Number(a[1]) || 0);
+    });
+
+    if (!items.length) {
+      rowsHost.innerHTML = '<div class="resident-spending-empty">Немає витрат за обраний місяць.</div>';
+      return;
+    }
+
+    rowsHost.innerHTML = items.map(function (item) {
+      const name = escapeHtml(item[0]);
+      const amount = `${Math.abs(Number(item[1]) || 0).toFixedWithComma()} грн`;
+      return `<div class="resident-spending-row"><span>${name}</span><strong>${amount}</strong></div>`;
+    }).join("");
+  }
+
+  function renderMonths() {
+    const availableMonths = new Set(getSpendingMonthsForYear(spendingPayload.data, state.year));
+    monthsHost.innerHTML = "";
+    for (let m = 1; m <= 12; m += 1) {
+      const hasData = availableMonths.has(m);
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "resident-spending-chip resident-spending-month-chip";
+      if (m === state.month) btn.classList.add("is-active");
+      if (!hasData) btn.classList.add("is-empty");
+      btn.textContent = spendingMonthShortLabel(m);
+      btn.disabled = !hasData;
+      btn.addEventListener("click", function () {
+        if (!hasData) return;
+        state.month = m;
+        renderMonths();
+        renderRows();
+      });
+      monthsHost.appendChild(btn);
+    }
+  }
+
+  function renderYears() {
+    yearsHost.innerHTML = "";
+    years.forEach(function (yearKey) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "resident-spending-chip resident-spending-year-chip";
+      if (yearKey === state.year) btn.classList.add("is-active");
+      btn.textContent = yearKey;
+      btn.addEventListener("click", function () {
+        if (state.year === yearKey) return;
+        state.year = yearKey;
+        state.month = pickDefaultMonth(yearKey);
+        renderYears();
+        renderMonths();
+        renderRows();
+      });
+      yearsHost.appendChild(btn);
+    });
+  }
+
+  renderYears();
+  renderMonths();
+  renderRows();
+}
+
 function pickRequisites(homeCode, accountData) {
   const home = Array.isArray(homes)
     ? homes.find(h => String(h?.code || "") === String(homeCode || ""))
