@@ -32,3 +32,6 @@ yarn-error.log*
 # OS
 Thumbs.db
 
+# local temp logs
+_tmp_logs_*/
+
