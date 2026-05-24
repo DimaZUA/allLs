@@ -208,6 +208,14 @@
       payload.spending ?? homeMeta.spending ?? homeMetaData.spending,
       {}
     );
+    const expensesRaw =
+      payload.expenses ??
+      homeMeta.expenses ??
+      homeMetaData.expenses;
+    const expensesValue =
+      Number(expensesRaw) === 1 || String(expensesRaw || "").trim() === "1"
+        ? 1
+        : 0;
     const homeTotalSqrRaw =
       payload.home_total_sqr ??
       payload.homeTotalSqr ??
@@ -230,6 +238,7 @@
       privatToken: privatTokenValue,
       PrivatQr: privatQrValue,
       PrivatQRLen: privatQrLenValue,
+      expenses: expensesValue,
       spending: spendingValue,
       home_total_sqr: Number.isFinite(homeTotalSqrValue) ? homeTotalSqrValue : 0,
       token: String(payload.token || homeMeta.token || "")
@@ -247,6 +256,7 @@
         privatToken: window.residentHomeMeta.privatToken,
         PrivatQr: window.residentHomeMeta.PrivatQr,
         PrivatQRLen: window.residentHomeMeta.PrivatQRLen,
+        expenses: window.residentHomeMeta.expenses,
         spending: window.residentHomeMeta.spending,
         home_total_sqr: window.residentHomeMeta.home_total_sqr,
         token: window.residentHomeMeta.token

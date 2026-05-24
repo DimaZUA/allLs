@@ -1683,11 +1683,16 @@ if (payUrl && !isResidentMode) {
   var showResidentSpending = false;
 
   if (isResidentMode) {
-    try {
-      showResidentSpending = new URLSearchParams(window.location.search || "").has("x");
-    } catch (_) {
-      showResidentSpending = false;
-    }
+    const homeCode = String(getParam("homeCode") || "");
+    const homeMeta = window.residentHomeMeta || {};
+    const homeFromList = Array.isArray(homes)
+      ? homes.find(function (h) { return String(h && h.code || "") === homeCode; })
+      : null;
+    const expensesRaw =
+      homeMeta.expenses ??
+      (homeFromList && homeFromList.expenses);
+    showResidentSpending =
+      Number(expensesRaw) === 1 || String(expensesRaw || "").trim() === "1";
   }
 
   if (isResidentMode) {
