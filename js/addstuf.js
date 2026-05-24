@@ -959,10 +959,9 @@ function renderResidentSpendingBlock(root, rawSpending, accountMeta) {
     }
 
     const desktopRowsHtml = orderedRows.map(function (item) {
-      const hasDifferentPostingPeriod = Number.isFinite(item.postedMonth)
-        && Number.isFinite(item.postedYear)
-        && (item.postedMonth !== state.month || item.postedYear !== state.year);
-      const monthSuffix = hasDifferentPostingPeriod && item.postedMonth > 1
+      const hasDifferentPostingMonth = Number.isFinite(item.postedMonth)
+        && item.postedMonth !== Number(state.month);
+      const monthSuffix = hasDifferentPostingMonth && item.postedMonth > 1
         ? ` за ${spendingMonthShortLabel(item.postedMonth)}.`
         : "";
       const name = escapeHtml(`${item.baseName}${monthSuffix}`);
