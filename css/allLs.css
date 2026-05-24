@@ -3086,6 +3086,15 @@ body.resident-mode .resident-flat-grid > div strong {
     color: #1f2b3a;
   }
 
+  body.resident-mode .resident-spending-mobile-card-head-amount {
+    margin-left: auto;
+    text-align: right;
+    font-size: 1.22rem;
+    line-height: 1.2;
+    white-space: nowrap;
+    color: #121f33;
+  }
+
   body.resident-mode .resident-spending-mobile-table-head,
   body.resident-mode .resident-spending-mobile-row {
     display: grid;

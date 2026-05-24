@@ -984,17 +984,22 @@ function renderResidentSpendingBlock(root, rawSpending, accountMeta) {
       });
       if (!rows.length) return "";
       const groupName = escapeHtml(rows[0].baseName || "");
+      const singleCurrentMonthRow = rows.length === 1 && Number(rows[0].sortMonth) === Number(state.month);
       const bodyRows = rows.map(function (row) {
         const amountNum = Number(row.amount) || 0;
         const amount = `${Math.abs(amountNum).toFixedWithComma()} грн`;
         return `<div class="resident-spending-mobile-row"><span class="resident-spending-mobile-month">${monthLongLabel(row.sortMonth)}</span><strong class="resident-spending-mobile-amount">${amount}</strong></div>`;
       }).join("");
+      const singleHeaderAmount = singleCurrentMonthRow
+        ? `<strong class="resident-spending-mobile-card-head-amount">${Math.abs(Number(rows[0].amount) || 0).toFixedWithComma()} грн</strong>`
+        : "";
       return `
         <section class="resident-spending-mobile-card">
           <header class="resident-spending-mobile-card-head">
             <strong class="resident-spending-mobile-card-title">${groupName}</strong>
+            ${singleHeaderAmount}
           </header>
-          <div class="resident-spending-mobile-table-body">${bodyRows}</div>
+          ${singleCurrentMonthRow ? "" : `<div class="resident-spending-mobile-table-body">${bodyRows}</div>`}
         </section>
       `;
     }).join("");
