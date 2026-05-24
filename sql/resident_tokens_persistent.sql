@@ -289,7 +289,7 @@ begin
   if j_tarifs = '{}'::jsonb then j_tarifs := coalesce(j_data -> 'tarifs', '{}'::jsonb); end if;
   if j_spending = '{}'::jsonb then j_spending := coalesce(j_data -> 'spending', '{}'::jsonb); end if;
 
-  -- Spending is returned to resident only when home.expenses = 1.
+  -- Spending is returned to resident only when home.data.expenses = 1.
   v_expenses_enabled := coalesce(lower(trim(j_data ->> 'expenses')), '') in ('1', 'true', 't', 'yes', 'y');
   if not v_expenses_enabled then
     j_spending := '{}'::jsonb;
