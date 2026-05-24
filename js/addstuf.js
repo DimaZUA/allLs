@@ -796,6 +796,8 @@ function spendingMonthTitleLabel(monthNum) {
 function decodeStoredMonth(serialMonth) {
   const n = Number(serialMonth);
   if (!Number.isFinite(n)) return null;
+  // Old/invalid serials are not treated as posting month labels.
+  if (n < 24000) return null;
   const year = Math.floor((n - 1) / 12);
   const month = n - year * 12;
   if (!Number.isFinite(year) || !Number.isFinite(month) || month < 1 || month > 12) return null;
@@ -951,6 +953,14 @@ function renderResidentSpendingBlock(root, rawSpending, accountMeta) {
       groupedRows.get(idKey).push({
         baseName: categoryName,
         amount: normalizeMoney(amount),
+        postedYear: (function () {
+          const postedMonth = decodeStoredMonth(entry[2]);
+          return postedMonth && Number.isFinite(postedMonth.year) ? postedMonth.year : null;
+        })(),
+        postedMonth: (function () {
+          const postedMonth = decodeStoredMonth(entry[2]);
+          return postedMonth && Number.isFinite(postedMonth.month) ? postedMonth.month : null;
+        })(),
         sortMonth: (function () {
           const postedMonth = decodeStoredMonth(entry[2]);
           return postedMonth && Number.isFinite(postedMonth.month) ? postedMonth.month : state.month;
@@ -982,7 +992,12 @@ function renderResidentSpendingBlock(root, rawSpending, accountMeta) {
     }
 
     const desktopRowsHtml = orderedRows.map(function (item) {
-      const monthSuffix = item.sortMonth > 1 ? ` за ${spendingMonthShortLabel(item.sortMonth)}.` : "";
+      const hasDifferentPostingPeriod = Number.isFinite(item.postedMonth)
+        && Number.isFinite(item.postedYear)
+        && (item.postedMonth !== state.month || item.postedYear !== state.year);
+      const monthSuffix = hasDifferentPostingPeriod && item.postedMonth > 1
+        ? ` за ${spendingMonthShortLabel(item.postedMonth)}.`
+        : "";
       const name = escapeHtml(`${item.baseName}${monthSuffix}`);
       const amountNum = Number(item.amount) || 0;
       const amount = `${Math.abs(amountNum).toFixedWithComma()} грн`;
