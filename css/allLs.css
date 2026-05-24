@@ -1851,7 +1851,7 @@ body.resident-mode .resident-spending-mobile-list {
 
 body.resident-mode .resident-spending-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(170px, 180px) minmax(170px, 180px);
+  grid-template-columns: minmax(0, 1fr) minmax(170px, 220px);
   gap: 8px;
   padding: 10px 12px;
   border-bottom: 1px solid #e7edf5;
@@ -1877,7 +1877,7 @@ body.resident-mode .resident-spending-name {
 
 body.resident-mode .resident-spending-total {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(170px, 180px) minmax(170px, 180px);
+  grid-template-columns: minmax(0, 1fr) minmax(170px, 220px);
   gap: 8px;
   align-items: center;
   padding: 12px;
@@ -3089,7 +3089,7 @@ body.resident-mode .resident-flat-grid > div strong {
   body.resident-mode .resident-spending-mobile-table-head,
   body.resident-mode .resident-spending-mobile-row {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(112px, auto) minmax(96px, auto);
+    grid-template-columns: minmax(0, 1fr) minmax(120px, auto);
     gap: 8px;
     align-items: center;
     padding: 6px 10px;
@@ -3102,8 +3102,7 @@ body.resident-mode .resident-flat-grid > div strong {
     font-weight: 600;
   }
 
-  body.resident-mode .resident-spending-mobile-table-head > span:nth-child(2),
-  body.resident-mode .resident-spending-mobile-table-head > span:nth-child(3) {
+  body.resident-mode .resident-spending-mobile-table-head > span:nth-child(2) {
     text-align: right;
   }
 
@@ -3116,8 +3115,7 @@ body.resident-mode .resident-flat-grid > div strong {
     color: #2d3d53;
   }
 
-  body.resident-mode .resident-spending-mobile-amount,
-  body.resident-mode .resident-spending-mobile-share {
+  body.resident-mode .resident-spending-mobile-amount {
     text-align: right;
     font-size: 1.22rem;
     line-height: 1.2;

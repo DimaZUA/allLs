@@ -843,30 +843,6 @@ function renderResidentSpendingBlock(root, rawSpending, accountMeta) {
   const spendingPayload = parseSpendingPayload(rawSpending);
   if (!hasSpendingData(spendingPayload)) return;
 
-  const parseNumeric = function (value) {
-    if (value === null || value === undefined) return NaN;
-    if (typeof value === "number") return Number.isFinite(value) ? value : NaN;
-    const normalized = String(value)
-      .replace(/\s+/g, "")
-      .replace(",", ".")
-      .replace(/[^0-9.\-]/g, "");
-    const parsed = Number(normalized);
-    return Number.isFinite(parsed) ? parsed : NaN;
-  };
-
-  const flatArea = parseNumeric(accountMeta && accountMeta.pl);
-  const homeTotalSqr = parseNumeric(
-    window.home_total_sqr ??
-    (window.residentHomeMeta && window.residentHomeMeta.home_total_sqr)
-  );
-  const shareFactor =
-    Number.isFinite(flatArea) &&
-    flatArea > 0 &&
-    Number.isFinite(homeTotalSqr) &&
-    homeTotalSqr > 0
-      ? flatArea / homeTotalSqr
-      : 0;
-
   root.style.display = "";
   root.innerHTML = `
     <details class="resident-spending-details">
@@ -881,16 +857,10 @@ function renderResidentSpendingBlock(root, rawSpending, accountMeta) {
         </div>
         <div class="resident-spending-panel resident-spending-results">
           <div class="resident-spending-table">
-            <div class="resident-spending-head">
-              <span></span>
-              <strong>Витрати будинку</strong>
-              <strong>Частка Вашої квартири</strong>
-            </div>
             <div class="resident-spending-rows"></div>
             <div class="resident-spending-total">
               <span>Усього витрат</span>
               <strong class="resident-spending-total-value"></strong>
-              <strong class="resident-spending-total-share"></strong>
             </div>
           </div>
         </div>
@@ -906,8 +876,7 @@ function renderResidentSpendingBlock(root, rawSpending, accountMeta) {
   const rowsHost = root.querySelector(".resident-spending-rows");
   const captionMonthEl = root.querySelector(".resident-spending-caption-month");
   const totalEl = root.querySelector(".resident-spending-total-value");
-  const totalShareEl = root.querySelector(".resident-spending-total-share");
-  if (!yearsHost || !monthsHost || !rowsHost || !captionMonthEl || !totalEl || !totalShareEl) return;
+  if (!yearsHost || !monthsHost || !rowsHost || !captionMonthEl || !totalEl) return;
 
   const years = Object.keys(spendingPayload.data || {})
     .filter(function (y) { return /^\d{4}$/.test(String(y)); })
@@ -983,8 +952,6 @@ function renderResidentSpendingBlock(root, rawSpending, accountMeta) {
 
     captionMonthEl.textContent = `${spendingMonthTitleLabel(state.month)} ${state.year}`;
     totalEl.textContent = `${Math.abs(total).toFixedWithComma()} грн`;
-    const totalShare = normalizeMoney(total * shareFactor);
-    totalShareEl.textContent = `${Math.abs(totalShare).toFixedWithComma()} грн`;
 
     if (!orderedRows.length) {
       rowsHost.innerHTML = '<div class="resident-spending-empty">Немає витрат за обраний місяць.</div>';
@@ -1001,9 +968,7 @@ function renderResidentSpendingBlock(root, rawSpending, accountMeta) {
       const name = escapeHtml(`${item.baseName}${monthSuffix}`);
       const amountNum = Number(item.amount) || 0;
       const amount = `${Math.abs(amountNum).toFixedWithComma()} грн`;
-      const shareAmount = normalizeMoney(amountNum * shareFactor);
-      const shareText = `${Math.abs(shareAmount).toFixedWithComma()} грн`;
-      return `<div class="resident-spending-row"><span class="resident-spending-name">${name}</span><span class="resident-spending-label resident-spending-label-amount">Витрати будинку:</span><strong class="resident-spending-amount">${amount}</strong><span class="resident-spending-label resident-spending-label-share">Частка Вашої квартири:</span><strong class="resident-spending-share">${shareText}</strong></div>`;
+      return `<div class="resident-spending-row"><span class="resident-spending-name">${name}</span><span class="resident-spending-label resident-spending-label-amount">Витрати будинку:</span><strong class="resident-spending-amount">${amount}</strong></div>`;
     }).join("");
 
     const monthLongLabel = function (monthNum) {
@@ -1022,20 +987,13 @@ function renderResidentSpendingBlock(root, rawSpending, accountMeta) {
       const bodyRows = rows.map(function (row) {
         const amountNum = Number(row.amount) || 0;
         const amount = `${Math.abs(amountNum).toFixedWithComma()} грн`;
-        const shareAmount = normalizeMoney(amountNum * shareFactor);
-        const shareText = `${Math.abs(shareAmount).toFixedWithComma()} грн`;
-        return `<div class="resident-spending-mobile-row"><span class="resident-spending-mobile-month">${monthLongLabel(row.sortMonth)}</span><strong class="resident-spending-mobile-amount">${amount}</strong><strong class="resident-spending-mobile-share">${shareText}</strong></div>`;
+        return `<div class="resident-spending-mobile-row"><span class="resident-spending-mobile-month">${monthLongLabel(row.sortMonth)}</span><strong class="resident-spending-mobile-amount">${amount}</strong></div>`;
       }).join("");
       return `
         <section class="resident-spending-mobile-card">
           <header class="resident-spending-mobile-card-head">
             <strong class="resident-spending-mobile-card-title">${groupName}</strong>
           </header>
-          <div class="resident-spending-mobile-table-head">
-            <span>Місяць</span>
-            <span>Витрати будинку</span>
-            <span>Ваша частка</span>
-          </div>
           <div class="resident-spending-mobile-table-body">${bodyRows}</div>
         </section>
       `;
@@ -1048,7 +1006,6 @@ function renderResidentSpendingBlock(root, rawSpending, accountMeta) {
         </header>
         <div class="resident-spending-mobile-total-rows">
           <div class="resident-spending-mobile-total-row"><span>Витрати будинку</span><strong>${Math.abs(total).toFixedWithComma()} грн</strong></div>
-          <div class="resident-spending-mobile-total-row"><span>Частка Вашої квартири</span><strong>${Math.abs(totalShare).toFixedWithComma()} грн</strong></div>
         </div>
       </section>
     `;
