@@ -162,6 +162,7 @@ declare
   j_tarifs jsonb;
   j_spending jsonb;
   j_data jsonb;
+  v_expenses_enabled boolean := false;
 
   j_ls_item jsonb;
   j_nach_item jsonb;
@@ -288,6 +289,12 @@ begin
   if j_tarifs = '{}'::jsonb then j_tarifs := coalesce(j_data -> 'tarifs', '{}'::jsonb); end if;
   if j_spending = '{}'::jsonb then j_spending := coalesce(j_data -> 'spending', '{}'::jsonb); end if;
 
+  -- Spending is returned to resident only when home.expenses = 1.
+  v_expenses_enabled := coalesce(lower(trim(j_data ->> 'expenses')), '') in ('1', 'true', 't', 'yes', 'y');
+  if not v_expenses_enabled then
+    j_spending := '{}'::jsonb;
+  end if;
+
   -- Sum of apartment areas for the whole house (resident-side calculations).
   with ls_items as (
     select value
@@ -370,6 +377,7 @@ begin
     'allnach', coalesce(j_allnach, '{}'::jsonb),
     'tarifs', coalesce(j_tarifs, '{}'::jsonb),
     'spending', coalesce(j_spending, '{}'::jsonb),
+    'expenses', case when v_expenses_enabled then 1 else 0 end,
     'home_total_sqr', coalesce(v_home_total_sqr, 0)
   );
 end;
