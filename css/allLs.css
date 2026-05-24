@@ -2718,7 +2718,7 @@ body.resident-mode .tarif-summary-tail .tarif-note-line + .tarif-note-line {
 
 body.resident-mode .resident-flat-grid {
   display: grid;
-  grid-template-columns: repeat(5, minmax(150px, 1fr));
+  grid-template-columns: repeat(5, minmax(140px, 1fr));
   gap: 10px 14px;
 }
 
@@ -2730,7 +2730,7 @@ body.resident-mode .resident-flat-grid > div {
   border: 1px solid #dbe2ec;
   border-radius: 10px;
   background: #f8fbff;
-  min-height: 68px;
+  min-height: 50px;
 }
 
 body.resident-mode .resident-flat-grid > div span {
@@ -2752,13 +2752,17 @@ body.resident-mode .resident-flat-grid > div strong {
   }
 
   body.resident-mode .resident-flat-grid {
-    grid-template-columns: repeat(2, minmax(180px, 1fr));
+    grid-template-columns: repeat(2, minmax(140px, 1fr));
   }
 }
 
 @media (max-width: 640px) {
   body.resident-mode .resident-flat-grid {
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  body.resident-mode .resident-flat-grid > div {
+    min-width: 0;
   }
 }
 

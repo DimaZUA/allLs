@@ -1680,6 +1680,15 @@ if (payUrl && !isResidentMode) {
   var historyContentHost = container;
   var residentHistoryDetails = null;
   var lastYearTarifSummaryBlock = null;
+  var showResidentSpending = false;
+
+  if (isResidentMode) {
+    try {
+      showResidentSpending = new URLSearchParams(window.location.search || "").has("x");
+    } catch (_) {
+      showResidentSpending = false;
+    }
+  }
 
   if (isResidentMode) {
     residentOverviewRoot = document.createElement("section");
@@ -1701,9 +1710,11 @@ if (payUrl && !isResidentMode) {
     historyContentHost = historyHost.querySelector(".resident-history-content") || historyHost;
     container.appendChild(historyHost);
 
-    residentSpendingRoot = document.createElement("section");
-    residentSpendingRoot.className = "resident-spending-card";
-    container.appendChild(residentSpendingRoot);
+    if (showResidentSpending) {
+      residentSpendingRoot = document.createElement("section");
+      residentSpendingRoot.className = "resident-spending-card";
+      container.appendChild(residentSpendingRoot);
+    }
 
     residentViberRoot = document.createElement("section");
     residentViberRoot.className = "resident-viber-card";
@@ -2532,7 +2543,7 @@ if (toggleToOpen) {
       if (recDetails) recDetails.open = true;
     }
 
-    if (residentSpendingRoot) {
+    if (showResidentSpending && residentSpendingRoot) {
       renderResidentSpendingBlock(residentSpendingRoot, spending, curLS);
     }
 
@@ -2586,6 +2597,8 @@ bindCopyButton("copyIbanBtn", function () {
     ? '<div class="change-request-wrap"><button id="changeRequestBtn" type="button" class="change-request-btn">Повідомити про зміни</button></div>'
     : "";
   const updatedAt = dt ? `${dt}${typeof timeAgo === "function" ? ` (${timeAgo(dt)} тому.)` : ""}` : "—";
+  const residentEmail = String(curLS.email || "").replace(/^-+/, "").trim();
+  const residentPhone = String(curLS.tel || "").trim();
 
   const content = isResidentMode
     ? `
@@ -2597,6 +2610,8 @@ bindCopyButton("copyIbanBtn", function () {
           <div class="resident-copy-row"><span>Кількість мешканців</span><strong class="resident-copy-value">${curLS.pers || "—"}</strong></div>
           <div class="resident-copy-row"><span>Поверх</span><strong class="resident-copy-value">${curLS.et || "—"}</strong></div>
           <div class="resident-copy-row"><span>Під'їзд</span><strong class="resident-copy-value">${curLS.pod || "—"}</strong></div>
+          <div class="resident-copy-row"><span>Електронна адреса</span><strong class="resident-copy-value">${residentEmail || "—"}</strong></div>
+          <div class="resident-copy-row"><span>Телефон</span><strong class="resident-copy-value">${residentPhone || "—"}</strong></div>
         </div>
         ${changeButtonHtml}
       </section>

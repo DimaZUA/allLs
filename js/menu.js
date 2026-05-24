@@ -800,14 +800,17 @@ let isCurrentlyOffline = !navigator.onLine; // Глобальный флаг с�
 
 function updateMenuAvailability() {
   const isOnline = navigator.onLine;
+  const isResidentMode = document.body.classList.contains("resident-mode");
 
   // Уведомления через вашу функцию showMessage
-  if (!isOnline && !isCurrentlyOffline) {
+  if (!isResidentMode && !isOnline && !isCurrentlyOffline) {
     isCurrentlyOffline = true;
     showMessage("Відсутнє підключення. Розділ 'Документи' та незавантажені будинки тимчасово недоступні.", "warn", 10000);
-  } else if (isOnline && isCurrentlyOffline) {
+  } else if (!isResidentMode && isOnline && isCurrentlyOffline) {
     isCurrentlyOffline = false;
     showMessage("З'єднання відновлено. Всі розділи доступні.", "suc", 5000);
+  } else if (isResidentMode) {
+    isCurrentlyOffline = !isOnline;
   }
 
   document.querySelectorAll(".menu-item[data-code]").forEach(item => {
