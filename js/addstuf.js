@@ -1258,11 +1258,6 @@ function renderContactGroups(contactGroups, root) {
             <span class="resident-inline-icon" aria-hidden="true" data-lucide="phone"></span>
             <span>${label}</span>
           </span>
-          <span class="resident-contact-line-actions">
-            <a href="tel:${encodeURIComponent(phone.phone)}" class="resident-contact-chip-link">${callLabel}</a>
-            ${phone.hasViber ? `<a href="${viberHref}" class="resident-contact-chip-link" target="_blank" rel="noopener noreferrer">Viber</a>` : ""}
-            ${phone.hasTelegram ? `<a href="${tgByPhoneHref}" class="resident-contact-chip-link" target="_blank" rel="noopener noreferrer">Telegram</a>` : ""}
-          </span>
         </div>
       `;
     }).join("");
@@ -1275,38 +1270,24 @@ function renderContactGroups(contactGroups, root) {
             <span class="resident-inline-icon" aria-hidden="true" data-lucide="mail"></span>
             <span>${safeEmail}</span>
           </span>
-          <a href="mailto:${encodeURIComponent(email)}" class="resident-contact-chip-link">E-mail</a>
         </div>
       `;
     }).join("");
 
-    const tgUserLines = (group.telegramUsernames || []).map(function (username) {
-      const clean = String(username || "").replace(/^@+/, "");
-      if (!clean) return "";
-      const safeText = escapeHtml("@" + clean);
-      return `
-        <div class="resident-contact-line resident-contact-line-telegram">
-          <span class="resident-contact-line-main">
-            <span class="resident-inline-icon" aria-hidden="true" data-lucide="send"></span>
-            <span>${safeText}</span>
-          </span>
-          <a href="https://t.me/${encodeURIComponent(clean)}" class="resident-contact-chip-link" target="_blank" rel="noopener noreferrer">Telegram</a>
-        </div>
-      `;
-    }).join("");
+    const tgUserLines = "";
 
     const singlePhone = (group.phones || []).length === 1 ? group.phones[0] : null;
     const actionCall = singlePhone
       ? `<a href="tel:${encodeURIComponent(singlePhone.phone)}" class="resident-contact-action-btn"><span class="resident-inline-icon" aria-hidden="true" data-lucide="phone"></span><span>Подзвонити</span></a>`
       : "";
     const actionViber = singlePhone && singlePhone.hasViber
-      ? `<a href="viber://chat?number=${encodeURIComponent(singlePhone.phone)}" class="resident-contact-action-btn" target="_blank" rel="noopener noreferrer"><span class="resident-inline-icon" aria-hidden="true" data-lucide="message-circle-more"></span><span>Viber</span></a>`
+      ? `<a href="viber://chat?number=${encodeURIComponent(singlePhone.phone)}" class="resident-contact-action-btn" target="_blank" rel="noopener noreferrer"><span class="resident-inline-icon resident-inline-icon-img" aria-hidden="true"><img src="img/viber.png" alt="" class="resident-messenger-icon-img"></span><span>Viber</span></a>`
       : "";
     const actionTelegramUser = (group.telegramUsernames || []).length
-      ? `<a href="https://t.me/${encodeURIComponent(String(group.telegramUsernames[0]).replace(/^@+/, ""))}" class="resident-contact-action-btn" target="_blank" rel="noopener noreferrer"><span class="resident-inline-icon" aria-hidden="true" data-lucide="send"></span><span>Telegram</span></a>`
+      ? `<a href="https://t.me/${encodeURIComponent(String(group.telegramUsernames[0]).replace(/^@+/, ""))}" class="resident-contact-action-btn" target="_blank" rel="noopener noreferrer"><span class="resident-inline-icon resident-inline-icon-img" aria-hidden="true"><img src="img/tg.png" alt="" class="resident-messenger-icon-img"></span><span>Telegram</span></a>`
       : "";
     const actionTelegramPhone = !actionTelegramUser && singlePhone && singlePhone.hasTelegram
-      ? `<a href="https://t.me/${encodeURIComponent(singlePhone.phone)}" class="resident-contact-action-btn" target="_blank" rel="noopener noreferrer"><span class="resident-inline-icon" aria-hidden="true" data-lucide="send"></span><span>Telegram</span></a>`
+      ? `<a href="https://t.me/${encodeURIComponent(singlePhone.phone)}" class="resident-contact-action-btn" target="_blank" rel="noopener noreferrer"><span class="resident-inline-icon resident-inline-icon-img" aria-hidden="true"><img src="img/tg.png" alt="" class="resident-messenger-icon-img"></span><span>Telegram</span></a>`
       : "";
     const actionEmail = (group.emails || []).length
       ? `<a href="mailto:${encodeURIComponent(group.emails[0])}" class="resident-contact-action-btn"><span class="resident-inline-icon" aria-hidden="true" data-lucide="mail"></span><span>E-mail</span></a>`
@@ -1323,6 +1304,358 @@ function renderContactGroups(contactGroups, root) {
           ${phoneLines}
           ${emailLines}
           ${tgUserLines}
+        </div>
+        ${actionBar}
+      </article>
+    `;
+  }).join("");
+
+  root.innerHTML = `
+    <details class="resident-contacts-details">
+      <summary><span class="resident-title-icon" aria-hidden="true" data-lucide="contact"></span><span>Контакти будинку</span></summary>
+      <div class="resident-contacts-grid">${cardsHtml}</div>
+    </details>
+  `;
+  root.style.display = "";
+}
+
+// Contacts parser/render v2 (overrides legacy implementation above)
+function normalizePhone(rawPhone) {
+  const source = String(rawPhone || "").trim();
+  if (!source) return "";
+  let value = source.replace(/[^\d+]/g, "");
+  if (!value) return "";
+  if (value.startsWith("+")) {
+    value = "+" + value.slice(1).replace(/\D/g, "");
+  } else {
+    value = value.replace(/\D/g, "");
+  }
+  if (/^\+380\d{9}$/.test(value)) return value;
+  if (/^380\d{9}$/.test(value)) return "+" + value;
+  if (/^0\d{9}$/.test(value)) return "+38" + value;
+  if (/^\d{9}$/.test(value)) return "+380" + value;
+  return "";
+}
+
+function formatPhone(phone) {
+  const p = String(phone || "");
+  const m = p.match(/^\+380(\d{2})(\d{3})(\d{2})(\d{2})$/);
+  if (!m) return p;
+  return `+38 (0${m[1]}) ${m[2]}-${m[3]}-${m[4]}`;
+}
+
+function parseContactLabel(leftPart) {
+  const source = String(leftPart || "").trim();
+  if (!source) return { role: "", title: "", notes: [] };
+  const firstParen = source.indexOf("(");
+  let role = firstParen >= 0 ? source.slice(0, firstParen).trim() : source;
+  let title = "";
+  const notes = [];
+  const noteSet = new Set();
+  const bracketValues = [];
+  source.replace(/\(([^()]*)\)/g, function (_full, inner) {
+    const value = String(inner || "").trim();
+    if (value) bracketValues.push(value);
+    return _full;
+  });
+  if (bracketValues.length) {
+    title = bracketValues[0];
+    for (let i = 1; i < bracketValues.length; i += 1) {
+      const rawNote = String(bracketValues[i] || "").replace(/\s+/g, " ").trim();
+      if (!rawNote) continue;
+      const note = /^Визов\s+платний$/i.test(rawNote) ? "Виклик платний" : rawNote;
+      const key = note.toLowerCase();
+      if (noteSet.has(key)) continue;
+      noteSet.add(key);
+      notes.push(note);
+    }
+  }
+  if (!role && title) role = title;
+  return { role, title, notes };
+}
+
+function parseContactValue(value) {
+  const source = String(value || "").trim();
+  if (!source) return null;
+  if (source.startsWith("@")) {
+    const username = source.replace(/^@+/, "").trim();
+    if (!username) return null;
+    return { type: "telegram", value: "@" + username };
+  }
+  if (source.indexOf("@") > 0) {
+    return { type: "email", value: source };
+  }
+  let payload = source.replace(/\s+/g, "");
+  let hasViber = false;
+  let hasTelegram = false;
+  const prefix = payload.match(/^(vt|tv|v|t)(.+)$/i);
+  if (prefix) {
+    const marker = prefix[1].toLowerCase();
+    payload = prefix[2];
+    hasViber = marker.indexOf("v") >= 0;
+    hasTelegram = marker.indexOf("t") >= 0;
+  } else {
+    const suffix = payload.match(/^(.+?)(vt|tv|v|t)$/i);
+    if (suffix) {
+      const marker = suffix[2].toLowerCase();
+      payload = suffix[1];
+      hasViber = marker.indexOf("v") >= 0;
+      hasTelegram = marker.indexOf("t") >= 0;
+    }
+  }
+  const normalized = normalizePhone(payload);
+  if (!normalized) return null;
+  return {
+    type: "phone",
+    value: {
+      raw: source,
+      phone: normalized,
+      displayPhone: formatPhone(normalized),
+      hasViber: !!hasViber,
+      hasTelegram: !!hasTelegram
+    }
+  };
+}
+
+function parseContactLine(line) {
+  const source = String(line || "").trim();
+  if (!source) return null;
+  const pos = source.indexOf(":");
+  if (pos < 1) return null;
+  const leftPart = source.slice(0, pos).trim();
+  const rightPart = source.slice(pos + 1).trim();
+  const label = parseContactLabel(leftPart);
+  if (!label.role && !label.title) return null;
+  const phonesMap = new Map();
+  const emailsMap = new Map();
+  const tgMap = new Map();
+  rightPart.split(",").forEach(function (part) {
+    const parsed = parseContactValue(part);
+    if (!parsed) return;
+    if (parsed.type === "email") {
+      const email = String(parsed.value || "").trim();
+      if (!email) return;
+      const key = email.toLowerCase();
+      if (!emailsMap.has(key)) emailsMap.set(key, email);
+      return;
+    }
+    if (parsed.type === "telegram") {
+      const username = String(parsed.value || "").trim();
+      if (!username || username === "@") return;
+      const key = username.toLowerCase();
+      if (!tgMap.has(key)) tgMap.set(key, username);
+      return;
+    }
+    if (parsed.type === "phone" && parsed.value && parsed.value.phone) {
+      const p = parsed.value;
+      const existing = phonesMap.get(p.phone);
+      if (existing) {
+        existing.hasViber = !!(existing.hasViber || p.hasViber);
+        existing.hasTelegram = !!(existing.hasTelegram || p.hasTelegram);
+      } else {
+        phonesMap.set(p.phone, {
+          raw: p.raw,
+          phone: p.phone,
+          displayPhone: p.displayPhone,
+          hasViber: !!p.hasViber,
+          hasTelegram: !!p.hasTelegram
+        });
+      }
+    }
+  });
+  return {
+    title: label.title || "",
+    roles: label.role ? [label.role] : [],
+    notes: Array.isArray(label.notes) ? label.notes.slice() : [],
+    phones: Array.from(phonesMap.values()),
+    emails: Array.from(emailsMap.values()),
+    telegramUsernames: Array.from(tgMap.values()),
+    isEmergency: /авар/i.test(String(label.role || ""))
+  };
+}
+
+function groupContactRows(rows) {
+  const grouped = new Map();
+  const order = [];
+  (Array.isArray(rows) ? rows : []).forEach(function (row) {
+    if (!row) return;
+    const phoneKey = (row.phones || [])
+      .map(function (p) { return String(p.phone || "").trim(); })
+      .filter(Boolean)
+      .sort()
+      .join("|");
+    const emailKey = (row.emails || [])
+      .map(function (v) { return String(v || "").trim().toLowerCase(); })
+      .filter(Boolean)
+      .sort()
+      .join("|");
+    const tgKey = (row.telegramUsernames || [])
+      .map(function (v) { return String(v || "").trim().toLowerCase(); })
+      .filter(Boolean)
+      .sort()
+      .join("|");
+    const hasContactKey = !!(phoneKey || emailKey || tgKey);
+    const fallbackKey = [
+      (row.roles || []).join("|"),
+      String(row.title || "").toLowerCase(),
+      (row.notes || []).map(function (n) { return String(n || "").toLowerCase(); }).sort().join("|")
+    ].join("||");
+    const prefix = row.isEmergency ? "emergency" : "normal";
+    const key = hasContactKey
+      ? `${prefix}:${phoneKey}::${emailKey}::${tgKey}`
+      : `${prefix}:fallback:${fallbackKey}`;
+    if (!grouped.has(key)) {
+      grouped.set(key, {
+        title: String(row.title || "").trim(),
+        roles: [],
+        notes: [],
+        phones: [],
+        emails: [],
+        telegramUsernames: [],
+        isEmergency: !!row.isEmergency
+      });
+      order.push(key);
+    }
+    const target = grouped.get(key);
+    if (!target.title && row.title) target.title = String(row.title).trim();
+    (row.roles || []).forEach(function (role) {
+      const value = String(role || "").trim();
+      if (!value || target.roles.indexOf(value) >= 0) return;
+      target.roles.push(value);
+    });
+    (row.notes || []).forEach(function (note) {
+      const value = String(note || "").trim();
+      if (!value || target.notes.indexOf(value) >= 0) return;
+      target.notes.push(value);
+    });
+    (row.emails || []).forEach(function (email) {
+      const value = String(email || "").trim();
+      if (!value || target.emails.indexOf(value) >= 0) return;
+      target.emails.push(value);
+    });
+    (row.telegramUsernames || []).forEach(function (tg) {
+      const value = String(tg || "").trim();
+      if (!value || target.telegramUsernames.indexOf(value) >= 0) return;
+      target.telegramUsernames.push(value);
+    });
+    (row.phones || []).forEach(function (phone) {
+      const keyPhone = String(phone && phone.phone || "").trim();
+      if (!keyPhone) return;
+      const existing = target.phones.find(function (x) { return x.phone === keyPhone; });
+      if (existing) {
+        existing.hasViber = !!(existing.hasViber || phone.hasViber);
+        existing.hasTelegram = !!(existing.hasTelegram || phone.hasTelegram);
+      } else {
+        target.phones.push({
+          raw: String(phone.raw || ""),
+          phone: keyPhone,
+          displayPhone: String(phone.displayPhone || formatPhone(keyPhone) || keyPhone),
+          hasViber: !!phone.hasViber,
+          hasTelegram: !!phone.hasTelegram
+        });
+      }
+    });
+  });
+  return order.map(function (key) {
+    return grouped.get(key);
+  }).filter(function (group) {
+    return (group.roles && group.roles.length) ||
+      (group.notes && group.notes.length) ||
+      (group.phones && group.phones.length) ||
+      (group.emails && group.emails.length) ||
+      (group.telegramUsernames && group.telegramUsernames.length);
+  });
+}
+
+function parseBuildingContacts(rawText) {
+  const text = String(rawText || "").replace(/\r/g, "").trim();
+  if (!text) return [];
+  const rows = text.split("\n").map(function (line) {
+    return parseContactLine(line);
+  }).filter(Boolean);
+  return groupContactRows(rows);
+}
+
+function renderContactGroups(contactGroups, root) {
+  if (!root) return;
+  const groups = Array.isArray(contactGroups) ? contactGroups : [];
+  if (!groups.length) {
+    root.innerHTML = "";
+    root.style.display = "none";
+    return;
+  }
+
+  const cardsHtml = groups.map(function (group, idx) {
+    const titleHtml = group.title
+      ? `<h4 class="resident-contact-title">${escapeHtml(group.title)}</h4>`
+      : "";
+    const roleBadges = (group.roles || []).map(function (role) {
+      return `<span class="resident-contact-role-badge">${escapeHtml(role)}</span>`;
+    }).join("");
+    const noteBadges = (group.notes || []).map(function (note) {
+      return `<span class="resident-contact-note-badge">${escapeHtml(note)}</span>`;
+    }).join("");
+    const badgesHtml = (roleBadges || noteBadges)
+      ? `<div class="resident-contact-roles">${roleBadges}${noteBadges}</div>`
+      : "";
+
+    const phoneCount = (group.phones || []).length;
+    const phoneLines = (group.phones || []).map(function (phone) {
+      const inlineCallBtn = phoneCount > 1
+        ? `<a href="tel:${phone.phone}" class="resident-contact-chip-link resident-contact-line-inline-btn"><span class="resident-inline-icon" aria-hidden="true" data-lucide="phone"></span><span>Подзвонити</span></a>`
+        : "";
+      return `
+        <div class="resident-contact-line resident-contact-line-phone">
+          <span class="resident-contact-line-main">
+            <span class="resident-inline-icon" aria-hidden="true" data-lucide="phone"></span>
+            <span>${escapeHtml(phone.displayPhone || phone.phone || "")}</span>
+          </span>
+          ${inlineCallBtn}
+        </div>
+      `;
+    }).join("");
+
+    const emailLines = (group.emails || []).map(function (email) {
+      return `
+        <div class="resident-contact-line resident-contact-line-email">
+          <span class="resident-contact-line-main">
+            <span class="resident-inline-icon" aria-hidden="true" data-lucide="mail"></span>
+            <span>${escapeHtml(email)}</span>
+          </span>
+        </div>
+      `;
+    }).join("");
+
+    const singlePhone = phoneCount === 1 ? group.phones[0] : null;
+    const phoneWithViber = (group.phones || []).find(function (p) { return !!p.hasViber; }) || null;
+    const phoneWithTelegram = (group.phones || []).find(function (p) { return !!p.hasTelegram; }) || null;
+    const tgUsername = String(((group.telegramUsernames || [])[0]) || "").replace(/^@+/, "");
+
+    const actionCall = singlePhone
+      ? `<a href="tel:${singlePhone.phone}" class="resident-contact-action-btn"><span class="resident-inline-icon" aria-hidden="true" data-lucide="phone"></span><span>Подзвонити</span></a>`
+      : "";
+    const actionViber = phoneWithViber
+      ? `<a href="viber://chat?number=${encodeURIComponent(phoneWithViber.phone)}" class="resident-contact-action-btn" target="_blank" rel="noopener noreferrer"><span class="resident-inline-icon resident-inline-icon-img" aria-hidden="true"><img src="img/viber.png" alt="" class="resident-messenger-icon-img"></span><span>Viber</span></a>`
+      : "";
+    const actionTelegram = tgUsername
+      ? `<a href="https://t.me/${encodeURIComponent(tgUsername)}" class="resident-contact-action-btn" target="_blank" rel="noopener noreferrer"><span class="resident-inline-icon resident-inline-icon-img" aria-hidden="true"><img src="img/tg.png" alt="" class="resident-messenger-icon-img"></span><span>Telegram</span></a>`
+      : (phoneWithTelegram
+        ? `<a href="https://t.me/${encodeURIComponent(phoneWithTelegram.phone)}" class="resident-contact-action-btn" target="_blank" rel="noopener noreferrer"><span class="resident-inline-icon resident-inline-icon-img" aria-hidden="true"><img src="img/tg.png" alt="" class="resident-messenger-icon-img"></span><span>Telegram</span></a>`
+        : "");
+    const actionEmail = (group.emails || []).length
+      ? `<a href="mailto:${encodeURIComponent(group.emails[0])}" class="resident-contact-action-btn"><span class="resident-inline-icon" aria-hidden="true" data-lucide="mail"></span><span>E-mail</span></a>`
+      : "";
+    const actionBar = (actionCall || actionViber || actionTelegram || actionEmail)
+      ? `<div class="resident-contact-actions">${actionCall}${actionViber}${actionTelegram}${actionEmail}</div>`
+      : "";
+
+    return `
+      <article class="resident-contact-card${group.isEmergency ? " is-emergency" : ""}" data-contact-card="${idx}">
+        ${titleHtml}
+        ${badgesHtml}
+        <div class="resident-contact-lines">
+          ${phoneLines}
+          ${emailLines}
         </div>
         ${actionBar}
       </article>
@@ -2813,22 +3146,31 @@ if (toggleToOpen) {
       residentViberRoot.innerHTML = "";
       residentViberRoot.style.display = "none";
       if (hasViberQr) {
+        const isTelegramGroup =
+          /(^|\b)(https?:\/\/)?(t\.me|telegram\.me)\//i.test(viberUrl) ||
+          /^tg:/i.test(viberUrl);
+        const groupName = isTelegramGroup ? "Telegram" : "Viber";
+        const groupIcon = isTelegramGroup ? "img/tg.png" : "img/viber.png";
+        window.residentMessengerGroupKind = isTelegramGroup ? "telegram" : "viber";
         residentViberRoot.innerHTML = `
           <details class="resident-viber-details">
-            <summary><span class="resident-title-icon" aria-hidden="true" data-lucide="message-circle-more"></span><span>Група будинку у Viber</span></summary>
+            <summary><span class="resident-title-icon resident-title-icon-img" aria-hidden="true"><img src="${groupIcon}" alt="" class="resident-messenger-title-img"></span><span>Група будинку у ${groupName}</span></summary>
             <div class="resident-viber-block">
               <a id="resident-viber-link" class="resident-viber-link" target="_blank" rel="noopener noreferrer">
-                Приєднуйтесь до групи будинку у Viber.
+                Приєднуйтесь до групи будинку у ${groupName}.
               </a>
               <a id="resident-viber-qr-link" class="resident-viber-qr-link" target="_blank" rel="noopener noreferrer">
-                <img id="resident-viber-qr" alt="Viber QR" class="resident-viber-qr-img">
+                <img id="resident-viber-qr" alt="${groupName} QR" class="resident-viber-qr-img">
               </a>
             </div>
           </details>
         `;
         residentViberRoot.style.display = "";
+      } else {
+        window.residentMessengerGroupKind = "";
       }
     }
+
 
     const contactsRaw = String(
       (window.residentHomeMeta && (
@@ -3707,7 +4049,7 @@ function initLS() {
 <div id="ls-picker" class="ls-picker hidden">
     <div class="ls-picker-header">
         <input id="ls-picker-input" type="text">
-        <button id="ls-picker-close">×</button>
+        <button id="ls-picker-close">Р“вЂ”</button>
     </div>
 
     <div id="picker-content" class="picker-content">
