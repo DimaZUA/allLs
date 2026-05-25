@@ -1635,6 +1635,7 @@ body.resident-mode .resident-overview-card,
 body.resident-mode .resident-requisites-card,
 body.resident-mode .resident-spending-card,
 body.resident-mode .resident-viber-card,
+body.resident-mode .resident-contacts-card,
 body.resident-mode .resident-history-block,
 body.resident-mode .resident-flat-card {
   background: #fff;
@@ -1650,6 +1651,7 @@ body.resident-mode .resident-history-details > summary,
 body.resident-mode .resident-requisites-details > summary,
 body.resident-mode .resident-spending-details > summary,
 body.resident-mode .resident-viber-details > summary,
+body.resident-mode .resident-contacts-details > summary,
 body.resident-mode .resident-flat-card h3 {
   font-size: 1.5rem;
   font-weight: 700;
@@ -1672,7 +1674,8 @@ body.resident-mode .resident-history-details > summary {
 body.resident-mode .resident-history-details > summary,
 body.resident-mode .resident-requisites-details > summary,
 body.resident-mode .resident-spending-details > summary,
-body.resident-mode .resident-viber-details > summary {
+body.resident-mode .resident-viber-details > summary,
+body.resident-mode .resident-contacts-details > summary {
   list-style: none;
   display: flex;
   align-items: center;
@@ -1684,14 +1687,16 @@ body.resident-mode .resident-viber-details > summary {
 body.resident-mode .resident-history-details > summary::-webkit-details-marker,
 body.resident-mode .resident-requisites-details > summary::-webkit-details-marker,
 body.resident-mode .resident-spending-details > summary::-webkit-details-marker,
-body.resident-mode .resident-viber-details > summary::-webkit-details-marker {
+body.resident-mode .resident-viber-details > summary::-webkit-details-marker,
+body.resident-mode .resident-contacts-details > summary::-webkit-details-marker {
   display: none;
 }
 
 body.resident-mode .resident-history-details > summary::after,
 body.resident-mode .resident-requisites-details > summary::after,
 body.resident-mode .resident-spending-details > summary::after,
-body.resident-mode .resident-viber-details > summary::after {
+body.resident-mode .resident-viber-details > summary::after,
+body.resident-mode .resident-contacts-details > summary::after {
   content: "";
   margin-left: auto;
   width: 8px;
@@ -1705,7 +1710,8 @@ body.resident-mode .resident-viber-details > summary::after {
 body.resident-mode .resident-history-details[open] > summary::after,
 body.resident-mode .resident-requisites-details[open] > summary::after,
 body.resident-mode .resident-spending-details[open] > summary::after,
-body.resident-mode .resident-viber-details[open] > summary::after {
+body.resident-mode .resident-viber-details[open] > summary::after,
+body.resident-mode .resident-contacts-details[open] > summary::after {
   transform: rotate(45deg);
 }
 
@@ -1726,6 +1732,7 @@ body.resident-mode .resident-history-details > summary > svg.lucide,
 body.resident-mode .resident-requisites-details > summary > svg.lucide,
 body.resident-mode .resident-spending-details > summary > svg.lucide,
 body.resident-mode .resident-viber-details > summary > svg.lucide,
+body.resident-mode .resident-contacts-details > summary > svg.lucide,
 body.resident-mode .resident-flat-card h3 > svg.lucide,
 body.resident-mode .resident-inline-icon > svg.lucide {
   width: 19px;
@@ -1736,6 +1743,26 @@ body.resident-mode .resident-inline-icon > svg.lucide {
 
 body.resident-mode .resident-viber-details > summary > svg.lucide {
   color: #7360f2;
+}
+
+body.resident-mode .resident-contacts-details > summary > svg.lucide {
+  color: #2f8b57;
+}
+
+body.resident-mode .resident-social-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+body.resident-mode .resident-social-row.only-one {
+  grid-template-columns: 1fr;
+}
+
+body.resident-mode .resident-social-row > .resident-viber-card,
+body.resident-mode .resident-social-row > .resident-contacts-card {
+  margin-bottom: 0;
 }
 
 body.resident-mode .resident-spending-body {
@@ -2407,7 +2434,8 @@ body.resident-mode .resident-field-hint {
 }
 
 body.resident-mode .resident-requisites-details summary,
-body.resident-mode .resident-viber-details summary {
+body.resident-mode .resident-viber-details summary,
+body.resident-mode .resident-contacts-details summary {
   cursor: pointer;
   font-weight: 700;
   font-size: 1.5rem;
@@ -2485,6 +2513,102 @@ body.resident-mode .resident-viber-qr-img {
   border: 1px solid #d4dbe3;
   border-radius: 8px;
   background: #fff;
+}
+
+body.resident-mode .resident-contacts-grid {
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 10px;
+}
+
+body.resident-mode .resident-contact-card {
+  border: 1px solid #dce3eb;
+  border-radius: 10px;
+  background: #fff;
+  padding: 10px;
+  display: grid;
+  gap: 8px;
+}
+
+body.resident-mode .resident-contact-card.is-emergency {
+  border-color: #e1d6bf;
+  background: #fffdf7;
+}
+
+body.resident-mode .resident-contact-roles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+body.resident-mode .resident-contact-role-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  border: 1px solid #cfd8e4;
+  border-radius: 999px;
+  background: #f8fbff;
+  color: #2e3f57;
+  font-size: 0.92rem;
+  line-height: 1.2;
+}
+
+body.resident-mode .resident-contact-lines {
+  display: grid;
+  gap: 6px;
+}
+
+body.resident-mode .resident-contact-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  color: #1f2b3a;
+}
+
+body.resident-mode .resident-contact-line-main {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+body.resident-mode .resident-contact-line-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+body.resident-mode .resident-contact-actions {
+  border-top: 1px solid #e7edf5;
+  padding-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+body.resident-mode .resident-contact-chip-link,
+body.resident-mode .resident-contact-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid #cfd8e4;
+  border-radius: 8px;
+  background: #f8fbff;
+  color: #1d4f95;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.9rem;
+  line-height: 1.2;
+}
+
+body.resident-mode .resident-contact-chip-link:hover,
+body.resident-mode .resident-contact-action-btn:hover {
+  background: #edf4ff;
 }
 
 body.resident-mode .resident-copy-btn {
@@ -3025,9 +3149,14 @@ body.resident-mode .resident-flat-grid > div strong {
   body.resident-mode .resident-requisites-card,
   body.resident-mode .resident-spending-card,
   body.resident-mode .resident-viber-card,
+  body.resident-mode .resident-contacts-card,
   body.resident-mode .resident-history-block,
   body.resident-mode .resident-flat-card {
     padding: 10px;
+  }
+
+  body.resident-mode .resident-social-row {
+    grid-template-columns: 1fr;
   }
 
   body.resident-mode .resident-spending-body {
@@ -3151,6 +3280,27 @@ body.resident-mode .resident-flat-grid > div strong {
     font-size: 1.16rem;
     color: #123d56;
     white-space: nowrap;
+  }
+
+  body.resident-mode .resident-contacts-grid {
+    grid-template-columns: 1fr;
+  }
+
+  body.resident-mode .resident-contact-card {
+    padding: 9px;
+  }
+
+  body.resident-mode .resident-contact-role-badge {
+    font-size: 0.96rem;
+  }
+
+  body.resident-mode .resident-contact-line {
+    font-size: 1.06rem;
+  }
+
+  body.resident-mode .resident-contact-chip-link,
+  body.resident-mode .resident-contact-action-btn {
+    font-size: 0.96rem;
   }
 }
 

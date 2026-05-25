@@ -1067,6 +1067,277 @@ function renderResidentSpendingBlock(root, rawSpending, accountMeta) {
   renderRows();
 }
 
+function normalizePhone(rawPhone) {
+  const source = String(rawPhone || "").trim();
+  if (!source) return "";
+  let digits = source.replace(/[^\d+]/g, "");
+  if (!digits) return "";
+  if (digits.startsWith("+")) {
+    digits = "+" + digits.slice(1).replace(/\D/g, "");
+  } else {
+    digits = digits.replace(/\D/g, "");
+  }
+
+  if (/^\+380\d{9}$/.test(digits)) return digits;
+  if (/^380\d{9}$/.test(digits)) return "+" + digits;
+  if (/^0\d{9}$/.test(digits)) return "+38" + digits;
+  if (/^\d{9}$/.test(digits)) return "+380" + digits;
+  return "";
+}
+
+function formatPhone(phone) {
+  const p = String(phone || "");
+  const m = p.match(/^\+380(\d{2})(\d{3})(\d{2})(\d{2})$/);
+  if (!m) return p;
+  return `+38 (0${m[1]}) ${m[2]}-${m[3]}-${m[4]}`;
+}
+
+function parseBuildingContacts(rawText) {
+  const text = String(rawText || "").replace(/\r/g, "").trim();
+  if (!text) return [];
+
+  function parsePhoneToken(rawToken) {
+    const token = String(rawToken || "").trim();
+    if (!token) return null;
+    const compact = token.replace(/\s+/g, "");
+    let payload = compact;
+    let hasViber = false;
+    let hasTelegram = false;
+
+    const prefix = payload.match(/^(vt|tv|v|t)(.+)$/i);
+    if (prefix) {
+      const marker = prefix[1].toLowerCase();
+      payload = prefix[2];
+      hasViber = marker.indexOf("v") >= 0;
+      hasTelegram = marker.indexOf("t") >= 0;
+    } else {
+      const suffix = payload.match(/^(.+?)(vt|tv|v|t)$/i);
+      if (suffix) {
+        const marker = suffix[2].toLowerCase();
+        payload = suffix[1];
+        hasViber = marker.indexOf("v") >= 0;
+        hasTelegram = marker.indexOf("t") >= 0;
+      }
+    }
+
+    const normalized = normalizePhone(payload);
+    if (!normalized) return null;
+    return {
+      raw: token,
+      phone: normalized,
+      displayPhone: formatPhone(normalized),
+      hasViber: hasViber,
+      hasTelegram: hasTelegram
+    };
+  }
+
+  const parsedLines = [];
+  text.split("\n").forEach(function (lineRaw) {
+    const line = String(lineRaw || "").trim();
+    if (!line) return;
+    const pos = line.indexOf(":");
+    if (pos < 1) return;
+    const role = line.slice(0, pos).trim();
+    if (!role) return;
+    const payload = line.slice(pos + 1).trim();
+    const parts = payload ? payload.split(",").map(function (v) { return String(v || "").trim(); }).filter(Boolean) : [];
+    const phonesMap = new Map();
+    const emailsSet = new Set();
+    const tgSet = new Set();
+
+    parts.forEach(function (item) {
+      if (!item) return;
+      if (item.startsWith("@")) {
+        const username = "@" + item.slice(1).trim();
+        if (username !== "@") tgSet.add(username);
+        return;
+      }
+      if (item.indexOf("@") > 0) {
+        emailsSet.add(item);
+        return;
+      }
+      const phoneObj = parsePhoneToken(item);
+      if (!phoneObj) return;
+      const existing = phonesMap.get(phoneObj.phone);
+      if (existing) {
+        existing.hasViber = !!(existing.hasViber || phoneObj.hasViber);
+        existing.hasTelegram = !!(existing.hasTelegram || phoneObj.hasTelegram);
+      } else {
+        phonesMap.set(phoneObj.phone, phoneObj);
+      }
+    });
+
+    parsedLines.push({
+      role: role,
+      phones: Array.from(phonesMap.values()),
+      emails: Array.from(emailsSet.values()),
+      telegramUsernames: Array.from(tgSet.values()),
+      isEmergency: /аварійн/i.test(role)
+    });
+  });
+
+  const grouped = new Map();
+  const order = [];
+
+  parsedLines.forEach(function (entry) {
+    const primaryPhone = entry.phones.length ? entry.phones[0].phone : "";
+    const key = entry.isEmergency
+      ? `emergency:${primaryPhone || entry.role}`
+      : `normal:${primaryPhone || entry.role}`;
+
+    if (!grouped.has(key)) {
+      grouped.set(key, {
+        roles: [],
+        phones: [],
+        emails: [],
+        telegramUsernames: [],
+        isEmergency: !!entry.isEmergency
+      });
+      order.push(key);
+    }
+
+    const target = grouped.get(key);
+    if (target.roles.indexOf(entry.role) < 0) target.roles.push(entry.role);
+
+    entry.phones.forEach(function (p) {
+      const existing = target.phones.find(function (x) { return x.phone === p.phone; });
+      if (existing) {
+        existing.hasViber = !!(existing.hasViber || p.hasViber);
+        existing.hasTelegram = !!(existing.hasTelegram || p.hasTelegram);
+      } else {
+        target.phones.push({
+          raw: p.raw,
+          phone: p.phone,
+          displayPhone: p.displayPhone,
+          hasViber: !!p.hasViber,
+          hasTelegram: !!p.hasTelegram
+        });
+      }
+    });
+
+    entry.emails.forEach(function (email) {
+      if (target.emails.indexOf(email) < 0) target.emails.push(email);
+    });
+    entry.telegramUsernames.forEach(function (tg) {
+      if (target.telegramUsernames.indexOf(tg) < 0) target.telegramUsernames.push(tg);
+    });
+  });
+
+  return order.map(function (key) {
+    return grouped.get(key);
+  }).filter(function (group) {
+    return (group.roles && group.roles.length) ||
+      (group.phones && group.phones.length) ||
+      (group.emails && group.emails.length) ||
+      (group.telegramUsernames && group.telegramUsernames.length);
+  });
+}
+
+function renderContactGroups(contactGroups, root) {
+  if (!root) return;
+  const groups = Array.isArray(contactGroups) ? contactGroups : [];
+  if (!groups.length) {
+    root.innerHTML = "";
+    root.style.display = "none";
+    return;
+  }
+
+  const cardsHtml = groups.map(function (group, idx) {
+    const roles = (group.roles || []).map(function (role) {
+      return `<span class="resident-contact-role-badge">${escapeHtml(role)}</span>`;
+    }).join("");
+
+    const phoneLines = (group.phones || []).map(function (phone, phoneIdx) {
+      const label = escapeHtml(phone.displayPhone || phone.phone || "");
+      const viberHref = `viber://chat?number=${encodeURIComponent(phone.phone)}`;
+      const tgByPhoneHref = `https://t.me/${phone.phone}`;
+      const callLabel = (group.phones || []).length > 1 ? `Подзвонити ${phoneIdx + 1}` : "Подзвонити";
+      return `
+        <div class="resident-contact-line resident-contact-line-phone">
+          <span class="resident-contact-line-main">
+            <span class="resident-inline-icon" aria-hidden="true" data-lucide="phone"></span>
+            <span>${label}</span>
+          </span>
+          <span class="resident-contact-line-actions">
+            <a href="tel:${encodeURIComponent(phone.phone)}" class="resident-contact-chip-link">${callLabel}</a>
+            ${phone.hasViber ? `<a href="${viberHref}" class="resident-contact-chip-link" target="_blank" rel="noopener noreferrer">Viber</a>` : ""}
+            ${phone.hasTelegram ? `<a href="${tgByPhoneHref}" class="resident-contact-chip-link" target="_blank" rel="noopener noreferrer">Telegram</a>` : ""}
+          </span>
+        </div>
+      `;
+    }).join("");
+
+    const emailLines = (group.emails || []).map(function (email) {
+      const safeEmail = escapeHtml(email);
+      return `
+        <div class="resident-contact-line resident-contact-line-email">
+          <span class="resident-contact-line-main">
+            <span class="resident-inline-icon" aria-hidden="true" data-lucide="mail"></span>
+            <span>${safeEmail}</span>
+          </span>
+          <a href="mailto:${encodeURIComponent(email)}" class="resident-contact-chip-link">E-mail</a>
+        </div>
+      `;
+    }).join("");
+
+    const tgUserLines = (group.telegramUsernames || []).map(function (username) {
+      const clean = String(username || "").replace(/^@+/, "");
+      if (!clean) return "";
+      const safeText = escapeHtml("@" + clean);
+      return `
+        <div class="resident-contact-line resident-contact-line-telegram">
+          <span class="resident-contact-line-main">
+            <span class="resident-inline-icon" aria-hidden="true" data-lucide="send"></span>
+            <span>${safeText}</span>
+          </span>
+          <a href="https://t.me/${encodeURIComponent(clean)}" class="resident-contact-chip-link" target="_blank" rel="noopener noreferrer">Telegram</a>
+        </div>
+      `;
+    }).join("");
+
+    const singlePhone = (group.phones || []).length === 1 ? group.phones[0] : null;
+    const actionCall = singlePhone
+      ? `<a href="tel:${encodeURIComponent(singlePhone.phone)}" class="resident-contact-action-btn"><span class="resident-inline-icon" aria-hidden="true" data-lucide="phone"></span><span>Подзвонити</span></a>`
+      : "";
+    const actionViber = singlePhone && singlePhone.hasViber
+      ? `<a href="viber://chat?number=${encodeURIComponent(singlePhone.phone)}" class="resident-contact-action-btn" target="_blank" rel="noopener noreferrer"><span class="resident-inline-icon" aria-hidden="true" data-lucide="message-circle-more"></span><span>Viber</span></a>`
+      : "";
+    const actionTelegramUser = (group.telegramUsernames || []).length
+      ? `<a href="https://t.me/${encodeURIComponent(String(group.telegramUsernames[0]).replace(/^@+/, ""))}" class="resident-contact-action-btn" target="_blank" rel="noopener noreferrer"><span class="resident-inline-icon" aria-hidden="true" data-lucide="send"></span><span>Telegram</span></a>`
+      : "";
+    const actionTelegramPhone = !actionTelegramUser && singlePhone && singlePhone.hasTelegram
+      ? `<a href="https://t.me/${encodeURIComponent(singlePhone.phone)}" class="resident-contact-action-btn" target="_blank" rel="noopener noreferrer"><span class="resident-inline-icon" aria-hidden="true" data-lucide="send"></span><span>Telegram</span></a>`
+      : "";
+    const actionEmail = (group.emails || []).length
+      ? `<a href="mailto:${encodeURIComponent(group.emails[0])}" class="resident-contact-action-btn"><span class="resident-inline-icon" aria-hidden="true" data-lucide="mail"></span><span>E-mail</span></a>`
+      : "";
+
+    const actionBar = (actionCall || actionViber || actionTelegramUser || actionTelegramPhone || actionEmail)
+      ? `<div class="resident-contact-actions">${actionCall}${actionViber}${actionTelegramUser}${actionTelegramPhone}${actionEmail}</div>`
+      : "";
+
+    return `
+      <article class="resident-contact-card${group.isEmergency ? " is-emergency" : ""}" data-contact-card="${idx}">
+        <div class="resident-contact-roles">${roles}</div>
+        <div class="resident-contact-lines">
+          ${phoneLines}
+          ${emailLines}
+          ${tgUserLines}
+        </div>
+        ${actionBar}
+      </article>
+    `;
+  }).join("");
+
+  root.innerHTML = `
+    <details class="resident-contacts-details">
+      <summary><span class="resident-title-icon" aria-hidden="true" data-lucide="contact"></span><span>Контакти будинку</span></summary>
+      <div class="resident-contacts-grid">${cardsHtml}</div>
+    </details>
+  `;
+  root.style.display = "";
+}
+
 function pickRequisites(homeCode, accountData) {
   const home = Array.isArray(homes)
     ? homes.find(h => String(h?.code || "") === String(homeCode || ""))
@@ -1652,6 +1923,8 @@ if (payUrl && !isResidentMode) {
   var residentRequisitesRoot = null;
   var residentSpendingRoot = null;
   var residentViberRoot = null;
+  var residentContactsRoot = null;
+  var residentSocialRowRoot = null;
   var historyHost = container;
   var historyContentHost = container;
   var residentHistoryDetails = null;
@@ -1697,10 +1970,18 @@ if (payUrl && !isResidentMode) {
       container.appendChild(residentSpendingRoot);
     }
 
+    residentSocialRowRoot = document.createElement("div");
+    residentSocialRowRoot.className = "resident-social-row";
+    residentSocialRowRoot.style.display = "none";
     residentViberRoot = document.createElement("section");
     residentViberRoot.className = "resident-viber-card";
     residentViberRoot.style.display = "none";
-    container.appendChild(residentViberRoot);
+    residentContactsRoot = document.createElement("section");
+    residentContactsRoot.className = "resident-contacts-card";
+    residentContactsRoot.style.display = "none";
+    residentSocialRowRoot.appendChild(residentViberRoot);
+    residentSocialRowRoot.appendChild(residentContactsRoot);
+    container.appendChild(residentSocialRowRoot);
   }
   var allYearsSorted = Object.keys(accountData).sort(function (a, b) {
     return Number(a) - Number(b);
@@ -2547,6 +2828,29 @@ if (toggleToOpen) {
         `;
         residentViberRoot.style.display = "";
       }
+    }
+
+    const contactsRaw = String(
+      (window.residentHomeMeta && (
+        window.residentHomeMeta.contacts ||
+        (window.residentHomeMeta.home && window.residentHomeMeta.home.contacts)
+      )) ||
+      (Array.isArray(homes) && homes[0] && (
+        homes[0].contacts ||
+        (homes[0].home && homes[0].home.contacts)
+      )) ||
+      ""
+    ).trim();
+    const contactGroups = parseBuildingContacts(contactsRaw);
+    if (residentContactsRoot) {
+      renderContactGroups(contactGroups, residentContactsRoot);
+    }
+
+    if (residentSocialRowRoot) {
+      const hasViberBlock = !!(residentViberRoot && residentViberRoot.style.display !== "none");
+      const hasContactsBlock = !!(residentContactsRoot && residentContactsRoot.style.display !== "none");
+      residentSocialRowRoot.style.display = (hasViberBlock || hasContactsBlock) ? "" : "none";
+      residentSocialRowRoot.classList.toggle("only-one", !(hasViberBlock && hasContactsBlock));
     }
 
 bindCopyButton("copyIbanBtn", function () {

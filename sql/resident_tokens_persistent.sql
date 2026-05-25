@@ -377,6 +377,7 @@ begin
     'allnach', coalesce(j_allnach, '{}'::jsonb),
     'tarifs', coalesce(j_tarifs, '{}'::jsonb),
     'spending', coalesce(j_spending, '{}'::jsonb),
+    'contacts', coalesce(j_data ->> 'contacts', ''),
     'expenses', case when v_expenses_enabled then 1 else 0 end,
     'home_total_sqr', coalesce(v_home_total_sqr, 0)
   );

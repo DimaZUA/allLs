@@ -224,6 +224,12 @@
       homeMetaData.home_total_sqr ??
       homeMetaData.homeTotalSqr;
     const homeTotalSqrValue = Number(homeTotalSqrRaw);
+    const contactsValue = firstNonEmpty(
+      payload.contacts,
+      homeMeta.contacts,
+      homeMetaData.contacts,
+      findByKeyVariants(payload, ["contacts", "Contacts"], 4)
+    );
     if (!mfoValue && ibanValue && String(ibanValue).length >= 10) {
       mfoValue = String(ibanValue).substring(4, 10);
     }
@@ -241,6 +247,8 @@
       expenses: expensesValue,
       spending: spendingValue,
       home_total_sqr: Number.isFinite(homeTotalSqrValue) ? homeTotalSqrValue : 0,
+      contacts: String(contactsValue || ""),
+      home: homeMetaData && typeof homeMetaData === "object" ? homeMetaData : {},
       token: String(payload.token || homeMeta.token || "")
     };
 
@@ -259,6 +267,8 @@
         expenses: window.residentHomeMeta.expenses,
         spending: window.residentHomeMeta.spending,
         home_total_sqr: window.residentHomeMeta.home_total_sqr,
+        contacts: window.residentHomeMeta.contacts,
+        home: window.residentHomeMeta.home,
         token: window.residentHomeMeta.token
       }
     ];
