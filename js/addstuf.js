@@ -1747,7 +1747,7 @@ function layoutResidentFlatGrid(grid) {
   if (!grid || !document.body.classList.contains("resident-mode")) return;
   const cols = getResidentFlatGridColumnCount(grid);
   const items = Array.from(grid.children).filter(function (item) {
-    return item && item.nodeType === 1;
+    return item && item.nodeType === 1 && item.tagName !== "TEMPLATE";
   });
   if (!items.length) return;
 
@@ -3487,12 +3487,52 @@ bindCopyButton("copyIbanBtn", function () {
   const updatedAt = dt ? `${dt}${typeof timeAgo === "function" ? ` (${timeAgo(dt)} тому.)` : ""}` : "—";
   const residentEmail = String(curLS.email || "").replace(/^-+/, "").trim();
   const residentPhone = String(curLS.tel || "").trim();
+  const residentFlatValueVisible = function (value) {
+    const text = String(value ?? "").trim();
+    if (!text) return false;
+    const numeric = Number(text.replace(",", "."));
+    return !(Number.isFinite(numeric) && numeric === 0);
+  };
+  const residentFlatCardHtml = function (label, value) {
+    return `<div class="resident-copy-row"><span>${escapeHtml(label)}</span><strong class="resident-copy-value">${escapeHtml(value)}</strong></div>`;
+  };
+  const residentFlatCards = [];
+  if (isResidentMode) {
+    residentFlatCards.push(residentFlatCardHtml("Особовий рахунок", curLS.ls || "—"));
+    if (residentFlatValueVisible(curLS.pl)) {
+      residentFlatCards.push(residentFlatCardHtml("Площа", `${curLS.pl} м²`));
+    }
+    if (residentFlatValueVisible(curLS.pers)) {
+      residentFlatCards.push(residentFlatCardHtml("Кількість мешканців", curLS.pers));
+    }
+    if (residentFlatValueVisible(curLS.et)) {
+      residentFlatCards.push(residentFlatCardHtml("Поверх", curLS.et));
+    }
+    if (residentFlatValueVisible(curLS.pod)) {
+      residentFlatCards.push(residentFlatCardHtml("Під'їзд", curLS.pod));
+    }
+    if (residentEmail.indexOf("@") > 0) {
+      residentFlatCards.push(residentFlatCardHtml("Електронна адреса", residentEmail));
+    }
+
+    const seenResidentPhones = new Set();
+    residentPhone.split(/[;,]/).forEach(function (part) {
+      const raw = String(part || "").trim();
+      if (raw.length < 5) return;
+      const normalized = normalizePhone(raw);
+      if (!normalized || seenResidentPhones.has(normalized)) return;
+      seenResidentPhones.add(normalized);
+      residentFlatCards.push(residentFlatCardHtml("Телефон", formatPhone(normalized)));
+    });
+  }
 
   const content = isResidentMode
     ? `
       <section class="resident-flat-card">
         <h3><span class="resident-title-icon" aria-hidden="true" data-lucide="home"></span><span>Інформація про квартиру</span></h3>
         <div class="resident-flat-grid">
+          ${residentFlatCards.join("")}
+          <template hidden>
           <div class="resident-copy-row"><span>Особовий рахунок</span><strong class="resident-copy-value">${curLS.ls || "—"}</strong></div>
           <div class="resident-copy-row"><span>Площа</span><strong class="resident-copy-value">${curLS.pl ? `${curLS.pl} м²` : "—"}</strong></div>
           <div class="resident-copy-row"><span>Кількість мешканців</span><strong class="resident-copy-value">${curLS.pers || "—"}</strong></div>
@@ -3500,6 +3540,7 @@ bindCopyButton("copyIbanBtn", function () {
           <div class="resident-copy-row"><span>Під'їзд</span><strong class="resident-copy-value">${curLS.pod || "—"}</strong></div>
           <div class="resident-copy-row"><span>Електронна адреса</span><strong class="resident-copy-value">${residentEmail || "—"}</strong></div>
           <div class="resident-copy-row"><span>Телефон</span><strong class="resident-copy-value">${residentPhone || "—"}</strong></div>
+          </template>
         </div>
         ${changeButtonHtml}
       </section>
