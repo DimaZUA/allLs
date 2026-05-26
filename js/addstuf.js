@@ -3206,6 +3206,20 @@ if (toggleToOpen) {
         advisoryText = "Дякуємо за участь у забезпеченні роботи будинку. За особовим рахунком є поточна сума до сплати. Просимо за можливості сплатити внески своєчасно, щоб будинок міг без затримок оплачувати необхідні послуги, здійснювати обслуговування та виконувати поточні роботи.";
       }
     }
+    let overviewStatusText = "\u0404 \u0441\u0443\u043c\u0430 \u0434\u043e \u0441\u043f\u043b\u0430\u0442\u0438";
+    if (advisoryTone === "good" && effectiveBalance < 0) {
+      overviewStatusText = "\u041f\u0435\u0440\u0435\u043f\u043b\u0430\u0442\u0430";
+    } else if (advisoryTone === "good" && effectiveBalance === 0) {
+      overviewStatusText = "\u0412\u0441\u0435 \u0441\u043f\u043b\u0430\u0447\u0435\u043d\u043e";
+    } else if (advisoryTone === "neutral") {
+      overviewStatusText = "\u0404 \u0441\u0443\u043c\u0430 \u0434\u043e \u0441\u043f\u043b\u0430\u0442\u0438";
+    } else if (advisoryTone === "warn") {
+      overviewStatusText = "\u0429\u0435 \u0454 \u0431\u043e\u0440\u0433";
+    } else if (advisoryTone === "danger") {
+      overviewStatusText = "\u0417\u0430\u0431\u043e\u0440\u0433\u043e\u0432\u0430\u043d\u0456\u0441\u0442\u044c";
+    } else if (advisoryTone === "critical") {
+      overviewStatusText = "\u0411\u041e\u0420\u0413";
+    }
     const statusIconTone =
       effectiveBalance > 0
         ? (advisoryTone === "critical" ? "critical" : advisoryTone === "danger" ? "danger" : "warn")
@@ -3297,7 +3311,7 @@ if (toggleToOpen) {
             class="resident-status-pill resident-status-pill-btn resident-${meta.cls}"
             aria-controls="residentStatusDetails"
             aria-expanded="false"
-          >${statusIconHtml}<span>${statusText}</span></button>
+          >${statusIconHtml}<span>${overviewStatusText}</span></button>
         </span>
         <strong>${moneyText(Math.abs(currentBalance))}</strong>
       </div>
