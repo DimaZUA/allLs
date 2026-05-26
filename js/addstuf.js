@@ -2346,6 +2346,7 @@ function buildResidentDesktopYearCards(yearPayload) {
     const isDue = debt > 0 && dueLimit > 0 && debt < dueLimit;
     return {
       className: (meta.cls === "debt" && isDue) ? "due" : meta.cls,
+      showLabel: meta.cls !== "neutral",
       label: meta.cls === "debt"
         ? (isDue ? "\u0414\u043e \u0441\u043f\u043b\u0430\u0442\u0438" : "\u0411\u043e\u0440\u0433")
         : (meta.cls === "credit" ? "\u041f\u0435\u0440\u0435\u043f\u043b\u0430\u0442\u0430" : "\u0421\u0442\u0430\u043d")
@@ -2404,7 +2405,7 @@ function buildResidentDesktopYearCards(yearPayload) {
       <td class="rhd-month">${escapeHtml(month.title || "")}${month.isCurrent ? '<span class="rhd-current-tag">попередньо</span>' : ""}</td>
       <td class="rhd-accrual">${chargeLines || '<div class="rhd-empty">—</div>'}</td>
       <td class="rhd-paid">${paidHtml}</td>
-      <td class="rhd-result rhd-${state.className}"><span class="rhd-state-chip">${state.label}</span><strong class="rhd-state-amount">${absBalance}</strong></td>
+      <td class="rhd-result rhd-${state.className}">${state.showLabel ? `<span class="rhd-state-chip">${state.label}</span>` : ""}<strong class="rhd-state-amount">${absBalance}</strong></td>
     `;
     if (month.isCurrent) tr.classList.add("rhd-current-month");
     tbody.appendChild(tr);
@@ -2453,7 +2454,7 @@ function buildResidentDesktopYearCards(yearPayload) {
       <td class="rhd-month">\u0420\u0430\u0437\u043e\u043c \u0437\u0430 ${yearNum} \u0440\u0456\u043a</td>
       <td class="rhd-accrual"><div class="rhd-total-accrual"><span>\u0423\u0441\u044c\u043e\u0433\u043e \u043d\u0430\u0440\u0430\u0445\u043e\u0432\u0430\u043d\u043e:</span><strong>${(Number(summary.accrued) || 0).toFixedWithComma()}</strong></div></td>
       <td class="rhd-paid"><strong class="rhd-paid-total">${(Number(summary.paid) || 0).toFixedWithComma()}</strong></td>
-      <td class="rhd-result rhd-${totalState.className}"><span class="rhd-state-chip">${totalState.label}</span><strong class="rhd-state-amount">${totalAbs}</strong></td>
+      <td class="rhd-result rhd-${totalState.className}">${totalState.showLabel ? `<span class="rhd-state-chip">${totalState.label}</span>` : ""}<strong class="rhd-state-amount">${totalAbs}</strong></td>
     `;
     tbody.appendChild(totalRow);
   }
