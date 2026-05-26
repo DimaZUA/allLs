@@ -783,6 +783,39 @@ function parseSpendingPayload(rawSpending) {
   };
 }
 
+function normalizeExpensesStartMonth(rawValue) {
+  const text = String(rawValue ?? "").trim().toLowerCase();
+  if (!text || text === "0" || text === "false" || text === "f" || text === "no" || text === "n") return 0;
+  if (text === "true" || text === "t" || text === "yes" || text === "y") return 1;
+  const n = Number(text);
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
+}
+
+function filterSpendingPayloadByStartMonth(spendingPayload, startMonth) {
+  const start = normalizeExpensesStartMonth(startMonth);
+  if (!start || start <= 1) return spendingPayload;
+  const sourceData = spendingPayload && spendingPayload.data && typeof spendingPayload.data === "object"
+    ? spendingPayload.data
+    : {};
+  const filteredData = {};
+  Object.keys(sourceData).forEach(function (yearKey) {
+    const yearNum = Number(yearKey);
+    const yearData = sourceData[yearKey];
+    if (!Number.isFinite(yearNum) || !yearData || typeof yearData !== "object") return;
+    Object.keys(yearData).forEach(function (monthKey) {
+      const monthNum = Number(monthKey);
+      if (!Number.isFinite(monthNum) || monthNum < 1 || monthNum > 12) return;
+      if (yearNum * 12 + monthNum < start) return;
+      if (!filteredData[yearKey]) filteredData[yearKey] = {};
+      filteredData[yearKey][monthKey] = yearData[monthKey];
+    });
+  });
+  return {
+    dict: spendingPayload && spendingPayload.dict && typeof spendingPayload.dict === "object" ? spendingPayload.dict : {},
+    data: filteredData
+  };
+}
+
 function spendingMonthShortLabel(monthNum) {
   const labels = ["січ", "лют", "бер", "квіт", "трав", "черв", "лип", "серп", "вер", "жовт", "лист", "груд"];
   return labels[Math.max(1, Math.min(12, Number(monthNum) || 1)) - 1];
@@ -835,12 +868,15 @@ function hasSpendingData(spendingPayload) {
   });
 }
 
-function renderResidentSpendingBlock(root, rawSpending, accountMeta) {
+function renderResidentSpendingBlock(root, rawSpending, accountMeta, expensesStartMonth) {
   if (!root) return;
   root.innerHTML = "";
   root.style.display = "none";
 
-  const spendingPayload = parseSpendingPayload(rawSpending);
+  const spendingPayload = filterSpendingPayloadByStartMonth(
+    parseSpendingPayload(rawSpending),
+    expensesStartMonth
+  );
   if (!hasSpendingData(spendingPayload)) return;
 
   root.style.display = "";
@@ -2540,6 +2576,7 @@ if (payUrl && !isResidentMode) {
   var residentHistoryDetails = null;
   var lastYearTarifSummaryBlock = null;
   var showResidentSpending = false;
+  var residentExpensesStartMonth = 0;
 
   if (isResidentMode) {
     const homeCode = String(getParam("homeCode") || "");
@@ -2550,8 +2587,8 @@ if (payUrl && !isResidentMode) {
     const expensesRaw =
       homeMeta.expenses ??
       (homeFromList && homeFromList.expenses);
-    showResidentSpending =
-      Number(expensesRaw) === 1 || String(expensesRaw || "").trim() === "1";
+    residentExpensesStartMonth = normalizeExpensesStartMonth(expensesRaw);
+    showResidentSpending = residentExpensesStartMonth > 0;
   }
 
   if (isResidentMode) {
@@ -3445,7 +3482,7 @@ if (toggleToOpen) {
     }
 
     if (showResidentSpending && residentSpendingRoot) {
-      renderResidentSpendingBlock(residentSpendingRoot, spending, curLS);
+      renderResidentSpendingBlock(residentSpendingRoot, spending, curLS, residentExpensesStartMonth);
     }
 
     if (residentViberRoot) {

@@ -163,6 +163,8 @@ declare
   j_spending jsonb;
   j_data jsonb;
   v_expenses_enabled boolean := false;
+  v_expenses_start_month integer := 0;
+  v_expenses_raw text;
 
   j_ls_item jsonb;
   j_nach_item jsonb;
@@ -289,10 +291,41 @@ begin
   if j_tarifs = '{}'::jsonb then j_tarifs := coalesce(j_data -> 'tarifs', '{}'::jsonb); end if;
   if j_spending = '{}'::jsonb then j_spending := coalesce(j_data -> 'spending', '{}'::jsonb); end if;
 
-  -- Spending is returned to resident only when home.data.expenses = 1.
-  v_expenses_enabled := coalesce(lower(trim(j_data ->> 'expenses')), '') in ('1', 'true', 't', 'yes', 'y');
+  -- Spending is returned to resident only when home.data.expenses is enabled.
+  -- Legacy expenses=1 means "show all"; values like 24317 mean show from year*12+month.
+  v_expenses_raw := coalesce(lower(trim(j_data ->> 'expenses')), '');
+  if v_expenses_raw in ('true', 't', 'yes', 'y') then
+    v_expenses_start_month := 1;
+  elsif v_expenses_raw ~ '^[0-9]+$' then
+    v_expenses_start_month := v_expenses_raw::integer;
+  else
+    v_expenses_start_month := 0;
+  end if;
+  v_expenses_enabled := v_expenses_start_month > 0;
   if not v_expenses_enabled then
     j_spending := '{}'::jsonb;
+  elsif v_expenses_start_month > 1 then
+    j_spending := jsonb_set(
+      coalesce(j_spending, '{}'::jsonb),
+      '{data}',
+      coalesce((
+        select jsonb_object_agg(year_key, months_filtered)
+        from (
+          select
+            y.key as year_key,
+            jsonb_object_agg(m.key, m.value) as months_filtered
+          from jsonb_each(coalesce(j_spending -> 'data', '{}'::jsonb)) as y(key, value)
+          cross join lateral jsonb_each(
+            case when jsonb_typeof(y.value) = 'object' then y.value else '{}'::jsonb end
+          ) as m(key, value)
+          where y.key ~ '^[0-9]+$'
+            and m.key ~ '^[0-9]+$'
+            and (y.key::integer * 12 + m.key::integer) >= v_expenses_start_month
+          group by y.key
+        ) filtered
+      ), '{}'::jsonb),
+      true
+    );
   end if;
 
   -- Sum of apartment areas for the whole house (resident-side calculations).
@@ -378,7 +411,7 @@ begin
     'tarifs', coalesce(j_tarifs, '{}'::jsonb),
     'spending', coalesce(j_spending, '{}'::jsonb),
     'contacts', coalesce(j_data ->> 'contacts', ''),
-    'expenses', case when v_expenses_enabled then 1 else 0 end,
+    'expenses', case when v_expenses_enabled then v_expenses_start_month else 0 end,
     'home_total_sqr', coalesce(v_home_total_sqr, 0)
   );
 end;

@@ -212,10 +212,14 @@
       payload.expenses ??
       homeMeta.expenses ??
       homeMetaData.expenses;
-    const expensesValue =
-      Number(expensesRaw) === 1 || String(expensesRaw || "").trim() === "1"
-        ? 1
-        : 0;
+    const normalizeExpensesStartMonth = function (rawValue) {
+      const text = String(rawValue ?? "").trim().toLowerCase();
+      if (!text || text === "0" || text === "false" || text === "f" || text === "no" || text === "n") return 0;
+      if (text === "true" || text === "t" || text === "yes" || text === "y") return 1;
+      const n = Number(text);
+      return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
+    };
+    const expensesValue = normalizeExpensesStartMonth(expensesRaw);
     const homeTotalSqrRaw =
       payload.home_total_sqr ??
       payload.homeTotalSqr ??
