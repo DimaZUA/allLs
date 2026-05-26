@@ -1092,6 +1092,15 @@ function formatPhone(phone) {
   return `+38 (0${m[1]}) ${m[2]}-${m[3]}-${m[4]}`;
 }
 
+function formatShortPhone(rawPhone) {
+  const source = String(rawPhone || "").trim();
+  const digits = source.replace(/\D/g, "");
+  if (!digits) return source;
+  if (/^\d{4}$/.test(digits)) return `${digits.slice(0, 2)}-${digits.slice(2)}`;
+  if (/^\d{6}$/.test(digits)) return `${digits.slice(0, 2)}-${digits.slice(2, 4)}-${digits.slice(4)}`;
+  return source || digits;
+}
+
 function parseContactLabel(leftPart) {
   const source = String(leftPart || "").trim();
   if (!source) return { role: "", title: "", notes: [] };
@@ -1152,7 +1161,22 @@ function parseContactValue(value) {
     }
   }
   const normalized = normalizePhone(payload);
-  if (!normalized) return null;
+  if (!normalized) {
+    const shortDigits = payload.replace(/\D/g, "");
+    if (/^\d{3,6}$/.test(shortDigits)) {
+      return {
+        type: "phone",
+        value: {
+          raw: source,
+          phone: shortDigits,
+          displayPhone: formatShortPhone(payload),
+          hasViber: false,
+          hasTelegram: false
+        }
+      };
+    }
+    return null;
+  }
   return {
     type: "phone",
     value: {
