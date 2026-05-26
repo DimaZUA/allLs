@@ -1638,7 +1638,8 @@ body.resident-mode .resident-desktop-history-table thead th {
 }
 
 body.resident-mode .resident-desktop-history-table .rhd-month {
-  width: 9%;
+  width: 18%;
+  vertical-align: middle;
   font-size: 1.02rem;
   font-weight: 700;
   color: #111827;
@@ -1653,7 +1654,7 @@ body.resident-mode .resident-desktop-history-table .rhd-current-tag {
 }
 
 body.resident-mode .resident-desktop-history-table .rhd-accrual {
-  width: 50%;
+  width: 46%;
 }
 
 body.resident-mode .resident-desktop-history-table .rhd-line {
@@ -1730,7 +1731,7 @@ body.resident-mode .resident-desktop-history-table .rhd-line strong {
 }
 
 body.resident-mode .resident-desktop-history-table .rhd-paid {
-  width: 22%;
+  width: 18%;
 }
 
 body.resident-mode .resident-desktop-history-table .rhd-paid-line {
@@ -1744,7 +1745,7 @@ body.resident-mode .resident-desktop-history-table .rhd-paid-line + .rhd-paid-li
 }
 
 body.resident-mode .resident-desktop-history-table .rhd-paid-line span {
-  font-size: 0.75rem;
+  font-size: 0.64rem;
   color: #495a72;
   white-space: nowrap;
 }
@@ -1757,7 +1758,7 @@ body.resident-mode .resident-desktop-history-table .rhd-paid-line strong {
 }
 
 body.resident-mode .resident-desktop-history-table .rhd-result {
-  width: 19%;
+  width: 18%;
   position: relative;
   vertical-align: middle;
   text-align: right;
@@ -1780,6 +1781,7 @@ body.resident-mode .resident-desktop-history-table .rhd-state-chip {
   position: absolute;
   top: 2px;
   left: 2px;
+  z-index: 1;
   display: inline-block;
   white-space: nowrap;
   padding: 1px 7px;
@@ -1793,6 +1795,8 @@ body.resident-mode .resident-desktop-history-table .rhd-state-chip {
 }
 
 body.resident-mode .resident-desktop-history-table .rhd-result strong {
+  position: relative;
+  z-index: 2;
   display: block;
   width: 100%;
   font-size: 1.14rem;
