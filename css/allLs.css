@@ -2030,6 +2030,105 @@ body.resident-mode .resident-flat-card {
   margin-bottom: 12px;
 }
 
+body.resident-mode .resident-section-menu {
+  display: block;
+  margin: -2px 0 6px;
+}
+
+body.resident-mode .resident-section-menu-buttons {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 2px 1px 2px;
+}
+
+body.resident-mode .resident-section-menu[hidden] {
+  display: none !important;
+}
+
+body.resident-mode .resident-section-menu-btn {
+  flex: 0 0 auto;
+  border: 1px solid #b8c9e6;
+  border-radius: 6px;
+  background: #fff;
+  color: #174a9b;
+  padding: 7px 11px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1.15;
+  cursor: pointer;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+body.resident-mode .resident-section-menu-icon > svg.lucide {
+  width: 15px;
+  height: 15px;
+  stroke-width: 2.2;
+}
+
+body.resident-mode .resident-section-menu-btn:hover,
+body.resident-mode .resident-section-menu-btn:focus-visible {
+  border-color: #7fa2da;
+  background: #f3f7ff;
+}
+
+body.resident-mode .resident-section-menu-btn.is-active {
+  border-color: #3f79bd;
+  background: #d9eaff;
+  color: #073f7d;
+}
+
+body.resident-mode .resident-section-menu-hint {
+  min-height: 1rem;
+  margin-top: 0;
+  color: #5f6876;
+  font-size: 0.78rem;
+  line-height: 1.15;
+  text-align: center;
+}
+
+body.resident-mode .resident-section-panel[hidden] {
+  display: none !important;
+}
+
+body.resident-mode .resident-section-panel > details > summary,
+body.resident-mode .resident-section-panel .resident-flat-card > h3 {
+  display: none;
+}
+
+body.resident-mode .resident-section-panel > details[open] > summary + * {
+  margin-top: 0;
+}
+
+@media (max-width: 640px) {
+  body.resident-mode .resident-section-menu-buttons {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    overflow-x: visible;
+    gap: 6px;
+    padding-bottom: 0;
+  }
+
+  body.resident-mode .resident-section-menu-btn {
+    width: 100%;
+    min-width: 0;
+    min-height: 32px;
+    padding: 7px 6px;
+    font-size: 0.88rem;
+    text-align: center;
+  }
+
+  body.resident-mode .resident-section-menu-hint {
+    display: none;
+  }
+}
+
 body.resident-mode .resident-overview-card h2,
 body.resident-mode .resident-history-details > summary,
 body.resident-mode .resident-requisites-details > summary,
@@ -2973,9 +3072,9 @@ body.resident-mode .resident-payment-method-btn:focus-visible {
 }
 
 body.resident-mode .resident-payment-method-btn.is-active {
-  border-color: #004e83;
-  background: #005b78;
-  color: #fff;
+  border-color: #3f79bd;
+  background: #d9eaff;
+  color: #073f7d;
 }
 
 body.resident-mode .resident-payment-method-content {

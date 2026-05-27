@@ -620,6 +620,88 @@ async function ensureResidentCabinetButton(accountId) {
   };
 }
 
+function setupResidentSectionMenu(menuRoot, sectionDefs, defaultKey) {
+  if (!menuRoot) return;
+  const sections = (Array.isArray(sectionDefs) ? sectionDefs : []).filter(function (section) {
+    const target = section && section.target;
+    if (!target) return false;
+    if (target.style && target.style.display === "none") return false;
+    return true;
+  });
+
+  if (!sections.length) {
+    menuRoot.innerHTML = "";
+    menuRoot.hidden = true;
+    return;
+  }
+
+  menuRoot.hidden = false;
+  menuRoot.innerHTML = `
+    <div class="resident-section-menu-buttons">
+      ${sections.map(function (section) {
+        const iconHtml = section.icon
+          ? `<span class="resident-section-menu-icon" aria-hidden="true" data-lucide="${section.icon}"></span>`
+          : "";
+        return `<button type="button" class="resident-section-menu-btn" data-resident-section="${section.key}" data-section-title="${section.title}" aria-label="${section.title}" aria-pressed="false">${iconHtml}<span>${section.label}</span></button>`;
+      }).join("")}
+    </div>
+    <div class="resident-section-menu-hint" aria-live="polite"></div>
+  `;
+
+  sections.forEach(function (section) {
+    section.target.classList.add("resident-section-panel");
+    section.target.setAttribute("data-resident-panel", section.key);
+    section.target.querySelectorAll("details").forEach(function (details) {
+      details.open = true;
+    });
+  });
+
+  const buttons = Array.from(menuRoot.querySelectorAll(".resident-section-menu-btn"));
+  const hintEl = menuRoot.querySelector(".resident-section-menu-hint");
+  const availableKeys = new Set(sections.map(function (section) { return section.key; }));
+  let activeKey = defaultKey === "" ? "" : (availableKeys.has(defaultKey) ? defaultKey : sections[0].key);
+
+  const setActiveSection = function (key) {
+    activeKey = key === "" ? "" : (availableKeys.has(key) ? key : sections[0].key);
+    sections.forEach(function (section) {
+      section.target.hidden = section.key !== activeKey;
+    });
+    buttons.forEach(function (btn) {
+      const active = btn.getAttribute("data-resident-section") === activeKey;
+      btn.classList.toggle("is-active", active);
+      btn.setAttribute("aria-pressed", active ? "true" : "false");
+    });
+    if (hintEl) {
+      const activeBtn = buttons.find(function (btn) {
+        return btn.getAttribute("data-resident-section") === activeKey;
+      });
+      hintEl.textContent = activeBtn ? String(activeBtn.getAttribute("data-section-title") || "") : "";
+    }
+    if (activeKey === "flat") {
+      scheduleResidentFlatGridLayout(document.querySelector(".resident-flat-grid"));
+    }
+  };
+
+  buttons.forEach(function (btn) {
+    btn.onclick = function () {
+      setActiveSection(btn.getAttribute("data-resident-section"));
+    };
+    btn.onmouseenter = function () {
+      if (hintEl) hintEl.textContent = String(btn.getAttribute("data-section-title") || "");
+    };
+    btn.onfocus = btn.onmouseenter;
+    btn.onmouseleave = function () {
+      if (!hintEl) return;
+      const activeBtn = buttons.find(function (button) {
+        return button.classList.contains("is-active");
+      });
+      hintEl.textContent = activeBtn ? String(activeBtn.getAttribute("data-section-title") || "") : "";
+    };
+    btn.onblur = btn.onmouseleave;
+  });
+  setActiveSection(activeKey);
+}
+
 function ensurePayButton(payUrl, isResidentMode) {
   const host = document.querySelector("#header .buttons-container");
   if (!host) return;
@@ -2586,18 +2668,21 @@ if (payUrl && !isResidentMode) {
   var lastRowExtraRows = [];
   var yearSummaries = {};
   var residentOverviewRoot = null;
+  var residentSectionMenuRoot = null;
   var residentRequisitesRoot = null;
   var residentSpendingRoot = null;
   var residentViberRoot = null;
   var residentContactsRoot = null;
   var residentSocialRowRoot = null;
   var residentUsefulRoot = null;
+  var residentFlatRoot = null;
   var historyHost = container;
   var historyContentHost = container;
   var residentHistoryDetails = null;
   var lastYearTarifSummaryBlock = null;
   var showResidentSpending = false;
   var residentExpensesStartMonth = 0;
+  var residentDefaultSectionKey = "";
 
   if (isResidentMode) {
     const homeCode = String(getParam("homeCode") || "");
@@ -2616,6 +2701,11 @@ if (payUrl && !isResidentMode) {
     residentOverviewRoot = document.createElement("section");
     residentOverviewRoot.className = "resident-overview-card";
     container.appendChild(residentOverviewRoot);
+
+    residentSectionMenuRoot = document.createElement("nav");
+    residentSectionMenuRoot.className = "resident-section-menu";
+    residentSectionMenuRoot.hidden = true;
+    container.appendChild(residentSectionMenuRoot);
 
     residentRequisitesRoot = document.createElement("section");
     residentRequisitesRoot.className = "resident-requisites-card";
@@ -2638,23 +2728,19 @@ if (payUrl && !isResidentMode) {
       container.appendChild(residentSpendingRoot);
     }
 
-    residentSocialRowRoot = document.createElement("div");
-    residentSocialRowRoot.className = "resident-social-row";
-    residentSocialRowRoot.style.display = "none";
-    residentViberRoot = document.createElement("section");
-    residentViberRoot.className = "resident-viber-card";
-    residentViberRoot.style.display = "none";
     residentContactsRoot = document.createElement("section");
     residentContactsRoot.className = "resident-contacts-card";
     residentContactsRoot.style.display = "none";
-    residentSocialRowRoot.appendChild(residentViberRoot);
-    residentSocialRowRoot.appendChild(residentContactsRoot);
-    container.appendChild(residentSocialRowRoot);
+    container.appendChild(residentContactsRoot);
 
     residentUsefulRoot = document.createElement("section");
     residentUsefulRoot.className = "resident-useful-root";
     residentUsefulRoot.style.display = "none";
     container.appendChild(residentUsefulRoot);
+
+    residentFlatRoot = document.createElement("div");
+    residentFlatRoot.className = "resident-flat-root";
+    container.appendChild(residentFlatRoot);
   }
   var allYearsSorted = Object.keys(accountData).sort(function (a, b) {
     return Number(a) - Number(b);
@@ -3163,6 +3249,10 @@ if (toggleToOpen) {
     const currentBalance = normalizeMoney((Number(summary.closingBalance) || 0) - currentMonthPaidNow);
     const debtTolerance = 10;
     const effectiveBalance = currentBalance > 0 && currentBalance <= debtTolerance ? 0 : currentBalance;
+    residentDefaultSectionKey =
+      currentMonthAccrued > 0.005 && effectiveBalance > 2.5 * currentMonthAccrued
+        ? "history"
+        : "";
     const shouldCollapseHistory =
       effectiveBalance <= 0 ||
       (currentMonthAccrued > 0.005 && effectiveBalance < 3 * currentMonthAccrued);
@@ -3607,8 +3697,8 @@ bindCopyButton("copyIbanBtn", function () {
     }
   }
 
-  container = document.getElementById("datetime");
-  container.style.cursor = "default";
+  const dateTimeContainer = document.getElementById("datetime");
+  if (dateTimeContainer) dateTimeContainer.style.cursor = "default";
   const showChangeRequestButton = isResidentMode || isUserAuthenticated();
   const changeButtonHtml = showChangeRequestButton
     ? '<div class="change-request-wrap"><button id="changeRequestBtn" type="button" class="change-request-btn">Повідомити про зміни</button></div>'
@@ -3695,9 +3785,61 @@ bindCopyButton("copyIbanBtn", function () {
       </span>
     `;
 
-container.innerHTML = content;
+  const residentDateTimeHost = document.getElementById("datetime");
+  const infoHost = isResidentMode && residentFlatRoot ? residentFlatRoot : residentDateTimeHost;
+  if (isResidentMode && residentDateTimeHost) {
+    residentDateTimeHost.innerHTML = "";
+    residentDateTimeHost.hidden = true;
+  } else if (residentDateTimeHost) {
+    residentDateTimeHost.hidden = false;
+  }
+infoHost.innerHTML = content;
   if (isResidentMode) {
-    scheduleResidentFlatGridLayout(container.querySelector(".resident-flat-grid"));
+    scheduleResidentFlatGridLayout(infoHost.querySelector(".resident-flat-grid"));
+    setupResidentSectionMenu(residentSectionMenuRoot, [
+      {
+        key: "requisites",
+        label: "\u0420\u0435\u043a\u0432\u0456\u0437\u0438\u0442\u0438",
+        title: "\u0420\u0435\u043a\u0432\u0456\u0437\u0438\u0442\u0438 \u0434\u043b\u044f \u043e\u043f\u043b\u0430\u0442\u0438 \u0432\u0440\u0443\u0447\u043d\u0443",
+        icon: "landmark",
+        target: residentRequisitesRoot
+      },
+      {
+        key: "history",
+        label: "\u0406\u0441\u0442\u043e\u0440\u0456\u044f",
+        title: "\u0406\u0441\u0442\u043e\u0440\u0456\u044f \u043d\u0430\u0440\u0430\u0445\u0443\u0432\u0430\u043d\u044c \u0442\u0430 \u043e\u043f\u043b\u0430\u0442",
+        icon: "history",
+        target: historyHost
+      },
+      {
+        key: "spending",
+        label: "\u0412\u0438\u0442\u0440\u0430\u0442\u0438",
+        title: "\u0412\u0438\u0442\u0440\u0430\u0442\u0438 \u0431\u0443\u0434\u0438\u043d\u043a\u0443",
+        icon: "banknote-arrow-down",
+        target: residentSpendingRoot
+      },
+      {
+        key: "contacts",
+        label: "\u041a\u043e\u043d\u0442\u0430\u043a\u0442\u0438",
+        title: "\u041a\u043e\u043d\u0442\u0430\u043a\u0442\u0438 \u0431\u0443\u0434\u0438\u043d\u043a\u0443",
+        icon: "contact",
+        target: residentContactsRoot
+      },
+      {
+        key: "useful",
+        label: "\u0421\u043b\u0443\u0436\u0431\u0438",
+        title: "\u041a\u043e\u0440\u0438\u0441\u043d\u0456 \u043a\u043e\u043d\u0442\u0430\u043a\u0442\u0438 \u0442\u0430 \u043f\u043e\u0441\u0438\u043b\u0430\u043d\u043d\u044f",
+        icon: "info",
+        target: residentUsefulRoot
+      },
+      {
+        key: "flat",
+        label: "\u041f\u0440\u043e \u043a\u0432\u0430\u0440\u0442\u0438\u0440\u0443",
+        title: "\u0406\u043d\u0444\u043e\u0440\u043c\u0430\u0446\u0456\u044f \u043f\u0440\u043e \u043a\u0432\u0430\u0440\u0442\u0438\u0440\u0443",
+        icon: "home",
+        target: residentFlatRoot
+      }
+    ], residentDefaultSectionKey);
   }
   const changeBtn = document.getElementById("changeRequestBtn");
   if (changeBtn) {
