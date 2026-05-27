@@ -1503,6 +1503,30 @@ body.resident-mode .line.line-with-icon {
   color: #111827;
 }
 
+.resident-mobile-card-title {
+  font-weight: 700;
+  font-size: 1.08rem;
+  line-height: 1.2;
+  color: #111827;
+}
+
+.resident-mobile-card-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.resident-mobile-card-label {
+  color: #2a3442;
+}
+
+.resident-mobile-card-amount {
+  font-weight: 700;
+  white-space: nowrap;
+  color: #111827;
+}
+
 .mobile-month-empty {
   color: #6a7487;
 }
@@ -1663,6 +1687,21 @@ body.resident-mode .resident-desktop-history-table .rhd-line {
   gap: 10px;
   font-size: 0.98rem;
   line-height: 1.35;
+}
+
+body.resident-mode .resident-desktop-card-line {
+  font-size: 0.98rem;
+  line-height: 1.35;
+}
+
+body.resident-mode .resident-desktop-card-label {
+  color: #2a3442;
+}
+
+body.resident-mode .resident-desktop-card-amount {
+  color: #111827;
+  font-weight: 700;
+  white-space: nowrap;
 }
 
 body.resident-mode .resident-desktop-history-table .rhd-line-with-detail {
@@ -2552,7 +2591,7 @@ body.resident-mode .useful-btn-icon-img img {
 
 @media (max-width: 768px) {
   body.resident-mode .useful-links-grid-wrap {
-    padding: 10px;
+    padding: 0;
     gap: 10px;
   }
 
@@ -2564,54 +2603,79 @@ body.resident-mode .useful-btn-icon-img img {
 
   body.resident-mode .useful-card {
     padding: 12px;
+    gap: 12px;
+    border-radius: 12px;
   }
 
   body.resident-mode .useful-card-header {
-    grid-template-columns: 50px minmax(0, 1fr);
-    gap: 10px;
+    grid-template-columns: 56px minmax(0, 1fr);
+    gap: 12px;
+    align-items: center;
   }
 
   body.resident-mode .useful-card-logo-wrap {
-    width: 50px;
-    height: 50px;
+    width: 56px;
+    height: 56px;
   }
 
   body.resident-mode .useful-card-logo-link {
-    width: 50px;
-    height: 50px;
+    width: 56px;
+    height: 56px;
   }
 
   body.resident-mode .useful-card-logo {
-    width: 30px;
-    height: 30px;
+    width: 34px;
+    height: 34px;
   }
 
   body.resident-mode .useful-card-title {
-    font-size: 1.06rem;
+    font-size: 1.18rem;
+    line-height: 1.18;
   }
 
   body.resident-mode .useful-card-name {
-    font-size: 1.06rem;
+    font-size: 1.18rem;
+    line-height: 1.18;
   }
 
   body.resident-mode .useful-card-subtitle {
-    font-size: 0.92rem;
+    font-size: 1.02rem;
+    line-height: 1.25;
+  }
+
+  body.resident-mode .useful-phone-list {
+    gap: 8px;
   }
 
   body.resident-mode .useful-phone-row {
-    font-size: 0.97rem;
+    width: 100%;
+    box-sizing: border-box;
+    display: flex;
+    gap: 10px;
+    padding: 8px 9px;
+    margin: 0;
+    background: rgba(255, 255, 255, 0.42);
+    border-color: #d9e2ec;
+    font-size: 1.1rem;
+    line-height: 1.25;
+  }
+
+  body.resident-mode .useful-phone-icon > svg.lucide {
+    width: 24px;
+    height: 24px;
   }
 
   body.resident-mode .useful-link-btn {
-    font-size: 0.97rem;
+    flex: 1 1 145px;
+    justify-content: center;
+    min-height: 42px;
+    padding: 8px 10px;
+    font-size: 1.06rem;
   }
 
   body.resident-mode .useful-actions {
-    gap: 7px;
-  }
-
-  body.resident-mode .useful-link-btn {
-    font-size: 0.97rem;
+    gap: 8px;
+    padding-top: 10px;
   }
 }
 
@@ -2653,6 +2717,7 @@ body.resident-mode .resident-spending-panel {
   border-radius: 10px;
   background: #f9fbfd;
   padding: 12px;
+  container-type: inline-size;
 }
 
 body.resident-mode .resident-spending-results {
@@ -2665,8 +2730,43 @@ body.resident-mode .resident-spending-results {
 body.resident-mode .resident-spending-years,
 body.resident-mode .resident-spending-months {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(64px, 1fr));
   gap: 8px;
+}
+
+body.resident-mode .resident-spending-years {
+  grid-template-columns: repeat(auto-fit, minmax(64px, 1fr));
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(64px, 1fr);
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+body.resident-mode .resident-spending-months {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+@container (max-width: 419px) {
+  body.resident-mode .resident-spending-months {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@container (max-width: 319px) {
+  body.resident-mode .resident-spending-months {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@container (max-width: 239px) {
+  body.resident-mode .resident-spending-months {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container (max-width: 159px) {
+  body.resident-mode .resident-spending-months {
+    grid-template-columns: 1fr;
+  }
 }
 
 body.resident-mode .resident-spending-months {
@@ -2674,6 +2774,14 @@ body.resident-mode .resident-spending-months {
 }
 
 body.resident-mode .resident-spending-chip {
+  font: inherit;
+  font-size: 0.96rem;
+  line-height: 1.2;
+  padding: 9px 8px;
+  cursor: pointer;
+}
+
+body.resident-mode .resident-period-chip {
   border: 1px solid #cfd8e3;
   border-radius: 10px;
   background: #fff;
@@ -2685,7 +2793,14 @@ body.resident-mode .resident-spending-chip {
   cursor: pointer;
 }
 
-body.resident-mode .resident-spending-chip.is-active {
+body.resident-mode .resident-period-chip:hover {
+  background: #f3f7ff;
+  border-color: #b8c9e6;
+}
+
+body.resident-mode .resident-period-chip.resident-period-chip-active,
+body.resident-mode .resident-period-chip.is-active,
+body.resident-mode .toggle-box:checked + label.resident-period-chip {
   border-color: #7fb3ff;
   background: #e8f2ff;
   color: #1b4c8f;
@@ -2755,8 +2870,8 @@ body.resident-mode .resident-spending-mobile-list {
 body.resident-mode .resident-spending-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(170px, 220px);
-  gap: 8px;
-  padding: 10px 12px;
+  gap: 10px;
+  padding: 7px 12px;
   border-bottom: 1px solid #e7edf5;
   align-items: center;
 }
@@ -2776,6 +2891,7 @@ body.resident-mode .resident-spending-label {
 
 body.resident-mode .resident-spending-name {
   min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 body.resident-mode .resident-spending-total {
@@ -3170,6 +3286,23 @@ body.resident-mode .resident-pay-details-content.has-payment-switcher .resident-
   visibility: hidden;
 }
 
+body.resident-mode .resident-payment-action-note {
+  min-width: 210px;
+  min-height: 36px;
+  padding: 0 4px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #526174;
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
 body.resident-mode .resident-payment-qr-caption,
 body.resident-mode .resident-payment-qr-note {
   font-size: 0.78rem;
@@ -3177,9 +3310,77 @@ body.resident-mode .resident-payment-qr-note {
   text-align: center;
 }
 
+body.resident-mode .resident-payment-qr-caption {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font-family: inherit;
+  line-height: 1.25;
+  cursor: pointer;
+}
+
+body.resident-mode .resident-payment-qr-caption:hover,
+body.resident-mode .resident-payment-qr-caption:focus-visible {
+  color: #174a9b;
+  text-decoration: underline;
+}
+
 body.resident-mode .resident-payment-qr-note {
   max-width: 230px;
   line-height: 1.3;
+}
+
+body.resident-mode .resident-qr-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(15, 23, 42, 0.58);
+}
+
+body.resident-mode .resident-qr-modal-panel {
+  max-width: min(92vw, 560px);
+  display: grid;
+  gap: 10px;
+  justify-items: center;
+}
+
+body.resident-mode .resident-qr-modal-frame {
+  position: relative;
+  line-height: 0;
+  border: 1px solid #d4dbe3;
+  border-radius: 14px;
+  padding: 14px;
+  background: #fff;
+  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.24);
+}
+
+body.resident-mode .resident-qr-modal-img {
+  width: min(72vw, 430px);
+  height: min(72vw, 430px);
+  display: block;
+}
+
+body.resident-mode .resident-qr-modal-icon {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 54px;
+  height: 54px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 0 4px #fff;
+}
+
+body.resident-mode .resident-qr-modal-caption {
+  color: #fff;
+  font-size: 1rem;
+  line-height: 1.25;
+  text-align: center;
 }
 
 body.resident-mode .resident-pay-details {
@@ -3308,6 +3509,26 @@ body.resident-mode .resident-advice-icon {
 body.resident-mode .resident-advice-icon > svg.lucide {
   width: 24px;
   height: 24px;
+}
+
+body.resident-mode .resident-advice-followup {
+  display: block;
+  margin-top: 0.45em;
+}
+
+body.resident-mode .resident-advice-contact-link {
+  border: 0;
+  background: transparent;
+  color: #0645ad;
+  padding: 0;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+body.resident-mode .resident-advice-contact-link:hover,
+body.resident-mode .resident-advice-contact-link:focus-visible {
+  color: #003f87;
 }
 
 body.resident-mode .resident-advice-good {
@@ -3528,6 +3749,7 @@ body.resident-mode .resident-contacts-grid {
 }
 
 body.resident-mode .resident-contact-card {
+  position: relative;
   border: 1px solid #dce3eb;
   border-radius: 10px;
   background: #fff;
@@ -3537,6 +3759,114 @@ body.resident-mode .resident-contact-card {
   align-content: start;
   align-items: start;
   grid-auto-rows: min-content;
+}
+
+body.resident-mode .resident-contact-card-highlight {
+  isolation: isolate;
+  overflow: hidden;
+}
+
+@property --resident-contact-sweep-start {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 314deg;
+}
+
+@property --resident-contact-sweep-peak {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 317deg;
+}
+
+@property --resident-contact-sweep-end {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 320deg;
+}
+
+body.resident-mode .resident-contact-card-highlight::before {
+  content: "";
+  position: absolute;
+  left: -50%;
+  top: -50%;
+  width: 200%;
+  height: 200%;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    conic-gradient(
+      from 0deg,
+      rgba(37, 99, 235, 0) 0deg var(--resident-contact-sweep-start),
+      rgba(37, 99, 235, 0.34) var(--resident-contact-sweep-peak),
+      rgba(37, 99, 235, 0) var(--resident-contact-sweep-end) 360deg
+    );
+  opacity: 0;
+  --resident-contact-sweep-start: 314deg;
+  --resident-contact-sweep-peak: 317deg;
+  --resident-contact-sweep-end: 320deg;
+  animation: residentContactBorderSweep 1800ms linear 1;
+}
+
+body.resident-mode .resident-contact-card-highlight::after {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  z-index: 1;
+  border-radius: 7px;
+  background: inherit;
+  pointer-events: none;
+}
+
+body.resident-mode .resident-contact-card-highlight > * {
+  position: relative;
+  z-index: 2;
+}
+
+@keyframes residentContactBorderSweep {
+  0% {
+    transform: rotate(0deg);
+    opacity: 0;
+    --resident-contact-sweep-start: 314deg;
+    --resident-contact-sweep-peak: 317deg;
+    --resident-contact-sweep-end: 320deg;
+  }
+  8% {
+    opacity: 1;
+    --resident-contact-sweep-start: 305deg;
+    --resident-contact-sweep-peak: 317deg;
+    --resident-contact-sweep-end: 329deg;
+  }
+  25% {
+    opacity: 1;
+    --resident-contact-sweep-start: 270deg;
+    --resident-contact-sweep-peak: 317deg;
+    --resident-contact-sweep-end: 364deg;
+  }
+  50% {
+    opacity: 1;
+    --resident-contact-sweep-start: 228deg;
+    --resident-contact-sweep-peak: 317deg;
+    --resident-contact-sweep-end: 406deg;
+  }
+  75% {
+    opacity: 1;
+    --resident-contact-sweep-start: 270deg;
+    --resident-contact-sweep-peak: 317deg;
+    --resident-contact-sweep-end: 364deg;
+  }
+  92% {
+    opacity: 1;
+    --resident-contact-sweep-start: 305deg;
+    --resident-contact-sweep-peak: 317deg;
+    --resident-contact-sweep-end: 329deg;
+  }
+  100% {
+    transform: rotate(540deg);
+    opacity: 0;
+    --resident-contact-sweep-start: 314deg;
+    --resident-contact-sweep-peak: 317deg;
+    --resident-contact-sweep-end: 320deg;
+  }
 }
 
 body.resident-mode .resident-contact-card.is-emergency {
@@ -3698,24 +4028,12 @@ body.resident-mode #years-bar {
 }
 
 body.resident-mode .toggle-box + label {
-  border-radius: 10px;
-  padding: 7px 13px;
-  border: 1px solid #cfd7e3;
-  background: #eef2f7;
-  color: #2d3a4b;
   box-shadow: none;
   font-size: 1.25rem;
 }
 
 body.resident-mode .toggle-box + label:hover {
   box-shadow: none;
-  background: #e6edf6;
-}
-
-body.resident-mode .toggle-box:checked + label {
-  background: #d8efdf;
-  border-color: #9bc7ab;
-  color: #1f5d36;
 }
 
 body.resident-mode .year-table {
@@ -4257,6 +4575,57 @@ body.resident-mode .resident-flat-grid > div strong {
     font-size: 1.5rem;
   }
 
+  body.resident-mode .resident-payment-method-switcher {
+    gap: 8px;
+    margin-bottom: 10px;
+    font-size: 1rem;
+  }
+
+  body.resident-mode .resident-payment-method-btn {
+    min-height: 34px;
+    padding: 7px 13px;
+    font-size: 1rem;
+  }
+
+  body.resident-mode .resident-payment-qr-caption {
+    margin-top: 4px;
+    font-size: 1rem;
+    line-height: 1.25;
+  }
+
+  body.resident-mode .resident-payment-action-note {
+    min-width: 0;
+    width: min(100%, 260px);
+    min-height: 42px;
+    font-size: 1rem;
+  }
+
+  body.resident-mode .resident-qr-modal {
+    padding: 12px;
+  }
+
+  body.resident-mode .resident-qr-modal-panel {
+    max-width: 100%;
+    width: 100%;
+  }
+
+  body.resident-mode .resident-qr-modal-frame {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 10px;
+  }
+
+  body.resident-mode .resident-qr-modal-img {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 1;
+  }
+
+  body.resident-mode .resident-qr-modal-icon {
+    width: 13%;
+    height: 13%;
+  }
+
   body.resident-mode .resident-viber-qr-img {
     width: 160px;
     height: 160px;
@@ -4324,7 +4693,7 @@ body.resident-mode .resident-flat-grid > div strong {
   body.resident-mode .resident-spending-mobile-card,
   body.resident-mode .resident-spending-mobile-total-card {
     border: 1px solid #c6d0dc;
-    border-radius: 10px;
+    border-radius: 12px;
     background: #edf2f7;
     box-shadow: 0 1px 0 rgba(0, 0, 0, 0.04);
     overflow: hidden;
@@ -4335,22 +4704,24 @@ body.resident-mode .resident-flat-grid > div strong {
     justify-content: space-between;
     align-items: center;
     gap: 10px;
-    padding: 10px 10px 8px;
+    padding: 8px 10px;
   }
 
   body.resident-mode .resident-spending-mobile-card-title {
-    font-size: 1.22rem;
+    font-size: 1.08rem;
     line-height: 1.2;
-    color: #1f2b3a;
+    color: #111827;
+    font-weight: 700;
   }
 
   body.resident-mode .resident-spending-mobile-card-head-amount {
     margin-left: auto;
     text-align: right;
-    font-size: 1.22rem;
+    font-size: 1rem;
     line-height: 1.2;
     white-space: nowrap;
-    color: #121f33;
+    color: #111827;
+    font-weight: 700;
   }
 
   body.resident-mode .resident-spending-mobile-table-head,
@@ -4359,13 +4730,13 @@ body.resident-mode .resident-flat-grid > div strong {
     grid-template-columns: minmax(0, 1fr) minmax(120px, auto);
     gap: 8px;
     align-items: center;
-    padding: 6px 10px;
+    padding: 4px 10px;
   }
 
   body.resident-mode .resident-spending-mobile-table-head {
     border-top: 1px solid #e8edf4;
-    color: #7a8799;
-    font-size: 0.98rem;
+    color: #5f6876;
+    font-size: 0.95rem;
     font-weight: 600;
   }
 
@@ -4378,15 +4749,17 @@ body.resident-mode .resident-flat-grid > div strong {
   }
 
   body.resident-mode .resident-spending-mobile-month {
-    font-size: 1.08rem;
-    color: #2d3d53;
+    font-size: 1rem;
+    color: #2a3442;
   }
 
   body.resident-mode .resident-spending-mobile-amount {
     text-align: right;
-    font-size: 1.22rem;
+    font-size: 1rem;
     line-height: 1.2;
     white-space: nowrap;
+    color: #111827;
+    font-weight: 700;
   }
 
   body.resident-mode .resident-spending-mobile-total-rows {
@@ -4400,36 +4773,109 @@ body.resident-mode .resident-flat-grid > div strong {
     grid-template-columns: minmax(0, 1fr) auto;
     gap: 8px;
     align-items: center;
-    font-size: 1.06rem;
-    color: #5d6d83;
+    font-size: 1rem;
+    color: #2a3442;
   }
 
   body.resident-mode .resident-spending-mobile-total-row strong {
     text-align: right;
-    font-size: 1.16rem;
-    color: #123d56;
+    font-size: 1rem;
+    color: #111827;
     white-space: nowrap;
+    font-weight: 700;
   }
 
   body.resident-mode .resident-contacts-grid {
     grid-template-columns: 1fr;
+    gap: 10px;
+    margin-top: 8px;
   }
 
   body.resident-mode .resident-contact-card {
-    padding: 9px;
+    padding: 12px;
+    gap: 10px;
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  body.resident-mode .resident-contact-title {
+    font-size: 1.38rem;
+    line-height: 1.2;
+  }
+
+  body.resident-mode .resident-contact-roles {
+    gap: 7px;
+    width: 100%;
   }
 
   body.resident-mode .resident-contact-role-badge {
-    font-size: 0.96rem;
+    min-height: 34px;
+    padding: 6px 11px;
+    font-size: 1.12rem;
+  }
+
+  body.resident-mode .resident-contact-note-badge {
+    min-height: 34px;
+    padding: 6px 11px;
+    font-size: 1.12rem;
+  }
+
+  body.resident-mode .resident-contact-lines {
+    gap: 8px;
+    width: 100%;
   }
 
   body.resident-mode .resident-contact-line {
-    font-size: 1.06rem;
+    justify-content: flex-start;
+    gap: 8px;
+    font-size: 1.28rem;
+  }
+
+  body.resident-mode .resident-contact-line-clickable {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 8px 9px;
+    margin: 0;
+    background: rgba(255, 255, 255, 0.42);
+    border-color: #d9e2ec;
+  }
+
+  body.resident-mode .resident-contact-line-main {
+    width: 100%;
+    gap: 9px;
+  }
+
+  body.resident-mode .resident-contact-line-main .resident-inline-icon > svg.lucide {
+    width: 24px;
+    height: 24px;
+  }
+
+  body.resident-mode .resident-contact-phone-text {
+    font-size: 1.36rem;
+    line-height: 1.2;
+  }
+
+  body.resident-mode .resident-contact-email-text {
+    font-size: 1.18rem;
+    line-height: 1.2;
+    overflow-wrap: anywhere;
+  }
+
+  body.resident-mode .resident-contact-actions {
+    gap: 8px;
+    padding-top: 10px;
+    width: 100%;
   }
 
   body.resident-mode .resident-contact-chip-link,
   body.resident-mode .resident-contact-action-btn {
-    font-size: 0.96rem;
+    flex: 1 1 120px;
+    justify-content: center;
+    min-height: 44px;
+    padding: 8px 10px;
+    font-size: 1.16rem;
   }
 }
 
@@ -4486,6 +4932,31 @@ body.resident-mode .resident-flat-grid > div strong {
 
   .mobile-month-col h5 {
     font-size: 1.12rem;
+  }
+
+  body.resident-mode .resident-mobile-card-title {
+    font-size: 1.2rem;
+    line-height: 1.2;
+    font-weight: 700;
+    color: #111827;
+  }
+
+  body.resident-mode .resident-mobile-card-amount {
+    font-size: 17px;
+    line-height: 1.18;
+    font-weight: 700;
+    color: #111827;
+    white-space: nowrap;
+  }
+
+  body.resident-mode .resident-mobile-card-line {
+    line-height: 1.22;
+  }
+
+  body.resident-mode .resident-mobile-card-label {
+    font-size: 16px;
+    line-height: 1.22;
+    color: #2a3442;
   }
 
   .mobile-charge-line > span,

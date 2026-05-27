@@ -246,8 +246,8 @@ function renderAnalizTable(data, monthsList) {
     const textBlock = document.createElement("div");
     textBlock.style.cssText = "margin-top:15px; font-size:18px;";
     textBlock.innerHTML = `<span style="font-size:12px; color:gray;">Відносні показники:</span><br>
-      ${dPay >= 0 ? 'Зростання' : 'Зменшення'} платежів: <span class="${dPay>=0?'green':'red'}">${Math.abs(dPay).toFixed(0)} грн</span><br>
-      ${dDebt >= 0 ? 'Зростання' : 'Зменшення'} погашення боргів: <span class="${dDebt>=0?'green':'red'}">${Math.abs(dDebt).toFixed(0)} грн</span>`;
+      ${dPay >= 0 ? 'Зростання' : 'Зменшення'} платежів: <span class="${dPay>=0?'green':'red'}">${Math.abs(dPay).toFixed(0)} грн</span><br>
+      ${dDebt >= 0 ? 'Зростання' : 'Зменшення'} погашення боргів: <span class="${dDebt>=0?'green':'red'}">${Math.abs(dDebt).toFixed(0)} грн</span>`;
     wrapper._debtInfo.appendChild(textBlock);
 
     // Добавляем таблицу траектории (миграции)

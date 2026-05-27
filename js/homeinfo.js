@@ -976,7 +976,7 @@ compute(replacements) {
 
         // 3. Текстовый фрагмент
         parts.push(
-          `${formatNumber(amount)} грн. для квартири площею ${roundedArea.toFixedWithComma(1)} кв.м.`
+          `${formatNumber(amount)} грн. для квартири площею ${roundedArea.toFixedWithComma(1)} кв.м.`
         );
       });
 

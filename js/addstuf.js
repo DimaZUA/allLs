@@ -770,6 +770,60 @@ function setupResidentSectionMenu(menuRoot, sectionDefs, defaultKey) {
   setActiveSection(activeKey);
 }
 
+function findResidentContactTarget(panel) {
+  const cards = Array.from(panel.querySelectorAll(".resident-contact-card"));
+  return cards.find(function (card) {
+    return /бухгалтер|абон|облік/i.test(card.textContent || "");
+  });
+}
+
+function highlightResidentContactTarget(target) {
+  if (!target) return;
+  target.classList.remove("resident-contact-card-highlight");
+  void target.offsetWidth;
+  target.classList.add("resident-contact-card-highlight");
+  window.setTimeout(function () {
+    target.classList.remove("resident-contact-card-highlight");
+  }, 1950);
+}
+
+function openResidentSectionFromLink(sectionKey, options) {
+  const key = String(sectionKey || "");
+  if (!key) return false;
+  const menuRoot = document.querySelector(".resident-section-menu");
+  const button = menuRoot ? menuRoot.querySelector(`.resident-section-menu-btn[data-resident-section="${key}"]`) : null;
+  if (!button) return false;
+  button.click();
+  window.requestAnimationFrame(function () {
+    const panel = document.querySelector(`.resident-section-panel[data-resident-panel="${key}"]`);
+    if (options && options.highlightContact && key === "contacts") {
+      const target = panel ? findResidentContactTarget(panel) : null;
+      (target || panel || menuRoot).scrollIntoView({ behavior: "smooth", block: "center" });
+      window.setTimeout(function () {
+        highlightResidentContactTarget(target);
+      }, 650);
+      return;
+    }
+    (panel || menuRoot).scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+  return true;
+}
+
+function bindResidentSectionInlineLinks(root) {
+  if (!root || root.__residentInlineLinksBound) return;
+  root.__residentInlineLinksBound = true;
+  root.addEventListener("click", function (event) {
+    const trigger = event.target.closest("[data-resident-open-section]");
+    if (!trigger || !root.contains(trigger)) return;
+    const sectionKey = trigger.getAttribute("data-resident-open-section");
+    if (openResidentSectionFromLink(sectionKey, {
+      highlightContact: trigger.hasAttribute("data-resident-highlight-contact")
+    })) {
+      event.preventDefault();
+    }
+  });
+}
+
 function ensurePayButton(payUrl, isResidentMode) {
   const host = document.querySelector("#header .buttons-container");
   if (!host) return;
@@ -800,7 +854,7 @@ function ensurePayButton(payUrl, isResidentMode) {
 
 function moneyText(value) {
   const num = Number(value) || 0;
-  return `${num.toFixedWithComma()} грн`;
+  return `${num.toFixedWithComma()} грн`;
 }
 
 function base64UrlEncodeUtf8(input) {
@@ -856,8 +910,61 @@ function buildQrImageUrl(data, size) {
     "&data=" + encodeURIComponent(String(data || ""));
 }
 
+function openResidentQrModal(options) {
+  const src = options && options.src ? String(options.src) : "";
+  if (!src) return;
+  const existing = document.getElementById("residentQrModal");
+  if (existing) existing.remove();
+
+  const overlay = document.createElement("div");
+  overlay.id = "residentQrModal";
+  overlay.className = "resident-qr-modal";
+  overlay.setAttribute("role", "dialog");
+  overlay.setAttribute("aria-modal", "true");
+
+  const panel = document.createElement("div");
+  panel.className = "resident-qr-modal-panel";
+
+  const frame = document.createElement("div");
+  frame.className = "resident-qr-modal-frame";
+
+  const img = document.createElement("img");
+  img.className = "resident-qr-modal-img";
+  img.src = src;
+  img.alt = options && options.alt ? String(options.alt) : "QR";
+  frame.appendChild(img);
+
+  if (options && options.hasIcon) {
+    const icon = document.createElement("img");
+    icon.className = "resident-qr-modal-icon";
+    icon.src = "img/24.png";
+    icon.alt = "";
+    icon.setAttribute("aria-hidden", "true");
+    frame.appendChild(icon);
+  }
+
+  const caption = document.createElement("div");
+  caption.className = "resident-qr-modal-caption";
+  caption.textContent = options && options.caption ? String(options.caption) : "";
+
+  const closeModal = function () {
+    overlay.remove();
+    document.removeEventListener("keydown", onKeyDown);
+  };
+  function onKeyDown(event) {
+    if (event.key === "Escape") closeModal();
+  }
+
+  panel.appendChild(frame);
+  if (caption.textContent) panel.appendChild(caption);
+  overlay.appendChild(panel);
+  overlay.addEventListener("click", closeModal);
+  document.addEventListener("keydown", onKeyDown);
+  document.body.appendChild(overlay);
+}
+
 function moneySigned(value) {
-  return `${(Number(value) || 0).toFixedWithComma()} грн`;
+  return `${(Number(value) || 0).toFixedWithComma()} грн`;
 }
 
 function normalizeMoney(value) {
@@ -1139,7 +1246,7 @@ function renderResidentSpendingBlock(root, rawSpending, accountMeta, expensesSta
     });
 
     captionMonthEl.textContent = `${spendingMonthTitleLabel(state.month)} ${state.year}`;
-    totalEl.textContent = `${Math.abs(total).toFixedWithComma()} грн`;
+    totalEl.textContent = `${Math.abs(total).toFixedWithComma()} грн`;
 
     if (!orderedRows.length) {
       rowsHost.innerHTML = '<div class="resident-spending-empty">Немає витрат за обраний місяць.</div>';
@@ -1154,8 +1261,8 @@ function renderResidentSpendingBlock(root, rawSpending, accountMeta, expensesSta
         : "";
       const name = escapeHtml(`${item.baseName}${monthSuffix}`);
       const amountNum = Number(item.amount) || 0;
-      const amount = `${Math.abs(amountNum).toFixedWithComma()} грн`;
-      return `<div class="resident-spending-row"><span class="resident-spending-name">${name}</span><span class="resident-spending-label resident-spending-label-amount">Витрати будинку:</span><strong class="resident-spending-amount">${amount}</strong></div>`;
+      const amount = `${Math.abs(amountNum).toFixedWithComma()} грн`;
+      return `<div class="resident-spending-row resident-desktop-card-line"><span class="resident-spending-name resident-desktop-card-label">${name}</span><span class="resident-spending-label resident-spending-label-amount">Витрати будинку:</span><strong class="resident-spending-amount resident-desktop-card-amount">${amount}</strong></div>`;
     }).join("");
 
     const monthLongLabel = function (monthNum) {
@@ -1174,16 +1281,16 @@ function renderResidentSpendingBlock(root, rawSpending, accountMeta, expensesSta
       const singleCurrentMonthRow = rows.length === 1 && Number(rows[0].sortMonth) === Number(state.month);
       const bodyRows = rows.map(function (row) {
         const amountNum = Number(row.amount) || 0;
-        const amount = `${Math.abs(amountNum).toFixedWithComma()} грн`;
-        return `<div class="resident-spending-mobile-row"><span class="resident-spending-mobile-month">${monthLongLabel(row.sortMonth)}</span><strong class="resident-spending-mobile-amount">${amount}</strong></div>`;
+        const amount = `${Math.abs(amountNum).toFixedWithComma()} грн`;
+        return `<div class="resident-spending-mobile-row resident-mobile-card-line"><span class="resident-spending-mobile-month resident-mobile-card-label">${monthLongLabel(row.sortMonth)}</span><strong class="resident-spending-mobile-amount resident-mobile-card-amount">${amount}</strong></div>`;
       }).join("");
       const singleHeaderAmount = singleCurrentMonthRow
-        ? `<strong class="resident-spending-mobile-card-head-amount">${Math.abs(Number(rows[0].amount) || 0).toFixedWithComma()} грн</strong>`
+        ? `<strong class="resident-spending-mobile-card-head-amount resident-mobile-card-amount">${Math.abs(Number(rows[0].amount) || 0).toFixedWithComma()} грн</strong>`
         : "";
       return `
-        <section class="resident-spending-mobile-card">
+        <section class="resident-spending-mobile-card resident-mobile-card">
           <header class="resident-spending-mobile-card-head">
-            <strong class="resident-spending-mobile-card-title">${groupName}</strong>
+            <strong class="resident-spending-mobile-card-title resident-mobile-card-title">${groupName}</strong>
             ${singleHeaderAmount}
           </header>
           ${singleCurrentMonthRow ? "" : `<div class="resident-spending-mobile-table-body">${bodyRows}</div>`}
@@ -1192,12 +1299,12 @@ function renderResidentSpendingBlock(root, rawSpending, accountMeta, expensesSta
     }).join("");
 
     const mobileTotalCard = `
-      <section class="resident-spending-mobile-total-card">
+      <section class="resident-spending-mobile-total-card resident-mobile-card">
         <header class="resident-spending-mobile-card-head">
-          <strong class="resident-spending-mobile-card-title">Усього</strong>
+          <strong class="resident-spending-mobile-card-title resident-mobile-card-title">Усього</strong>
         </header>
         <div class="resident-spending-mobile-total-rows">
-          <div class="resident-spending-mobile-total-row"><span>Витрати будинку</span><strong>${Math.abs(total).toFixedWithComma()} грн</strong></div>
+          <div class="resident-spending-mobile-total-row resident-mobile-card-line"><span class="resident-mobile-card-label">Витрати будинку</span><strong class="resident-mobile-card-amount">${Math.abs(total).toFixedWithComma()} грн</strong></div>
         </div>
       </section>
     `;
@@ -1215,8 +1322,8 @@ function renderResidentSpendingBlock(root, rawSpending, accountMeta, expensesSta
       const hasData = availableMonths.has(m);
       const btn = document.createElement("button");
       btn.type = "button";
-      btn.className = "resident-spending-chip resident-spending-month-chip";
-      if (m === state.month) btn.classList.add("is-active");
+      btn.className = "resident-period-chip resident-spending-chip resident-spending-month-chip";
+      if (m === state.month) btn.classList.add("is-active", "resident-period-chip-active");
       if (!hasData) btn.classList.add("is-empty");
       btn.textContent = spendingMonthShortLabel(m);
       btn.disabled = !hasData;
@@ -1235,8 +1342,8 @@ function renderResidentSpendingBlock(root, rawSpending, accountMeta, expensesSta
     years.forEach(function (yearKey) {
       const btn = document.createElement("button");
       btn.type = "button";
-      btn.className = "resident-spending-chip resident-spending-year-chip";
-      if (yearKey === state.year) btn.classList.add("is-active");
+      btn.className = "resident-period-chip resident-spending-chip resident-spending-year-chip";
+      if (yearKey === state.year) btn.classList.add("is-active", "resident-period-chip-active");
       btn.textContent = yearKey;
       btn.addEventListener("click", function () {
         if (state.year === yearKey) return;
@@ -2255,9 +2362,9 @@ function buildMobileYearCards(yearPayload) {
   const summaryMeta = summary ? getMobileBalanceMeta(summary.closingBalance, false) : null;
   const summaryFinalText = summary
     ? (Number(summary.closingBalance) > 0
-      ? `На кінець року: заборгованість ${Math.abs(Number(summary.closingBalance) || 0).toFixedWithComma()} грн`
+      ? `На кінець року: заборгованість ${Math.abs(Number(summary.closingBalance) || 0).toFixedWithComma()} грн`
       : (Number(summary.closingBalance) < 0
-        ? `На кінець року: переплата ${Math.abs(Number(summary.closingBalance) || 0).toFixedWithComma()} грн`
+        ? `На кінець року: переплата ${Math.abs(Number(summary.closingBalance) || 0).toFixedWithComma()} грн`
         : "На кінець року: заборгованість відсутня"))
     : "";
 
@@ -2270,7 +2377,7 @@ function buildMobileYearCards(yearPayload) {
     summaryCard.innerHTML = `
       <h4>${yearPayload.year} рік</h4>
       <div class="mobile-year-summary-grid">
-        <span>${openingLabel}:</span><strong>${Math.abs(summary.openingBalance).toFixedWithComma()} грн</strong>
+        <span>${openingLabel}:</span><strong>${Math.abs(summary.openingBalance).toFixedWithComma()} грн</strong>
       </div>
     `;
     host.appendChild(summaryCard);
@@ -2303,9 +2410,9 @@ function buildMobileYearCards(yearPayload) {
     tail.innerHTML = `
       <h5 class="mobile-year-tail-title">${rangeTitle}</h5>
       <div class="mobile-year-summary-grid">
-        <span>${openingLabel}:</span><strong>${Math.abs(Number(summary.openingBalance) || 0).toFixedWithComma()} грн</strong>
-        <span>Усього нараховано:</span><strong>${(Number(summary.accrued) || 0).toFixedWithComma()} грн</strong>
-        <span>Сплачено:</span><strong>${(Number(summary.paid) || 0).toFixedWithComma()} грн</strong>
+        <span>${openingLabel}:</span><strong>${Math.abs(Number(summary.openingBalance) || 0).toFixedWithComma()} грн</strong>
+        <span>Усього нараховано:</span><strong>${(Number(summary.accrued) || 0).toFixedWithComma()} грн</strong>
+        <span>Сплачено:</span><strong>${(Number(summary.paid) || 0).toFixedWithComma()} грн</strong>
       </div>
       <div class="mobile-year-summary-final mobile-balance-${summaryMeta.cls}">${summaryFinalText}</div>
     `;
@@ -2322,7 +2429,7 @@ function buildMobileYearCards(yearPayload) {
   yearMonths.forEach(function (month, monthIndex) {
     const meta = getMobileBalanceMeta(month.balance, !!month.isCurrent, month.year, month.month);
     const card = document.createElement("details");
-    card.className = `mobile-month-card mobile-balance-${meta.cls}${month.isCurrent ? " current-month" : ""}`;
+    card.className = `mobile-month-card resident-mobile-card mobile-balance-${meta.cls}${month.isCurrent ? " current-month" : ""}`;
     card.open = true;
 
     const chargesHtml = (month.charges || [])
@@ -2330,9 +2437,9 @@ function buildMobileYearCards(yearPayload) {
       .map(function (c) {
         const detail = String(c.detail || "").trim();
         if (!detail) {
-          return `<div class="mobile-month-line-wrap"><div class="mobile-month-line mobile-charge-line"><span>${c.name}</span><strong>${(Number(c.value) || 0).toFixedWithComma()} грн</strong></div></div>`;
+          return `<div class="mobile-month-line-wrap"><div class="mobile-month-line mobile-charge-line"><span>${c.name}</span><strong>${(Number(c.value) || 0).toFixedWithComma()} грн</strong></div></div>`;
         }
-        return `<div class="mobile-month-line-wrap mobile-month-line-wrap-detail"><div class="mobile-month-line mobile-charge-line"><button type="button" class="mobile-line-detail-toggle" aria-expanded="false"><span class="mobile-line-detail-name">${c.name}</span><span class="mobile-line-detail-icon">\u24D8</span></button><strong>${(Number(c.value) || 0).toFixedWithComma()} грн</strong></div><div class="mobile-line-detail-body" hidden>${detail.replace(/\n/g, "<br>")}</div></div>`;
+        return `<div class="mobile-month-line-wrap mobile-month-line-wrap-detail"><div class="mobile-month-line mobile-charge-line"><button type="button" class="mobile-line-detail-toggle" aria-expanded="false"><span class="mobile-line-detail-name">${c.name}</span><span class="mobile-line-detail-icon">\u24D8</span></button><strong>${(Number(c.value) || 0).toFixedWithComma()} грн</strong></div><div class="mobile-line-detail-body" hidden>${detail.replace(/\n/g, "<br>")}</div></div>`;
       }).join("");
 
     const hasPayments = (month.payments || []).length > 0;
@@ -2340,7 +2447,7 @@ function buildMobileYearCards(yearPayload) {
       ? month.payments.map(function (p) {
           const sum = (Number(p && p.sum) || 0).toFixedWithComma();
           const date = formatMobilePaymentDate(p && p.date);
-          return `<div class="mobile-month-line mobile-payment-line"><span>${date || "Оплата"}</span><strong>${sum} грн</strong></div>`;
+          return `<div class="mobile-month-line mobile-payment-line"><span>${date || "Оплата"}</span><strong>${sum} грн</strong></div>`;
         }).join("")
       : "";
     const paymentsColHtml = hasPayments
@@ -2353,7 +2460,7 @@ function buildMobileYearCards(yearPayload) {
     const monthTag = month.isCurrent ? `<span class="mobile-month-tag">попередньо</span>` : "";
     card.innerHTML = `
       <summary>
-        <span class="mobile-month-name">${month.title}${monthTag}</span>
+        <span class="mobile-month-name resident-mobile-card-title">${month.title}${monthTag}</span>
         <span class="mobile-month-badge mobile-balance-${meta.cls}">${meta.short}</span>
       </summary>
       <div class="mobile-month-body">
@@ -2493,7 +2600,7 @@ function buildResidentDesktopYearCards(yearPayload) {
       <h4>${yearNum} рік</h4>
       <div class="resident-desktop-year-opening">
         <span>${openingLabel}:</span>
-        <strong class="rhd-opening-${openingCls}">${Math.abs(Number(summary.openingBalance) || 0).toFixedWithComma()} грн</strong>
+        <strong class="rhd-opening-${openingCls}">${Math.abs(Number(summary.openingBalance) || 0).toFixedWithComma()} грн</strong>
       </div>
     `;
     host.appendChild(yearHead);
@@ -2861,6 +2968,7 @@ if (payUrl && !isResidentMode) {
     yearToggle.id = `block-${year}`;
     yearToggle.type = "checkbox";
     yearLabel.setAttribute("for", `block-${year}`);
+    yearLabel.classList.add("resident-period-chip");
     yearLabel.innerHTML = `<div>${year}</div>`;
     yearContent.className = "box";
     var table = document.createElement("table");
@@ -2938,7 +3046,7 @@ if (cumulativeBalance !== 0) {
 
   balanceCell.innerHTML = `${balanceText}: `;
   balanceCell.appendChild(balanceValue);
-  //balanceCell.append(" грн.");
+  //balanceCell.append(" грн.");
   balanceRow.appendChild(balanceCell);
   //balanceRow.appendChild(balanceValue);
   tbody.appendChild(balanceRow);
@@ -3470,17 +3578,17 @@ if (toggleToOpen) {
             ? "danger"
             : "warn";
     const adviceIconName = advisoryTone === "good" ? "check-circle" : "triangle-alert";
+    const contactsLinkHtml =
+      '<button type="button" class="resident-advice-contact-link" data-resident-open-section="contacts" data-resident-highlight-contact>\u00ab\u041a\u043e\u043d\u0442\u0430\u043a\u0442\u0438\u00bb</button>';
+    const advisoryFollowupText =
+      effectiveBalance > 0
+        ? `\u0414\u043b\u044f \u0437\u0432\u0456\u0440\u043a\u0438 \u0437\u0430\u0431\u043e\u0440\u0433\u043e\u0432\u0430\u043d\u043e\u0441\u0442\u0456 \u0437\u0432\u0435\u0440\u043d\u0456\u0442\u044c\u0441\u044f \u0434\u043e \u0431\u0443\u0445\u0433\u0430\u043b\u0442\u0435\u0440\u0430 \u0443 \u0440\u043e\u0437\u0434\u0456\u043b\u0456 ${contactsLinkHtml}.`
+        : `\u041f\u0438\u0442\u0430\u043d\u043d\u044f \u0449\u043e\u0434\u043e \u043d\u0430\u0440\u0430\u0445\u0443\u0432\u0430\u043d\u044c \u0430\u0431\u043e \u043e\u043f\u043b\u0430\u0442 \u2014 \u0443 \u0440\u043e\u0437\u0434\u0456\u043b\u0456 ${contactsLinkHtml}.`;
+    advisoryText += `<span class="resident-advice-followup">${advisoryFollowupText}</span>`;
     const advisoryHtml = `
       <div class="resident-advice resident-advice-${advisoryTone} resident-advice-tone-${statusIconTone}">
         <span class="resident-advice-icon resident-advice-icon-${adviceIconTone}" aria-hidden="true" data-lucide="${adviceIconName}"></span>
         <span class="resident-advice-text">${advisoryText}</span>
-      </div>
-    `;
-    const advisoryContactHtml = `
-      <div class="resident-advice-contact">
-        <span class="resident-inline-icon" aria-hidden="true" data-lucide="mail"></span>
-        Якщо у Вас є питання щодо нарахувань або оплат, зверніться для звірки:
-        <a href="mailto:abon.omega@gmail.com">abon.omega@gmail.com</a>
       </div>
     `;
     const balanceExplainHtml =
@@ -3502,14 +3610,14 @@ if (toggleToOpen) {
             return `
               <div id="resident-pay-${method.id}-pane" class="resident-pay-pane" data-payment-pane="${method.id}"${index === 0 ? "" : " hidden"}>
                 <div id="${method.id === "privat" ? "resident-privat-pay-content" : "resident-nbu-pay-content"}" class="resident-payment-method-content">
-                  <div class="resident-payment-action-space" data-payment-action-space="${method.id}"></div>
+                  <div class="resident-payment-action-space" data-payment-action-space="${method.id}">${method.id === "nbu" ? '<span class="resident-payment-action-note">\u0420\u0435\u043a\u0432\u0456\u0437\u0438\u0442\u0438 \u0442\u0430 \u0441\u0443\u043c\u0430 \u0432\u0436\u0435 \u0432 QR</span>' : ""}</div>
                   <a id="resident-${method.id}-qr-link" class="resident-privat-qr-link" target="_blank" rel="noopener noreferrer" data-qr-method="${method.id}">
                     <span class="resident-privat-qr-frame">
                       <img id="resident-${method.id}-qr-img" alt="${method.alt}" class="resident-privat-qr-img">
                       ${method.hasIcon ? '<img src="img/24.png" alt="" aria-hidden="true" class="resident-privat-qr-icon">' : ""}
                     </span>
-                    <span class="resident-payment-qr-caption">${method.caption}</span>
                   </a>
+                  <button type="button" class="resident-payment-qr-caption" data-payment-qr-modal="${method.id}">${method.caption}</button>
                 </div>
               </div>
             `;
@@ -3546,7 +3654,6 @@ if (toggleToOpen) {
             </div>
           </div>
           ${advisoryHtml}
-          ${advisoryContactHtml}
         </div>
         ${payOptionsHtml ? `
           <div class="resident-recommended">
@@ -3557,6 +3664,7 @@ if (toggleToOpen) {
         ` : ""}
       </div>
     `;
+    bindResidentSectionInlineLinks(residentOverviewRoot);
 
     const statusToggleBtn = document.getElementById("residentStatusToggle");
     const statusDetails = document.getElementById("residentStatusDetails");
@@ -3634,6 +3742,7 @@ if (toggleToOpen) {
     paymentMethods.forEach(function (method) {
       const linkEl = document.getElementById(`resident-${method.id}-qr-link`);
       const imgEl = document.getElementById(`resident-${method.id}-qr-img`);
+      const captionEl = document.querySelector(`[data-payment-qr-modal="${method.id}"]`);
       if (linkEl && method.href) {
         linkEl.href = method.href;
       } else if (linkEl) {
@@ -3642,6 +3751,16 @@ if (toggleToOpen) {
         linkEl.removeAttribute("rel");
       }
       if (imgEl) imgEl.src = buildQrImageUrl(method.qrData, 220);
+      if (captionEl && imgEl) {
+        captionEl.onclick = function () {
+          openResidentQrModal({
+            src: buildQrImageUrl(method.qrData, 520),
+            alt: method.alt,
+            caption: method.caption,
+            hasIcon: method.hasIcon
+          });
+        };
+      }
     });
 
     residentRequisitesRoot.innerHTML = `
@@ -5437,7 +5556,7 @@ const uvaga =
         subject: "Зміни по "+ payload.org,
         address: finalData.address,
         changes: changesStr || "—",
-        correction: finalData.correction_amount ? formatDate(finalData.correction_month,"MM.YYYY")+"  "+finalData.correction_amount+" грн." : "—",
+        correction: finalData.correction_amount ? formatDate(finalData.correction_month,"MM.YYYY")+"  "+finalData.correction_amount+" грн." : "—",
         correctionText: finalData.correction_text || "—",
         uvaga: uvaga
       };

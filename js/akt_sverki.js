@@ -779,7 +779,7 @@ function renderPoster(sum, details) {
             ${hasFiles ? `<span class="act-icon">📄</span>` : ''}
             <div class="descr">
                 ${details.map(d =>
-                    `${d.title}: ${d.sum.toFixedWithComma(2)} грн` +
+                    `${d.title}: ${d.sum.toFixedWithComma(2)} грн` +
                     (d.info ? `<br><small>${d.info}</small>` : '')
                 ).join("<br>")}
             </div>

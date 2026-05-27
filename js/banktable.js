@@ -255,12 +255,12 @@ var toDateFormatted = toDatePlusOne.toLocaleDateString('ru-RU');
 summaryContainer.innerHTML = `
     <div style="display: flex; gap: 20px;">
         <div>
-            Залишок на (${fromDateFormatted}): <span>${balanceStart.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span> грн<br>
-            Залишок на (${toDateFormatted}): <span>${balanceEnd.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span> грн
+            Залишок на (${fromDateFormatted}): <span>${balanceStart.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span> грн<br>
+            Залишок на (${toDateFormatted}): <span>${balanceEnd.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span> грн
         </div>
         <div>
-            Надходження: <span class="green">${totalReceivedAmount.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span> грн<br>
-            Витрати: <span class="red">${totalPaidAmount.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span> грн
+            Надходження: <span class="green">${totalReceivedAmount.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span> грн<br>
+            Витрати: <span class="red">${totalPaidAmount.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span> грн
         </div>
     </div>
 `;
@@ -393,7 +393,7 @@ if (paymentPurpose.includes('ЗпInfo:')) {
         let [amount, name, taxId] = part.split('|');
         if (!amount || !name || !taxId) return ''; // защита от неполных данных
 
-        let formattedAmount = parseFloat(amount.replace(',', '.')).toFixed(2).replace('.', ',') + ' грн.';
+        let formattedAmount = parseFloat(amount.replace(',', '.')).toFixed(2).replace('.', ',') + ' грн.';
         return `<b>${formattedAmount}</b> - <i>${name} (${taxId})</i>`;
     }).filter(Boolean); // удаляем пустые строки
 
@@ -431,7 +431,7 @@ if (totalReceivedAmount){
 // Создаем элемент для суммы полученных платежей
 totalsText.appendChild(document.createTextNode(` Отримано: ${totalReceivedCount} платежей на сумму `));
 var receivedAmount = document.createElement('span');
-receivedAmount.textContent = `${totalReceivedAmount.toFixed(2)} грн.`;
+receivedAmount.textContent = `${totalReceivedAmount.toFixed(2)} грн.`;
 receivedAmount.style.fontWeight = 'bold';  // Жирный шрифт
 receivedAmount.style.fontSize = '1.2em';  // Увеличенный размер шрифта
 receivedAmount.classList.add('green');
@@ -443,7 +443,7 @@ if(totalPaidAmount){
 totalsText.appendChild(document.createTextNode(`  Сплачено: ${totalPaidCount} платежей на сумму `));
 // Создаем элемент для суммы оплаченных платежей
 var paidAmount = document.createElement('span');
-paidAmount.textContent = `${totalPaidAmount.toFixed(2)} грн.`;
+paidAmount.textContent = `${totalPaidAmount.toFixed(2)} грн.`;
 paidAmount.style.fontWeight = 'bold';  // Жирный шрифт
 paidAmount.style.fontSize = '1.2em';  // Увеличенный размер шрифта
 paidAmount.classList.add('red');
