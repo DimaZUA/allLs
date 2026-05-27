@@ -636,6 +636,12 @@ function setupResidentSectionMenu(menuRoot, sectionDefs, defaultKey) {
   }
 
   menuRoot.hidden = false;
+  menuRoot.classList.remove(
+    "resident-section-menu-count-4",
+    "resident-section-menu-count-5",
+    "resident-section-menu-count-6"
+  );
+  menuRoot.classList.add(`resident-section-menu-count-${sections.length}`);
   menuRoot.innerHTML = `
     <div class="resident-section-menu-buttons">
       ${sections.map(function (section) {
@@ -660,23 +666,72 @@ function setupResidentSectionMenu(menuRoot, sectionDefs, defaultKey) {
   const hintEl = menuRoot.querySelector(".resident-section-menu-hint");
   const availableKeys = new Set(sections.map(function (section) { return section.key; }));
   let activeKey = defaultKey === "" ? "" : (availableKeys.has(defaultKey) ? defaultKey : sections[0].key);
+  let hintTimer = 0;
+  let hintText = "";
+  let hoveredKey = "";
+  let pressedKey = "";
+  const setHintText = function (text) {
+    if (!hintEl) return;
+    const nextText = String(text || "");
+    if (hintText === nextText) return;
+    window.clearTimeout(hintTimer);
+    const oldItem = hintEl.querySelector(".resident-section-menu-hint-item.is-current");
+    const newItem = document.createElement("span");
+    newItem.className = "resident-section-menu-hint-item is-entering";
+    newItem.textContent = nextText;
+    hintEl.classList.add("is-visible");
+    hintEl.appendChild(newItem);
+    void newItem.offsetWidth;
+    if (oldItem) {
+      oldItem.classList.remove("is-current");
+      oldItem.classList.add("is-leaving");
+    }
+    newItem.classList.remove("is-entering");
+    newItem.classList.add("is-current");
+    hintText = nextText;
+    hintTimer = window.setTimeout(function () {
+      hintEl.querySelectorAll(".resident-section-menu-hint-item.is-leaving").forEach(function (item) {
+        item.remove();
+      });
+      if (!nextText) {
+        newItem.remove();
+        hintEl.classList.remove("is-visible");
+      }
+    }, 240);
+  };
+  const getButtonTitle = function (key) {
+    const btn = buttons.find(function (button) {
+      return button.getAttribute("data-resident-section") === key;
+    });
+    return btn ? String(btn.getAttribute("data-section-title") || "") : "";
+  };
+  const showActiveHint = function () {
+    setHintText(getButtonTitle(activeKey));
+  };
+  const triggerResidentEnter = function (el, className) {
+    if (!el) return;
+    el.classList.remove(className);
+    void el.offsetWidth;
+    el.classList.add(className);
+  };
 
   const setActiveSection = function (key) {
     activeKey = key === "" ? "" : (availableKeys.has(key) ? key : sections[0].key);
     sections.forEach(function (section) {
-      section.target.hidden = section.key !== activeKey;
+      const active = section.key === activeKey;
+      section.target.hidden = !active;
+      if (active) {
+        triggerResidentEnter(section.target, "is-entering");
+      } else {
+        section.target.classList.remove("is-entering");
+      }
     });
     buttons.forEach(function (btn) {
       const active = btn.getAttribute("data-resident-section") === activeKey;
       btn.classList.toggle("is-active", active);
       btn.setAttribute("aria-pressed", active ? "true" : "false");
     });
-    if (hintEl) {
-      const activeBtn = buttons.find(function (btn) {
-        return btn.getAttribute("data-resident-section") === activeKey;
-      });
-      hintEl.textContent = activeBtn ? String(activeBtn.getAttribute("data-section-title") || "") : "";
-    }
+    setHintText(getButtonTitle(activeKey));
     if (activeKey === "flat") {
       scheduleResidentFlatGridLayout(document.querySelector(".resident-flat-grid"));
     }
@@ -687,17 +742,30 @@ function setupResidentSectionMenu(menuRoot, sectionDefs, defaultKey) {
       setActiveSection(btn.getAttribute("data-resident-section"));
     };
     btn.onmouseenter = function () {
-      if (hintEl) hintEl.textContent = String(btn.getAttribute("data-section-title") || "");
+      hoveredKey = btn.getAttribute("data-resident-section") || "";
+      setHintText(btn.getAttribute("data-section-title"));
     };
-    btn.onfocus = btn.onmouseenter;
+    btn.onfocus = function () {
+      setHintText(btn.getAttribute("data-section-title"));
+    };
+    btn.onmousedown = function () {
+      pressedKey = btn.getAttribute("data-resident-section") || "";
+      setHintText(btn.getAttribute("data-section-title"));
+    };
+    btn.onmouseup = function () {
+      pressedKey = "";
+      hoveredKey = btn.getAttribute("data-resident-section") || "";
+      setHintText(btn.getAttribute("data-section-title"));
+    };
     btn.onmouseleave = function () {
-      if (!hintEl) return;
-      const activeBtn = buttons.find(function (button) {
-        return button.classList.contains("is-active");
-      });
-      hintEl.textContent = activeBtn ? String(activeBtn.getAttribute("data-section-title") || "") : "";
+      if (pressedKey) return;
+      hoveredKey = "";
+      showActiveHint();
     };
-    btn.onblur = btn.onmouseleave;
+    btn.onblur = function () {
+      if (pressedKey) return;
+      showActiveHint();
+    };
   });
   setActiveSection(activeKey);
 }
@@ -3429,11 +3497,12 @@ if (toggleToOpen) {
             }).join("")}
           </div>
         ` : ""}
-        <div class="resident-pay-details-content">
+        <div class="resident-pay-details-content${hasBothPayOptions ? " has-payment-switcher" : ""}">
           ${paymentMethods.map(function (method, index) {
             return `
               <div id="resident-pay-${method.id}-pane" class="resident-pay-pane" data-payment-pane="${method.id}"${index === 0 ? "" : " hidden"}>
                 <div id="${method.id === "privat" ? "resident-privat-pay-content" : "resident-nbu-pay-content"}" class="resident-payment-method-content">
+                  <div class="resident-payment-action-space" data-payment-action-space="${method.id}"></div>
                   <a id="resident-${method.id}-qr-link" class="resident-privat-qr-link" target="_blank" rel="noopener noreferrer" data-qr-method="${method.id}">
                     <span class="resident-privat-qr-frame">
                       <img id="resident-${method.id}-qr-img" alt="${method.alt}" class="resident-privat-qr-img">
@@ -3516,11 +3585,8 @@ if (toggleToOpen) {
     const payBtn = document.getElementById("payLinkBtn");
     if (paySlot && payBtn) {
       const privatContent = document.getElementById("resident-privat-pay-content") || paySlot;
-      const qrNode = privatContent.querySelector("#resident-privat-qr-link") || paySlot.querySelector("#resident-privat-qr-link");
-      privatContent.appendChild(payBtn);
-      if (qrNode) {
-        privatContent.appendChild(qrNode);
-      }
+      const privatActionSpace = paySlot.querySelector('[data-payment-action-space="privat"]');
+      (privatActionSpace || privatContent).appendChild(payBtn);
       payBtn.classList.add("resident-main-pay-btn");
       if (recommendedToPay >= 0.01) {
         payBtn.textContent = `Сплатити ${moneyText(recommendedToPay)}`;
@@ -3536,6 +3602,12 @@ if (toggleToOpen) {
     if (hasBothPayOptions) {
       const methodButtons = Array.from(document.querySelectorAll(".resident-payment-method-btn"));
       const methodPanes = Array.from(document.querySelectorAll("[data-payment-pane]"));
+      const triggerPaymentPaneEnter = function (pane) {
+        if (!pane) return;
+        pane.classList.remove("is-visible");
+        void pane.offsetWidth;
+        pane.classList.add("is-visible");
+      };
       const setPaymentMethod = function (methodId) {
         methodButtons.forEach(function (btn) {
           const active = btn.getAttribute("data-payment-method") === methodId;
@@ -3543,7 +3615,13 @@ if (toggleToOpen) {
           btn.setAttribute("aria-pressed", active ? "true" : "false");
         });
         methodPanes.forEach(function (pane) {
-          pane.hidden = pane.getAttribute("data-payment-pane") !== methodId;
+          const active = pane.getAttribute("data-payment-pane") === methodId;
+          pane.hidden = !active;
+          if (active) {
+            triggerPaymentPaneEnter(pane);
+          } else {
+            pane.classList.remove("is-visible");
+          }
         });
       };
       methodButtons.forEach(function (btn) {
@@ -3798,18 +3876,18 @@ infoHost.innerHTML = content;
     scheduleResidentFlatGridLayout(infoHost.querySelector(".resident-flat-grid"));
     setupResidentSectionMenu(residentSectionMenuRoot, [
       {
-        key: "requisites",
-        label: "\u0420\u0435\u043a\u0432\u0456\u0437\u0438\u0442\u0438",
-        title: "\u0420\u0435\u043a\u0432\u0456\u0437\u0438\u0442\u0438 \u0434\u043b\u044f \u043e\u043f\u043b\u0430\u0442\u0438 \u0432\u0440\u0443\u0447\u043d\u0443",
-        icon: "landmark",
-        target: residentRequisitesRoot
-      },
-      {
         key: "history",
         label: "\u0406\u0441\u0442\u043e\u0440\u0456\u044f",
         title: "\u0406\u0441\u0442\u043e\u0440\u0456\u044f \u043d\u0430\u0440\u0430\u0445\u0443\u0432\u0430\u043d\u044c \u0442\u0430 \u043e\u043f\u043b\u0430\u0442",
         icon: "history",
         target: historyHost
+      },
+      {
+        key: "requisites",
+        label: "\u0420\u0435\u043a\u0432\u0456\u0437\u0438\u0442\u0438",
+        title: "\u0420\u0435\u043a\u0432\u0456\u0437\u0438\u0442\u0438 \u0434\u043b\u044f \u043e\u043f\u043b\u0430\u0442\u0438 \u0432\u0440\u0443\u0447\u043d\u0443",
+        icon: "landmark",
+        target: residentRequisitesRoot
       },
       {
         key: "spending",
@@ -3834,7 +3912,7 @@ infoHost.innerHTML = content;
       },
       {
         key: "flat",
-        label: "\u041f\u0440\u043e \u043a\u0432\u0430\u0440\u0442\u0438\u0440\u0443",
+        label: "\u041a\u0432\u0430\u0440\u0442\u0438\u0440\u0430",
         title: "\u0406\u043d\u0444\u043e\u0440\u043c\u0430\u0446\u0456\u044f \u043f\u0440\u043e \u043a\u0432\u0430\u0440\u0442\u0438\u0440\u0443",
         icon: "home",
         target: residentFlatRoot
