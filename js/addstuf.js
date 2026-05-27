@@ -531,7 +531,6 @@ function buildPrivat24PayUrl(homeToken, personalAccount) {
 
 async function buildResidentCabinetUrl(accountId) {
   const homeCode = String(getParam("homeCode") || "");
-  const kv = String(ls?.[accountId]?.kv || "").trim();
   const params = new URLSearchParams();
 
   try {
@@ -541,19 +540,18 @@ async function buildResidentCabinetUrl(accountId) {
         p_account_id: String(accountId)
       });
       if (!error && data) {
-        const token = String(data);
+        const rawToken = data && typeof data === "object" ? data.token : data;
+        const token = rawToken == null ? "" : String(rawToken).trim();
+        if (!token) return "";
         params.set("rt", token);
         return `${getPageBaseUrl()}?${params.toString()}`;
       }
     }
   } catch (e) {
-    // Fallback: URL without token if RPC is unavailable.
+    return "";
   }
 
-  if (homeCode) params.set("homeCode", homeCode);
-  params.set("actionCode", "accounts");
-  if (kv) params.set("kv", kv);
-  return `${getPageBaseUrl()}?${params.toString()}`;
+  return "";
 }
 
 async function copyTextPortable(text) {
@@ -606,9 +604,13 @@ async function ensureResidentCabinetButton(accountId) {
     return;
   }
 
-  const url = await buildResidentCabinetUrl(accountId);
   button.style.display = "";
   button.onclick = async function () {
+    const url = await buildResidentCabinetUrl(accountId);
+    if (!url) {
+      showMessage("\u041d\u0435 \u0432\u0434\u0430\u043b\u043e\u0441\u044f \u0441\u0442\u0432\u043e\u0440\u0438\u0442\u0438 \u043f\u043e\u0441\u0438\u043b\u0430\u043d\u043d\u044f \u043e\u0441\u043e\u0431\u0438\u0441\u0442\u043e\u0433\u043e \u043a\u0430\u0431\u0456\u043d\u0435\u0442\u0443", "err");
+      return;
+    }
     const copied = await copyTextPortable(url);
     if (copied) {
       showMessage("\u041F\u043E\u0441\u0438\u043B\u0430\u043D\u043D\u044F \u043D\u0430 \u043E\u0441\u043E\u0431\u0438\u0441\u0442\u0438\u0439 \u043A\u0430\u0431\u0456\u043D\u0435\u0442 \u0441\u043A\u043E\u043F\u0456\u0439\u043E\u0432\u0430\u043D\u043E \u0434\u043E \u0431\u0443\u0444\u0435\u0440\u0443 \u043E\u0431\u043C\u0456\u043D\u0443");
@@ -3182,17 +3184,7 @@ if (toggleToOpen) {
     const requisites = pickRequisites(getParam("homeCode"), curLS);
     const viberUrl = String(requisites.viberQr || "").trim();
     const hasViberQr = viberUrl.length > 0;
-    const privatQrValue = String(requisites.privatQr || "").trim();
-    const privatTokenValue = String(requisites.privatToken || "").trim();
-    const privatQrLenRaw = String(requisites.privatQrLen || "").trim();
-    const accountLsRaw = String(curLS.ls || "").trim();
-    const privatQrLenNum = Number(privatQrLenRaw);
-    let qrLsPart = accountLsRaw;
-    if (Number.isFinite(privatQrLenNum) && privatQrLenNum > 0 && privatQrLenNum > accountLsRaw.length) {
-      qrLsPart = "0".repeat(privatQrLenNum - accountLsRaw.length) + accountLsRaw;
-    }
-    const privatQrPayload = `EK_V3_ls_${qrLsPart}_${privatQrValue}`;
-    const hasPrivatQr = !!payUrl && privatQrValue.length > 0 && (privatTokenValue.length > 0 || !!payUrl);
+    const hasPrivatQr = !!payUrl;
     const monthNamesNom = [
       "січень", "лютий", "березень", "квітень", "травень", "червень",
       "липень", "серпень", "вересень", "жовтень", "листопад", "грудень"
@@ -3218,7 +3210,30 @@ if (toggleToOpen) {
       amount: recommendedToPay
     });
     const hasNbuQr = nbuQrLink.length > 0;
-    const hasBothPayOptions = hasPrivatQr && hasNbuQr;
+    const paymentMethods = [];
+    if (hasPrivatQr) {
+      paymentMethods.push({
+        id: "privat",
+        label: "\u041f\u0440\u0438\u0432\u0430\u044224",
+        qrData: payUrl,
+        href: payUrl,
+        alt: "Privat24 QR",
+        caption: "\u0421\u043a\u0430\u043d\u0443\u0439\u0442\u0435 \u0051\u0052 \u0443 \u0437\u0430\u0441\u0442\u043e\u0441\u0443\u043d\u043a\u0443 \u041f\u0440\u0438\u0432\u0430\u044224",
+        hasIcon: true
+      });
+    }
+    if (hasNbuQr) {
+      paymentMethods.push({
+        id: "nbu",
+        label: "\u0406\u043d\u0448\u0438\u0439 \u0431\u0430\u043d\u043a",
+        qrData: nbuQrLink,
+        href: nbuQrLink,
+        alt: "NBU QR",
+        caption: "\u0421\u043a\u0430\u043d\u0443\u0439\u0442\u0435 \u0051\u0052 \u0443 \u043f\u043b\u0430\u0442\u0456\u0436\u043d\u043e\u043c\u0443 \u0437\u0430\u0441\u0442\u043e\u0441\u0443\u043d\u043a\u0443 \u0432\u0430\u0448\u043e\u0433\u043e \u0431\u0430\u043d\u043a\u0443",
+        hasIcon: false
+      });
+    }
+    const hasBothPayOptions = paymentMethods.length > 1;
     const completedMonthsCount =
       summaryYear === currentYearKey
         ? Math.max(0, Math.min(12, currentMonth))
@@ -3314,52 +3329,35 @@ if (toggleToOpen) {
       currentMonthPaidNow >= 0.01
         ? `<div class="resident-balance-explain">Поточний баланс враховує оплати, що вже надійшли у ${currentMonthYearLocLabel} Нарахування за ${currentMonthNameNom} ${summaryYear} р. показано нижче у таблиці як попередній розрахунок.</div>`
         : "";
-    const payOptionsHtml = hasBothPayOptions
+    const payOptionsHtml = paymentMethods.length
       ? `
-        <div id="resident-pay-privat-pane" class="resident-pay-pane">
-          <div id="resident-privat-pay-content" class="resident-pay-details-content">
-            <a id="resident-privat-qr-link" class="resident-privat-qr-link" target="_blank" rel="noopener noreferrer">
-              <span class="resident-privat-qr-frame">
-                <img id="resident-privat-qr-img" alt="Privat24 QR" class="resident-privat-qr-img">
-                <img src="img/24.png" alt="" aria-hidden="true" class="resident-privat-qr-icon">
-              </span>
-              <span class="resident-privat-qr-note">Скануйте в мобільному застосунку Privat24</span>
-            </a>
+        ${hasBothPayOptions ? `
+          <div class="resident-payment-method-switcher" aria-label="\u041e\u0431\u0435\u0440\u0456\u0442\u044c \u0441\u043f\u043e\u0441\u0456\u0431 \u043e\u043f\u043b\u0430\u0442\u0438">
+            <span>\u041e\u0431\u0435\u0440\u0456\u0442\u044c \u0441\u043f\u043e\u0441\u0456\u0431 \u043e\u043f\u043b\u0430\u0442\u0438:</span>
+            ${paymentMethods.map(function (method, index) {
+              return `<button type="button" class="resident-payment-method-btn${index === 0 ? " is-active" : ""}" data-payment-method="${method.id}" aria-pressed="${index === 0 ? "true" : "false"}">${method.label}</button>`;
+            }).join("")}
           </div>
-          <button id="resident-switch-to-nbu" type="button" class="resident-pay-switch">▸ Оплатити з іншого банку</button>
-        </div>
-        <div id="resident-pay-nbu-pane" class="resident-pay-pane" hidden>
-          <div class="resident-pay-details-content">
-            <a id="resident-nbu-qr-link" class="resident-privat-qr-link" target="_blank" rel="noopener noreferrer">
-              <span class="resident-privat-qr-frame">
-                <img id="resident-nbu-qr-img" alt="NBU QR" class="resident-privat-qr-img">
-              </span>
-              <span class="resident-privat-qr-note">Скануйте у мобільному застосунку банку</span>
-            </a>
-          </div>
-          <button id="resident-switch-to-privat" type="button" class="resident-pay-switch">▸ Оплатити з Приватбанку</button>
+        ` : ""}
+        <div class="resident-pay-details-content">
+          ${paymentMethods.map(function (method, index) {
+            return `
+              <div id="resident-pay-${method.id}-pane" class="resident-pay-pane" data-payment-pane="${method.id}"${index === 0 ? "" : " hidden"}>
+                <div id="${method.id === "privat" ? "resident-privat-pay-content" : "resident-nbu-pay-content"}" class="resident-payment-method-content">
+                  <a id="resident-${method.id}-qr-link" class="resident-privat-qr-link" target="_blank" rel="noopener noreferrer" data-qr-method="${method.id}">
+                    <span class="resident-privat-qr-frame">
+                      <img id="resident-${method.id}-qr-img" alt="${method.alt}" class="resident-privat-qr-img">
+                      ${method.hasIcon ? '<img src="img/24.png" alt="" aria-hidden="true" class="resident-privat-qr-icon">' : ""}
+                    </span>
+                    <span class="resident-payment-qr-caption">${method.caption}</span>
+                  </a>
+                </div>
+              </div>
+            `;
+          }).join("")}
         </div>
       `
-      : hasPrivatQr
-        ? `
-          <a id="resident-privat-qr-link" class="resident-privat-qr-link" target="_blank" rel="noopener noreferrer">
-            <span class="resident-privat-qr-frame">
-              <img id="resident-privat-qr-img" alt="Privat24 QR" class="resident-privat-qr-img">
-              <img src="img/24.png" alt="" aria-hidden="true" class="resident-privat-qr-icon">
-            </span>
-            <span class="resident-privat-qr-note">Скануйте в мобільному застосунку Privat24</span>
-          </a>
-        `
-        : hasNbuQr
-          ? `
-            <a id="resident-nbu-qr-link" class="resident-privat-qr-link" target="_blank" rel="noopener noreferrer">
-              <span class="resident-privat-qr-frame">
-                <img id="resident-nbu-qr-img" alt="NBU QR" class="resident-privat-qr-img">
-              </span>
-              <span class="resident-privat-qr-note">Скануйте у мобільному застосунку банку</span>
-            </a>
-          `
-          : "";
+      : "";
     residentOverviewRoot.className = `resident-overview-card resident-overview-tone-${statusIconTone}`;
     residentOverviewRoot.innerHTML = `
       <h2><span class="resident-title-icon" aria-hidden="true" data-lucide="wallet-cards"></span><span>Поточний стан рахунку</span></h2>
@@ -3391,11 +3389,13 @@ if (toggleToOpen) {
           ${advisoryHtml}
           ${advisoryContactHtml}
         </div>
-        <div class="resident-recommended">
-          <div id="resident-pay-slot">
-            ${payOptionsHtml}
+        ${payOptionsHtml ? `
+          <div class="resident-recommended">
+            <div id="resident-pay-slot">
+              ${payOptionsHtml}
+            </div>
           </div>
-        </div>
+        ` : ""}
       </div>
     `;
 
@@ -3444,42 +3444,37 @@ if (toggleToOpen) {
     }
 
     if (hasBothPayOptions) {
-      const privatPane = document.getElementById("resident-pay-privat-pane");
-      const nbuPane = document.getElementById("resident-pay-nbu-pane");
-      const toNbuBtn = document.getElementById("resident-switch-to-nbu");
-      const toPrivatBtn = document.getElementById("resident-switch-to-privat");
-      if (privatPane && nbuPane && toNbuBtn && toPrivatBtn) {
-        toNbuBtn.onclick = function () {
-          privatPane.hidden = true;
-          nbuPane.hidden = false;
+      const methodButtons = Array.from(document.querySelectorAll(".resident-payment-method-btn"));
+      const methodPanes = Array.from(document.querySelectorAll("[data-payment-pane]"));
+      const setPaymentMethod = function (methodId) {
+        methodButtons.forEach(function (btn) {
+          const active = btn.getAttribute("data-payment-method") === methodId;
+          btn.classList.toggle("is-active", active);
+          btn.setAttribute("aria-pressed", active ? "true" : "false");
+        });
+        methodPanes.forEach(function (pane) {
+          pane.hidden = pane.getAttribute("data-payment-pane") !== methodId;
+        });
+      };
+      methodButtons.forEach(function (btn) {
+        btn.onclick = function () {
+          setPaymentMethod(btn.getAttribute("data-payment-method"));
         };
-        toPrivatBtn.onclick = function () {
-          nbuPane.hidden = true;
-          privatPane.hidden = false;
-        };
-      }
+      });
     }
 
-    if (hasPrivatQr) {
-      const privatQrLink = document.getElementById("resident-privat-qr-link");
-      const privatQrImg = document.getElementById("resident-privat-qr-img");
-      if (privatQrLink) {
-        privatQrLink.href = payUrl;
+    paymentMethods.forEach(function (method) {
+      const linkEl = document.getElementById(`resident-${method.id}-qr-link`);
+      const imgEl = document.getElementById(`resident-${method.id}-qr-img`);
+      if (linkEl && method.href) {
+        linkEl.href = method.href;
+      } else if (linkEl) {
+        linkEl.removeAttribute("href");
+        linkEl.removeAttribute("target");
+        linkEl.removeAttribute("rel");
       }
-      if (privatQrImg) {
-        privatQrImg.src = buildQrImageUrl(privatQrPayload, 220);
-      }
-    }
-    if (hasNbuQr) {
-      const nbuLinkEl = document.getElementById("resident-nbu-qr-link");
-      const nbuImgEl = document.getElementById("resident-nbu-qr-img");
-      if (nbuLinkEl) {
-        nbuLinkEl.href = nbuQrLink;
-      }
-      if (nbuImgEl) {
-        nbuImgEl.src = buildQrImageUrl(nbuQrLink, 220);
-      }
-    }
+      if (imgEl) imgEl.src = buildQrImageUrl(method.qrData, 220);
+    });
 
     residentRequisitesRoot.innerHTML = `
       <details class="resident-requisites-details">
