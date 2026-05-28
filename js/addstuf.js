@@ -3373,7 +3373,7 @@ _totalRow.innerHTML =`<td align="left" class="year-total-title">Разом за 
           0);
           totalPaymentsForOneService += monthPaymentsSum;
         }
-      }
+      });
       _totalRow.innerHTML += `<td>${totalPaymentsForOneService.toFixedWithComma()}</td>`;
 
       // Общий долг/переплата на конец года
@@ -3837,7 +3837,7 @@ if (toggleToOpen) {
       const urlPayMethod = residentGetUrlParam("pay");
       if (methodButtons.some(function (btn) { return btn.getAttribute("data-payment-method") === urlPayMethod; })) {
         setPaymentMethod(urlPayMethod, false);
-      });
+      }
     }
 
     paymentMethods.forEach(function (method) {

@@ -165,6 +165,8 @@ declare
   v_expenses_enabled boolean := false;
   v_expenses_start_month integer := 0;
   v_expenses_raw text;
+  v_hist_start_month integer := 24301;
+  v_hist_start_raw text;
 
   j_ls_item jsonb;
   j_nach_item jsonb;
@@ -302,6 +304,13 @@ begin
     v_expenses_start_month := 0;
   end if;
   v_expenses_enabled := v_expenses_start_month > 0;
+  v_hist_start_raw := coalesce(lower(trim(j_data ->> 'HistStart')), lower(trim(j_data ->> 'histStart')), lower(trim(j_data ->> 'hist_start')), '');
+  if v_hist_start_raw ~ '^[0-9]+$' and v_hist_start_raw::integer > 0 then
+    v_hist_start_month := v_hist_start_raw::integer;
+  else
+    v_hist_start_month := 24301;
+  end if;
+
   if not v_expenses_enabled then
     j_spending := '{}'::jsonb;
   elsif v_expenses_start_month > 1 then
@@ -412,6 +421,7 @@ begin
     'spending', coalesce(j_spending, '{}'::jsonb),
     'contacts', coalesce(j_data ->> 'contacts', ''),
     'expenses', case when v_expenses_enabled then v_expenses_start_month else 0 end,
+    'HistStart', v_hist_start_month,
     'home_total_sqr', coalesce(v_home_total_sqr, 0)
   );
 end;
