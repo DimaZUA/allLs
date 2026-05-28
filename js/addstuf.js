@@ -157,6 +157,10 @@ function formatTarifMoney(value) {
   return n.toFixedWithComma();
 }
 
+function hasTargetContributionPhrase(text) {
+  return /ц[іїиieе]л[\s\S]{0,32}в(?:нес|знос)/i.test(String(text || ""));
+}
+
 function getPrevMonthTransactions(accountData, year, month) {
   const y = Number(year);
   const m = Number(month);
@@ -364,7 +368,7 @@ function buildTarifMonthNotes(year, month, monthTransactions, prevMonthTransacti
         const hasTariff = Number.isFinite(tariffNum) && tariffNum !== -1;
         const showTariffAmount = hasTariff && tariffNum !== 0 && tariffNum !== 1;
         const tariffText = hasTariff ? formatTarifMoney(tariffNum) : "";
-        const noteHasTargetPhrase = /\u0426\u0456\u043B\u044C\u043E\u0432\u0438\u0439\s+\u0432\u043D\u0435\u0441\u043E\u043A/i.test(noteText);
+        const noteHasTargetPhrase = hasTargetContributionPhrase(noteText);
         let text = `\u0412 ${rowMonthLoc} ${rowYear} \u0440. \u0431\u0443\u043B\u043E \u043D\u0430\u0440\u0430\u0445\u043E\u0432\u0430\u043D\u043E`;
         if (noteText) {
           text += noteHasTargetPhrase ? ` ${noteText}` : ` \u0446\u0456\u043B\u044C\u043E\u0432\u0438\u0439 \u0432\u043D\u0435\u0441\u043E\u043A \u043D\u0430 ${noteText}`;
@@ -373,7 +377,7 @@ function buildTarifMonthNotes(year, month, monthTransactions, prevMonthTransacti
         }
         if (showTariffAmount) text += ` \u0432 \u0440\u043E\u0437\u043C\u0456\u0440\u0456 ${tariffText} \u0433\u0440\u043D`;
         if (unitPhrase) text += ` ${unitPhrase}`;
-        out.push(text + ".");
+        out.push(/[.!?…]\s*$/.test(text) ? text : text + ".");
       });
       return;
     }
