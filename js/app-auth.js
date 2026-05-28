@@ -331,16 +331,19 @@
 
     const applied = applyResidentPayload(data);
     if (applied) {
-      try {
-        const { data: visitData, error: visitError } = await client.rpc("resident_visit_log", {
-          p_token: token,
-          p_source: "resident_web"
-        });
-        if (visitError || (visitData && visitData.ok === false)) {
-          console.warn("Resident visit log failed", visitError || visitData);
+      const skipVisitLog = localStorage.getItem("resident_skip_visit_log") === "1";
+      if (!skipVisitLog) {
+        try {
+          const { data: visitData, error: visitError } = await client.rpc("resident_visit_log", {
+            p_token: token,
+            p_source: "resident_web"
+          });
+          if (visitError || (visitData && visitData.ok === false)) {
+            console.warn("Resident visit log failed", visitError || visitData);
+          }
+        } catch (err) {
+          console.warn("Resident visit log failed", err);
         }
-      } catch (err) {
-        console.warn("Resident visit log failed", err);
       }
     }
     return applied;
