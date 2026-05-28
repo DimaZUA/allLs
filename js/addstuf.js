@@ -1109,6 +1109,11 @@ function normalizeExpensesStartMonth(rawValue) {
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
 }
 
+function normalizeResidentHistoryStartMonth(rawValue) {
+  const n = Number(String(rawValue ?? "").trim());
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 24301;
+}
+
 function filterSpendingPayloadByStartMonth(spendingPayload, startMonth) {
   const start = normalizeExpensesStartMonth(startMonth);
   if (!start || start <= 1) return spendingPayload;
@@ -2922,6 +2927,7 @@ if (payUrl && !isResidentMode) {
   var lastYearTarifSummaryBlock = null;
   var showResidentSpending = false;
   var residentExpensesStartMonth = 0;
+  var residentHistoryStartMonth = 24301;
   var residentDefaultSectionKey = "";
 
   if (isResidentMode) {
@@ -2933,7 +2939,13 @@ if (payUrl && !isResidentMode) {
     const expensesRaw =
       homeMeta.expenses ??
       (homeFromList && homeFromList.expenses);
+    const histStartRaw =
+      homeMeta.HistStart ??
+      homeMeta.histStart ??
+      homeMeta.hist_start ??
+      (homeFromList && (homeFromList.HistStart ?? homeFromList.histStart ?? homeFromList.hist_start));
     residentExpensesStartMonth = normalizeExpensesStartMonth(expensesRaw);
+    residentHistoryStartMonth = normalizeResidentHistoryStartMonth(histStartRaw);
     showResidentSpending = residentExpensesStartMonth > 0;
   }
 
@@ -2988,23 +3000,27 @@ if (payUrl && !isResidentMode) {
   var yearsToRender = allYearsSorted.filter(function (yearKey) {
     if (!isResidentMode) return true;
     var yearNum = Number(yearKey);
-    return Number.isFinite(yearNum) && yearNum >= 2025;
+    if (!Number.isFinite(yearNum)) return false;
+    return Object.keys(accountData[yearKey] || {}).some(function (monthKey) {
+      var monthNum = Number(monthKey);
+      return Number.isFinite(monthNum) && (yearNum * 12 + monthNum) >= residentHistoryStartMonth;
+    });
   });
 
   // В resident-режиме считаем входящее сальдо по "скрытым" годам (< 2025),
   // чтобы долги в отображаемых годах были корректными.
   if (isResidentMode) {
-    var hiddenYears = allYearsSorted.filter(function (yearKey) {
-      var yearNum = Number(yearKey);
-      return Number.isFinite(yearNum) && yearNum < 2025;
-    });
-
-    hiddenYears.forEach(function (hiddenYear) {
+    allYearsSorted.forEach(function (hiddenYear) {
+      var hiddenYearNum = Number(hiddenYear);
+      if (!Number.isFinite(hiddenYearNum)) return;
       var months = Object.keys(accountData[hiddenYear] || {}).sort(function (a, b) {
         return Number(a) - Number(b);
       });
 
       months.forEach(function (monthKey) {
+        var hiddenMonthNum = Number(monthKey);
+        if (!Number.isFinite(hiddenMonthNum)) return;
+        if ((hiddenYearNum * 12 + hiddenMonthNum) >= residentHistoryStartMonth) return;
         var monthChargesByService = accountData[hiddenYear][monthKey] || {};
         var monthCharge = Object.values(monthChargesByService).reduce(function (sum, value) {
           return sum + (Number(value) || 0);
@@ -3027,6 +3043,16 @@ if (payUrl && !isResidentMode) {
     var yearContent = document.createElement("div");
     var openingBalanceForYear = cumulativeBalance;
     var yearMobilePayload = { year: year, months: [], summary: null };
+    var displayedMonthKeys = Object.keys(accountData[year] || {}).filter(function (monthKey) {
+      if (!isResidentMode) return true;
+      var yearNumForMonth = Number(year);
+      var monthNumForMonth = Number(monthKey);
+      return Number.isFinite(yearNumForMonth) &&
+        Number.isFinite(monthNumForMonth) &&
+        (yearNumForMonth * 12 + monthNumForMonth) >= residentHistoryStartMonth;
+    }).sort(function (a, b) {
+      return Number(a) - Number(b);
+    });
 
     // Настройка чекбокса для разворачивания/сворачивания
     yearToggle.className = "toggle-box";
@@ -3043,11 +3069,11 @@ if (payUrl && !isResidentMode) {
 
     // Определение уникальных услуг для текущего года
     var services = new Set();
-    for (var month in accountData[year]) {
+    displayedMonthKeys.forEach(function (month) {
       for (var serviceId in accountData[year][month]) {
         services.add(serviceId);
       }
-    }
+    });
 
     // Заголовок таблицы
     var headerRow = document.createElement("tr");
@@ -3258,7 +3284,8 @@ if (cumulativeBalance !== 0) {
         tbody.appendChild(row);
       }
     };
-    for (var _month in accountData[year]) {
+    for (var _monthIndex = 0; _monthIndex < displayedMonthKeys.length; _monthIndex += 1) {
+      var _month = displayedMonthKeys[_monthIndex];
       _loop2();
     }
     // Итоги по году
@@ -3333,10 +3360,10 @@ _totalRow.innerHTML =`<td align="left" class="year-total-title">Разом за 
 
       // Итог по оплатам (без учета текущего месяца текущего года)
       var totalPaymentsForOneService = 0;
-      for (var _month2 in paymentData[year]) {
+      displayedMonthKeys.forEach(function (_month2) {
         if (!(year == currentYear && _month2 == currentMonth + 1)) {
           // Исключаем только текущий месяц текущего года
-          var monthlyPayments = paymentData[year][_month2] || [];
+          var monthlyPayments = ((paymentData[year] || {})[_month2]) || [];
           var monthPaymentsSum = monthlyPayments.reduce(function (
             sum,
             payment
@@ -3810,7 +3837,7 @@ if (toggleToOpen) {
       const urlPayMethod = residentGetUrlParam("pay");
       if (methodButtons.some(function (btn) { return btn.getAttribute("data-payment-method") === urlPayMethod; })) {
         setPaymentMethod(urlPayMethod, false);
-      }
+      });
     }
 
     paymentMethods.forEach(function (method) {

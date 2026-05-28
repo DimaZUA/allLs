@@ -212,6 +212,16 @@
       payload.expenses ??
       homeMeta.expenses ??
       homeMetaData.expenses;
+    const histStartRaw =
+      payload.HistStart ??
+      payload.histStart ??
+      payload.hist_start ??
+      homeMeta.HistStart ??
+      homeMeta.histStart ??
+      homeMeta.hist_start ??
+      homeMetaData.HistStart ??
+      homeMetaData.histStart ??
+      homeMetaData.hist_start;
     const normalizeExpensesStartMonth = function (rawValue) {
       const text = String(rawValue ?? "").trim().toLowerCase();
       if (!text || text === "0" || text === "false" || text === "f" || text === "no" || text === "n") return 0;
@@ -219,7 +229,12 @@
       const n = Number(text);
       return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
     };
+    const normalizeHistoryStartMonth = function (rawValue) {
+      const n = Number(String(rawValue ?? "").trim());
+      return Number.isFinite(n) && n > 0 ? Math.floor(n) : 24301;
+    };
     const expensesValue = normalizeExpensesStartMonth(expensesRaw);
+    const histStartValue = normalizeHistoryStartMonth(histStartRaw);
     const homeTotalSqrRaw =
       payload.home_total_sqr ??
       payload.homeTotalSqr ??
@@ -249,6 +264,7 @@
       PrivatQr: privatQrValue,
       PrivatQRLen: privatQrLenValue,
       expenses: expensesValue,
+      HistStart: histStartValue,
       spending: spendingValue,
       home_total_sqr: Number.isFinite(homeTotalSqrValue) ? homeTotalSqrValue : 0,
       contacts: String(contactsValue || ""),
@@ -269,6 +285,7 @@
         PrivatQr: window.residentHomeMeta.PrivatQr,
         PrivatQRLen: window.residentHomeMeta.PrivatQRLen,
         expenses: window.residentHomeMeta.expenses,
+        HistStart: window.residentHomeMeta.HistStart,
         spending: window.residentHomeMeta.spending,
         home_total_sqr: window.residentHomeMeta.home_total_sqr,
         contacts: window.residentHomeMeta.contacts,
