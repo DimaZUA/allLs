@@ -665,7 +665,10 @@ function setupResidentSectionMenu(menuRoot, sectionDefs, defaultKey) {
   const buttons = Array.from(menuRoot.querySelectorAll(".resident-section-menu-btn"));
   const hintEl = menuRoot.querySelector(".resident-section-menu-hint");
   const availableKeys = new Set(sections.map(function (section) { return section.key; }));
-  let activeKey = defaultKey === "" ? "" : (availableKeys.has(defaultKey) ? defaultKey : sections[0].key);
+  const urlSectionKey = residentGetUrlParam("section");
+  let activeKey = availableKeys.has(urlSectionKey)
+    ? urlSectionKey
+    : (defaultKey === "" ? "" : (availableKeys.has(defaultKey) ? defaultKey : sections[0].key));
   let hintTimer = 0;
   let hintText = "";
   let hoveredKey = "";
@@ -739,7 +742,9 @@ function setupResidentSectionMenu(menuRoot, sectionDefs, defaultKey) {
 
   buttons.forEach(function (btn) {
     btn.onclick = function () {
-      setActiveSection(btn.getAttribute("data-resident-section"));
+      const nextKey = btn.getAttribute("data-resident-section");
+      setActiveSection(nextKey);
+      residentReplaceUrlState({ section: nextKey, focus: null });
     };
     btn.onmouseenter = function () {
       hoveredKey = btn.getAttribute("data-resident-section") || "";
@@ -768,7 +773,49 @@ function setupResidentSectionMenu(menuRoot, sectionDefs, defaultKey) {
     };
   });
   setActiveSection(activeKey);
+  if (activeKey === "contacts" && residentGetUrlParam("focus") === "accounting") {
+    window.setTimeout(function () {
+      const panel = document.querySelector('.resident-section-panel[data-resident-panel="contacts"]');
+      const target = panel ? findResidentContactTarget(panel) : null;
+      (target || panel || menuRoot).scrollIntoView({ behavior: "smooth", block: "center" });
+      window.setTimeout(function () {
+        highlightResidentContactTarget(target);
+      }, 650);
+    }, 250);
+  }
 }
+
+function residentGetUrlParam(name) {
+  try {
+    return new URLSearchParams(window.location.search || "").get(name) || "";
+  } catch (_) {
+    return "";
+  }
+}
+
+function residentReplaceUrlState(updates) {
+  if (!window.history || typeof window.history.replaceState !== "function") return;
+  const params = new URLSearchParams(window.location.search || "");
+  Object.keys(updates || {}).forEach(function (key) {
+    const value = updates[key];
+    if (value === null || value === undefined || value === "") {
+      params.delete(key);
+    } else {
+      params.set(key, String(value));
+    }
+  });
+  const nextQuery = params.toString();
+  const nextUrl = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ""}${window.location.hash || ""}`;
+  window.history.replaceState(window.history.state || null, document.title, nextUrl);
+}
+
+window.residentCleanLegacyUrlParams = function () {
+  residentReplaceUrlState({
+    homeCode: null,
+    actionCode: null,
+    kv: null
+  });
+};
 
 function findResidentContactTarget(panel) {
   const cards = Array.from(panel.querySelectorAll(".resident-contact-card"));
@@ -794,6 +841,10 @@ function openResidentSectionFromLink(sectionKey, options) {
   const button = menuRoot ? menuRoot.querySelector(`.resident-section-menu-btn[data-resident-section="${key}"]`) : null;
   if (!button) return false;
   button.click();
+  residentReplaceUrlState({
+    section: key,
+    focus: options && options.highlightContact && key === "contacts" ? "accounting" : null
+  });
   window.requestAnimationFrame(function () {
     const panel = document.querySelector(`.resident-section-panel[data-resident-panel="${key}"]`);
     if (options && options.highlightContact && key === "contacts") {
@@ -913,6 +964,9 @@ function buildQrImageUrl(data, size) {
 function openResidentQrModal(options) {
   const src = options && options.src ? String(options.src) : "";
   if (!src) return;
+  if (options && options.qrMethod) {
+    residentReplaceUrlState({ qr: options.qrMethod });
+  }
   const existing = document.getElementById("residentQrModal");
   if (existing) existing.remove();
 
@@ -949,6 +1003,7 @@ function openResidentQrModal(options) {
 
   const closeModal = function () {
     overlay.remove();
+    residentReplaceUrlState({ qr: null });
     document.removeEventListener("keydown", onKeyDown);
   };
   function onKeyDown(event) {
@@ -2793,7 +2848,13 @@ function addStuffCore(accountId, isResidentMode) {
             }
         }
     }  
-  const link=(Array.isArray(homes) ? homes.find(h => h.code == getParam('homeCode')) : null)?.token ?? "";
+  const paymentHomeCode = isResidentMode
+    ? String(window.residentHomeMeta && window.residentHomeMeta.code || "")
+    : String(getParam("homeCode") || "");
+  const paymentHome = Array.isArray(homes)
+    ? (homes.find(function (h) { return String(h && h.code || "") === paymentHomeCode; }) || (isResidentMode ? homes[0] : null))
+    : null;
+  const link = String((paymentHome && paymentHome.token) || (window.residentHomeMeta && window.residentHomeMeta.token) || "");
   const adrLink=document.getElementById("adr")
   const currentKv=ls[accountId].kv;
 const payUrl = buildPrivat24PayUrl(link, currentKv);
@@ -3673,9 +3734,11 @@ if (toggleToOpen) {
         statusDetails.hidden = !isOpen;
         statusToggleBtn.setAttribute("aria-expanded", isOpen ? "true" : "false");
       };
-      setStatusDetailsOpen(false);
+      setStatusDetailsOpen(residentGetUrlParam("status") === "details");
       statusToggleBtn.onclick = function () {
-        setStatusDetailsOpen(statusDetails.hidden);
+        const nextOpen = statusDetails.hidden;
+        setStatusDetailsOpen(nextOpen);
+        residentReplaceUrlState({ status: nextOpen ? "details" : null });
       };
     }
     window.requestAnimationFrame(fitResidentStatusPill);
@@ -3716,7 +3779,7 @@ if (toggleToOpen) {
         void pane.offsetWidth;
         pane.classList.add("is-visible");
       };
-      const setPaymentMethod = function (methodId) {
+      const setPaymentMethod = function (methodId, writeUrl) {
         methodButtons.forEach(function (btn) {
           const active = btn.getAttribute("data-payment-method") === methodId;
           btn.classList.toggle("is-active", active);
@@ -3731,12 +3794,19 @@ if (toggleToOpen) {
             pane.classList.remove("is-visible");
           }
         });
+        if (writeUrl !== false) {
+          residentReplaceUrlState({ pay: methodId });
+        }
       };
       methodButtons.forEach(function (btn) {
         btn.onclick = function () {
-          setPaymentMethod(btn.getAttribute("data-payment-method"));
+          setPaymentMethod(btn.getAttribute("data-payment-method"), true);
         };
       });
+      const urlPayMethod = residentGetUrlParam("pay");
+      if (methodButtons.some(function (btn) { return btn.getAttribute("data-payment-method") === urlPayMethod; })) {
+        setPaymentMethod(urlPayMethod, false);
+      }
     }
 
     paymentMethods.forEach(function (method) {
@@ -3757,22 +3827,40 @@ if (toggleToOpen) {
             src: buildQrImageUrl(method.qrData, 520),
             alt: method.alt,
             caption: method.caption,
-            hasIcon: method.hasIcon
+            hasIcon: method.hasIcon,
+            qrMethod: method.id
           });
         };
       }
     });
 
+    const urlQrMethod = residentGetUrlParam("qr");
+    const urlQrPaymentMethod = paymentMethods.find(function (method) {
+      return method.id === urlQrMethod;
+    });
+    if (urlQrPaymentMethod) {
+      const methodButton = document.querySelector(`.resident-payment-method-btn[data-payment-method="${urlQrPaymentMethod.id}"]`);
+      if (methodButton) methodButton.click();
+      window.setTimeout(function () {
+        openResidentQrModal({
+          src: buildQrImageUrl(urlQrPaymentMethod.qrData, 520),
+          alt: urlQrPaymentMethod.alt,
+          caption: urlQrPaymentMethod.caption,
+          hasIcon: urlQrPaymentMethod.hasIcon,
+          qrMethod: urlQrPaymentMethod.id
+        });
+      }, 200);
+    }
+
     residentRequisitesRoot.innerHTML = `
       <details class="resident-requisites-details">
         <summary><span class="resident-title-icon" aria-hidden="true" data-lucide="landmark"></span><span>Реквізити для оплати вручну</span></summary>
         <div class="resident-requisites-grid">
-          <div class="resident-copy-row"><span>Отримувач</span><strong class="resident-copy-value">${requisites.receiver}</strong></div>
-          <div class="resident-copy-row"><span>Код ЄДРПОУ</span><strong class="resident-copy-value">${requisites.code}</strong></div>
-          <div class="resident-copy-row"><span>IBAN</span><strong id="resident-iban-value" class="resident-copy-value">${requisites.iban}</strong></div>
-          <div class="resident-copy-row"><span>Банк</span><strong class="resident-copy-value">${requisites.bank}</strong></div>
-          <div class="resident-copy-row"><span>МФО</span><strong class="resident-copy-value">${requisites.mfo}</strong></div>
-          <div class="resident-purpose-row resident-copy-row"><span>Призначення платежу</span><strong id="resident-purpose-value" class="resident-copy-value">${requisites.purpose}</strong></div>
+          <div class="resident-copy-row resident-requisite-receiver"><span>Отримувач</span><strong class="resident-copy-value">${requisites.receiver}</strong></div>
+          <div class="resident-copy-row resident-requisite-bank"><span>Банк</span><strong class="resident-copy-value">${requisites.bank}</strong></div>
+          <div class="resident-copy-row resident-requisite-code"><span>Код ЄДРПОУ</span><strong class="resident-copy-value">${requisites.code}</strong></div>
+          <div class="resident-copy-row resident-requisite-iban"><span>IBAN</span><strong id="resident-iban-value" class="resident-copy-value">${requisites.iban}</strong></div>
+          <div class="resident-purpose-row resident-copy-row resident-requisite-purpose"><span>Призначення платежу</span><strong id="resident-purpose-value" class="resident-copy-value">${requisites.purpose}</strong></div>
         </div>
         <div class="resident-requisites-actions">
           <button id="copyIbanBtn" type="button" class="resident-copy-btn">Скопіювати IBAN</button>
@@ -4050,7 +4138,9 @@ infoHost.innerHTML = content;
   }
 
 initPosters();
-setParam("kv", ls[accountId].kv);
+if (!isResidentMode) {
+  setParam("kv", ls[accountId].kv);
+}
 
 //lastRow.scrollIntoView({ behavior: "smooth", block: "end" });
 

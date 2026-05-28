@@ -283,10 +283,16 @@
       String(payload.account_id || "") || Object.keys(window.ls || {})[0] || "";
     if (!accountId || !window.ls || !window.ls[accountId]) return false;
 
-    const kv = String(window.ls[accountId].kv || "");
-    if (homeCode) setParam("homeCode", homeCode);
-    setParam("actionCode", "accounts");
-    if (kv) setParam("kv", kv);
+    if (typeof window.residentCleanLegacyUrlParams === "function") {
+      window.residentCleanLegacyUrlParams();
+    } else if (window.history && typeof window.history.replaceState === "function") {
+      const params = new URLSearchParams(window.location.search || "");
+      params.delete("homeCode");
+      params.delete("actionCode");
+      params.delete("kv");
+      const nextQuery = params.toString();
+      window.history.replaceState(window.history.state || null, document.title, `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ""}${window.location.hash || ""}`);
+    }
 
     if (typeof fillMissingDates === "function") {
       fillMissingDates(window.nach);
@@ -326,10 +332,16 @@
     const applied = applyResidentPayload(data);
     if (applied) {
       try {
-        client
-          .rpc("resident_visit_log", { p_token: token, p_source: "resident_web" })
-          .catch(() => {});
-      } catch (_) {}
+        const { data: visitData, error: visitError } = await client.rpc("resident_visit_log", {
+          p_token: token,
+          p_source: "resident_web"
+        });
+        if (visitError || (visitData && visitData.ok === false)) {
+          console.warn("Resident visit log failed", visitError || visitData);
+        }
+      } catch (err) {
+        console.warn("Resident visit log failed", err);
+      }
     }
     return applied;
   }

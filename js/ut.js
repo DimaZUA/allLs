@@ -438,6 +438,17 @@ var pastDate = new Date(iso);
 function setParam(paramName, paramValue) {
   // Извлекаем параметры URL
   var urlParams = new URLSearchParams(window.location.search);
+  var isResidentMode = document.body && document.body.classList.contains("resident-mode");
+  var isResidentLegacyParam = paramName === "homeCode" || paramName === "actionCode" || paramName === "kv";
+
+  if (isResidentMode && isResidentLegacyParam) {
+    urlParams["delete"](paramName);
+    var cleanQuery = urlParams.toString();
+    var cleanUrl = `${window.location.pathname}${cleanQuery ? `?${cleanQuery}` : ""}${window.location.hash || ""}`;
+    history.replaceState(null, "", cleanUrl);
+    localStorage.removeItem(`last_${paramName}`);
+    return;
+  }
 
   // Удаляем старый параметр, если он существует
   urlParams["delete"](paramName);

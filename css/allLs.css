@@ -3688,6 +3688,12 @@ body.resident-mode .resident-requisites-grid .resident-purpose-row {
   grid-column: 1 / -1;
 }
 
+body.resident-mode .resident-requisite-receiver { order: 1; }
+body.resident-mode .resident-requisite-bank { order: 2; }
+body.resident-mode .resident-requisite-code { order: 3; }
+body.resident-mode .resident-requisite-iban { order: 4; }
+body.resident-mode .resident-requisite-purpose { order: 5; }
+
 body.resident-mode .resident-requisites-actions {
   margin-top: 10px;
   display: flex;
@@ -4279,6 +4285,12 @@ body.resident-mode .resident-flat-grid > div strong {
   body.resident-mode .resident-requisites-grid {
     grid-template-columns: 1fr;
   }
+
+  body.resident-mode .resident-requisite-receiver { order: 1; }
+  body.resident-mode .resident-requisite-code { order: 2; }
+  body.resident-mode .resident-requisite-iban { order: 3; }
+  body.resident-mode .resident-requisite-bank { order: 4; }
+  body.resident-mode .resident-requisite-purpose { order: 5; }
 
   body.resident-mode .resident-flat-grid {
     --resident-flat-cols: 4;
