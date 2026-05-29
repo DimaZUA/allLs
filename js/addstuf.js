@@ -252,7 +252,7 @@ function pickBestTarifRowsForService(serviceRows, serviceId, currentCharge, acco
   return serviceRows;
 }
 
-function getTarifRowsByService(source, y, m, monthTransactions, isResidentMode) {
+function getTarifRowsByService(source, y, m, monthTransactions, isResidentMode, residentHistoryStartMonth) {
   const byService = {};
   const pushRow = function (serviceId, row) {
     const sid = String(serviceId || "").trim();
@@ -260,9 +260,11 @@ function getTarifRowsByService(source, y, m, monthTransactions, isResidentMode) 
     if (!byService[sid]) byService[sid] = [];
     byService[sid].push(row);
   };
-  // Resident mode: for January 2025 use latest tariff rows (<= 01.2025)
-  // for services that are actually charged in January 2025.
-  if (isResidentMode && y === 2025 && m === 1) {
+  const residentStartMonth = normalizeResidentHistoryStartMonth(residentHistoryStartMonth);
+  const periodKey = Number(y) * 12 + Number(m);
+  // Resident mode: for the first visible history month use latest tariff rows
+  // (<= HistStart) for services that are actually charged in that month.
+  if (isResidentMode && periodKey === residentStartMonth) {
     const chargedServices = Object.keys(monthTransactions || {}).filter(function (serviceId) {
       const sid = String(serviceId || "").trim();
       if (!sid) return false;
@@ -272,8 +274,8 @@ function getTarifRowsByService(source, y, m, monthTransactions, isResidentMode) 
       return String(serviceId || "").trim();
     }));
     // Fallback for accounts where service 7 is merged into service 1 in month data.
-    // If January has service 1 but no explicit service 7 key, still include service 7
-    // when tariff settings for service 7 exist on/before January 2025.
+    // If the start month has service 1 but no explicit service 7 key, still include service 7
+    // when tariff settings for service 7 exist on/before the first visible history month.
     if (chargedSet.has("1") && !chargedSet.has("7")) {
       const hasService7Tarif = source.some(function (row) {
         if (!row || typeof row !== "object") return false;
@@ -339,7 +341,7 @@ function getTarifRowsByService(source, y, m, monthTransactions, isResidentMode) 
   });
   return byService;
 }
-function buildTarifMonthNotes(year, month, monthTransactions, prevMonthTransactions, accountMeta, isResidentMode) {
+function buildTarifMonthNotes(year, month, monthTransactions, prevMonthTransactions, accountMeta, isResidentMode, residentHistoryStartMonth) {
   const source = Array.isArray(tarifs)
     ? tarifs
     : (tarifs && typeof tarifs === "object" ? Object.values(tarifs) : []);
@@ -347,8 +349,9 @@ function buildTarifMonthNotes(year, month, monthTransactions, prevMonthTransacti
   const y = Number(year);
   const m = Number(month);
   const out = [];
-  const isResidentStartMonth = !!isResidentMode && y === 2025 && m === 1;
-  const byService = getTarifRowsByService(source, y, m, monthTransactions, isResidentMode);
+  const startMonthInt = normalizeResidentHistoryStartMonth(residentHistoryStartMonth);
+  const isResidentStartMonth = !!isResidentMode && (y * 12 + m) === startMonthInt;
+  const byService = getTarifRowsByService(source, y, m, monthTransactions, isResidentMode, startMonthInt);
   if (!Object.keys(byService).length) return out;
   Object.keys(byService).forEach(function (serviceId) {
     const serviceRows = byService[serviceId];
@@ -1112,6 +1115,15 @@ function normalizeExpensesStartMonth(rawValue) {
 function normalizeResidentHistoryStartMonth(rawValue) {
   const n = Number(String(rawValue ?? "").trim());
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : 24301;
+}
+
+function getHistoryOpeningLabel(balance, year, month) {
+  const amount = Number(balance) || 0;
+  const monthNum = Number(month) || 1;
+  const yearNum = Number(year) || "";
+  const kind = amount < 0 ? "\u0412\u0445\u0456\u0434\u043d\u0430 \u043f\u0435\u0440\u0435\u043f\u043b\u0430\u0442\u0430" : "\u0412\u0445\u0456\u0434\u043d\u0438\u0439 \u0431\u043e\u0440\u0433";
+  if (monthNum === 1) return kind + " \u043d\u0430 \u043f\u043e\u0447\u0430\u0442\u043e\u043a \u0440\u043e\u043a\u0443";
+  return kind + " \u043d\u0430 1 " + getMonthNameByCase(monthNum, "gen") + " " + yearNum + " \u0440.";
 }
 
 function filterSpendingPayloadByStartMonth(spendingPayload, startMonth) {
@@ -2364,7 +2376,8 @@ function getMonthNameNomUaLower(monthNumber) {
 }
 
 function getMobileBalanceMeta(balance, isCurrentMonth, monthYear, monthNumber) {
-  const n = Number(balance) || 0;
+  const raw = Number(balance) || 0;
+  const n = Math.round(raw * 100) / 100;
   const abs = Math.abs(n).toFixedWithComma();
   const y = Number(monthYear) || 0;
   const m = Number(monthNumber) || 0;
@@ -2423,6 +2436,7 @@ function buildMobileYearCards(yearPayload) {
 
   const summary = yearPayload && yearPayload.summary ? yearPayload.summary : null;
   const yearMonths = (yearPayload && Array.isArray(yearPayload.months)) ? yearPayload.months : [];
+  const openingMonth = Number(yearPayload && yearPayload.openingMonth) || (yearMonths[0] && Number(yearMonths[0].month)) || 1;
   const summaryMeta = summary ? getMobileBalanceMeta(summary.closingBalance, false) : null;
   const summaryFinalText = summary
     ? (Number(summary.closingBalance) > 0
@@ -2432,10 +2446,8 @@ function buildMobileYearCards(yearPayload) {
         : "На кінець року: заборгованість відсутня"))
     : "";
 
-  if (summary) {
-    const openingLabel = summary.openingBalance > 0
-      ? "Вхідний борг на початок року"
-      : (summary.openingBalance < 0 ? "Вхідна переплата на початок року" : "Вхідний баланс на початок року");
+  if (summary && Math.abs(Number(summary.openingBalance) || 0) > 0.005) {
+    const openingLabel = getHistoryOpeningLabel(summary.openingBalance, yearPayload.year, openingMonth);
     const summaryCard = document.createElement("section");
     summaryCard.className = "mobile-year-summary-card";
     summaryCard.innerHTML = `
@@ -2454,11 +2466,7 @@ function buildMobileYearCards(yearPayload) {
 
   const appendYearTailSummary = function () {
     if (!summary) return;
-    const openingLabel = summary.openingBalance > 0
-      ? "\u0412\u0445\u0456\u0434\u043D\u0438\u0439 \u0431\u043E\u0440\u0433 \u043D\u0430 \u043F\u043E\u0447\u0430\u0442\u043E\u043A \u0440\u043E\u043A\u0443"
-      : (summary.openingBalance < 0
-        ? "\u0412\u0445\u0456\u0434\u043D\u0430 \u043F\u0435\u0440\u0435\u043F\u043B\u0430\u0442\u0430 \u043D\u0430 \u043F\u043E\u0447\u0430\u0442\u043E\u043A \u0440\u043E\u043A\u0443"
-        : "\u0412\u0445\u0456\u0434\u043D\u0438\u0439 \u0431\u0430\u043B\u0430\u043D\u0441 \u043D\u0430 \u043F\u043E\u0447\u0430\u0442\u043E\u043A \u0440\u043E\u043A\u0443");
+    const openingLabel = getHistoryOpeningLabel(summary.openingBalance, yearPayload.year, openingMonth);
 
     const closedMonths = yearMonths.filter(function (m) { return !m.isCurrent; });
     const rangeSource = closedMonths.length ? closedMonths : yearMonths;
@@ -2480,6 +2488,17 @@ function buildMobileYearCards(yearPayload) {
       </div>
       <div class="mobile-year-summary-final mobile-balance-${summaryMeta.cls}">${summaryFinalText}</div>
     `;
+    const tailGrid = tail.querySelector(".mobile-year-summary-grid");
+    if (tailGrid) {
+      const firstSpan = tailGrid.querySelector("span");
+      const firstStrong = tailGrid.querySelector("strong");
+      if (Math.abs(Number(summary.openingBalance) || 0) > 0.005) {
+        if (firstSpan) firstSpan.textContent = getHistoryOpeningLabel(summary.openingBalance, yearPayload.year, openingMonth) + ":";
+      } else {
+        if (firstSpan) firstSpan.remove();
+        if (firstStrong) firstStrong.remove();
+      }
+    }
     host.appendChild(tail);
   };
 
@@ -2649,15 +2668,14 @@ function buildResidentDesktopYearCards(yearPayload) {
 
   const summary = yearPayload && yearPayload.summary ? yearPayload.summary : null;
   const yearMonths = (yearPayload && Array.isArray(yearPayload.months)) ? yearPayload.months : [];
+  const openingMonth = Number(yearPayload && yearPayload.openingMonth) || (yearMonths[0] && Number(yearMonths[0].month)) || 1;
   const yearNum = Number(yearPayload && yearPayload.year) || 0;
 
-  if (summary) {
+  if (summary && Math.abs(Number(summary.openingBalance) || 0) > 0.005) {
     const openingCls = summary.openingBalance > 0
       ? "debt"
       : (summary.openingBalance < 0 ? "credit" : "neutral");
-    const openingLabel = summary.openingBalance > 0
-      ? "Вхідний борг на початок року"
-      : (summary.openingBalance < 0 ? "Вхідна переплата на початок року" : "Вхідний баланс на початок року");
+    const openingLabel = getHistoryOpeningLabel(summary.openingBalance, yearNum, openingMonth);
     const yearHead = document.createElement("div");
     yearHead.className = "resident-desktop-year-head";
     yearHead.innerHTML = `
@@ -3042,7 +3060,7 @@ if (payUrl && !isResidentMode) {
     var yearLabel = document.createElement("label");
     var yearContent = document.createElement("div");
     var openingBalanceForYear = cumulativeBalance;
-    var yearMobilePayload = { year: year, months: [], summary: null };
+    var yearMobilePayload = { year: year, months: [], summary: null, openingMonth: 1 };
     var displayedMonthKeys = Object.keys(accountData[year] || {}).filter(function (monthKey) {
       if (!isResidentMode) return true;
       var yearNumForMonth = Number(year);
@@ -3053,6 +3071,11 @@ if (payUrl && !isResidentMode) {
     }).sort(function (a, b) {
       return Number(a) - Number(b);
     });
+    var historyStartYearForLabel = Math.floor((residentHistoryStartMonth - 1) / 12);
+    var historyStartMonthForLabel = residentHistoryStartMonth - historyStartYearForLabel * 12;
+    yearMobilePayload.openingMonth = isResidentMode && Number(year) === historyStartYearForLabel
+      ? historyStartMonthForLabel
+      : 1;
 
     // Настройка чекбокса для разворачивания/сворачивания
     yearToggle.className = "toggle-box";
@@ -3126,10 +3149,11 @@ if (cumulativeBalance !== 0) {
   balanceCell.colSpan = colSpan;
   balanceCell.className = "balance-info";
 
-  var balanceText =
-    cumulativeBalance > 0
-      ? "⚠️ Вхідний борг на початок року"
-      : "✅ Вхідна переплата на початок року";
+  var balanceLabelMonth = isResidentMode && Number(year) === historyStartYearForLabel
+    ? historyStartMonthForLabel
+    : 1;
+  var balanceText = (cumulativeBalance > 0 ? "\u26a0\ufe0f " : "\u2705 ") +
+    getHistoryOpeningLabel(cumulativeBalance, year, balanceLabelMonth);
 
   var balanceValue = document.createElement("span");
   balanceValue.textContent = cumulativeBalance.toFixedWithComma();
@@ -3159,7 +3183,7 @@ if (cumulativeBalance !== 0) {
       var transactions = accountData[year][_month];
       var cur = _month == currentMonth + 1 && year == currentYear;
       var prevMonthTransactions = getPrevMonthTransactions(accountData, year, _month);
-      var monthTarifNotes = buildTarifMonthNotes(year, _month, transactions, prevMonthTransactions, curLS, isResidentMode);
+      var monthTarifNotes = buildTarifMonthNotes(year, _month, transactions, prevMonthTransactions, curLS, isResidentMode, residentHistoryStartMonth);
       var row = document.createElement("tr");
       var fullMonthTitleText = `${getMonthName(_month)} ${year}`;
       var monthTitleText = compactResidentMonthLabel

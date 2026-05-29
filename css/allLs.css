@@ -230,11 +230,11 @@ table#main td {
 }
 
 #table-container table.main th.sorted-asc::after {
-  content: " ^";
+  content: "▴";
 }
 
 #table-container table.main th.sorted-desc::after {
-  content: " �";
+  content: "▾";
 }
 
 #table-container {
