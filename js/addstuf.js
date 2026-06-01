@@ -2376,8 +2376,7 @@ function getMonthNameNomUaLower(monthNumber) {
 }
 
 function getMobileBalanceMeta(balance, isCurrentMonth, monthYear, monthNumber) {
-  const raw = Number(balance) || 0;
-  const n = Math.round(raw * 100) / 100;
+  const n = normalizeMoney(balance);
   const abs = Math.abs(n).toFixedWithComma();
   const y = Number(monthYear) || 0;
   const m = Number(monthNumber) || 0;
@@ -2737,7 +2736,7 @@ function buildResidentDesktopYearCards(yearPayload) {
   };
   const getHistoryStateSafe = function (balance, year, month, accountId, isCurrentMonth) {
     const meta = getMobileBalanceMeta(balance, !!isCurrentMonth, year, month);
-    const debt = Number(balance) || 0;
+    const debt = normalizeMoney(balance);
     const dueLimit = getThreeMonthAccrualLimit(accountId, year, month);
     const isDue = debt > 0 && dueLimit > 0 && debt < dueLimit;
     return {
@@ -2787,9 +2786,9 @@ function buildResidentDesktopYearCards(yearPayload) {
         }).join("")
       : `<div class="rhd-empty">—</div>`;
 
-    const absBalance = Math.abs(Number(month.balance) || 0).toFixedWithComma();
+    const absBalance = Math.abs(normalizeMoney(month.balance)).toFixedWithComma();
     const state = getHistoryStateSafe(month.balance, month.year, month.month, month.accountId, month.isCurrent);
-    const monthDebt = Number(month.balance) || 0;
+    const monthDebt = normalizeMoney(month.balance);
     const dueLimit = getThreeMonthAccrualLimit(month.accountId, month.year, month.month);
     const isDue = monthDebt > 0 && dueLimit > 0 && monthDebt < dueLimit;
     const stateClass = (meta.cls === "debt" && isDue) ? "due" : meta.cls;
@@ -2840,7 +2839,7 @@ function buildResidentDesktopYearCards(yearPayload) {
       totalStateMonth.accountId,
       false
     );
-    const totalAbs = Math.abs(Number(summary.closingBalance) || 0).toFixedWithComma();
+    const totalAbs = Math.abs(normalizeMoney(summary.closingBalance)).toFixedWithComma();
     const totalStateLabel = totalMeta.cls === "debt"
       ? "Борг"
       : (totalMeta.cls === "credit" ? "Переплата" : "Стан");
