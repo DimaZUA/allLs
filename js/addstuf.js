@@ -672,6 +672,9 @@ function openResidentSaveAccessPanel() {
   const installHtml = residentInstallPromptEvent
     ? '<button type="button" class="resident-save-access-action" data-action="install"><span class="resident-save-access-action-icon" aria-hidden="true" data-lucide="smartphone"></span><span>Додати на головний екран</span></button>'
     : '<p class="resident-save-access-hint">На комп’ютері можна додати сторінку в закладки клавішами Ctrl+D.<br><br>На телефоні відкрийте меню браузера та оберіть:<br>«Додати на головний екран» або «Додати в закладки».</p>';
+  const shareHtml = navigator.share
+    ? '<button type="button" class="resident-save-access-action" data-action="share"><span class="resident-save-access-action-icon" aria-hidden="true" data-lucide="share-2"></span><span>Поділитися</span></button>'
+    : "";
 
   panel.innerHTML = `
     <button type="button" class="resident-save-access-close" aria-label="Закрити">×</button>
@@ -680,7 +683,7 @@ function openResidentSaveAccessPanel() {
     <p class="resident-save-access-warning">Не передавайте це посилання стороннім особам.</p>
     <div class="resident-save-access-actions">
       <button type="button" class="resident-save-access-action" data-action="copy"><span class="resident-save-access-action-icon" aria-hidden="true" data-lucide="copy"></span><span>Скопіювати посилання</span></button>
-      <button type="button" class="resident-save-access-action" data-action="share"><span class="resident-save-access-action-icon" aria-hidden="true" data-lucide="share-2"></span><span>Поділитися</span></button>
+      ${shareHtml}
       ${installHtml}
     </div>
     <div class="resident-save-access-manual" hidden>
