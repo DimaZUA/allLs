@@ -1,5 +1,16 @@
 ﻿var data = {};
 let hk=0;
+const DOCX_ORG_HEADER_FONT_SCALE = [
+  { maxLen: 8, halfPoints: 56 },        // 28 pt
+  { maxLen: 10, halfPoints: 52 },       // 26 pt
+  { maxLen: 12, halfPoints: 48 },       // 24 pt
+  { maxLen: 14, halfPoints: 36 },       // 18 pt
+  { maxLen: 16, halfPoints: 30 },       // 16 pt
+  { maxLen: 18, halfPoints: 30 },       // 16 pt
+  { maxLen: 21, halfPoints: 28 },       // 14 pt
+  { maxLen: 24, halfPoints: 26 },       // 13 pt
+  { maxLen: Infinity, halfPoints: 24 }  // 12 pt
+];
 // Вспомогательный массив для украинских месяцев
 const ukrMonths = [
   "січня", "лютого", "березня", "квітня", "травня", "червня",
@@ -623,6 +634,312 @@ async function processExcelFile(content, newFileName, replacements) {
   saveAs(new Blob([buffer]), newFileName);
 }
 
+function decodeDocxXmlText(text) {
+  return String(text || "")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'");
+}
+
+function extractDocxParagraphText(paragraphXml) {
+  const parts = [];
+  String(paragraphXml || "").replace(/<w:t\b[^>]*>([\s\S]*?)<\/w:t>/g, function (_, text) {
+    parts.push(decodeDocxXmlText(text));
+    return _;
+  });
+  return parts.join("").replace(/\s+/g, " ").trim();
+}
+
+function getDocxParagraphFontHalfPoints(paragraphXml) {
+  const match = String(paragraphXml || "").match(/<w:sz\b[^>]*\bw:val="(\d+)"/);
+  const value = match ? Number(match[1]) : NaN;
+  return Number.isFinite(value) && value > 0 ? value : 24;
+}
+
+function docxCssLengthToTwips(value) {
+  const text = String(value || "").trim();
+  const match = text.match(/^([0-9.]+)\s*(pt|in|cm|mm)?$/i);
+  if (!match) return 0;
+  const n = Number(match[1]);
+  if (!Number.isFinite(n)) return 0;
+  const unit = String(match[2] || "pt").toLowerCase();
+  if (unit === "in") return n * 1440;
+  if (unit === "cm") return n * 566.929;
+  if (unit === "mm") return n * 56.6929;
+  return n * 20;
+}
+
+function parseVmlInsetTwips(insetValue) {
+  const parts = String(insetValue || "").split(",").map(function (part) {
+    return docxCssLengthToTwips(part);
+  });
+  return {
+    left: Number.isFinite(parts[0]) && parts[0] > 0 ? parts[0] : 108,
+    right: Number.isFinite(parts[2]) && parts[2] > 0 ? parts[2] : 108
+  };
+}
+
+function getDocxParagraphWidthTwips(headerXml, paragraphOffset) {
+  const before = headerXml.slice(0, paragraphOffset);
+  const drawingStart = before.lastIndexOf("<w:drawing");
+  const drawingEndBefore = before.lastIndexOf("</w:drawing>");
+  if (drawingStart > drawingEndBefore) {
+    const drawingEnd = headerXml.indexOf("</w:drawing>", paragraphOffset);
+    if (drawingEnd > paragraphOffset) {
+      const drawingXml = headerXml.slice(drawingStart, drawingEnd);
+      const extent = drawingXml.match(/<wp:extent\b[^>]*\bcx="(\d+)"/);
+      if (extent) {
+        const value = Number(extent[1]) / 635;
+        const bodyPr = drawingXml.match(/<(?:wps:)?bodyPr\b[^>]*>/);
+        const leftIns = bodyPr && bodyPr[0].match(/\blIns="(\d+)"/);
+        const rightIns = bodyPr && bodyPr[0].match(/\brIns="(\d+)"/);
+        const marginLeft = leftIns ? Number(leftIns[1]) / 635 : 108;
+        const marginRight = rightIns ? Number(rightIns[1]) / 635 : 108;
+        if (Number.isFinite(value) && value > 0) {
+          return Math.max(1, value - (Number.isFinite(marginLeft) ? marginLeft : 108) - (Number.isFinite(marginRight) ? marginRight : 108));
+        }
+      }
+    }
+  }
+
+  const pictStart = before.lastIndexOf("<w:pict");
+  const pictEndBefore = before.lastIndexOf("</w:pict>");
+  if (pictStart > pictEndBefore) {
+    const pictEnd = headerXml.indexOf("</w:pict>", paragraphOffset);
+    if (pictEnd > paragraphOffset) {
+      const pictXml = headerXml.slice(pictStart, pictEnd);
+      const widthPt = pictXml.match(/width\s*:\s*([0-9.]+)\s*pt/i);
+      if (widthPt) {
+        const value = Number(widthPt[1]) * 20;
+        const inset = pictXml.match(/\binset="([^"]+)"/i);
+        const margins = inset ? parseVmlInsetTwips(inset[1]) : { left: 108, right: 108 };
+        if (Number.isFinite(value) && value > 0) return Math.max(1, value - margins.left - margins.right);
+      }
+      const widthIn = pictXml.match(/width\s*:\s*([0-9.]+)\s*in/i);
+      if (widthIn) {
+        const value = Number(widthIn[1]) * 1440;
+        const inset = pictXml.match(/\binset="([^"]+)"/i);
+        const margins = inset ? parseVmlInsetTwips(inset[1]) : { left: 108, right: 108 };
+        if (Number.isFinite(value) && value > 0) return Math.max(1, value - margins.left - margins.right);
+      }
+      const widthCm = pictXml.match(/width\s*:\s*([0-9.]+)\s*cm/i);
+      if (widthCm) {
+        const value = Number(widthCm[1]) * 566.929;
+        const inset = pictXml.match(/\binset="([^"]+)"/i);
+        const margins = inset ? parseVmlInsetTwips(inset[1]) : { left: 108, right: 108 };
+        if (Number.isFinite(value) && value > 0) return Math.max(1, value - margins.left - margins.right);
+      }
+    }
+  }
+
+  const tcStart = before.lastIndexOf("<w:tc");
+  const tcEndBefore = before.lastIndexOf("</w:tc>");
+  if (tcStart > tcEndBefore) {
+    const tcEnd = headerXml.indexOf("</w:tc>", paragraphOffset);
+    if (tcEnd > paragraphOffset) {
+      const tcXml = headerXml.slice(tcStart, tcEnd);
+      const tcWidth = tcXml.match(/<w:tcW\b[^>]*\bw:w="(\d+)"/);
+      if (tcWidth) {
+        const value = Number(tcWidth[1]);
+        if (Number.isFinite(value) && value > 0) {
+          const leftMar = tcXml.match(/<w:left\b[^>]*\bw:w="(\d+)"/);
+          const rightMar = tcXml.match(/<w:right\b[^>]*\bw:w="(\d+)"/);
+          const marginLeft = leftMar ? Number(leftMar[1]) : 108;
+          const marginRight = rightMar ? Number(rightMar[1]) : 108;
+          const innerWidth = value - (Number.isFinite(marginLeft) ? marginLeft : 108) - (Number.isFinite(marginRight) ? marginRight : 108);
+          return Math.max(1, innerWidth);
+        }
+      }
+    }
+  }
+
+  const pgSz = headerXml.match(/<w:pgSz\b[^>]*\bw:w="(\d+)"/);
+  const pgMar = headerXml.match(/<w:pgMar\b[^>]*\bw:left="(\d+)"[^>]*\bw:right="(\d+)"/);
+  const pageWidth = pgSz ? Number(pgSz[1]) : 11906;
+  const left = pgMar ? Number(pgMar[1]) : 1440;
+  const right = pgMar ? Number(pgMar[2]) : 1440;
+  const width = pageWidth - left - right;
+  return Number.isFinite(width) && width > 0 ? width : 8926;
+}
+
+function estimateDocxTextWidthTwips(text, halfPoints) {
+  const hp = Math.max(1, Number(halfPoints) || 24);
+  let units = 0;
+  String(text || "").split("").forEach(function (ch) {
+    if (/\s/.test(ch)) units += 0.36;
+    else if (/[.,:;'"’`!?|/\\()[\]{}]/.test(ch)) units += 0.28;
+    else if (/[A-ZА-ЯІЇЄҐ]/.test(ch)) units += 0.72;
+    else if (/[0-9]/.test(ch)) units += 0.56;
+    else units += 0.56;
+  });
+  const safetyFactor = units <= 7
+    ? 1.02
+    : (units <= 10 ? 1.08 : 1.38);
+  return units * hp * 10 * safetyFactor;
+}
+
+function estimateDocxLineCount(text, halfPoints, widthTwips) {
+  const normalized = String(text || "").replace(/\s+/g, " ").trim();
+  if (!normalized) return 1;
+  const width = Math.max(1, Number(widthTwips) || 1);
+  const words = normalized.split(" ");
+  let lines = 1;
+  let lineWidth = 0;
+  const spaceWidth = estimateDocxTextWidthTwips(" ", halfPoints);
+
+  words.forEach(function (word) {
+    const wordWidth = estimateDocxTextWidthTwips(word, halfPoints);
+    if (lineWidth <= 0) {
+      lineWidth = wordWidth;
+      if (wordWidth > width) lines += Math.ceil(wordWidth / width) - 1;
+      return;
+    }
+    if (lineWidth + spaceWidth + wordWidth <= width) {
+      lineWidth += spaceWidth + wordWidth;
+    } else {
+      lines += 1;
+      lineWidth = wordWidth;
+      if (wordWidth > width) lines += Math.ceil(wordWidth / width) - 1;
+    }
+  });
+
+  return Math.max(1, lines);
+}
+
+function setDocxRunFontHalfPoints(runXml, halfPoints) {
+  const value = String(Math.max(1, Math.round(Number(halfPoints) || 24)));
+
+  function updateRPr(rPrXml) {
+    let out = rPrXml;
+    if (/<w:sz\b/.test(out)) {
+      out = out.replace(/<w:sz\b[^>]*\/>/, `<w:sz w:val="${value}"/>`);
+    } else {
+      out = out.replace("</w:rPr>", `<w:sz w:val="${value}"/></w:rPr>`);
+    }
+    if (/<w:szCs\b/.test(out)) {
+      out = out.replace(/<w:szCs\b[^>]*\/>/, `<w:szCs w:val="${value}"/>`);
+    } else {
+      out = out.replace("</w:rPr>", `<w:szCs w:val="${value}"/></w:rPr>`);
+    }
+    return out;
+  }
+
+  if (/<w:rPr\b/.test(runXml)) {
+    return runXml.replace(/<w:rPr\b[^>]*>[\s\S]*?<\/w:rPr>/, updateRPr);
+  }
+  return runXml.replace(/(<w:r\b[^>]*>)/, `$1<w:rPr><w:sz w:val="${value}"/><w:szCs w:val="${value}"/></w:rPr>`);
+}
+
+function setDocxParagraphFontHalfPoints(paragraphXml, halfPoints) {
+  return String(paragraphXml || "").replace(/<w:r\b[^>]*>[\s\S]*?<\/w:r>/g, function (runXml) {
+    if (!/<w:t\b|<w:tab\b|<w:br\b/.test(runXml)) return runXml;
+    return setDocxRunFontHalfPoints(runXml, halfPoints);
+  });
+}
+
+function normalizeDocxFitValue(value) {
+  return String(value == null ? "" : value).replace(/\s+/g, " ").trim();
+}
+
+function getDocxOrgVisualLength(text) {
+  let len = 0;
+  String(text || "").replace(/\s+/g, " ").trim().split("").forEach(function (ch) {
+    if (/\s/.test(ch)) len += 0.5;
+    else if (/[.,:;'"’`!?|/\\()[\]{}]/.test(ch)) len += 0.35;
+    else if (/[A-ZА-ЯІЇЄҐ]/.test(ch)) len += 1.25;
+    else if (/[0-9]/.test(ch)) len += 0.9;
+    else len += 0.85;
+  });
+  return len;
+}
+
+function pickDocxOrgHeaderFontSize(text) {
+  const len = getDocxOrgVisualLength(text);
+  const rule = DOCX_ORG_HEADER_FONT_SCALE.find(function (item) {
+    return len <= item.maxLen;
+  });
+  return rule ? rule.halfPoints : 24;
+}
+
+function pickDocxHeaderFontSize(text, currentHalfPoints, widthTwips, options) {
+  const minHalfPoints = options.minHalfPoints;
+  const maxHalfPoints = options.maxHalfPoints;
+  const maxLines = options.maxLines;
+  const canIncrease = !!options.canIncrease;
+  const current = Math.max(minHalfPoints, Math.min(maxHalfPoints, Math.round(currentHalfPoints || 24)));
+  let best = current;
+
+  if (canIncrease) {
+    for (let hp = minHalfPoints; hp <= maxHalfPoints; hp += 1) {
+      if (estimateDocxLineCount(text, hp, widthTwips) <= maxLines) best = hp;
+      else if (hp > current) break;
+    }
+    return best;
+  }
+
+  best = current;
+  while (best > minHalfPoints && estimateDocxLineCount(text, best, widthTwips) > maxLines) {
+    best -= 1;
+  }
+  return best;
+}
+
+function adjustDocxHeaderPlaceholderFonts(zip, replacements) {
+  if (!zip || !zip.files || !replacements) return;
+
+  const orgValues = ["orgkr", "org", "orgfull"].map(function (key) {
+    return normalizeDocxFitValue(replacements[key]);
+  }).filter(Boolean);
+  const addressValues = ["adr", "adrfull", "adrlong"].map(function (key) {
+    return normalizeDocxFitValue(replacements[key]);
+  }).filter(Boolean);
+
+  const uniqueOrgValues = Array.from(new Set(orgValues));
+  const uniqueAddressValues = Array.from(new Set(addressValues));
+  if (!uniqueOrgValues.length && !uniqueAddressValues.length) return;
+
+  Object.keys(zip.files).forEach(function (path) {
+    if (!/^word\/header\d+\.xml$/i.test(path)) return;
+    const file = zip.file(path);
+    if (!file) return;
+
+    let xml = file.asText();
+    xml = xml.replace(/<w:p\b[^>]*>[\s\S]*?<\/w:p>/g, function (paragraphXml, offset) {
+      const paragraphText = extractDocxParagraphText(paragraphXml);
+      if (!paragraphText) return paragraphXml;
+
+      const orgMatch = uniqueOrgValues.some(function (value) {
+        return value && paragraphText.includes(value);
+      });
+      const addressMatch = uniqueAddressValues.some(function (value) {
+        return value && paragraphText.includes(value);
+      });
+      if (!orgMatch && !addressMatch) return paragraphXml;
+
+      const currentHalfPoints = getDocxParagraphFontHalfPoints(paragraphXml);
+      const targetHalfPoints = orgMatch
+        ? pickDocxOrgHeaderFontSize(paragraphText)
+        : pickDocxHeaderFontSize(
+            paragraphText,
+            currentHalfPoints,
+            getDocxParagraphWidthTwips(xml, offset),
+            {
+              minHalfPoints: 14,
+              maxHalfPoints: currentHalfPoints,
+              maxLines: 2,
+              canIncrease: false
+            }
+          );
+
+      return setDocxParagraphFontHalfPoints(paragraphXml, targetHalfPoints);
+    });
+
+    zip.file(path, xml);
+  });
+}
+
 function processWordFile(content, newFileName, replacements) {
   const zip = new PizZip(content);
 
@@ -661,6 +978,7 @@ function processWordFile(content, newFileName, replacements) {
   });
 
   doc.render({}); // replacements обрабатываются через parser
+  adjustDocxHeaderPlaceholderFonts(doc.getZip(), replacements);
 
   const blob = doc.getZip().generate({ type: "blob" });
   saveAs(blob, newFileName);
