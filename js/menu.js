@@ -5,6 +5,12 @@ const SCREEN = {
   MOBILE_MAX: 640,
   TABLET_MAX: 1199
 };
+const DATA_TTL_MS = 24 * 60 * 60 * 1000;
+let activeHomeCode = "";
+let activeActionCode = "";
+let activeActionLink = null;
+let activeHomeRefreshTimer = null;
+let activeHomeRefreshInFlight = false;
 
 function getScreenMode() {
   const w = window.innerWidth;
@@ -131,10 +137,124 @@ function parseHomeRow(row) {
   };
 }
 
+function isHomeDataFresh(home) {
+  return !!(home && Number.isFinite(home._loadedAt) && Date.now() - home._loadedAt < DATA_TTL_MS);
+}
+
+async function fetchHomeData(homeCode) {
+  const { data, error } = await client
+    .from("homes")
+    .select("us, b, org, adr, dt, what, kto, nach, oplat, ls, plat, files, nachnote, allnach, tarifs, spending")
+    .eq("code", homeCode)
+    .single();
+
+  if (error || !data) throw error || new Error("Home data not found");
+
+  const home = parseHomeRow(data);
+  home._loadedAt = Date.now();
+  window.homeData = window.homeData || {};
+  window.homeData[homeCode] = home;
+  return home;
+}
+
+function applyHomeDataToGlobals(homeCode, home) {
+  if (!home) return;
+  ls = home.ls;
+  nach = home.nach;
+  nachnote = home.nachnote;
+  allnach = home.allnach;
+  tarifs = home.tarifs;
+  spending = home.spending;
+  files = filterFilesByRole(home.files, roles?.[homeCode] || 'Правление');
+  adr = home.adr;
+  dt = home.dt;
+  org = home.org;
+  b = home.b;
+  what = home.what;
+  kto = home.kto;
+  oplat = home.oplat;
+  plat = home.plat;
+  us = home.us;
+}
+
+function runActionForHome(homeCode, actionCode) {
+  switch (actionCode) {
+    case "accounts": fillMissingDates(nach); initLS(); break;
+    case "list": fillMissingDates(nach); initTable(); break;
+    case "payments": initPayTable(); break;
+    case "bank": initBankTable(); break;
+    case "reports": reportsInit(homeCode); break;
+    case "info": displayHomeInfo(homeCode); break;
+    case "schema": initSchema(); break;
+    case "debitorka": initDashboard(); break;
+  }
+  updateTopbarTitle(homeCode);
+}
+
+async function refreshActiveHomeData({ rerender = true, silent = true } = {}) {
+  if (!activeHomeCode || activeHomeRefreshInFlight) return false;
+  if (!navigator.onLine) {
+    scheduleActiveHomeRefresh();
+    return false;
+  }
+
+  activeHomeRefreshInFlight = true;
+  try {
+    const home = await fetchHomeData(activeHomeCode);
+    applyHomeDataToGlobals(activeHomeCode, home);
+    if (rerender && activeActionCode) {
+      runActionForHome(activeHomeCode, activeActionCode);
+    }
+    scheduleActiveHomeRefresh();
+    return true;
+  } catch (err) {
+    console.error("Ошибка обновления данных дома:", err);
+    if (!silent) {
+      showMessage("Не вдалося оновити дані. Показано останню завантажену версію.", "warn", 7000);
+    }
+    scheduleActiveHomeRefresh();
+    return false;
+  } finally {
+    activeHomeRefreshInFlight = false;
+  }
+}
+
+function refreshActiveHomeDataIfStale(options) {
+  if (!activeHomeCode || !window.homeData) return;
+  const home = window.homeData[activeHomeCode];
+  if (home && !isHomeDataFresh(home)) {
+    refreshActiveHomeData(options);
+  }
+}
+
+function scheduleActiveHomeRefresh() {
+  window.clearTimeout(activeHomeRefreshTimer);
+  if (!activeHomeCode || !activeActionCode) return;
+  activeHomeRefreshTimer = window.setTimeout(function () {
+    refreshActiveHomeData({ rerender: true, silent: true });
+  }, DATA_TTL_MS);
+}
+
+window.addEventListener("focus", function () {
+  refreshActiveHomeDataIfStale({ rerender: true, silent: true });
+});
+
+document.addEventListener("visibilitychange", function () {
+  if (!document.hidden) {
+    refreshActiveHomeDataIfStale({ rerender: true, silent: true });
+  }
+});
+
+document.addEventListener("pointerdown", function (event) {
+  if (!activeHomeCode || activeHomeRefreshInFlight) return;
+  if (!event.target.closest(".content, #maincontainer, #din, .sidebar")) return;
+  refreshActiveHomeDataIfStale({ rerender: true, silent: true });
+}, true);
+
 // ================================
 // КЛИК МЕНЮ
 // ================================
-async function handleMenuClick(homeCode, actionCode, actionLink, { fromHistory = false, initial = false } = {}) {
+async function handleMenuClick(homeCode, actionCode, actionLink, { fromHistory = false, initial = false, refresh = false, forceReload = false } = {}) {
 
   // --- БЛОКИРУЕМ повторные клики ---
   if (handleMenuClick.isLoading) return;
@@ -150,32 +270,32 @@ if (actionCode === "reports" && !navigator.onLine) {
   // --- ДАННЫЕ ДОМА ---
   window.homeData = window.homeData || {};
   let home = window.homeData[homeCode];
+  const needsReload = forceReload || !isHomeDataFresh(home);
 
-  if (!home) {
+  if (!home || needsReload) {
     // Проверяем онлайн
     if (!navigator.onLine) {
-      showMessage("Помилка: Дані цього будинку ще не завантажені. Підключіться до інтернету.", "err", 7000);
+      if (!home) {
+        showMessage("Помилка: Дані цього будинку ще не завантажені. Підключіться до інтернету.", "err", 7000);
+      } else if (!refresh) {
+        showMessage("Дані застаріли, але немає підключення до інтернету. Показано останню завантажену версію.", "warn", 7000);
+      }
       handleMenuClick.isLoading = false;
-      return;
-    }
-
-    try {
-      const { data, error } = await client
-        .from("homes")
-        .select("us, b, org, adr, dt, what, kto, nach, oplat, ls, plat, files, nachnote, allnach, tarifs, spending")
-        .eq("code", homeCode)
-        .single();
-
-      if (error || !data) throw error;
-
-      home = parseHomeRow(data);
-      window.homeData[homeCode] = home;
-
-    } catch (err) {
-      console.error("Ошибка загрузки дома:", err);
-      alert("Не удалось загрузить данные дома. Проверьте соединение.");
-      handleMenuClick.isLoading = false;
-      return; // НИЧЕГО не меняем в UI
+      if (!home) return;
+    } else {
+      try {
+        home = await fetchHomeData(homeCode);
+      } catch (err) {
+        console.error("Ошибка загрузки дома:", err);
+        if (!home) {
+          alert("Не удалось загрузить данные дома. Проверьте соединение.");
+          handleMenuClick.isLoading = false;
+          return; // НИЧЕГО не меняем в UI
+        }
+        if (!refresh) {
+          showMessage("Не вдалося оновити дані. Показано останню завантажену версію.", "warn", 7000);
+        }
+      }
     }
   }
 
@@ -219,22 +339,7 @@ if (actionCode === "reports" && !navigator.onLine) {
   }
 
   // --- ИНИЦИАЛИЗАЦИЯ ПЕРЕМЕННЫХ ---
-  ls = home.ls;
-  nach = home.nach;
-  nachnote = home.nachnote;
-  allnach = home.allnach;
-  tarifs = home.tarifs;
-  spending = home.spending;
-  files = filterFilesByRole(home.files, roles?.[homeCode] || 'Правление');
-  adr = home.adr;
-  dt = home.dt;
-  org = home.org;
-  b = home.b;
-  what = home.what;
-  kto = home.kto;
-  oplat = home.oplat;
-  plat = home.plat;
-  us = home.us;
+  applyHomeDataToGlobals(homeCode, home);
 
   // --- HISTORY / URL ---
   const homeObj = homes.find(h => h.code === homeCode);
@@ -252,20 +357,13 @@ if (actionCode === "reports" && !navigator.onLine) {
 
   localStorage.setItem("last_homeCode", homeCode);
   localStorage.setItem("last_actionCode", actionCode);
+  activeHomeCode = homeCode;
+  activeActionCode = actionCode;
+  activeActionLink = actionLink || actionEl || null;
+  scheduleActiveHomeRefresh();
 
   // --- ДЕЙСТВИЕ ---
-  switch (actionCode) {
-    case "accounts": fillMissingDates(nach); initLS(); break;
-    case "list": fillMissingDates(nach); initTable(); break;
-    case "payments": initPayTable(); break;
-    case "bank": initBankTable(); break;
-    case "reports": reportsInit(homeCode); break;
-    case "info": displayHomeInfo(homeCode); break;
-    case "schema": initSchema(); break;
-    case "debitorka": initDashboard(); break;
-  }
-
-  updateTopbarTitle(homeCode);
+  runActionForHome(homeCode, actionCode);
 
   // --- СНИМАЕМ блокировку ---
   handleMenuClick.isLoading = false;

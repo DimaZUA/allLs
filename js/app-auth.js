@@ -1,4 +1,9 @@
 (function () {
+  const RESIDENT_DATA_TTL_MS = 24 * 60 * 60 * 1000;
+  let residentPayloadLoadedAt = 0;
+  let residentRefreshTimer = null;
+  let residentRefreshInFlight = false;
+
   function firstNonEmpty() {
     for (let i = 0; i < arguments.length; i++) {
       const v = arguments[i];
@@ -320,6 +325,60 @@
     return true;
   }
 
+  function scheduleResidentPayloadRefresh(token) {
+    window.clearTimeout(residentRefreshTimer);
+    if (!token) return;
+    residentRefreshTimer = window.setTimeout(function () {
+      refreshResidentPayload(token);
+    }, RESIDENT_DATA_TTL_MS);
+  }
+
+  async function refreshResidentPayload(token) {
+    if (!token || residentRefreshInFlight || !navigator.onLine) {
+      scheduleResidentPayloadRefresh(token);
+      return false;
+    }
+    residentRefreshInFlight = true;
+    try {
+      const { data, error } = await client.rpc("resident_get_ls", {
+        p_token: token
+      });
+      if (error || !data) {
+        console.warn("Resident payload refresh failed", error);
+        return false;
+      }
+      const applied = applyResidentPayload(data);
+      if (applied) {
+        residentPayloadLoadedAt = Date.now();
+        scheduleResidentPayloadRefresh(token);
+      }
+      return applied;
+    } catch (err) {
+      console.warn("Resident payload refresh failed", err);
+      return false;
+    } finally {
+      residentRefreshInFlight = false;
+    }
+  }
+
+  function refreshResidentPayloadIfStale() {
+    const token = getResidentTokenFromUrl();
+    if (!token || !residentPayloadLoadedAt) return;
+    if (Date.now() - residentPayloadLoadedAt >= RESIDENT_DATA_TTL_MS) {
+      refreshResidentPayload(token);
+    }
+  }
+
+  window.addEventListener("focus", refreshResidentPayloadIfStale);
+  document.addEventListener("visibilitychange", function () {
+    if (!document.hidden) refreshResidentPayloadIfStale();
+  });
+  document.addEventListener("pointerdown", function () {
+    if (document.body && document.body.classList.contains("resident-mode")) {
+      refreshResidentPayloadIfStale();
+    }
+  }, true);
+
   async function tryEnterResidentMode() {
     const token = getResidentTokenFromUrl();
     if (!token) return false;
@@ -348,6 +407,8 @@
 
     const applied = applyResidentPayload(data);
     if (applied) {
+      residentPayloadLoadedAt = Date.now();
+      scheduleResidentPayloadRefresh(token);
       const skipVisitLog = localStorage.getItem("resident_skip_visit_log") === "1";
       if (!skipVisitLog) {
         try {
