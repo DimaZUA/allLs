@@ -948,31 +948,37 @@ const visibleRows = [...table.tBodies[0].rows]
     !tr.classList.contains("header-row-clone")
   );
 
-  if (!visibleRows.length) return;
-
   const colCount = footer.cells.length;
   const totals = Array(colCount).fill(0);
 
+  footer.cells[0].textContent = String(visibleRows.length);
+  footer.cells[1].textContent = "Разом";
+
+  if (!visibleRows.length) {
+    for (let colIndex = 2; colIndex < colCount; colIndex++) {
+      footer.cells[colIndex].textContent = "–";
+    }
+    return;
+  }
+
   visibleRows.forEach(row => {
-    for (let i = 2; i <= colCount; i++) { // начиная с 3-го столбца (индекс 2)
-      const text = row.cells[i]?.textContent.replace(",", ".").replace(/[\s\u00A0]+/g, "");
+    for (let colIndex = 2; colIndex < colCount; colIndex++) { // начиная с 3-го столбца (индекс 2)
+      const text = row.cells[colIndex]?.textContent.replace(",", ".").replace(/[\s\u00A0]+/g, "");
       const val = parseFloat(text);
-      if (!isNaN(val)) totals[i-1] += val;
+      if (!isNaN(val)) totals[colIndex] += val;
     }
   });
 
-  // Заполняем суммы
-  for (let i = 2; i < colCount; i++) { // все кроме последнего числового столбца
-    if (!isNaN(totals[i-1])) {
-      footer.cells[i - 1].textContent = totals[i-1].toFixed(2);
-    }
-  }
+  const avgColumns = new Set([5, colCount - 1]);
 
-  // Последний столбец — среднее значение
-  const avgCol = colCount;
-  if (!isNaN(totals[avgCol-1])) {
-    const avg = totals[avgCol-1] / visibleRows.length;
-    footer.cells[avgCol - 1].textContent = avg.toFixed(1);
+  for (let colIndex = 2; colIndex < colCount; colIndex++) {
+    if (!isNaN(totals[colIndex])) {
+      if (avgColumns.has(colIndex)) {
+        footer.cells[colIndex].textContent = (totals[colIndex] / visibleRows.length).toFixed(1);
+      } else {
+        footer.cells[colIndex].textContent = totals[colIndex].toFixedWithComma();
+      }
+    }
   }
 }
 
