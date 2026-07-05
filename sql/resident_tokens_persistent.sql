@@ -3,6 +3,37 @@
 
 begin;
 
+create or replace function public.try_parse_jsonb(p_text text)
+returns jsonb
+language plpgsql
+immutable
+as $$
+declare
+  j jsonb;
+  inner_text text;
+begin
+  if p_text is null or btrim(p_text) = '' then
+    return '{}'::jsonb;
+  end if;
+
+  j := p_text::jsonb;
+  if jsonb_typeof(j) = 'string' then
+    begin
+      -- Some Access exports store JSON as a JSONB string and may contain literal \u0000.
+      inner_text := replace(j #>> '{}', '\u0000', '');
+      return inner_text::jsonb;
+    exception
+      when others then
+        return '{}'::jsonb;
+    end;
+  end if;
+  return j;
+exception
+  when others then
+    return '{}'::jsonb;
+end;
+$$;
+
 create table if not exists public.resident_access_tokens (
   home_code text not null,
   account_id text not null,
@@ -109,6 +140,112 @@ begin
         -- else: token collision, retry loop.
     end;
   end loop;
+end;
+$$;
+
+create or replace function public.resident_fix_recalc_nachnote(p_nachnote jsonb, p_nach jsonb)
+returns jsonb
+language plpgsql
+stable
+set search_path = public
+as $$
+declare
+  v_result jsonb := coalesce(p_nachnote, '{}'::jsonb);
+  y record;
+  m record;
+  v_notes jsonb;
+  v_charge_text text;
+  v_charge numeric;
+  v_line text;
+  v_re text[];
+  v_amount numeric;
+  v_amount_sum numeric;
+  v_last_amount numeric;
+  v_last_index integer;
+  v_residual numeric;
+  v_fixed_amount text;
+  v_new_notes jsonb;
+  i integer;
+begin
+  if jsonb_typeof(v_result) <> 'object' or jsonb_typeof(coalesce(p_nach, '{}'::jsonb)) <> 'object' then
+    return v_result;
+  end if;
+
+  for y in select key, value from jsonb_each(v_result) loop
+    if y.key !~ '^[0-9]+$' or jsonb_typeof(y.value) <> 'object' then
+      continue;
+    end if;
+
+    for m in select key, value from jsonb_each(y.value) loop
+      if m.key !~ '^[0-9]+$' or jsonb_typeof(m.value) <> 'object' then
+        continue;
+      end if;
+
+      v_notes := m.value -> '13';
+      if jsonb_typeof(v_notes) <> 'array' or jsonb_array_length(v_notes) = 0 then
+        continue;
+      end if;
+
+      v_charge_text := p_nach #>> array[y.key, m.key, '13'];
+      if coalesce(v_charge_text, '') !~ '^-?[0-9]+(?:\.[0-9]+)?$' then
+        continue;
+      end if;
+
+      v_charge := abs(v_charge_text::numeric);
+      if v_charge <= 0.005 then
+        continue;
+      end if;
+
+      v_amount_sum := 0;
+      v_last_amount := null;
+      v_last_index := null;
+
+      for i in 0..jsonb_array_length(v_notes) - 1 loop
+        v_line := v_notes ->> i;
+        v_re := regexp_match(
+          v_line,
+          '(^[[:space:]]*)([+-]?[0-9][0-9[:space:]' || chr(160) || ']*([,.][0-9]{1,2})?)([[:space:]]*:[[:space:]]*)(.*)$'
+        );
+
+        if v_re is not null then
+          v_amount := abs(regexp_replace(replace(v_re[2], ',', '.'), '[[:space:]' || chr(160) || ']', '', 'g')::numeric);
+          v_amount_sum := v_amount_sum + v_amount;
+          v_last_amount := v_amount;
+          v_last_index := i;
+        end if;
+      end loop;
+
+      if v_last_index is null or abs(round(v_amount_sum, 2) - round(v_charge, 2)) <= 0.005 then
+        continue;
+      end if;
+
+      v_residual := round(v_charge - (v_amount_sum - coalesce(v_last_amount, 0)), 2);
+      if v_residual < -0.005 then
+        continue;
+      end if;
+
+      v_fixed_amount := replace(to_char(greatest(v_residual, 0), 'FM999999999990.00'), '.', ',');
+      v_new_notes := '[]'::jsonb;
+
+      for i in 0..jsonb_array_length(v_notes) - 1 loop
+        v_line := v_notes ->> i;
+        if i = v_last_index then
+          v_re := regexp_match(
+            v_line,
+            '(^[[:space:]]*)([+-]?[0-9][0-9[:space:]' || chr(160) || ']*([,.][0-9]{1,2})?)([[:space:]]*:[[:space:]]*)(.*)$'
+          );
+          if v_re is not null then
+            v_line := v_re[1] || v_fixed_amount || v_re[4] || v_re[5];
+          end if;
+        end if;
+        v_new_notes := v_new_notes || to_jsonb(v_line);
+      end loop;
+
+      v_result := jsonb_set(v_result, array[y.key, m.key, '13'], v_new_notes, true);
+    end loop;
+  end loop;
+
+  return v_result;
 end;
 $$;
 
@@ -397,6 +534,8 @@ begin
   if j_nachnote_item = '{}'::jsonb and jsonb_typeof(j_nachnote_all) = 'object' and jsonb_has_year_keys(j_nachnote_all) then
     j_nachnote_item := j_nachnote_all;
   end if;
+
+  j_nachnote_item := public.resident_fix_recalc_nachnote(j_nachnote_item, j_nach_item);
 
   return jsonb_build_object(
     'home_code', v_code,
