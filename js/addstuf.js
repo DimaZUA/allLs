@@ -3102,6 +3102,7 @@ if (payUrl && !isResidentMode) {
   var lastYearToggle; // Переменная для хранения чекбокса последнего года
   var lastRow;
   var lastRowExtraRows = [];
+  var currentMonthPreliminaryShown = false;
   var yearSummaries = {};
   var residentOverviewRoot = null;
   var residentSectionMenuRoot = null;
@@ -3355,6 +3356,16 @@ if (cumulativeBalance !== 0) {
 
       var transactions = accountData[year][_month];
       var cur = _month == currentMonth + 1 && year == currentYear;
+      var monthlyPayments =
+        ((_paymentData$year = paymentData[year]) === null ||
+        _paymentData$year === void 0
+          ? void 0
+          : _paymentData$year[_month]) || [];
+      var currentMonthHasPayments = monthlyPayments.reduce(function (sum, payment) {
+        return sum + (Number(payment && payment.sum) || 0);
+      }, 0) !== 0;
+      var currentMonthHasRecalc = (Number(transactions && transactions[13]) || 0) !== 0;
+      if (cur && !currentMonthHasPayments && !currentMonthHasRecalc) return;
       var prevMonthTransactions = getPrevMonthTransactions(accountData, year, _month);
       var monthTarifNotes = buildTarifMonthNotes(year, _month, transactions, prevMonthTransactions, curLS, isResidentMode, residentHistoryStartMonth);
       var row = document.createElement("tr");
@@ -3368,6 +3379,7 @@ if (cumulativeBalance !== 0) {
       var monthlyChargesTotal = 0;
       services.forEach(function (serviceId) {
         var charge = transactions[serviceId] || 0;
+        if (cur && String(serviceId) !== "13") charge = 0;
         rowCharges[serviceId] = charge;
         monthlyChargesTotal += charge;
       });
@@ -3411,11 +3423,6 @@ if (cumulativeBalance !== 0) {
         }
       });
       // Получаем данные оплат за текущий месяц
-      var monthlyPayments =
-        ((_paymentData$year = paymentData[year]) === null ||
-        _paymentData$year === void 0
-          ? void 0
-          : _paymentData$year[_month]) || [];
       var totalPayments = createPaymentCell(row, monthlyPayments, accountId, year, _month);
       if (!cur) {
         cumulativeBalance += monthlyChargesTotal - totalPayments;
@@ -3472,6 +3479,7 @@ if (cumulativeBalance !== 0) {
       }
       if (cur) {
         row.classList.add("grey");
+        currentMonthPreliminaryShown = true;
         lastRow = row;
         lastRowExtraRows = noteRows;
       } else {
@@ -3649,7 +3657,7 @@ historyContentHost.appendChild(yearsBar);
     _loop(year);
   });
 
-if (isResidentMode) {
+if (isResidentMode && currentMonthPreliminaryShown) {
   var historyNoteMonths = [
     "січень", "лютий", "березень", "квітень", "травень", "червень",
     "липень", "серпень", "вересень", "жовтень", "листопад", "грудень"
