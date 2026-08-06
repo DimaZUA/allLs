@@ -503,18 +503,149 @@ function calculateDebtMonthsFromCache(accountId, debtEnd, endDate) {
     return 0;
 }
 
+/**
+ * Дані особових рахунків за період (без DOM).
+ * Використовується в «Перелік» і в згенерованих звітах.
+ * Повертає масив рядків з боргами, нарахуваннями, оплатами, місяцями боргу.
+ */
+function collectAccountsPeriodData(start, end, dataSources) {
+  const srcLs = (dataSources && dataSources.ls) || ls;
+  const srcNach = (dataSources && dataSources.nach) || nach;
+  const srcOplat = (dataSources && dataSources.oplat) || oplat;
+  const rows = [];
 
+  const prevNach = typeof nach !== "undefined" ? nach : null;
+  const prevOplat = typeof oplat !== "undefined" ? oplat : null;
+  // Тимчасово підставляємо джерела для calculateInitialDebit / calculateDebtMonthsFromCache
+  nach = srcNach;
+  oplat = srcOplat;
 
+  try {
+    for (const accountId in srcNach) {
+      if (!Object.prototype.hasOwnProperty.call(srcNach, accountId)) continue;
+      const meta = srcLs[accountId] || {};
 
+      let chargesSum = 0;
+      let paymentsSum = 0;
+      const payments = [];
+      const monthCharges = [];
 
+      for (const year in srcNach[accountId]) {
+        for (const month in srcNach[accountId][year]) {
+          const date = new Date(year, month - 1, 1, 12);
+          if (date < start || date > end) continue;
 
+          const byService = srcNach[accountId][year][month] || {};
+          const cSum = Object.values(byService).reduce((s, v) => s + (Number(v) || 0), 0);
+          const payArr = (srcOplat[accountId] && srcOplat[accountId][year] && srcOplat[accountId][year][month]) || [];
+          const pSum = payArr.reduce((s, p) => s + (Number(p.sum) || 0), 0);
 
+          chargesSum += cSum;
+          paymentsSum += pSum;
+          monthCharges.push({ year: Number(year), month: Number(month), chargesSum: cSum, paymentsSum: pSum });
+          payArr.forEach(p => payments.push({ ...p, year: Number(year), month: Number(month) }));
+        }
+      }
 
+      // Оплати в періоді, навіть якщо не було нарахувань у тому місяці
+      if (srcOplat[accountId]) {
+        for (const year in srcOplat[accountId]) {
+          for (const month in srcOplat[accountId][year]) {
+            const date = new Date(year, month - 1, 1, 12);
+            if (date < start || date > end) continue;
+            const already = monthCharges.some(m => m.year === Number(year) && m.month === Number(month));
+            if (already) continue;
+            const payArr = srcOplat[accountId][year][month] || [];
+            const pSum = payArr.reduce((s, p) => s + (Number(p.sum) || 0), 0);
+            paymentsSum += pSum;
+            payArr.forEach(p => payments.push({ ...p, year: Number(year), month: Number(month) }));
+          }
+        }
+      }
 
+      const debitStart = calculateInitialDebit(accountId, start);
+      const startDebtAnchor = new Date(start.getFullYear(), start.getMonth(), 0, 12);
+      const startDebtMonths = calculateDebtMonthsFromCache(accountId, debitStart, startDebtAnchor);
+      const debitEnd = debitStart + chargesSum - paymentsSum;
+      const debtMonths = calculateDebtMonthsFromCache(accountId, debitEnd, end);
 
+      rows.push({
+        accountId,
+        kv: meta.kv,
+        fio: meta.fio || "",
+        pl: Number(meta.pl) || 0,
+        pers: Number(meta.pers) || 0,
+        pod: meta.pod,
+        et: meta.et,
+        ls: meta.ls,
+        debitStart,
+        debitEnd,
+        debtChange: debitEnd - debitStart,
+        startDebtMonths,
+        debtMonths,
+        chargesSum,
+        paymentsSum,
+        payments,
+        monthCharges
+      });
+    }
 
+    // Рахунки лише з оплатами без записів у nach
+    for (const accountId in srcOplat) {
+      if (srcNach[accountId]) continue;
+      if (!Object.prototype.hasOwnProperty.call(srcOplat, accountId)) continue;
+      const meta = srcLs[accountId] || {};
+      let paymentsSum = 0;
+      const payments = [];
+      for (const year in srcOplat[accountId]) {
+        for (const month in srcOplat[accountId][year]) {
+          const date = new Date(year, month - 1, 1, 12);
+          if (date < start || date > end) continue;
+          const payArr = srcOplat[accountId][year][month] || [];
+          paymentsSum += payArr.reduce((s, p) => s + (Number(p.sum) || 0), 0);
+          payArr.forEach(p => payments.push({ ...p, year: Number(year), month: Number(month) }));
+        }
+      }
+      if (!payments.length && paymentsSum === 0) continue;
+      const debitStart = calculateInitialDebit(accountId, start);
+      const startDebtAnchor = new Date(start.getFullYear(), start.getMonth(), 0, 12);
+      const startDebtMonths = calculateDebtMonthsFromCache(accountId, debitStart, startDebtAnchor);
+      const debitEnd = debitStart - paymentsSum;
+      const debtMonths = calculateDebtMonthsFromCache(accountId, debitEnd, end);
+      rows.push({
+        accountId,
+        kv: meta.kv,
+        fio: meta.fio || "",
+        pl: Number(meta.pl) || 0,
+        pers: Number(meta.pers) || 0,
+        pod: meta.pod,
+        et: meta.et,
+        ls: meta.ls,
+        debitStart,
+        debitEnd,
+        debtChange: debitEnd - debitStart,
+        startDebtMonths,
+        debtMonths,
+        chargesSum: 0,
+        paymentsSum,
+        payments,
+        monthCharges: []
+      });
+    }
+  } finally {
+    if (prevNach !== null) nach = prevNach;
+    if (prevOplat !== null) oplat = prevOplat;
+  }
 
+  rows.sort((a, b) => {
+    const ka = parseInt(String(a.kv).match(/\d+/)?.[0] || "0", 10);
+    const kb = parseInt(String(b.kv).match(/\d+/)?.[0] || "0", 10);
+    if (ka !== kb) return ka - kb;
+    return String(a.kv).localeCompare(String(b.kv), "uk");
+  });
 
+  return rows;
+}
 
 function generateTable() {
   const isTouch=isMobile();

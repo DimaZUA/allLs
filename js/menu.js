@@ -600,7 +600,7 @@ async function loadHomesAndBuildMenu(user) {
   reportsLink.style.cursor = 'pointer';
   reportsLink.onclick = () => handleMenuClick(GLOBAL_REPORTS_CODE, 'globalReports', reportsLink);
   reportsItem.appendChild(reportsLink);
-  menu.appendChild(reportsItem); 
+  //menu.appendChild(reportsItem);   
 
   homes.forEach(home => {
     const homeItem = document.createElement("li");
@@ -626,7 +626,6 @@ async function loadHomesAndBuildMenu(user) {
     homeItem.appendChild(actionList);
     menu.appendChild(homeItem);
   });
-
   // --- УДАЛЕНО: activateMenuFromParams() перенесен в DOMContentLoaded ---
 
   // Кнопки Настройки и Выход
