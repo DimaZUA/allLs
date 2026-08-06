@@ -33,6 +33,7 @@ function sidebarIsOpen() {
 // Список доступных действий
 // ================================
 let rolse = {};
+const GLOBAL_REPORTS_CODE = "globalReports";
 const actions = [
   { name: "Особові рахунки", actionCode: "accounts" },
   { name: "Перелік", actionCode: "list" },
@@ -184,6 +185,7 @@ function runActionForHome(homeCode, actionCode) {
     case "payments": initPayTable(); break;
     case "bank": initBankTable(); break;
     case "reports": reportsInit(homeCode); break;
+    case "globalReports": renderGlobalReports(); break;
     case "info": displayHomeInfo(homeCode); break;
     case "schema": initSchema(); break;
     case "debitorka": initDashboard(); break;
@@ -259,12 +261,26 @@ async function handleMenuClick(homeCode, actionCode, actionLink, { fromHistory =
   // --- БЛОКИРУЕМ повторные клики ---
   if (handleMenuClick.isLoading) return;
 
-if (actionCode === "reports" && !navigator.onLine) {
+  // --- SPECIAL: глобальные отчёты (не дом) ---
+  if (homeCode === GLOBAL_REPORTS_CODE) {
+    // Закрываем для мобильных
+    if (sidebarState.mode !== 'desktop' && sidebarIsOpen()) closeSidebar();
+    // Снимаем выделения и помечаем активность
+    document.querySelectorAll(".menu-item > span").forEach(el => el.classList.remove("active-home"));
+    document.querySelectorAll(".menu-item ul span").forEach(el => el.classList.remove("active-action"));
+    if (actionLink && actionLink.classList) actionLink.classList.add("active-action");
+    updateTopbarTitle(GLOBAL_REPORTS_CODE);
+    // Вызов обработчика, который покажет интерфейс отчётов
+    runActionForHome(GLOBAL_REPORTS_CODE, 'globalReports');
+    return;
+  }
+
+  if (actionCode === "reports" && !navigator.onLine) {
     showMessage("Розділ 'Документи' доступний лише при наявності інтернету.", "err", 5000);
     handleMenuClick.isLoading = false;
     return;
   }
-  
+
   handleMenuClick.isLoading = true;
 
   // --- ДАННЫЕ ДОМА ---
@@ -573,7 +589,18 @@ async function loadHomesAndBuildMenu(user) {
 
   // Генерируем меню
   const menu = document.getElementById("menu");
-  menu.innerHTML = ''; 
+  menu.innerHTML = '';
+
+  // Добавляем глобальный пункт меню "Звіти" (не привязан к конкретному дому)
+  const reportsItem = document.createElement('li');
+  reportsItem.className = 'menu-item reports-item';
+  reportsItem.setAttribute('data-code', GLOBAL_REPORTS_CODE);
+  const reportsLink = document.createElement('span');
+  reportsLink.textContent = 'Звіти';
+  reportsLink.style.cursor = 'pointer';
+  reportsLink.onclick = () => handleMenuClick(GLOBAL_REPORTS_CODE, 'globalReports', reportsLink);
+  reportsItem.appendChild(reportsLink);
+  menu.appendChild(reportsItem); 
 
   homes.forEach(home => {
     const homeItem = document.createElement("li");
@@ -650,6 +677,7 @@ function filterHomes(filter) {
 
   document.querySelectorAll(".menu-item").forEach(function (item) {
     var homeCode = item.getAttribute("data-code"); // Получаем код дома
+    if (homeCode === GLOBAL_REPORTS_CODE) { item.style.display = ""; return; }
     var home = homes.find(function (h) {
       return h.code === homeCode;
     }); // Находим объект дома
@@ -659,6 +687,9 @@ function filterHomes(filter) {
         return typeof value === "string" && regex.test(value);
       });
       item.style.display = matches ? "" : "none";
+    } else {
+      // если нет соответствия дома, прячем элемент
+      item.style.display = "none";
     }
   });
 }
@@ -754,6 +785,10 @@ function userSettings() {
 function updateTopbarTitle(homeCode) {
   const el = document.getElementById('topbar-title');
   if (!el) return;
+  if (homeCode === GLOBAL_REPORTS_CODE) {
+    el.textContent = 'Звіти';
+    return;
+  }
 
   const home = homes?.find(h => h.code === homeCode);
   el.textContent = home ? home.name : '';

@@ -1,4 +1,4 @@
-﻿/* Общий контейнер панели файлов */
+/* Общий контейнер панели файлов */
 #filebar {
     padding: 1px;
     width: 240px;
@@ -283,4 +283,21 @@ li.folder {
 #filebar::-webkit-scrollbar-thumb {
     background-color: rgba(0,0,0,.35);
     border-radius: 4px;
+}
+
+/* Global reports styles */
+.generated-report-header { display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid #ddd; margin-bottom:12px; padding-bottom:8px; }
+.generated-report-logo-wrap img.generated-report-logo { height:56px; }
+.generated-report-title-block { flex:1; margin:0 12px; }
+.generated-report-title { font-weight:700; font-size:18px; }
+.generated-report-org, .generated-report-period { color:#555; font-size:13px; }
+.generated-report-meta { color:#666; font-size:12px; white-space:nowrap; }
+.generated-report-table { width:100%; border-collapse:collapse; margin-top:12px; }
+.generated-report-table th, .generated-report-table td { border:1px solid #ccc; padding:6px 8px; text-align:left; font-size:12px; }
+.generated-report-summary { background:#f7f7f7; font-weight:700; }
+.generated-report-pdf-page { background:#fff; }
+
+@media (max-width: 840px) {
+  .generated-report-header { flex-direction:column; align-items:stretch; }
+  .generated-report-meta { margin-top:8px; }
 }
