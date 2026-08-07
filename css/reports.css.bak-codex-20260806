@@ -177,20 +177,6 @@ li.folder {
 .file-list li.other::before   { content: "📦"; }
 
 
-.file-list li.reports-entry::before { content: "▦"; color: #1f5a9d; }
-
-.file-list li.reports-entry {
-    background: #e9f1ff;
-    border: 1px solid #bfd3ef;
-    color: #123b66;
-    font-weight: 700;
-    margin-bottom: 6px;
-}
-
-.file-list li.reports-entry:hover {
-    background: #dbeafe;
-}
-
 .year-folders {
     margin-bottom: 6px;
 }
@@ -336,22 +322,15 @@ li.folder {
 .gr-combo { position: relative; }
 .gr-combo-toggle { text-align: left; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .gr-combo-panel {
-  position: absolute; z-index: 40; left: 0; top: calc(100% + 4px);
-  width: max(100%, min(420px, calc(100vw - 32px)));
+  position: absolute; z-index: 40; left: 0; right: 0; top: calc(100% + 4px);
   background: #fff; border: 1px solid #c9ced6; border-radius: 8px;
   box-shadow: 0 8px 24px rgba(0,0,0,.12); padding: 8px; max-height: 280px; overflow: auto;
 }
-.gr-report-field .gr-combo-panel { width: max(100%, min(520px, calc(100vw - 32px))); }
 .gr-combo-list { display: flex; flex-direction: column; gap: 2px; margin-top: 6px; }
 .gr-combo-item { display: flex; gap: 8px; align-items: flex-start; padding: 6px 4px; border-radius: 6px; cursor: pointer; font-size: 13px; }
 .gr-combo-item:hover { background: #f1f4f8; }
 
 .gr-output { display: flex; flex-direction: column; gap: 18px; align-items: center; }
-.gr-sheet-wrap { position: relative; display: flex; align-items: flex-start; gap: 10px; }
-.gr-page-actions { position: absolute; left: calc(100% + 10px); top: 8px; display: flex; flex-direction: column; gap: 8px; }
-.gr-page-action { width: 38px; height: 38px; border: 1px solid #c9ced6; border-radius: 8px; background: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,.12); }
-.gr-page-action:hover { background: #f1f4f8; }
-.gr-page-action img { width: 22px; height: 22px; object-fit: contain; }
 .gr-sheet {
   width: 210mm;
   height: 297mm;
@@ -369,7 +348,7 @@ li.folder {
 .gr-sheet-inner {
   height: 100%;
   box-sizing: border-box;
-  padding: 2mm 12mm 10mm;
+  padding: 12mm 12mm 10mm;
   display: flex;
   flex-direction: column;
 }
@@ -408,7 +387,7 @@ li.folder {
 #gr-measure-host .gr-debt-grid,
 .gr-pdf-capture-host .gr-debt-grid,
 .gr-sheet .gr-debt-grid {
-  grid-template-columns: repeat(5, 1fr) !important;
+  grid-template-columns: repeat(4, 1fr) !important;
 }
 #gr-measure-host .gr-pay-grid,
 .gr-pdf-capture-host .gr-pay-grid,
@@ -424,48 +403,15 @@ li.folder {
   pointer-events: none;
 }
 
-.gr-report-head {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(240px, .95fr);
-  gap: 18px;
-  align-items: center;
-  border-bottom: 3px solid #1f5a9d;
-  box-shadow: 0 1px 0 #7aa6d8;
-  padding: 3mm 0 1.5mm;
-  margin-bottom: 7px;
-}
-.gr-report-brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
-.gr-report-logo { width: 24mm; height: 24mm; object-fit: contain; flex: 0 0 auto; }
-.gr-report-org { color: #1f4b7a; font-size: 22px; line-height: 1.05; font-weight: 800; }
-.gr-report-details { margin-top: 4px; color: #333; font-size: 11px; line-height: 1.2; }
-.gr-report-titlebox { min-width: 0; text-align: center; }
-.gr-report-period { color: #333; font-size: 18px; line-height: 1.2; }
-.gr-report-head-compact {
-  grid-template-columns: minmax(0, 1fr) minmax(220px, .9fr);
-  padding: 1.5mm 0 1.5mm;
-  margin-bottom: 5px;
-  border-bottom-width: 2px;
-}
-.gr-report-head-compact .gr-report-logo { width: 13mm; height: 13mm; }
-.gr-report-head-compact .gr-report-org { font-size: 15px; }
-.gr-report-head-compact .gr-title { font-size: 15px; }
-.gr-report-head-compact .gr-report-period { font-size: 12px; }
-.gr-report-head-compact .gr-report-period {
-  display: flex;
-  justify-content: center;
-  align-items: baseline;
-  gap: 18px;
-}
-.gr-report-period-gap { display: none; }
+.gr-topbar { display: flex; justify-content: space-between; gap: 12px; font-size: 12px; color: #444; border-bottom: 1px solid #ddd; padding-bottom: 6px; margin-bottom: 10px; }
 .gr-home-name, .gr-period-label { font-weight: 600; }
-.gr-title { text-align: center; font-size: 22px; margin: 0 0 4px; letter-spacing: 0; }
+.gr-title { text-align: center; font-size: 22px; margin: 6px 0 4px; letter-spacing: .02em; }
 .gr-title-pod { font-size: 34px; margin-top: 10px; }
 .gr-continued { font-size: 14px; font-weight: 500; color: #666; }
 .gr-subtitle { text-align: center; color: #555; margin-bottom: 12px; font-size: 13px; }
 .gr-subtitle-accent { color: #1f4b7a; }
 .gr-kpi-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 12px 0; }
 .gr-kpi-row-5 { grid-template-columns: repeat(5, 1fr); }
-.gr-kpi-row-6 { grid-template-columns: repeat(6, 1fr); }
 .gr-kpi { border: 1px solid #dde2ea; border-radius: 8px; padding: 8px 10px; background: #fafbfc; }
 .gr-kpi-label { font-size: 11px; color: #666; }
 .gr-kpi-value { font-size: 14px; font-weight: 700; margin-top: 2px; }
@@ -479,211 +425,58 @@ li.folder {
   gap: 8px 40px;
 }
 .gr-pay-block { border-bottom: 1px solid #ddd; padding: 4px 0 6px; margin-bottom: 4px; }
-.gr-pay-apt { display: block; font-size: 12px; line-height: 1.2; }
-.gr-pay-fio { font-weight: 400; }
+.gr-pay-apt { font-size: 12px; }
 .gr-pay-line, .gr-pay-total {
-  display: grid;
-  grid-template-columns: 3.2em minmax(5.2em, 1fr) 5em;
+  display: flex;
+  justify-content: flex-start;
   align-items: baseline;
-  gap: 8px;
-  font-size: 13px;
-  max-width: none;
+  gap: 14px;
+  font-size: 11px;
+  max-width: 11.5em;
 }
-.gr-pay-line .gr-apt-no { width: 100%; min-width: 0; box-sizing: border-box; }
-.gr-pay-date { min-width: 0; font-size: 13px; }
-.gr-pay-sum { min-width: 0; text-align: right; font-size: 13px; font-variant-numeric: tabular-nums; }
+.gr-pay-date { flex: 0 0 auto; min-width: 5.2em; }
+.gr-pay-sum { flex: 0 0 auto; min-width: 4.2em; text-align: right; font-variant-numeric: tabular-nums; }
 .gr-pay-total { font-weight: 700; }
 
 .gr-table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 8px; }
 .gr-table th, .gr-table td { border: 1px solid #ccc; padding: 4px 6px; vertical-align: top; }
 .gr-table th { background: #eef2f7; text-align: left; }
-.gr-table .gr-amount-cell { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.gr-amount { font-variant-numeric: tabular-nums; white-space: nowrap; }
-.gr-apt-no {
-  display: inline-block;
-  min-width: 2.4em;
-  padding: 1px 5px;
-  border: 1px solid #8bbcc2;
-  border-radius: 4px;
-  background: #d9f3f5;
-  color: #111;
-  text-align: center;
-  font-weight: 700;
-  line-height: 1.2;
-}
 .gr-zebra td { background: #f7f8fa; }
 .gr-group-head td { font-weight: 700; color: #fff; }
 .gr-tone-danger td { background: #b42318; }
 .gr-tone-warn td { background: #b54708; }
-.gr-tone-neutral td { background: #667085; }
 .gr-tone-ok td { background: #027a48; }
 .gr-group-total td { background: #f0f2f5; font-weight: 700; }
 .gr-grand-total td { background: #1f4b7a; color: #fff; font-weight: 700; }
-.gr-grand-total .gr-grand-neg,
-.gr-grand-total .gr-grand-pos { color: #fff; font-weight: 800; }
 .gr-pod-head td { background: #e8eef8; color: #1f4b7a; font-weight: 700; }
-/* Это комментарий
 .gr-pos { color: #027a48; font-weight: 600; }
 .gr-neg { color: #b42318; font-weight: 600; }
 .gr-muted { color: #888; }
- */
 .gr-notes-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
 .gr-note-box { border: 1px solid #ccc; border-radius: 6px; padding: 8px 10px; font-size: 11px; }
-.gr-thanks-box {
-  border: 1px solid #c9ded4;
-  border-left: 4px solid #027a48;
-  border-radius: 6px;
-  background: #f4fbf7;
-  padding: 10px 12px;
-  margin-top: 12px;
-  font-size: 13px;
-  line-height: 1.35;
-}
-.gr-formula-row { display: grid; grid-template-columns: 1fr auto 1fr auto 1fr auto 1fr; gap: 8px; align-items: stretch; margin-top: 12px; }
-.gr-formula-card {
-  border: 1px solid #ccc;
-  border-radius: 8px;
-  padding: 8px 10px;
-  min-width: 0;
-  background: #fafbfc;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-}
+.gr-formula-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 12px; }
+.gr-formula-card { border: 1px solid #ccc; border-radius: 8px; padding: 8px 10px; min-width: 140px; background: #fafbfc; }
 .gr-formula-op { font-size: 22px; font-weight: 700; }
-.gr-formula-op { display: flex; align-items: center; justify-content: center; }
-
-.gr-debt-summary {
-  display: grid;
-  grid-template-columns: 180px minmax(0, 1fr) 200px;
-  gap: 10px;
-  align-items: stretch;
-  margin: 12px 0;
-}
-.gr-debt-summary-compact {
-  display: block;
-}
-.gr-debt-summary-strip {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-  margin-bottom: 8px;
-}
-.gr-debt-summary-strip > div {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  min-height: 34px;
-  border: 1px solid #d5dee9;
-  border-radius: 8px;
-  background: #fbfcfe;
-  text-align: center;
-}
-.gr-debt-summary-strip span {
-  color: #555;
-  font-size: 12px;
-}
-.gr-debt-summary-strip strong {
-  font-size: 15px;
-  font-variant-numeric: tabular-nums;
-  padding-right: 3px;
-}
-.gr-debt-summary-side,
-.gr-debt-summary-center,
-.gr-debt-summary-card {
-  border: 1px solid #d5dee9;
-  border-radius: 8px;
-  background: #fbfcfe;
-}
-.gr-debt-summary-side {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 14px;
-  padding: 12px 14px;
-}
-.gr-debt-summary-main > div + div {
-  border-top: 1px solid #d8dee8;
-  padding-top: 12px;
-}
-.gr-debt-summary-center { padding: 10px; }
-.gr-debt-summary-cards {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
-}
-.gr-debt-summary-card { padding: 10px 8px; text-align: center; }
-.gr-debt-summary-card .gr-kpi-value { font-size: 24px; line-height: 1.1; }
-.gr-debt-summary-card .gr-kpi-value span { font-size: 11px; color: #333; font-weight: 500; }
-.gr-kpi-foot { margin-top: 8px; font-size: 12px; font-variant-numeric: tabular-nums; }
-.gr-debt-summary-total { text-align: center; }
-.gr-debt-summary-total .gr-kpi-value { font-size: 24px; }
-.gr-kpi-formula { border-top: 1px solid #d8dee8; padding-top: 8px; font-size: 11px; line-height: 1.25; }
-.gr-debt-tone-danger { border-color: #f1c8c8; background: #fff8f8; }
-.gr-debt-tone-warn { border-color: #f2d5ad; background: #fffaf2; }
-.gr-debt-tone-neutral { border-color: #eedda9; background: #fffdf3; }
-.gr-debt-tone-ok { border-color: #cfe7cf; background: #f8fff8; }
 
 .gr-poster-amount { text-align: center; font-size: 36px; font-weight: 800; margin: 8px 0 4px; }
 .gr-poster-ratio { text-align: center; margin-bottom: 12px; font-size: 14px; }
 .gr-poster-caption { text-align: center; font-size: 13px; font-weight: 700; margin-top: 8px; }
-.gr-black-bar {
-    margin: 14px 0 12px;
-    padding: 6px 10px;
-
-    background: #f4f4f4;
-    color: #222;
-
-    border-left: 5px solid #2b5da8;
-    border-bottom: 1px solid #d8d8d8;
-
-    text-align: center;
-
-    font-size: 14px;
-    font-weight: 700;
-}
-.gr-debt-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px 12px; margin-bottom: 12px; }
+.gr-black-bar { background: #111; color: #fff; text-align: center; font-weight: 700; padding: 8px; font-size: 13px; margin: 10px 0; }
+.gr-debt-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px 16px; margin-bottom: 12px; }
 .gr-debt-col { min-width: 0; }
-.gr-debt-list { display: flex; flex-direction: column; gap: 4px; }
-.gr-debt-pill {
+.gr-debt-row {
   display: grid;
-  grid-template-columns: minmax(34px, .52fr) minmax(72px, 1fr);
-  overflow: hidden;
-  border: 1px solid #6a9ed8;
-  border-radius: 6px;
-  background: #fff;
-  box-shadow: 0 0 0 1px rgba(106, 158, 216, .08) inset;
+  grid-template-columns: auto auto;
+  justify-content: start;
+  gap: 6px 10px;
+  font-size: 12px;
+  line-height: 1.35;
 }
-.gr-debt-kv,
-.gr-debt-amt {
-  display: flex;
-  align-items: center;
-  min-height: 22px;
-  padding: 2px 6px;
-  font-size: 15px;
-  line-height: 1.2;
-}
-.gr-debt-kv {
-  justify-content: center;
-  background: #d9f3f5;
-  border-right: 1px solid #6a9ed8;
-  font-weight: 800;
-}
-.gr-debt-kv .gr-apt-no {
-  min-width: 0;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-}
-.gr-debt-amt { justify-content: flex-end; font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; }
+.gr-debt-col-head { font-weight: 700; border-bottom: 1px solid #111; margin-bottom: 4px; display: grid; grid-template-columns: auto auto; justify-content: start; gap: 6px 10px; font-size: 12px; }
+.gr-debt-kv { font-weight: 700; border: 1px solid #111; padding: 0 4px; min-width: 2.2em; text-align: center; }
+.gr-debt-amt { font-variant-numeric: tabular-nums; white-space: nowrap; }
 .gr-building-debt { border: 1px solid #111; padding: 8px 10px; margin: 10px 0; font-size: 14px; }
 .gr-section-title { font-weight: 800; margin: 8px 0; font-size: 14px; }
-.gr-spend-cols { display: grid; grid-template-columns: 1fr; gap: 0 18px; }
-.gr-spend-block-2col .gr-spend-cols { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .gr-spend-line { display: grid; grid-template-columns: 16px 1fr auto; gap: 8px; align-items: end; font-size: 13px; margin: 4px 0; }
 .gr-spend-name { border-bottom: 1px dotted #999; }
 .gr-spend-dots { display: none; }
@@ -693,26 +486,13 @@ li.folder {
   flex: 0 0 36px; height: 36px; border-radius: 50%; background: #111; color: #fff;
   display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 20px;
 }
-.gr-callout p { margin: 0 0 6px; font-size: 20px; font-weight: 800; line-height: 1.15; }
+.gr-callout p { margin: 0 0 8px; font-size: 13px; }
 .gr-error { color: #b42318; padding: 12px; }
 .gr-empty { color: #666; padding: 24px; text-align: center; }
 
 @media (max-width: 900px) {
-  .gr-sheet-wrap { max-width: 100%; }
-  .gr-page-actions { position: static; flex-direction: row; margin-left: 8px; }
   .gr-sheet { width: 100%; height: auto; min-height: 297mm; }
-  .gr-report-head { grid-template-columns: 1fr; gap: 8px; }
-  .gr-report-titlebox { text-align: left; }
-  .gr-debt-summary,
-  .gr-formula-row {
-    grid-template-columns: 1fr;
-  }
-  .gr-debt-summary-strip,
-  .gr-debt-summary-cards {
-    grid-template-columns: 1fr;
-  }
-  .gr-formula-op { min-height: 18px; }
-  .gr-kpi-row, .gr-kpi-row-5, .gr-kpi-row-6, .gr-stat-boxes, .gr-notes-row {
+  .gr-kpi-row, .gr-kpi-row-5, .gr-stat-boxes, .gr-notes-row {
     grid-template-columns: 1fr;
   }
   .gr-pay-grid { gap: 12px; }
@@ -728,7 +508,6 @@ li.folder {
   body.gr-printing .gr-app,
   body.gr-printing .gr-output { margin: 0 !important; padding: 0 !important; max-width: none !important; }
   .gr-output { gap: 0 !important; align-items: stretch !important; }
-  .gr-sheet-wrap { display: block !important; }
   .gr-sheet {
     border: none !important;
     box-shadow: none !important;
@@ -741,122 +520,8 @@ li.folder {
     page-break-after: always;
     break-after: page;
   }
-  .gr-sheet-inner { padding: 2mm 12mm 10mm !important; }
-  .gr-sheet .gr-kpi-row { display: grid !important; grid-template-columns: repeat(3, 1fr) !important; }
-  .gr-sheet .gr-kpi-row-5 { grid-template-columns: repeat(5, 1fr) !important; }
-  .gr-sheet .gr-kpi-row-6 { grid-template-columns: repeat(6, 1fr) !important; }
-  .gr-sheet .gr-stat-boxes { display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
-  .gr-sheet .gr-notes-row { display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
-  .gr-sheet .gr-debt-grid { grid-template-columns: repeat(5, 1fr) !important; }
+  .gr-sheet .gr-debt-grid { grid-template-columns: repeat(4, 1fr) !important; }
   .gr-sheet .gr-pay-grid { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
-  .gr-sheet .gr-table {
-    width: 100% !important;
-    table-layout: auto !important;
-    border-collapse: collapse !important;
-    font-size: 11px !important;
-    transform: none !important;
-    zoom: 1 !important;
-  }
-  .gr-sheet .gr-table th,
-  .gr-sheet .gr-table td {
-    font-size: 11px !important;
-    padding: 4px 6px !important;
-    line-height: normal !important;
-  }
-  .gr-sheet .gr-title { font-size: 22px !important; }
-  .gr-sheet .gr-report-head {
-    display: grid !important;
-    grid-template-columns: minmax(0, 1fr) minmax(240px, .95fr) !important;
-    gap: 18px !important;
-    align-items: center !important;
-    padding: 3mm 0 1.5mm !important;
-    margin-bottom: 7px !important;
-    border-bottom: 3px solid #1f5a9d !important;
-    box-shadow: 0 1px 0 #7aa6d8 !important;
-  }
-  .gr-sheet .gr-report-brand {
-    display: flex !important;
-    align-items: center !important;
-    gap: 12px !important;
-    min-width: 0 !important;
-  }
-  .gr-sheet .gr-report-logo {
-    width: 24mm !important;
-    height: 24mm !important;
-    object-fit: contain !important;
-    flex: 0 0 auto !important;
-  }
-  .gr-sheet .gr-report-titlebox {
-    min-width: 0 !important;
-    text-align: center !important;
-  }
-  .gr-sheet .gr-report-head-compact .gr-title { font-size: 15px !important; }
-  .gr-sheet .gr-title-pod { font-size: 34px !important; }
-  .gr-sheet .gr-subtitle { font-size: 13px !important; }
-  .gr-sheet .gr-report-org { font-size: 22px !important; }
-  .gr-sheet .gr-report-details { font-size: 13px !important; }
-  .gr-sheet .gr-report-period { font-size: 18px !important; }
-  .gr-sheet .gr-report-head-compact {
-    grid-template-columns: minmax(0, 1fr) minmax(220px, .9fr) !important;
-    padding: 1.5mm 0 1.5mm !important;
-    margin-bottom: 5px !important;
-    border-bottom-width: 2px !important;
-  }
-  .gr-sheet .gr-report-head-compact .gr-report-logo {
-    width: 13mm !important;
-    height: 13mm !important;
-  }
-  .gr-sheet .gr-report-head-compact .gr-report-org { font-size: 15px !important; }
-  .gr-sheet .gr-report-head-compact .gr-report-period { font-size: 12px !important; }
-  .gr-sheet .gr-kpi-label { font-size: 11px !important; }
-  .gr-sheet .gr-kpi-value { font-size: 14px !important; }
-  .gr-sheet .gr-stat-box-title { font-size: 12px !important; }
-  .gr-sheet .gr-pay-apt { font-size: 12px !important; }
-  .gr-sheet .gr-pay-line,
-  .gr-sheet .gr-pay-total,
-  .gr-sheet .gr-pay-date,
-  .gr-sheet .gr-pay-sum { font-size: 13px !important; }
-  .gr-sheet .gr-debt-summary { grid-template-columns: 180px minmax(0, 1fr) 200px !important; }
-  .gr-sheet .gr-debt-summary-compact { display: block !important; }
-  .gr-sheet .gr-debt-summary-strip { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
-  .gr-sheet .gr-debt-summary-cards { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; }
-  .gr-sheet .gr-debt-summary-card .gr-kpi-value,
-  .gr-sheet .gr-debt-summary-total .gr-kpi-value { font-size: 24px !important; }
-  .gr-sheet .gr-debt-summary-card .gr-kpi-value span,
-  .gr-sheet .gr-kpi-formula { font-size: 11px !important; }
-  .gr-sheet .gr-kpi-foot { font-size: 12px !important; }
-  .gr-sheet .gr-formula-row { grid-template-columns: 1fr auto 1fr auto 1fr auto 1fr !important; }
-  .gr-sheet .gr-dotted { font-size: 12px !important; }
-  .gr-sheet .gr-thanks-box { font-size: 13px !important; line-height: 1.35 !important; }
-  .gr-sheet .gr-poster-amount { font-size: 36px !important; }
-  .gr-sheet .gr-poster-ratio,
-  .gr-sheet .gr-building-debt,
-  .gr-sheet .gr-section-title { font-size: 14px !important; }
-  .gr-sheet .gr-black-bar,
-  .gr-sheet .gr-poster-caption,
-  .gr-sheet .gr-spend-line { font-size: 13px !important; }
-  .gr-sheet .gr-callout p { font-size: 20px !important; }
-  .gr-sheet .gr-footer { font-size: 11px !important; }
-  .gr-sheet .gr-apt-no {
-    background: #d9f3f5 !important;
-    border-color: #8bbcc2 !important;
-    color: #111 !important;
-    print-color-adjust: exact;
-    -webkit-print-color-adjust: exact;
-  }
-  .gr-sheet .gr-debt-pill {
-    background: #fff !important;
-    border-color: #6a9ed8 !important;
-    print-color-adjust: exact;
-    -webkit-print-color-adjust: exact;
-  }
-  .gr-sheet .gr-debt-kv {
-    background: #d9f3f5 !important;
-    border-right-color: #6a9ed8 !important;
-    color: #111 !important;
-    print-color-adjust: exact;
-    -webkit-print-color-adjust: exact;
-  }
   .gr-sheet:last-child { break-after: auto; page-break-after: auto; }
   .gr-pos, .gr-neg { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
   .gr-tone-danger td,
@@ -884,27 +549,3 @@ li.folder {
 .generated-report-header { display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid #ddd; margin-bottom:12px; padding-bottom:8px; }
 .generated-report-table { width:100%; border-collapse:collapse; margin-top:12px; }
 .generated-report-table th, .generated-report-table td { border:1px solid #ccc; padding:6px 8px; text-align:left; font-size:12px; }
-
-.gr-pay-apt{
-    display:block;
-    font-size:12px;
-    line-height:1.2;
-}
-
-.gr-pay-apt .gr-pay-fio{
-    font-weight:400;
-}
-.gr-debt-grid{
-    display:grid;
-    grid-template-columns:repeat(5,minmax(0,1fr));
-    gap:6px 12px;
-    margin-top:12px;
-}
-.gr-debt-kv{
-    text-align:center;
-}
-.gr-debt-amt{
-    text-align:right;
-    white-space:nowrap;
-    font-variant-numeric:tabular-nums;
-}

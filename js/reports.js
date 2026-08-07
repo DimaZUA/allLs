@@ -346,12 +346,30 @@ function getFileToOpen(fileList) {
     return fileList[0];
 }
 
+function addGeneratedReportsLi(ul) {
+    if (typeof handleMenuClick !== "function" || typeof GLOBAL_REPORTS_CODE === "undefined") return;
+    const li = document.createElement("li");
+    li.className = "file reports-entry";
+    li.textContent = "Звіти";
+    li.onclick = () => {
+        handleMenuClick(GLOBAL_REPORTS_CODE, "globalReports", li);
+    };
+    ul.appendChild(li);
+}
+
 // --- Отрисовка панели файлов ---
 function renderFilebar() {
     const filebar = document.querySelector(".sidebar-files");
-    if (!filebar || !files || !files.files || !files.files.length) return;
+    if (!filebar) return;
 
     filebar.innerHTML = "";
+
+    const reportsUl = document.createElement("ul");
+    reportsUl.className = "file-list reports-entry-list";
+    addGeneratedReportsLi(reportsUl);
+    filebar.appendChild(reportsUl);
+
+    if (!files || !files.files || !files.files.length) return;
 
     const rootPath = files.files[0].split("/")[0];
 

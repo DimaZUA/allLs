@@ -591,17 +591,6 @@ async function loadHomesAndBuildMenu(user) {
   const menu = document.getElementById("menu");
   menu.innerHTML = '';
 
-  // Добавляем глобальный пункт меню "Звіти" (не привязан к конкретному дому)
-  const reportsItem = document.createElement('li');
-  reportsItem.className = 'menu-item reports-item';
-  reportsItem.setAttribute('data-code', GLOBAL_REPORTS_CODE);
-  const reportsLink = document.createElement('span');
-  reportsLink.textContent = 'Звіти';
-  reportsLink.style.cursor = 'pointer';
-  reportsLink.onclick = () => handleMenuClick(GLOBAL_REPORTS_CODE, 'globalReports', reportsLink);
-  reportsItem.appendChild(reportsLink);
-  //menu.appendChild(reportsItem);   
-
   homes.forEach(home => {
     const homeItem = document.createElement("li");
     homeItem.setAttribute("data-code", home.code);
