@@ -745,6 +745,67 @@ function showMessage(text, type = "inf", duration = 15000) {
   }
 }
 
+function showConfirmDialog(options) {
+  const opts = typeof options === "string" ? { message: options } : (options || {});
+  return new Promise(resolve => {
+    const overlay = document.createElement("div");
+    overlay.className = "app-confirm-overlay";
+    overlay.innerHTML = `
+      <div class="app-confirm-modal" role="dialog" aria-modal="true">
+        <div class="app-confirm-title"></div>
+        <div class="app-confirm-message"></div>
+        <div class="app-confirm-actions">
+          <button type="button" class="app-confirm-btn app-confirm-cancel"></button>
+          <button type="button" class="app-confirm-btn app-confirm-ok"></button>
+        </div>
+      </div>
+    `;
+    const title = overlay.querySelector(".app-confirm-title");
+    const message = overlay.querySelector(".app-confirm-message");
+    const cancel = overlay.querySelector(".app-confirm-cancel");
+    const ok = overlay.querySelector(".app-confirm-ok");
+    title.textContent = opts.title || "Підтвердження";
+    message.textContent = opts.message || "";
+    cancel.textContent = opts.cancelText || "Скасувати";
+    ok.textContent = opts.okText || "OK";
+
+    if (!document.getElementById("app-confirm-style")) {
+      const style = document.createElement("style");
+      style.id = "app-confirm-style";
+      style.textContent = `
+        .app-confirm-overlay{position:fixed;inset:0;z-index:10000;display:flex;align-items:center;justify-content:center;background:rgba(15,23,42,.32)}
+        .app-confirm-modal{width:min(420px,calc(100vw - 32px));border:1px solid #cfd6df;border-radius:10px;background:#fff;box-shadow:0 18px 42px rgba(15,23,42,.24);padding:16px;font-family:Arial,sans-serif;color:#111}
+        .app-confirm-title{font-weight:700;font-size:17px;margin-bottom:8px}
+        .app-confirm-message{font-size:14px;line-height:1.4;color:#333}
+        .app-confirm-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
+        .app-confirm-btn{border:1px solid #c9ced6;background:#fff;border-radius:8px;padding:8px 14px;cursor:pointer;font:14px/1.2 Arial,sans-serif}
+        .app-confirm-btn:hover{background:#edf4ff}
+        .app-confirm-ok{border-color:#1f4b7a;background:#1f4b7a;color:#fff}
+        .app-confirm-ok:hover{background:#173c63}
+      `;
+      document.head.appendChild(style);
+    }
+
+    function close(value) {
+      overlay.remove();
+      document.removeEventListener("keydown", onKeyDown);
+      resolve(value);
+    }
+    function onKeyDown(event) {
+      if (event.key === "Escape") close(false);
+      if (event.key === "Enter") close(true);
+    }
+    overlay.addEventListener("click", event => {
+      if (event.target === overlay) close(false);
+    });
+    cancel.addEventListener("click", () => close(false));
+    ok.addEventListener("click", () => close(true));
+    document.addEventListener("keydown", onKeyDown);
+    document.body.appendChild(overlay);
+    ok.focus();
+  });
+}
+
 
 
 // ======================================================
@@ -2026,5 +2087,146 @@ function analyzeTypicalApartments(debug = false) {
     types,
     outliers
   };
+}
+
+// ===================== Общий выбор нескольких домов =====================
+function multiHomePickerEscapeHtml(value) {
+  return String(value == null ? "" : value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function multiHomePickerSortedHomes(list) {
+  return Array.isArray(list)
+    ? list.slice().sort((a, b) => String(a.name || a.code).localeCompare(String(b.name || b.code), "uk"))
+    : [];
+}
+
+function multiHomePickerLabel(homesList, selectedCodes, allSelected, placeholder, allLabel) {
+  const homeList = multiHomePickerSortedHomes(homesList);
+  if (allSelected) return allLabel || "(Всі)";
+  const selected = new Set((selectedCodes || []).map(String));
+  const names = homeList.filter(h => selected.has(String(h.code))).map(h => h.name || h.code);
+  if (names.length === 1) return names[0];
+  if (names.length > 1) return `${names.length} буд.`;
+  return placeholder || "Оберіть будинок…";
+}
+
+function renderMultiHomePicker(options) {
+  const opts = options || {};
+  const homeList = multiHomePickerSortedHomes(opts.homes);
+  if (homeList.length <= 1) return "";
+  const id = opts.id || "home-picker";
+  const label = multiHomePickerLabel(homeList, opts.selectedCodes, opts.allSelected, opts.placeholder, opts.allLabel);
+  return `
+    <div class="gr-field gr-home-field">
+      <label>${multiHomePickerEscapeHtml(opts.label || "Будинки")}</label>
+      <div class="gr-combo mhp-combo" id="${multiHomePickerEscapeHtml(id)}">
+        <button type="button" class="gr-combo-toggle mhp-toggle" id="${multiHomePickerEscapeHtml(id)}-toggle">${multiHomePickerEscapeHtml(label)}</button>
+        <div class="gr-combo-panel mhp-panel" id="${multiHomePickerEscapeHtml(id)}-panel" hidden>
+          <input type="search" class="gr-combo-search mhp-search" id="${multiHomePickerEscapeHtml(id)}-search" placeholder="${multiHomePickerEscapeHtml(opts.searchPlaceholder || "Пошук будинку…")}" autocomplete="off">
+          <div class="gr-combo-list mhp-list" id="${multiHomePickerEscapeHtml(id)}-list"></div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function bindMultiHomePicker(options) {
+  const opts = options || {};
+  const id = opts.id || "home-picker";
+  const combo = document.getElementById(id);
+  if (!combo) return;
+  const toggle = document.getElementById(`${id}-toggle`);
+  const panel = document.getElementById(`${id}-panel`);
+  const search = document.getElementById(`${id}-search`);
+  const listEl = document.getElementById(`${id}-list`);
+  if (!toggle || !panel || !search || !listEl) return;
+
+  const getHomes = () => multiHomePickerSortedHomes(typeof opts.getHomes === "function" ? opts.getHomes() : opts.homes);
+  const getSelection = () => {
+    const value = typeof opts.getSelection === "function" ? opts.getSelection() : {};
+    return {
+      selectedCodes: (value.selectedCodes || []).map(String),
+      allSelected: !!value.allSelected
+    };
+  };
+  const setSelection = (selectedCodes, allSelected) => {
+    if (typeof opts.setSelection === "function") opts.setSelection(selectedCodes, allSelected);
+    if (typeof opts.onChange === "function") opts.onChange(selectedCodes, allSelected);
+  };
+
+  function fill(filterText) {
+    const q = String(filterText || "").trim().toLowerCase();
+    const selection = getSelection();
+    const selected = new Set(selection.selectedCodes.map(String));
+    const visibleHomes = getHomes().filter(h => !q || String(h.name || h.code).toLowerCase().includes(q));
+    const allChecked = selection.allSelected;
+    const items = [
+      { code: "__ALL__", name: opts.allLabel || "(Всі)", checked: allChecked }
+    ].concat(visibleHomes.map(h => ({
+      code: h.code,
+      name: h.name || h.code,
+      checked: !allChecked && selected.has(String(h.code))
+    })));
+    listEl.innerHTML = items.map(item => `
+      <label class="gr-combo-item">
+        <input type="checkbox" data-mhp-code="${multiHomePickerEscapeHtml(item.code)}" ${item.checked ? "checked" : ""}>
+        <span>${multiHomePickerEscapeHtml(item.name)}</span>
+      </label>
+    `).join("");
+  }
+
+  function syncLabel() {
+    const selection = getSelection();
+    toggle.textContent = multiHomePickerLabel(getHomes(), selection.selectedCodes, selection.allSelected, opts.placeholder, opts.allLabel);
+  }
+
+  toggle.addEventListener("click", function (event) {
+    event.stopPropagation();
+    const open = panel.hasAttribute("hidden");
+    if (open) {
+      panel.removeAttribute("hidden");
+      fill(search.value);
+      search.focus();
+    } else {
+      panel.setAttribute("hidden", "");
+    }
+  });
+
+  panel.addEventListener("click", event => event.stopPropagation());
+  search.addEventListener("input", () => fill(search.value));
+
+  listEl.addEventListener("change", function (event) {
+    const input = event.target.closest("input[data-mhp-code]");
+    if (!input) return;
+    const code = input.getAttribute("data-mhp-code");
+    const homeList = getHomes();
+    if (code === "__ALL__") {
+      setSelection(input.checked ? homeList.map(h => String(h.code)) : [], !!input.checked);
+    } else {
+      const selection = getSelection();
+      const selected = new Set(selection.allSelected ? homeList.map(h => String(h.code)) : selection.selectedCodes);
+      if (input.checked) selected.add(String(code));
+      else selected.delete(String(code));
+      const selectedCodes = Array.from(selected);
+      setSelection(selectedCodes, selectedCodes.length === homeList.length);
+    }
+    fill(search.value);
+    syncLabel();
+  });
+
+  document.addEventListener("click", function onDocClick(event) {
+    if (!document.getElementById(id)) {
+      document.removeEventListener("click", onDocClick);
+      return;
+    }
+    if (!event.target.closest(`#${CSS.escape(id)}`)) panel.setAttribute("hidden", "");
+  });
+
+  fill("");
+  syncLabel();
 }
 

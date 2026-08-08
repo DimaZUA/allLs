@@ -357,6 +357,44 @@ function addGeneratedReportsLi(ul) {
     ul.appendChild(li);
 }
 
+function addOutgoingDocumentsLi(ul) {
+    if (typeof openOutgoingDocuments !== "function") return;
+    const li = document.createElement("li");
+    li.className = "file reports-entry outgoing-documents-entry";
+    li.textContent = "Вихідні документи";
+    li.onclick = () => {
+        const targetHomeCode = homeCode || (typeof activeHomeCode !== "undefined" ? activeHomeCode : "");
+        if (typeof activeActionCode !== "undefined") activeActionCode = "outgoingDocuments";
+        if (typeof history !== "undefined" && targetHomeCode) {
+            const url = new URL(window.location.href);
+            url.searchParams.set("homeCode", targetHomeCode);
+            url.searchParams.set("actionCode", "outgoingDocuments");
+            history.pushState({}, "", url);
+        }
+        openOutgoingDocuments(targetHomeCode);
+    };
+    ul.appendChild(li);
+}
+
+function addMeetingProtocolsLi(ul) {
+    if (typeof openMeetingProtocols !== "function") return;
+    const li = document.createElement("li");
+    li.className = "file reports-entry meeting-protocols-entry";
+    li.textContent = "Протоколи";
+    li.onclick = () => {
+        const targetHomeCode = homeCode || (typeof activeHomeCode !== "undefined" ? activeHomeCode : "");
+        if (typeof activeActionCode !== "undefined") activeActionCode = "meetingProtocols";
+        if (typeof history !== "undefined" && targetHomeCode) {
+            const url = new URL(window.location.href);
+            url.searchParams.set("homeCode", targetHomeCode);
+            url.searchParams.set("actionCode", "meetingProtocols");
+            history.pushState({}, "", url);
+        }
+        openMeetingProtocols(targetHomeCode);
+    };
+    ul.appendChild(li);
+}
+
 // --- Отрисовка панели файлов ---
 function renderFilebar() {
     const filebar = document.querySelector(".sidebar-files");
@@ -367,6 +405,8 @@ function renderFilebar() {
     const reportsUl = document.createElement("ul");
     reportsUl.className = "file-list reports-entry-list";
     addGeneratedReportsLi(reportsUl);
+    addOutgoingDocumentsLi(reportsUl);
+    addMeetingProtocolsLi(reportsUl);
     filebar.appendChild(reportsUl);
 
     if (!files || !files.files || !files.files.length) return;

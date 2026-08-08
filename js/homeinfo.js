@@ -40,6 +40,18 @@ function formatFullUkr(date, quoteDay = false) {
   const dayStr = quoteDay ? `"${String(dd).padStart(2, "0")}"` : dd;
   return `${dayStr} ${mm} ${yyyy} року`;
 }
+
+function chairNameWithFullInitials(value) {
+  const text = String(value || "").trim();
+  if (!text) return "";
+  const parts = text.split(/\s+/);
+  if (parts.length < 3) return text;
+  const lastName = parts[0];
+  const firstInitial = parts[1] ? `${parts[1][0]}.` : "";
+  const middleInitial = parts[2] ? `${parts[2][0]}.` : "";
+  return `${lastName} ${firstInitial}${middleInitial}`.trim();
+}
+
 function displayHomeInfo(homeCode) {
   hk=homeCode;
   var home = homes.find(function (h) {
@@ -262,18 +274,7 @@ function processFiles(files) {
         typeof replacements["головаfull"] === "string" &&
         replacements["головаfull"].trim() !== ""
       ) {
-        const parts = replacements["головаfull"].trim().split(/\s+/);
-
-        if (parts.length >= 2) {
-          const lastName = parts[0];
-          const firstInitial = parts[1] ? parts[1][0] + "." : "";
-          const middleInitial = parts[2] ? " " + parts[2][0] + "." : "";
-
-          replacements["голова"] =
-            `${lastName} ${firstInitial}${middleInitial}`.trim();
-        } else {
-          replacements["голова"] = replacements["головаfull"];
-        }
+        replacements["голова"] = chairNameWithFullInitials(replacements["головаfull"]);
       }
 
       /* =====================================================

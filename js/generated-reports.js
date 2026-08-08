@@ -442,7 +442,32 @@
     return Array.from(map.values());
   }
 
-  function collectSpendingRows(rawSpending, year, month) {
+  function collectPlatSpendingRows(platSrc, whatSrc, year, month) {
+    const rows = Array.isArray(platSrc?.[year]?.[month]) ? platSrc[year][month] : [];
+    const byPurpose = new Map();
+    rows.forEach(payment => {
+      if (!Array.isArray(payment)) return;
+      const credit = String(payment[6] || "");
+      const debit = String(payment[7] || "");
+      if (!/^31\d*/.test(credit)) return;
+      if (/^31\d*/.test(debit)) return;
+      const amount = Number(payment[1]);
+      if (!Number.isFinite(amount) || Math.abs(amount) <= EPS) return;
+      const purposeCode = String(payment[3] == null ? "" : payment[3]);
+      const name = String((whatSrc && whatSrc[purposeCode]) || "").trim() || `Послуга ${purposeCode || "без коду"}`;
+      const key = purposeCode || name;
+      const item = byPurpose.get(key) || { id: key, name, amount: 0 };
+      item.amount += Math.abs(amount);
+      byPurpose.set(key, item);
+    });
+    const resultRows = [...byPurpose.values()];
+    return {
+      rows: resultRows,
+      total: resultRows.reduce((sum, r) => sum + Math.abs(r.amount), 0)
+    };
+  }
+
+  function collectSpendingRows(rawSpending, year, month, options) {
     const payload = typeof parseSpendingPayload === "function"
       ? parseSpendingPayload(rawSpending)
       : { dict: {}, data: {} };
@@ -470,13 +495,16 @@
       rows.push({ id: idKey, name: name + suffix, amount });
       total += amount;
     });
+    if (!rows.length && options && options.plat) {
+      return collectPlatSpendingRows(options.plat, options.what, year, month);
+    }
     return { rows, total: Math.abs(total) };
   }
 
-  function averageMonthlySpending(rawSpending, months) {
+  function averageMonthlySpending(rawSpending, months, options) {
     const totals = [];
     months.forEach(({ year, month }) => {
-      const { total } = collectSpendingRows(rawSpending, year, month);
+      const { total } = collectSpendingRows(rawSpending, year, month, options);
       if (total > EPS) totals.push(total);
     });
     if (!totals.length) return 0;
@@ -505,9 +533,9 @@
     const months = listMonthsInRange(fromYm, toYm);
     const spendingByMonth = months.map(m => ({
       ...m,
-      ...collectSpendingRows(home.spending, m.year, m.month)
+      ...collectSpendingRows(home.spending, m.year, m.month, { plat: home.plat, what: home.what })
     }));
-    const avgSpend = averageMonthlySpending(home.spending, months);
+    const avgSpend = averageMonthlySpending(home.spending, months, { plat: home.plat, what: home.what });
 
     const positiveDebt = accounts.filter(a => a.debitEnd > EPS);
     const overpay = accounts.filter(a => a.debitEnd < -EPS);
@@ -825,9 +853,6 @@
       let pageNo = 0;
 
       if (!groups.length) {
-        const top = renderPageChrome(snap, title, subtitle, false);
-        const body = paymentsSummaryHtml(snap, { hideDetails }) + `<div class="gr-muted">Немає платежів за період.</div>`;
-        pages.push({ top, body });
         return pages;
       }
 
@@ -1010,15 +1035,24 @@
       .trim();
   }
 
+  function hasAccountReportActivity(a) {
+    return Math.abs(a.debitStart) > EPS ||
+      Math.abs(a.debitEnd) > EPS ||
+      Math.abs(a.chargesSum) > EPS ||
+      Math.abs(a.paymentsSum) > EPS;
+  }
+
   function renderAccountsDebtReport(snap) {
     const sortByDebtDesc = (a, b) => b.debitEnd - a.debitEnd;
-    const over12Debt = snap.accounts.filter(a => a.debitEnd > EPS && a.debtMonths > 12)
+    const accounts = snap.accounts.filter(hasAccountReportActivity);
+    if (!accounts.length) return "";
+    const over12Debt = accounts.filter(a => a.debitEnd > EPS && a.debtMonths > 12)
       .sort(sortByDebtDesc);
-    const longDebt = snap.accounts.filter(a => a.debitEnd > EPS && a.debtMonths > 3 && a.debtMonths <= 12)
+    const longDebt = accounts.filter(a => a.debitEnd > EPS && a.debtMonths > 3 && a.debtMonths <= 12)
       .sort(sortByDebtDesc);
-    const shortDebt = snap.accounts.filter(a => a.debitEnd > EPS && a.debtMonths <= 3)
+    const shortDebt = accounts.filter(a => a.debitEnd > EPS && a.debtMonths <= 3)
       .sort(sortByDebtDesc);
-    const over = snap.accounts.filter(a => a.debitEnd < -EPS)
+    const over = accounts.filter(a => a.debitEnd < -EPS)
       .sort((a, b) => a.debitEnd - b.debitEnd);
     const debtOver12Pct = snap.stats.apartments
       ? ((over12Debt.length / snap.stats.apartments) * 100).toFixed(1).replace(".", ",")
@@ -1075,7 +1109,7 @@
       return rows;
     }
 
-    const sumAll = (fn) => snap.accounts.reduce((s, a) => s + fn(a), 0);
+    const sumAll = (fn) => accounts.reduce((s, a) => s + fn(a), 0);
     const totalDebtChange = sumAll(a => a.debtChange);
     const rowHtmlList = [
       ...groupRows("БОРГ ПОНАД 12 МІСЯЦІВ", over12Debt, "danger"),
@@ -1150,6 +1184,7 @@
       a.debtMonths > 3 &&
       !hasToken(a.note, "NoDolg")
     );
+    if (!eligible.length) return "";
     const over12Debt = eligible.filter(a => a.debtMonths > 12).sort(sortByKv);
     const longDebt = eligible.filter(a => a.debtMonths > 3 && a.debtMonths <= 12).sort(sortByKv);
     const sumEligible = (fn) => eligible.reduce((s, a) => s + fn(a), 0);
@@ -1229,7 +1264,9 @@
 
   function renderAccountsPodsReport(snap) {
     const byPod = new Map();
-    snap.accounts.forEach(a => {
+    const activeAccounts = snap.accounts.filter(hasAccountReportActivity);
+    if (!activeAccounts.length) return "";
+    activeAccounts.forEach(a => {
       const pod = a.pod == null || a.pod === "" ? "—" : String(a.pod);
       if (!byPod.has(pod)) byPod.set(pod, []);
       byPod.get(pod).push(a);
@@ -1285,13 +1322,13 @@
 
     const after = `
       <div class="gr-formula-row">
-        <div class="gr-formula-card"><div class="gr-kpi-label">Борг на ${escapeHtml(formulaStartLbl)}</div><div class="gr-kpi-value ${debtClass(snap.accounts.reduce((s, a) => s + a.debitStart, 0))}">${moneySigned(snap.accounts.reduce((s, a) => s + a.debitStart, 0))}</div></div>
+        <div class="gr-formula-card"><div class="gr-kpi-label">Борг на ${escapeHtml(formulaStartLbl)}</div><div class="gr-kpi-value ${debtClass(activeAccounts.reduce((s, a) => s + a.debitStart, 0))}">${moneySigned(activeAccounts.reduce((s, a) => s + a.debitStart, 0))}</div></div>
         <div class="gr-formula-op">+</div>
-        <div class="gr-formula-card"><div class="gr-kpi-label">Нараховано</div><div class="gr-kpi-value">${money(snap.stats.totalCharges)}</div></div>
+        <div class="gr-formula-card"><div class="gr-kpi-label">Нараховано</div><div class="gr-kpi-value">${money(activeAccounts.reduce((s, a) => s + a.chargesSum, 0))}</div></div>
         <div class="gr-formula-op">−</div>
-        <div class="gr-formula-card"><div class="gr-kpi-label">Сплачено</div><div class="gr-kpi-value gr-pos">${money(snap.stats.totalPaid)}</div></div>
+        <div class="gr-formula-card"><div class="gr-kpi-label">Сплачено</div><div class="gr-kpi-value gr-pos">${money(activeAccounts.reduce((s, a) => s + a.paymentsSum, 0))}</div></div>
         <div class="gr-formula-op">=</div>
-        <div class="gr-formula-card"><div class="gr-kpi-label">Борг на ${escapeHtml(formulaEndLbl)}</div><div class="gr-kpi-value ${debtClass(snap.stats.netDebt)}">${moneySigned(snap.stats.netDebt)}</div></div>
+        <div class="gr-formula-card"><div class="gr-kpi-label">Борг на ${escapeHtml(formulaEndLbl)}</div><div class="gr-kpi-value ${debtClass(activeAccounts.reduce((s, a) => s + a.debitEnd, 0))}">${moneySigned(activeAccounts.reduce((s, a) => s + a.debitEnd, 0))}</div></div>
       </div>`;
 
     const subtitle = `<div class="gr-subtitle">по підʼїздах та квартирах у порядку зростання номерів</div>`;
@@ -1305,7 +1342,7 @@
 
   function renderAccountsOverpayReport(snap) {
     const items = snap.accounts
-      .filter(a => a.debitEnd <= EPS)
+      .filter(a => a.debitEnd <= EPS && (a.debitEnd < -EPS || hasAccountReportActivity(a)))
       .sort((a, b) => {
         const ka = parseKvNum(a.kv);
         const kb = parseKvNum(b.kv);
@@ -1317,6 +1354,7 @@
     const formulaEndLbl = endOfMonthLabel(snap.toYm.year, snap.toYm.month);
     const endShort = endOfMonthLabelShort(snap.toYm.year, snap.toYm.month);
     const overpayOnly = items.filter(a => a.debitEnd < -EPS);
+    if (!overpayOnly.length) return "";
     const zeroDebt = items.filter(a => Math.abs(a.debitEnd) <= EPS);
     const overpayTotal = overpayOnly.reduce((sum, a) => sum + Math.abs(a.debitEnd), 0);
 
@@ -1382,6 +1420,7 @@
 
   function renderSpendingList(spendingRows, total, fromYm, toYm, options) {
     const opts = options || {};
+    if (!spendingRows.length) return "";
     const desc = describePeriod(fromYm, toYm);
     const title = desc.kind === "month"
       ? `ВИТРАТИ БУДИНКУ ЗА ${MONTHS_UA_UPPER[fromYm.month - 1]} ${fromYm.year} р.`
@@ -1397,7 +1436,7 @@
     return `
       <div class="gr-spend-block ${cols === 2 ? "gr-spend-block-2col" : ""}">
         <div class="gr-section-title">${title}</div>
-        ${spendingRows.length ? `<div class="gr-spend-cols">${lines}</div>` : `<div class="gr-muted">Немає витрат за обраний період.</div>`}
+        <div class="gr-spend-cols">${lines}</div>
         ${opts.hideTotal ? "" : `<div class="gr-spend-total"><span>${totalLabel}</span> <strong>${money(total)} грн</strong></div>`}
       </div>
     `;
@@ -1430,8 +1469,13 @@
   }
 
   function fitPosterPage(snap, title, blocksFactory, spend) {
+    const hasSpending = !!(spend && spend.rows && spend.rows.length);
+    const hasDebtBlock = !!blocksFactory({ checkOnly: true });
+    if (!hasSpending && !hasDebtBlock) return "";
     const top = renderPageChrome(snap, title, "", false);
-    const baseRows = spend.rows.slice();
+    const baseRows = hasSpending ? spend.rows.slice() : [];
+    const spendingHtml = (attempt) => hasSpending ? renderSpendingList(attempt.rows, spend.total, snap.fromYm, snap.toYm, attempt) : "";
+    const calloutHtml = (attempt) => hasDebtBlock && !attempt.hideCallout ? renderCallout() : "";
     const attempts = [
       { columns: 1, hideCallout: false, hideTotal: false, rows: baseRows },
       { columns: 2, hideCallout: false, hideTotal: false, rows: baseRows },
@@ -1440,18 +1484,18 @@
     ];
     for (const attempt of attempts) {
       const body = blocksFactory(attempt)
-        + renderSpendingList(attempt.rows, spend.total, snap.fromYm, snap.toYm, attempt)
-        + (attempt.hideCallout ? "" : renderCallout());
+        + spendingHtml(attempt)
+        + calloutHtml(attempt);
       if (measureSheetOverflow(top, body).ok) return pagesToSheetsHtml([{ top, body, className: "gr-sheet-poster" }], snap);
     }
-    for (let maxRows = Math.max(1, baseRows.length - 1); maxRows >= 1; maxRows -= 1) {
+    for (let maxRows = Math.max(1, baseRows.length - 1); maxRows >= 1 && hasSpending; maxRows -= 1) {
       const attempt = { columns: 2, hideCallout: true, hideTotal: true, rows: aggregateSmallSpending(baseRows, maxRows) };
-      const body = blocksFactory(attempt) + renderSpendingList(attempt.rows, spend.total, snap.fromYm, snap.toYm, attempt);
+      const body = blocksFactory(attempt) + spendingHtml(attempt);
       if (measureSheetOverflow(top, body).ok || maxRows === 1) {
         return pagesToSheetsHtml([{ top, body, className: "gr-sheet-poster" }], snap);
       }
     }
-    return pagesToSheetsHtml([{ top, body: blocksFactory({}) + renderSpendingList([], spend.total, snap.fromYm, snap.toYm, { hideTotal: true }), className: "gr-sheet-poster" }], snap);
+    return pagesToSheetsHtml([{ top, body: blocksFactory({ hideCallout: true }) + spendingHtml({ rows: baseRows, hideTotal: true }), className: "gr-sheet-poster" }], snap);
   }
 
   function normalizeSpendingNameForMerge(name, shouldNormalize) {
@@ -1494,12 +1538,16 @@
       : "";
     const spend = mergeSpending(snap.spendingByMonth);
 
-    return fitPosterPage(snap, "БОРГИ СПІВВЛАСНИКІВ", () => `
+    return fitPosterPage(snap, "БОРГИ СПІВВЛАСНИКІВ", (opts) => {
+      if (!debtors.length) return "";
+      if (opts && opts.checkOnly) return true;
+      return `
       <div class="gr-poster-amount">${money(snap.stats.totalPositiveDebt)} <span>грн</span></div>
       <div class="gr-poster-ratio">${ratioText}</div>
       <div class="gr-black-bar">КВАРТИРИ ІЗ ЗАБОРГОВАНІСТЮ ПОНАД 6 МІСЯЦІВ</div>
       ${debtGridHtml(debtors, 5)}
-    `, spend);
+    `;
+    }, spend);
   }
 
   function renderPodPosters(snap) {
@@ -1522,14 +1570,18 @@
         .map(a => ({ kv: a.kv, amount: a.debitEnd }));
       const ratio = snap.avgSpend > EPS ? podDebt / snap.avgSpend : 0;
       const title = `ПІДʼЇЗД №${pod}`;
-      return fitPosterPage(snap, title, () => `
+      return fitPosterPage(snap, title, (opts) => {
+        if (!longDebt.length) return "";
+        if (opts && opts.checkOnly) return true;
+        return `
         <div class="gr-poster-caption">ЗАБОРГОВАНІСТЬ СПІВВЛАСНИКІВ ПІДʼЇЗДУ</div>
         <div class="gr-poster-amount">${money(podDebt)} <span>грн</span></div>
         <div class="gr-poster-ratio">${ratio > 0 ? `це майже <strong><u>${ratio.toFixed(1).replace(".", ",")}</u></strong> місяці поточних витрат будинку` : ""}</div>
         <div class="gr-black-bar">КВАРТИРИ ПІДʼЇЗДУ ІЗ ЗАБОРГОВАНІСТЮ ПОНАД 6 МІСЯЦІВ</div>
         ${podDebtGridHtml(longDebt, 5)}
         <div class="gr-building-debt">Загальна заборгованість будинку: <strong>${money(snap.stats.totalPositiveDebt)} грн</strong></div>
-      `, spend);
+      `;
+      }, spend);
     }).join("");
   }
 
@@ -1588,6 +1640,18 @@
   }
 
   function renderHomePicker(list) {
+    if (typeof renderMultiHomePicker === "function") {
+      return renderMultiHomePicker({
+        id: "gr-home-picker",
+        homes: list,
+        selectedCodes: grState.selectedCodes,
+        allSelected: grState.allHomes,
+        label: "Будинки",
+        placeholder: "Оберіть будинок…",
+        allLabel: "(Всі)",
+        searchPlaceholder: "Пошук будинку…"
+      });
+    }
     if (list.length <= 1) return "";
     const selectedLabel = grState.allHomes
       ? "(Всі)"
@@ -1643,6 +1707,24 @@
   }
 
   function bindHomePicker() {
+    if (typeof bindMultiHomePicker === "function") {
+      bindMultiHomePicker({
+        id: "gr-home-picker",
+        getHomes: availableHomes,
+        getSelection: () => ({
+          selectedCodes: grState.selectedCodes,
+          allSelected: grState.allHomes
+        }),
+        setSelection: (selectedCodes, allSelected) => {
+          grState.allHomes = !!allSelected;
+          grState.selectedCodes = allSelected ? [] : selectedCodes.slice();
+        },
+        placeholder: "Оберіть будинок…",
+        allLabel: "(Всі)",
+        searchPlaceholder: "Пошук будинку…"
+      });
+      return;
+    }
     const combo = document.getElementById("gr-combo");
     if (!combo) return;
     const toggle = document.getElementById("gr-combo-toggle");
