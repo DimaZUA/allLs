@@ -497,6 +497,8 @@ li.folder {
 .gr-table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 8px; }
 .gr-table th, .gr-table td { border: 1px solid #ccc; padding: 4px 6px; vertical-align: top; }
 .gr-table th { background: #eef2f7; text-align: left; }
+.gr-table th:nth-child(2),
+.gr-table td:nth-child(2) { text-align: left; }
 .gr-table .gr-amount-cell { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .gr-amount { font-variant-numeric: tabular-nums; white-space: nowrap; }
 .gr-apt-no {
@@ -522,6 +524,51 @@ li.folder {
 .gr-grand-total .gr-grand-neg,
 .gr-grand-total .gr-grand-pos { color: #fff; font-weight: 800; }
 .gr-pod-head td { background: #e8eef8; color: #1f4b7a; font-weight: 700; }
+.gr-debtor-detail td {
+  background: #fff;
+  padding: 4px 6px 7px;
+  border-top: 0;
+}
+.gr-debtors-kpi .gr-kpi { padding: 7px 8px; }
+.gr-table .gr-debtors-debt {
+  font-size: 12pt;
+  font-weight: 700;
+}
+.gr-debtor-extra {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  align-items: stretch;
+}
+.gr-debtor-meta,
+.gr-debtor-note {
+  border: 1px solid #d8dee8;
+  border-radius: 6px;
+  padding: 5px 7px;
+  line-height: 1.25;
+}
+.gr-debtor-meta {
+  display: flex;
+  flex: 1 1 220px;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px 8px;
+}
+.gr-dot { color: #666; }
+.gr-badge {
+  display: inline-block;
+  border: 1px solid #d8dee8;
+  border-radius: 5px;
+  background: #eef4fb;
+  color: #315f8f;
+  padding: 1px 7px;
+  font-size: 11px;
+}
+.gr-debtor-note {
+  flex: 2 1 320px;
+  border-left: 4px solid #1f5a9d;
+  background: #f8fafc;
+}
 /* Это комментарий
 .gr-pos { color: #027a48; font-weight: 600; }
 .gr-neg { color: #b42318; font-weight: 600; }
@@ -763,6 +810,10 @@ li.folder {
     padding: 4px 6px !important;
     line-height: normal !important;
   }
+  .gr-sheet .gr-table th:nth-child(2),
+  .gr-sheet .gr-table td:nth-child(2) {
+    text-align: left !important;
+  }
   .gr-sheet .gr-title { font-size: 22px !important; }
   .gr-sheet .gr-report-head {
     display: grid !important;
@@ -836,6 +887,16 @@ li.folder {
   .gr-sheet .gr-poster-caption,
   .gr-sheet .gr-spend-line { font-size: 13px !important; }
   .gr-sheet .gr-callout p { font-size: 20px !important; }
+  .gr-sheet .gr-callout,
+  .gr-sheet .gr-callout-mark {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  .gr-sheet .gr-callout-mark {
+    background: #111 !important;
+    color: #fff !important;
+    border: 1px solid #111 !important;
+  }
   .gr-sheet .gr-footer { font-size: 11px !important; }
   .gr-sheet .gr-apt-no {
     background: #d9f3f5 !important;
@@ -857,6 +918,15 @@ li.folder {
     print-color-adjust: exact;
     -webkit-print-color-adjust: exact;
   }
+  .gr-sheet .gr-badge,
+  .gr-sheet .gr-debtor-note {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  .gr-sheet .gr-badge {
+    background: #eef4fb !important;
+    color: #315f8f !important;
+  }
   .gr-sheet:last-child { break-after: auto; page-break-after: auto; }
   .gr-pos, .gr-neg { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
   .gr-tone-danger td,
@@ -866,7 +936,6 @@ li.folder {
     print-color-adjust: exact;
     -webkit-print-color-adjust: exact;
   }
-  .gr-pos { text-decoration: underline; }
   .gr-neg { font-weight: 800; }
   .gr-tone-danger td,
   .gr-tone-warn td,

@@ -8,6 +8,7 @@
     { id: "payments", title: "Реєстр платежів співвласників", fileRu: "Реестр_платежів", tabular: true },
     { id: "accountsPods", title: "Особові рахунки (по підʼїздах)", fileRu: "ОР по підїздаї", tabular: true },
     { id: "accountsDebt", title: "Особові рахунки (за боргом)", fileRu: "ОР по боргу", tabular: true },
+    { id: "debtorsList", title: "Список боржників", fileRu: "Список боржників", tabular: true },
     { id: "accountsOverpay", title: "Особові рахунки з переплатою", fileRu: "ОР з переплатою", tabular: true },
     { id: "debtsPoster", title: "Борги співвласників (об'ява)", fileRu: "Борг будинку", tabular: false },
     { id: "podPoster", title: "Борги підʼїзду (об'ява)", fileRu: "Підїзд", tabular: false }
@@ -496,6 +497,8 @@
       oplat: home.oplat
     }).map(a => ({
       ...a,
+      tel: (home.ls && home.ls[a.accountId] && home.ls[a.accountId].tel) || "",
+      email: (home.ls && home.ls[a.accountId] && home.ls[a.accountId].email) || "",
       note: (home.ls && home.ls[a.accountId] && home.ls[a.accountId].note) || ""
     }));
     const payments = collectPayments(home.oplat || {}, home.ls || {}, start, end);
@@ -978,14 +981,33 @@
     return `<span class="gr-pos">▼ ${money(Math.abs(n))}</span>`;
   }
 
+  function formatDebtMonths(months) {
+    const rounded = Math.round((Number(months) || 0) * 10) / 10;
+    const text = Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
+    return text.replace(".", ",");
+  }
+
   function monthsDebtHtml(months, debt) {
     if (debt < -EPS) {
-      return `<span class="gr-pos">${Number(months).toFixed(1)}</span>`;
+      return `<span class="gr-pos">${formatDebtMonths(months)}</span>`;
     }
     if (debt <= EPS) return `<span class="gr-muted">—</span>`;
     const m = Number(months) || 0;
-    if (m > 3) return `<span class="gr-neg">${m.toFixed(1)}+</span>`;
-    return String(m.toFixed(1));
+    if (m > 3) return `<span class="gr-neg">${formatDebtMonths(m)}</span>`;
+    return formatDebtMonths(m);
+  }
+
+  function hasToken(text, token) {
+    return String(text || "").toLowerCase().includes(String(token || "").toLowerCase());
+  }
+
+  function cleanAccountNote(note) {
+    return String(note || "")
+      .replace(/ЕРЦ\s*ЛС\s*:\s*\[\d*\]/giu, " ")
+      .replace(/NoDolg/gi, " ")
+      .replace(/NoKvit/gi, " ")
+      .replace(/\s+/g, " ")
+      .trim();
   }
 
   function renderAccountsDebtReport(snap) {
@@ -1111,6 +1133,95 @@
     const subtitle = `<div class="gr-subtitle gr-subtitle-accent">відсортовано за боргом (від більшого боргу до переплати)</div>`;
     const pages = packTableRowsIntoPages(snap, "ОСОБОВІ РАХУНКИ СПІВВЛАСНИКІВ", subtitle, thead, rowHtmlList, '', {
       firstPrefixHtml: kpi,
+      suffixMode: "last"
+    });
+    return pagesToSheetsHtml(pages, snap);
+  }
+
+  function renderDebtorsListReport(snap) {
+    const sortByKv = (a, b) => {
+      const ka = parseKvNum(a.kv);
+      const kb = parseKvNum(b.kv);
+      if (ka !== kb) return ka - kb;
+      return String(a.kv).localeCompare(String(b.kv), "uk");
+    };
+    const eligible = snap.accounts.filter(a =>
+      a.debitEnd > EPS &&
+      a.debtMonths > 3 &&
+      !hasToken(a.note, "NoDolg")
+    );
+    const over12Debt = eligible.filter(a => a.debtMonths > 12).sort(sortByKv);
+    const longDebt = eligible.filter(a => a.debtMonths > 3 && a.debtMonths <= 12).sort(sortByKv);
+    const sumEligible = (fn) => eligible.reduce((s, a) => s + fn(a), 0);
+    const totalDebtStart = sumEligible(a => a.debitStart);
+    const totalDebtEnd = sumEligible(a => a.debitEnd);
+    const debtDelta = totalDebtEnd - totalDebtStart;
+    const deltaClass = debtDelta > EPS ? "gr-neg" : (debtDelta < -EPS ? "gr-pos" : "");
+    const deltaLabel = debtDelta > EPS ? "Зріс" : (debtDelta < -EPS ? "Зменшився" : "Без змін");
+    const deltaPeriodLabel = snap.fromYm.year === snap.toYm.year && snap.fromYm.month === snap.toYm.month
+      ? "за місяць"
+      : "за період";
+
+    function detailRow(a) {
+      const note = cleanAccountNote(a.note);
+      const parts = [
+        a.tel ? `<span>Тел.: ${escapeHtml(a.tel)}</span>` : "",
+        a.email ? `<span>Email: ${escapeHtml(a.email)}</span>` : "",
+        hasToken(a.note, "NoKvit") ? `<span class="gr-badge">Без паперової квитанції</span>` : ""
+      ].filter(Boolean).join(`<span class="gr-dot">•</span>`);
+      const metaHtml = parts ? `<div class="gr-debtor-meta">${parts}</div>` : "";
+      const noteHtml = note ? `<div class="gr-debtor-note">${escapeHtml(note)}</div>` : "";
+      if (!metaHtml && !noteHtml) return "";
+      return `<tr class="gr-debtor-detail"><td colspan="6"><div class="gr-debtor-extra">${noteHtml}${metaHtml}</div></td></tr>`;
+    }
+
+    function accountRows(a, idx) {
+      return `<tr class="${idx % 2 ? "gr-zebra" : ""}">
+        <td>${apartmentHtml(a.kv)}</td>
+        <td>${escapeHtml(a.fio)}</td>
+        ${amountCell(a.chargesSum)}
+        ${a.paymentsSum > EPS ? amountCell(a.paymentsSum, money(a.paymentsSum), "gr-pos") : `<td class="gr-amount-cell">—</td>`}
+        ${amountCell(a.debitEnd, moneySigned(a.debitEnd), `gr-debtors-debt ${debtClass(a.debitEnd)}`)}
+        <td>${monthsDebtHtml(a.debtMonths, a.debitEnd)}</td>
+      </tr>${detailRow(a)}`;
+    }
+
+    function groupRows(title, items, tone) {
+      if (!items.length) return [];
+      const sum = (fn) => items.reduce((s, a) => s + fn(a), 0);
+      const rows = [
+        `<tr class="gr-group-head gr-tone-${tone}"><td colspan="6">${escapeHtml(title)} (${items.length} квартир)</td></tr>`
+      ];
+      items.forEach((a, idx) => rows.push(accountRows(a, idx)));
+      rows.push(`<tr class="gr-group-total">
+        <td colspan="2">Разом по групі:</td>
+        ${amountCell(sum(a => a.chargesSum))}
+        ${amountCell(sum(a => a.paymentsSum), money(sum(a => a.paymentsSum)), "gr-pos")}
+        ${amountCell(sum(a => a.debitEnd), moneySigned(sum(a => a.debitEnd)), `gr-debtors-debt ${debtClass(sum(a => a.debitEnd))}`)}
+        <td></td>
+      </tr>`);
+      return rows;
+    }
+
+    const endShort = endOfMonthLabelShort(snap.toYm.year, snap.toYm.month);
+    const rowHtmlList = [
+      ...groupRows("БОРГ ПОНАД 12 МІСЯЦІВ", over12Debt, "danger"),
+      ...groupRows("БОРГ ПОНАД 3 МІСЯЦІ", longDebt, "warn")
+    ];
+    const thead = `<tr>
+      <th>Кв.</th><th>П.І.Б. власника</th><th>Нараховано</th><th>Сплачено</th>
+      <th>Борг на ${escapeHtml(endShort)}</th><th>Місяців</th>
+    </tr>`;
+    const subtitle = `<div class="gr-subtitle gr-subtitle-accent">рахунки з боргом понад 3 місяці</div>`;
+    const summaryHtml = `<div class="gr-kpi-row gr-kpi-row-5 gr-debtors-kpi">
+      <div class="gr-kpi"><div class="gr-kpi-label">Боржників у звіті</div><div class="gr-kpi-value gr-neg">${eligible.length} квартир</div></div>
+      <div class="gr-kpi"><div class="gr-kpi-label">Борг понад 12 міс.</div><div class="gr-kpi-value gr-neg">${money(over12Debt.reduce((s, a) => s + a.debitEnd, 0))} грн</div></div>
+      <div class="gr-kpi"><div class="gr-kpi-label">Борг 3-12 міс.</div><div class="gr-kpi-value gr-neg">${money(longDebt.reduce((s, a) => s + a.debitEnd, 0))} грн</div></div>
+      <div class="gr-kpi"><div class="gr-kpi-label">Борг на ${escapeHtml(endShort)}</div><div class="gr-kpi-value gr-neg">${money(totalDebtEnd)} грн</div></div>
+      <div class="gr-kpi"><div class="gr-kpi-label">${deltaLabel} ${deltaPeriodLabel}</div><div class="gr-kpi-value ${deltaClass}">${moneySigned(debtDelta)} грн</div></div>
+    </div>`;
+    const pages = packTableRowsIntoPages(snap, "СПИСОК БОРЖНИКІВ", subtitle, thead, rowHtmlList, "", {
+      firstPrefixHtml: summaryHtml,
       suffixMode: "last"
     });
     return pagesToSheetsHtml(pages, snap);
@@ -1426,6 +1537,7 @@
     switch (typeId) {
       case "payments": return renderPaymentsReport(snap);
       case "accountsDebt": return renderAccountsDebtReport(snap);
+      case "debtorsList": return renderDebtorsListReport(snap);
       case "accountsPods": return renderAccountsPodsReport(snap);
       case "accountsOverpay": return renderAccountsOverpayReport(snap);
       case "debtsPoster": return renderDebtsPoster(snap);
@@ -1647,6 +1759,7 @@
         <div class="gr-combo" id="gr-report-combo">
           <button type="button" class="gr-combo-toggle" id="gr-report-toggle">${escapeHtml(selectedLabel)}</button>
           <div class="gr-combo-panel" id="gr-report-panel" hidden>
+            <input type="search" class="gr-combo-search" id="gr-report-search" placeholder="Пошук звіту…" autocomplete="off">
             <div class="gr-combo-list" id="gr-report-list"></div>
           </div>
         </div>
@@ -1654,12 +1767,14 @@
     `;
   }
 
-  function fillReportList() {
+  function fillReportList(filterText) {
     const listEl = document.getElementById("gr-report-list");
     if (!listEl) return;
+    const q = String(filterText || "").trim().toLowerCase();
+    const reports = REPORT_TYPES.filter(t => !q || String(t.title).toLowerCase().includes(q));
     const items = [
       { id: "__ALL__", title: "(Всі)", checked: grState.allTypes }
-    ].concat(REPORT_TYPES.map(t => ({
+    ].concat(reports.map(t => ({
       id: t.id,
       title: t.title,
       checked: !grState.allTypes && grState.selectedTypeIds.includes(t.id)
@@ -1689,16 +1804,20 @@
     if (!combo) return;
     const toggle = document.getElementById("gr-report-toggle");
     const panel = document.getElementById("gr-report-panel");
+    const search = document.getElementById("gr-report-search");
 
     toggle.addEventListener("click", () => {
       const open = panel.hasAttribute("hidden");
       if (open) {
         panel.removeAttribute("hidden");
-        fillReportList();
+        fillReportList(search.value);
+        search.focus();
       } else {
         panel.setAttribute("hidden", "");
       }
     });
+
+    search.addEventListener("input", () => fillReportList(search.value));
 
     document.getElementById("gr-report-list").addEventListener("change", (e) => {
       const input = e.target.closest("input[data-report-id]");
@@ -1715,7 +1834,7 @@
           grState.selectedTypeIds = grState.selectedTypeIds.filter(v => v !== id);
         }
       }
-      fillReportList();
+      fillReportList(search.value);
       syncReportToggleLabel();
       updateExcelVisibility();
     });
