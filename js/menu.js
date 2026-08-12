@@ -57,7 +57,7 @@ function activateMenuFromParams() {
   if (!homes || homes.length === 0) return;
   if (!homeCode || !actionCode) return;
 
-  if (actionCode === "outgoingDocuments" || actionCode === "meetingProtocols") {
+  if (actionCode === "outgoingDocuments" || actionCode === "meetingProtocols" || actionCode === "globalReports") {
     const documentsSpan = document.querySelector(
       `[data-code="${homeCode}"] ul span[data-action="reports"]`
     );
@@ -193,9 +193,19 @@ function runActionForHome(homeCode, actionCode) {
     case "payments": initPayTable(); break;
     case "bank": initBankTable(); break;
     case "reports": reportsInit(homeCode); break;
-    case "globalReports": renderGlobalReports(); break;
-    case "outgoingDocuments": openOutgoingDocuments(homeCode); break;
-    case "meetingProtocols": openMeetingProtocols(homeCode); break;
+    case "globalReports":
+      if (typeof GrCommon !== "undefined" && GrCommon.ensureDocumentsSidebar) GrCommon.ensureDocumentsSidebar(homeCode);
+      else if (typeof reportsInit === "function") reportsInit(homeCode);
+      if (typeof renderGlobalReports === "function") renderGlobalReports();
+      break;
+    case "outgoingDocuments":
+      if (typeof GrCommon !== "undefined" && GrCommon.ensureDocumentsSidebar) GrCommon.ensureDocumentsSidebar(homeCode);
+      openOutgoingDocuments(homeCode);
+      break;
+    case "meetingProtocols":
+      if (typeof GrCommon !== "undefined" && GrCommon.ensureDocumentsSidebar) GrCommon.ensureDocumentsSidebar(homeCode);
+      openMeetingProtocols(homeCode);
+      break;
     case "info": displayHomeInfo(homeCode); break;
     case "schema": initSchema(); break;
     case "debitorka": initDashboard(); break;
@@ -285,7 +295,7 @@ async function handleMenuClick(homeCode, actionCode, actionLink, { fromHistory =
     return;
   }
 
-  if ((actionCode === "reports" || actionCode === "outgoingDocuments" || actionCode === "meetingProtocols") && !navigator.onLine) {
+  if ((actionCode === "reports" || actionCode === "globalReports" || actionCode === "outgoingDocuments" || actionCode === "meetingProtocols") && !navigator.onLine) {
     showMessage("Розділ 'Документи' доступний лише при наявності інтернету.", "err", 5000);
     handleMenuClick.isLoading = false;
     return;

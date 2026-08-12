@@ -347,12 +347,20 @@ function getFileToOpen(fileList) {
 }
 
 function addGeneratedReportsLi(ul) {
-    if (typeof handleMenuClick !== "function" || typeof GLOBAL_REPORTS_CODE === "undefined") return;
+    if (typeof handleMenuClick !== "function") return;
     const li = document.createElement("li");
-    li.className = "file reports-entry";
+    li.className = "file reports-entry generated-reports-entry";
     li.textContent = "Звіти";
     li.onclick = () => {
-        handleMenuClick(GLOBAL_REPORTS_CODE, "globalReports", li);
+        const targetHomeCode = homeCode || (typeof activeHomeCode !== "undefined" ? activeHomeCode : "");
+        if (typeof activeActionCode !== "undefined") activeActionCode = "globalReports";
+        if (typeof history !== "undefined" && targetHomeCode) {
+            const url = new URL(window.location.href);
+            url.searchParams.set("homeCode", targetHomeCode);
+            url.searchParams.set("actionCode", "globalReports");
+            history.pushState({}, "", url);
+        }
+        handleMenuClick(targetHomeCode, "globalReports", li);
     };
     ul.appendChild(li);
 }

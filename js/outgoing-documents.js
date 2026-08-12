@@ -21,7 +21,8 @@
     editorDirty: false,
     previewBack: null,
     editorHomeCodes: [],
-    editorDocIdsByHome: {}
+    editorDocIdsByHome: {},
+    editorAccountId: ""
   };
 
   function escapeHtml(value) {
@@ -98,7 +99,7 @@
     return {};
   }
 
-  function buildReplacementMap(homeMeta) {
+  function buildReplacementMap(homeMeta, accountId, doc) {
     const menuHome = getHomeByCode(homeMeta && homeMeta.code) || {};
     const source = Object.assign({}, homeMeta || {}, menuHome || {});
     source.org = source.org || source.name || "";
@@ -114,6 +115,14 @@
     map.okpo = map.okpo || map.code || source.okpo || "";
     map["сегодня"] = map["сегодня"] || source["сегодня"];
     map["голова"] = chairNameWithFullInitials(map["головаfull"] || source["головаfull"] || source["голова"] || map["голова"]);
+    const lsSource = source.ls || {};
+    const lsItem = accountId && lsSource ? lsSource[accountId] : null;
+    if (lsItem && window.GrCommon && GrCommon.buildLsPlaceholders) {
+      const d = new Date((doc && doc.doc_date) || Date.now());
+      const start = new Date(d.getFullYear(), d.getMonth(), 1, 12);
+      const end = new Date(d.getFullYear(), d.getMonth() + 1, 0, 12);
+      Object.assign(map, GrCommon.buildLsPlaceholders(lsItem, accountId, source, start, end));
+    }
     return map;
   }
 
@@ -427,7 +436,7 @@
   async function renderDocumentPages(doc) {
     const homeData = await ensureHomeData(doc.home_code);
     const home = Object.assign({}, homeData || {}, getHomeByCode(doc.home_code) || {}, { code: doc.home_code });
-    const replacements = buildReplacementMap(home);
+    const replacements = buildReplacementMap(home, doc.account_id || state.editorAccountId, doc);
     const bodyBlocks = parseDocumentText(doc.body || "", replacements);
     const signatureBlocks = parseDocumentText(getDocSignature(doc), replacements);
     const recipientText = replaceKnownPlaceholders(doc.recipient || "", replacements);
@@ -447,7 +456,12 @@
         <button type="button" class="gr-page-action" data-od-edit="${escapeHtml(doc.id)}" title="Редагувати">✎</button>
         <button type="button" class="gr-page-action" data-od-download="${escapeHtml(doc.id)}" title="Скачати Word">Word</button>
       </div>
-      ${pages.map((items, index) => renderDocumentSheet(doc, ctx, items, { continued: index > 0 })).join("")}
+      ${pages.map((items, index) => `
+        <div class="gr-sheet-wrap">
+          ${renderDocumentSheet(doc, ctx, items, { continued: index > 0 })}
+          ${window.GrCommon ? GrCommon.renderPageActionsHtml(index) : ""}
+        </div>
+      `).join("")}
     `;
   }
 
@@ -607,6 +621,29 @@
     });
   }
 
+  function homeDataForEditorAccount(code) {
+    const key = String(code || "");
+    return (window.homeData && window.homeData[key])
+      || (key && String(activeHomeCode || "") === key ? { ls, nach, oplat } : null)
+      || null;
+  }
+
+  function renderAccountPicker(item) {
+    const codes = state.editorHomeCodes.length ? state.editorHomeCodes : [item.home_code].filter(Boolean);
+    if (codes.length !== 1) return "";
+    const code = codes[0];
+    const home = homeDataForEditorAccount(code);
+    const rows = Object.entries((home && home.ls) || {})
+      .map(([id, row]) => ({ id, row: row || {} }))
+      .sort((a, b) => (Number(a.row.kv) || 0) - (Number(b.row.kv) || 0) || String(a.row.kv || "").localeCompare(String(b.row.kv || ""), "uk"));
+    if (!rows.length) return "";
+    const selected = item.account_id || state.editorAccountId || "";
+    return `<label class="od-account-field">Особовий рахунок<select name="account_id">
+      <option value="">Не вибрано</option>
+      ${rows.map(({ id, row }) => `<option value="${escapeHtml(id)}" ${String(id) === String(selected) ? "selected" : ""}>кв. ${escapeHtml(row.kv || "")} - ${escapeHtml(row.fio || row.ls || id)}</option>`).join("")}
+    </select></label>`;
+  }
+
   function renderEditor(doc, options) {
     const opts = options || {};
     const isNew = !doc || !doc.id;
@@ -621,6 +658,7 @@
       summary: "",
       body: "",
       signature_text: DEFAULT_SIGNATURE_TEXT,
+      account_id: "",
       is_draft: true
     };
     if (isNew && item.home_code && !item.doc_number) {
@@ -632,6 +670,7 @@
       if (d.id && d.home_code) state.editorDocIdsByHome[String(d.home_code)] = String(d.id);
     });
     const homeField = renderEditorHomePicker();
+    state.editorAccountId = String(item.account_id || "");
     return `
       <div class="gr-app od-app">
         <div class="od-editor">
@@ -647,12 +686,13 @@
           <form data-od-form data-od-id="${escapeHtml(item.id || "")}" data-od-draft="${item.is_draft ? "true" : "false"}">
             <div class="od-editor-grid">
               ${homeField}
+              ${renderAccountPicker(item)}
               <label>Дата<input type="date" name="doc_date" value="${escapeHtml(shortDate(item.doc_date))}"></label>
               <label>Номер<input name="doc_number" value="${escapeHtml(item.doc_number || "")}"></label>
-              <label>Кому<textarea name="recipient" rows="3">${escapeHtml(item.recipient || "")}</textarea></label>
+              <label class="gr-ph-field">Кому<button type="button" class="gr-ph-btn" data-gr-ph-picker title="Вставити placeholder">⋯</button><textarea name="recipient" rows="3">${escapeHtml(item.recipient || "")}</textarea></label>
               <label class="od-editor-summary">Короткий опис<input name="summary" value="${escapeHtml(item.summary || "")}"></label>
-              <label class="od-editor-body">Текст<textarea name="body" rows="22">${escapeHtml(item.body || "")}</textarea></label>
-              <label class="od-editor-signature">Підпис<textarea name="signature_text" rows="4">${escapeHtml(getDocSignature(item))}</textarea></label>
+              <label class="od-editor-body gr-ph-field">Текст<button type="button" class="gr-ph-btn" data-gr-ph-picker title="Вставити placeholder">⋯</button><textarea name="body" rows="22">${escapeHtml(item.body || "")}</textarea></label>
+              <label class="od-editor-signature gr-ph-field">Підпис<button type="button" class="gr-ph-btn" data-gr-ph-picker title="Вставити placeholder">⋯</button><textarea name="signature_text" rows="4">${escapeHtml(getDocSignature(item))}</textarea></label>
             </div>
           </form>
         </div>
@@ -668,11 +708,26 @@
     const container = getContainer();
     if (container) container.innerHTML = html;
     bindEvents();
+    if (window.GrCommon) {
+      GrCommon.initPlaceholderPicker(container, currentEditorPlaceholderCatalog);
+      GrCommon.initPlaceholderHint(container);
+    }
     if (window.lucide && typeof window.lucide.createIcons === "function") window.lucide.createIcons();
   }
 
   function refreshIcons() {
     if (window.lucide && typeof window.lucide.createIcons === "function") window.lucide.createIcons();
+  }
+
+  function currentEditorPlaceholderCatalog() {
+    if (!window.GrCommon || !GrCommon.defaultPlaceholderCatalog) return [];
+    const form = document.querySelector("[data-od-form]");
+    const code = selectedEditorHomeCodes()[0] || form?.querySelector('[name="home_code"]')?.value || activeHomeCode || "";
+    const home = homeDataForEditorAccount(code) || {};
+    const homeMeta = Object.assign({}, home, getHomeByCode(code) || {}, { code });
+    const accountId = form?.querySelector('[name="account_id"]')?.value || state.editorAccountId || "";
+    const lsItem = accountId && home.ls ? home.ls[accountId] : null;
+    return GrCommon.defaultPlaceholderCatalog(homeMeta, lsItem);
   }
 
   async function loadDocs() {
@@ -728,7 +783,12 @@
     state.previewBack = options && options.returnToEditor ? { mode: "editor", docs: list.slice() } : null;
     const htmlParts = [];
     for (const doc of list) htmlParts.push(await renderDocumentPages(doc));
-    render(`<div class="gr-app od-preview-app"><div class="od-preview-tools no-print"><button type="button" class="gr-btn" data-od-back>Назад</button></div><div class="gr-output od-output">${htmlParts.join("")}</div></div>`);
+    render(`<div class="gr-app od-preview-app"><div class="od-preview-tools no-print"><button type="button" class="gr-btn" data-od-back>Назад</button><button type="button" class="gr-btn" data-od-print>Друк</button><button type="button" class="gr-btn" data-od-pdf>PDF</button></div><div class="gr-output od-output">${htmlParts.join("")}</div></div>`);
+    const out = document.querySelector(".od-output");
+    if (window.GrCommon && out) {
+      GrCommon.renumberSheetActions(out);
+      GrCommon.bindPageActions(out);
+    }
   }
 
   async function showDoc(id, options) {
@@ -760,7 +820,8 @@
       recipient: String(fd.get("recipient") || ""),
       summary: String(fd.get("summary") || ""),
       body: String(fd.get("body") || ""),
-      signature_text: String(fd.get("signature_text") || "")
+      signature_text: String(fd.get("signature_text") || ""),
+      account_id: String(fd.get("account_id") || "")
     };
   }
 
@@ -829,6 +890,7 @@
     if (!form) return null;
     const id = form.dataset.odId || "";
     const basePayload = editorPayload(form);
+    state.editorAccountId = basePayload.account_id || "";
     const homeCodes = Array.from(new Set(editorHomeCodesFromForm(form))).filter(Boolean);
     if (!homeCodes.length || homeCodes.some(code => !canEditHome(code))) {
       show("Немає прав на зміну документів вибраних будинків", "warn");
@@ -933,6 +995,23 @@
     render(renderEditor(doc));
   }
 
+  function previewSheets() {
+    return Array.from(document.querySelectorAll(".od-output .gr-sheet"));
+  }
+
+  function printPreviewDocs() {
+    if (window.GrCommon) GrCommon.printSheets(".od-output");
+    else window.print();
+  }
+
+  async function downloadPreviewPdf() {
+    const sheets = previewSheets();
+    if (!sheets.length) return;
+    const doc = state.currentDoc || {};
+    const name = `${filePart(doc.doc_number || doc.summary || "document")}.pdf`;
+    if (window.GrCommon) await GrCommon.downloadPdfFromSheets(sheets, name);
+  }
+
   function updateNumberOnHomeChange(select) {
     const form = select.closest("[data-od-form]");
     if (!form) return;
@@ -986,6 +1065,7 @@
         },
         onChange: () => {
           updateEditorNumberForSelection();
+          refreshEditorAccountPicker(container);
           markEditorDirty();
         },
         placeholder: "Оберіть будинок…",
@@ -998,6 +1078,7 @@
       select.addEventListener("change", function () {
         state.editorHomeCodes = Array.from(select.selectedOptions).map(o => String(o.value));
         updateEditorNumberForSelection();
+        refreshEditorAccountPicker(container);
         markEditorDirty();
       });
     }
@@ -1010,6 +1091,22 @@
     if (!input) return;
     const codes = selectedEditorHomeCodes();
     if (codes.length === 1) input.value = String(maxNumberForHome(codes[0], form.dataset.odId || "") + 1);
+  }
+
+  function refreshEditorAccountPicker(container) {
+    const form = container.querySelector("[data-od-form]");
+    const grid = form && form.querySelector(".od-editor-grid");
+    if (!grid) return;
+    const existing = grid.querySelector(".od-account-field");
+    if (existing) existing.remove();
+    state.editorAccountId = "";
+    const codes = selectedEditorHomeCodes();
+    if (codes.length !== 1) return;
+    const html = renderAccountPicker({ home_code: codes[0], account_id: "" });
+    if (!html) return;
+    const homeField = grid.querySelector("#od-editor-home-picker") || grid.querySelector('[name="home_code"]')?.closest("label");
+    if (homeField) homeField.insertAdjacentHTML("afterend", html);
+    else grid.insertAdjacentHTML("afterbegin", html);
   }
 
   function bindEvents() {
@@ -1034,6 +1131,10 @@
     if (add) add.addEventListener("click", newDoc);
     const back = container.querySelector("[data-od-back], [data-od-cancel]");
     if (back) back.addEventListener("click", handleBack);
+    const print = container.querySelector("[data-od-print]");
+    if (print) print.addEventListener("click", printPreviewDocs);
+    const pdf = container.querySelector("[data-od-pdf]");
+    if (pdf) pdf.addEventListener("click", downloadPreviewPdf);
     const save = container.querySelector("[data-od-save]");
     if (save) save.addEventListener("click", saveForm);
     const editorShow = container.querySelector("[data-od-editor-show]");
@@ -1047,7 +1148,12 @@
     const editorForm = container.querySelector("[data-od-form]");
     if (editorForm) {
       editorForm.addEventListener("input", markEditorDirty);
-      editorForm.addEventListener("change", markEditorDirty);
+      editorForm.addEventListener("change", event => {
+        if (event.target && event.target.name === "account_id") {
+          state.editorAccountId = event.target.value || "";
+        }
+        markEditorDirty();
+      });
     }
   }
 

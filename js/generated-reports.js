@@ -40,6 +40,7 @@
     allHomes: false,
     selectedTypeIds: ["payments"],
     allTypes: false,
+    compact: false,
     lastPages: [],
     lastMeta: null
   };
@@ -515,6 +516,45 @@
     if (typeof fillMissingDates === "function") fillMissingDates(home.nach);
   }
 
+  function sumAccountTargetCharges(srcNach, accountId, start, end) {
+    let total = 0;
+    const byYear = srcNach && srcNach[accountId];
+    if (!byYear) return total;
+    for (const year in byYear) {
+      for (const month in byYear[year]) {
+        const date = new Date(year, month - 1, 1, 12);
+        if (date < start || date > end) continue;
+        const byService = byYear[year][month] || {};
+        total += Number(byService[10] || byService["10"] || 0) || 0;
+      }
+    }
+    return total;
+  }
+
+  function collectTargetContributionNotes(home, fromYm, toYm) {
+    const rows = Array.isArray(window.tarifs)
+      ? window.tarifs
+      : (window.tarifs && typeof window.tarifs === "object" ? Object.values(window.tarifs) : []);
+    const fromKey = fromYm.year * 12 + fromYm.month;
+    const toKey = toYm.year * 12 + toYm.month;
+    const notes = [];
+    rows.forEach(row => {
+      if (!row || typeof row !== "object") return;
+      if (String(row.us || "").trim() !== "10") return;
+      const year = Number(row.year);
+      const month = Number(row.month);
+      const key = year * 12 + month;
+      if (!Number.isFinite(key) || key < fromKey || key > toKey) return;
+      const rawNote = String(row.note || "").trim().replace(/\s+/g, " ");
+      const note = rawNote || "цільовий внесок";
+      const amount = Number(row.tarif);
+      const amountText = Number.isFinite(amount) && amount > 0 ? ` в розмірі ${money(amount)} грн` : "";
+      const label = `${MONTHS_UA_FULL[month - 1] || String(month)} ${year} р.: ${note}${amountText}`;
+      if (!notes.includes(label)) notes.push(label);
+    });
+    return notes;
+  }
+
   function buildHomeSnapshot(home, homeMeta, fromYm, toYm) {
     const start = monthStart(fromYm.year, fromYm.month);
     const end = monthEnd(toYm.year, toYm.month);
@@ -525,6 +565,8 @@
       oplat: home.oplat
     }).map(a => ({
       ...a,
+      targetChargesSum: sumAccountTargetCharges(home.nach, a.accountId, start, end),
+      regularChargesSum: a.chargesSum - sumAccountTargetCharges(home.nach, a.accountId, start, end),
       tel: (home.ls && home.ls[a.accountId] && home.ls[a.accountId].tel) || "",
       email: (home.ls && home.ls[a.accountId] && home.ls[a.accountId].email) || "",
       note: (home.ls && home.ls[a.accountId] && home.ls[a.accountId].note) || ""
@@ -560,6 +602,7 @@
       payments,
       paymentGroups: groupPaymentsByApartment(payments),
       spendingByMonth,
+      targetContributionNotes: collectTargetContributionNotes(home, fromYm, toYm),
       avgSpend,
       stats: {
         apartments: accounts.length,
@@ -695,7 +738,8 @@
   function estimatePaymentGroupWeight(g) {
     const nameLines = Math.max(1, Math.ceil(String(g.fio || "").length / 31));
     const paymentCount = Array.isArray(g.payments) ? g.payments.length : 0;
-    return nameLines + paymentCount + (paymentCount > 1 ? 1 : 0) + 0.7;
+    const weight = nameLines + paymentCount + (paymentCount > 1 ? 1 : 0) + 0.7;
+    return grState.compact ? weight * 0.78 : weight;
   }
 
   function payGridHtml(groups) {
@@ -750,6 +794,7 @@
       host.setAttribute("aria-hidden", "true");
       document.body.appendChild(host);
     }
+    host.classList.toggle("gr-compact-output", !!grState.compact);
     host.innerHTML = "";
     return host;
   }
@@ -900,14 +945,17 @@
   }
 
   function packTableRowsIntoPages(snap, title, subtitleHtml, theadHtml, rowHtmlList, afterFirstHtml, options) {
+    const opts = options || {};
     const pages = [];
     let offset = 0;
     let pageNo = 0;
-    const firstPrefixHtml = (options && options.firstPrefixHtml) || "";
-    const suffixMode = (options && options.suffixMode) || "last";
-    const skipOrphanSuffix = !!(options && options.skipOrphanSuffix);
+    const firstPrefixHtml = opts.firstPrefixHtml || "";
+    const suffixMode = opts.suffixMode || "last";
+    const skipOrphanSuffix = !!opts.skipOrphanSuffix;
+    const tableClass = opts.tableClass || "";
+    const autoDropBlocks = opts.autoDropBlocks !== false && !opts._packingWithoutBlocks;
     const makeTable = (rowsHtml) =>
-      `<table class="gr-table"><thead>${theadHtml}</thead><tbody>${rowsHtml}</tbody></table>`;
+      `<table class="gr-table ${escapeHtml(tableClass)}"><thead>${theadHtml}</thead><tbody>${rowsHtml}</tbody></table>`;
 
     if (!rowHtmlList.length) {
       pages.push({
@@ -936,6 +984,13 @@
         }
       }
       if (best < 1) best = 1;
+      if (
+        best > 1 &&
+        offset + best < rowHtmlList.length &&
+        /class=["'][^"']*\bgr-(?:group|pod)-head\b/.test(rowHtmlList[offset + best - 1])
+      ) {
+        best -= 1;
+      }
       let rowsHtml = rowHtmlList.slice(offset, offset + best).join("");
       if (!measureSheetOverflow(top, prefix + makeTable(rowsHtml) + suffix).ok && best > 1) {
         best -= 1;
@@ -951,12 +1006,19 @@
       const last = pages[pages.length - 1];
       if (last && measureSheetOverflow(last.top, last.body + afterFirstHtml).ok) {
         last.body += afterFirstHtml;
-      } else if (!skipOrphanSuffix) {
+      } else if (!skipOrphanSuffix && !autoDropBlocks) {
         pages.push({
           top: renderPageChrome(snap, title, subtitleHtml, true),
           body: afterFirstHtml
         });
       }
+    }
+    if (autoDropBlocks && firstPrefixHtml && rowHtmlList.length) {
+      const withoutPrefix = packTableRowsIntoPages(snap, title, subtitleHtml, theadHtml, rowHtmlList, afterFirstHtml, Object.assign({}, opts, {
+        firstPrefixHtml: "",
+        _packingWithoutBlocks: true
+      }));
+      if (withoutPrefix.length < pages.length) return withoutPrefix;
     }
     return pages;
   }
@@ -1042,10 +1104,25 @@
       Math.abs(a.paymentsSum) > EPS;
   }
 
+  function hasTargetContributions(accounts) {
+    return (accounts || []).some(a => Math.abs(a.targetChargesSum || 0) > EPS);
+  }
+
+  function targetNotesHtml(snap) {
+    const notes = (snap && snap.targetContributionNotes) || [];
+    if (!notes.length) return "";
+    return `<div class="gr-target-notes">
+      <strong>Цільові внески:</strong>
+      ${notes.map(note => `<div>${escapeHtml(note)}</div>`).join("")}
+    </div>`;
+  }
+
   function renderAccountsDebtReport(snap) {
     const sortByDebtDesc = (a, b) => b.debitEnd - a.debitEnd;
     const accounts = snap.accounts.filter(hasAccountReportActivity);
     if (!accounts.length) return "";
+    const showTarget = hasTargetContributions(accounts);
+    const tableCols = showTarget ? 9 : 8;
     const over12Debt = accounts.filter(a => a.debitEnd > EPS && a.debtMonths > 12)
       .sort(sortByDebtDesc);
     const longDebt = accounts.filter(a => a.debitEnd > EPS && a.debtMonths > 3 && a.debtMonths <= 12)
@@ -1082,11 +1159,11 @@
         <td>${escapeHtml(a.fio)}</td>
         <td>${a.pers || 0} / ${String(a.pl).replace(".", ",")}</td>
         ${amountCell(a.debitStart, moneySigned(a.debitStart), debtClass(a.debitStart))}
-        ${amountCell(a.chargesSum)}
+        ${amountCell(a.regularChargesSum)}
+        ${showTarget ? amountCell(a.targetChargesSum) : ""}
         ${a.paymentsSum > EPS ? amountCell(a.paymentsSum, paid, "gr-pos") : `<td class="gr-amount-cell"><span class="gr-neg">—</span></td>`}
         ${amountCell(a.debitEnd, moneySigned(a.debitEnd), debtClass(a.debitEnd))}
         <td>${monthsDebtHtml(a.debtMonths, a.debitEnd)}</td>
-        ${amountCell(a.debtChange, changeHtml(a.debtChange))}
       </tr>`;
     }
 
@@ -1094,17 +1171,17 @@
       if (!items.length) return [];
       const sum = (fn) => items.reduce((s, a) => s + fn(a), 0);
       const rows = [
-        `<tr class="gr-group-head gr-tone-${tone}"><td colspan="9">${escapeHtml(title)} (${items.length} квартир)</td></tr>`
+        `<tr class="gr-group-head gr-tone-${tone}"><td colspan="${tableCols}">${escapeHtml(title)} (${items.length} квартир)</td></tr>`
       ];
       items.forEach((a, idx) => rows.push(accountRow(a, idx)));
       rows.push(`<tr class="gr-group-total">
         <td colspan="3">Разом по групі (${items.length}):</td>
         ${amountCell(sum(a => a.debitStart), moneySigned(sum(a => a.debitStart)))}
-        ${amountCell(sum(a => a.chargesSum))}
+        ${amountCell(sum(a => a.regularChargesSum))}
+        ${showTarget ? amountCell(sum(a => a.targetChargesSum)) : ""}
         ${amountCell(sum(a => a.paymentsSum), money(sum(a => a.paymentsSum)), "gr-pos")}
         ${amountCell(sum(a => a.debitEnd), moneySigned(sum(a => a.debitEnd)), debtClass(sum(a => a.debitEnd)))}
         <td></td>
-        ${amountCell(sum(a => a.debtChange), changeHtml(sum(a => a.debtChange)))}
       </tr>`);
       return rows;
     }
@@ -1119,18 +1196,18 @@
       `<tr class="gr-grand-total">
         <td colspan="3">Всього по будинку:</td>
         ${amountCell(sumAll(a => a.debitStart), moneySigned(sumAll(a => a.debitStart)))}
-        ${amountCell(sumAll(a => a.chargesSum))}
+        ${amountCell(sumAll(a => a.regularChargesSum))}
+        ${showTarget ? amountCell(sumAll(a => a.targetChargesSum)) : ""}
         ${amountCell(sumAll(a => a.paymentsSum))}
         ${amountCell(sumAll(a => a.debitEnd), moneySigned(sumAll(a => a.debitEnd)))}
         <td></td>
-        ${amountCell(totalDebtChange, `<span class="${totalDebtChange > EPS ? "gr-grand-neg" : (totalDebtChange < -EPS ? "gr-grand-pos" : "")}">${Math.abs(totalDebtChange) < EPS ? "0,00" : (totalDebtChange > 0 ? "▲ " + money(totalDebtChange) : "▼ " + money(Math.abs(totalDebtChange)))}</span>`)}
       </tr>`
     ];
 
     const thead = `<tr>
       <th>№ кв.</th><th>П.І.Б. власника</th><th>Осіб / Площа, м²</th>
-      <th>Борг на ${escapeHtml(startLbl)}</th><th>Нараховано</th><th>Сплачено</th>
-      <th>Борг на ${escapeHtml(endShort)}</th><th>Місяців боргу</th><th>Зміна боргу</th>
+      <th>Борг на ${escapeHtml(startLbl)}</th><th>Нараховано</th>${showTarget ? "<th>Цільові внески</th>" : ""}<th>Сплачено</th>
+      <th>Борг на ${escapeHtml(endShort)}</th><th>Місяців боргу</th>
     </tr>`;
 
     const kpi = `
@@ -1165,9 +1242,10 @@
       </div>`;
 
     const subtitle = `<div class="gr-subtitle gr-subtitle-accent">відсортовано за боргом (від більшого боргу до переплати)</div>`;
-    const pages = packTableRowsIntoPages(snap, "ОСОБОВІ РАХУНКИ СПІВВЛАСНИКІВ", subtitle, thead, rowHtmlList, '', {
+    const pages = packTableRowsIntoPages(snap, "ОСОБОВІ РАХУНКИ СПІВВЛАСНИКІВ", subtitle, thead, rowHtmlList, targetNotesHtml(snap), {
       firstPrefixHtml: kpi,
-      suffixMode: "last"
+      suffixMode: "last",
+      tableClass: "gr-accounts-table"
     });
     return pagesToSheetsHtml(pages, snap);
   }
@@ -1257,7 +1335,8 @@
     </div>`;
     const pages = packTableRowsIntoPages(snap, "СПИСОК БОРЖНИКІВ", subtitle, thead, rowHtmlList, "", {
       firstPrefixHtml: summaryHtml,
-      suffixMode: "last"
+      suffixMode: "last",
+      tableClass: "gr-debtors-table"
     });
     return pagesToSheetsHtml(pages, snap);
   }
@@ -1266,6 +1345,8 @@
     const byPod = new Map();
     const activeAccounts = snap.accounts.filter(hasAccountReportActivity);
     if (!activeAccounts.length) return "";
+    const showTarget = hasTargetContributions(activeAccounts);
+    const tableCols = showTarget ? 9 : 8;
     activeAccounts.forEach(a => {
       const pod = a.pod == null || a.pod === "" ? "—" : String(a.pod);
       if (!byPod.has(pod)) byPod.set(pod, []);
@@ -1286,7 +1367,7 @@
 
     pods.forEach(pod => {
       const items = byPod.get(pod).slice().sort((a, b) => parseKvNum(a.kv) - parseKvNum(b.kv));
-      rowHtmlList.push(`<tr class="gr-pod-head"><td colspan="8">ПІДʼЇЗД ${escapeHtml(pod)} (${items.length} квартир)</td></tr>`);
+      rowHtmlList.push(`<tr class="gr-pod-head"><td colspan="${tableCols}">ПІДʼЇЗД ${escapeHtml(pod)} (${items.length} квартир)</td></tr>`);
       items.forEach((a, idx) => {
         const paid = a.paymentsSum > EPS
           ? amountSpan(a.paymentsSum, money(a.paymentsSum), "gr-pos")
@@ -1296,7 +1377,8 @@
           <td>${escapeHtml(a.fio)}</td>
           <td>${a.pers || 0} / ${String(a.pl).replace(".", ",")}</td>
           ${amountCell(a.debitStart, moneySigned(a.debitStart), debtClass(a.debitStart))}
-          ${amountCell(a.chargesSum)}
+          ${amountCell(a.regularChargesSum)}
+          ${showTarget ? amountCell(a.targetChargesSum) : ""}
           ${a.paymentsSum > EPS ? amountCell(a.paymentsSum, paid, "gr-pos") : `<td class="gr-amount-cell"><span class="gr-neg">—</span></td>`}
           ${amountCell(a.debitEnd, moneySigned(a.debitEnd), debtClass(a.debitEnd))}
           <td>${monthsDebtHtml(a.debtMonths, a.debitEnd)}</td>
@@ -1307,7 +1389,8 @@
         <td colspan="2">Разом по підʼїзду ${escapeHtml(pod)}:</td>
         ${amountCell(sum(a => a.pl))}
         ${amountCell(sum(a => a.debitStart), moneySigned(sum(a => a.debitStart)))}
-        ${amountCell(sum(a => a.chargesSum))}
+        ${amountCell(sum(a => a.regularChargesSum))}
+        ${showTarget ? amountCell(sum(a => a.targetChargesSum)) : ""}
         ${amountCell(sum(a => a.paymentsSum), money(sum(a => a.paymentsSum)), "gr-pos")}
         ${amountCell(sum(a => a.debitEnd), moneySigned(sum(a => a.debitEnd)))}
         <td></td>
@@ -1316,7 +1399,7 @@
 
     const thead = `<tr>
       <th>№ кв.</th><th>П.І.Б. власника</th><th>Осіб / Площа м²</th>
-      <th>Було на ${escapeHtml(startLbl)}</th><th>Нараховано</th><th>Сплачено</th>
+      <th>Було на ${escapeHtml(startLbl)}</th><th>Нараховано</th>${showTarget ? "<th>Цільові внески</th>" : ""}<th>Сплачено</th>
       <th>Стало на ${escapeHtml(endShort)}</th><th>Місяців боргу</th>
     </tr>`;
 
@@ -1324,17 +1407,20 @@
       <div class="gr-formula-row">
         <div class="gr-formula-card"><div class="gr-kpi-label">Борг на ${escapeHtml(formulaStartLbl)}</div><div class="gr-kpi-value ${debtClass(activeAccounts.reduce((s, a) => s + a.debitStart, 0))}">${moneySigned(activeAccounts.reduce((s, a) => s + a.debitStart, 0))}</div></div>
         <div class="gr-formula-op">+</div>
-        <div class="gr-formula-card"><div class="gr-kpi-label">Нараховано</div><div class="gr-kpi-value">${money(activeAccounts.reduce((s, a) => s + a.chargesSum, 0))}</div></div>
+        <div class="gr-formula-card"><div class="gr-kpi-label">Нараховано</div><div class="gr-kpi-value">${money(activeAccounts.reduce((s, a) => s + a.regularChargesSum, 0))}</div></div>
+        ${showTarget ? `<div class="gr-formula-op">+</div><div class="gr-formula-card"><div class="gr-kpi-label">Цільові внески</div><div class="gr-kpi-value">${money(activeAccounts.reduce((s, a) => s + a.targetChargesSum, 0))}</div></div>` : ""}
         <div class="gr-formula-op">−</div>
         <div class="gr-formula-card"><div class="gr-kpi-label">Сплачено</div><div class="gr-kpi-value gr-pos">${money(activeAccounts.reduce((s, a) => s + a.paymentsSum, 0))}</div></div>
         <div class="gr-formula-op">=</div>
         <div class="gr-formula-card"><div class="gr-kpi-label">Борг на ${escapeHtml(formulaEndLbl)}</div><div class="gr-kpi-value ${debtClass(activeAccounts.reduce((s, a) => s + a.debitEnd, 0))}">${moneySigned(activeAccounts.reduce((s, a) => s + a.debitEnd, 0))}</div></div>
-      </div>`;
+      </div>
+      ${targetNotesHtml(snap)}`;
 
     const subtitle = `<div class="gr-subtitle">по підʼїздах та квартирах у порядку зростання номерів</div>`;
     return pagesToSheetsHtml(
       packTableRowsIntoPages(snap, "РЕЄСТР ОСОБОВИХ РАХУНКІВ", subtitle, thead, rowHtmlList, after, {
-        skipOrphanSuffix: true
+        skipOrphanSuffix: true,
+        tableClass: "gr-accounts-table"
       }),
       snap
     );
@@ -1412,7 +1498,8 @@
     return pagesToSheetsHtml(
       packTableRowsIntoPages(snap, "ОСОБОВІ РАХУНКИ З ПЕРЕПЛАТОЮ", subtitle, thead, rowHtmlList, after, {
         firstPrefixHtml: kpi,
-        suffixMode: "last"
+        suffixMode: "last",
+        tableClass: "gr-accounts-table"
       }),
       snap
     );
@@ -1460,10 +1547,11 @@
 
   function renderCallout() {
     return `<div class="gr-callout">
-        <div class="gr-callout-mark">!️</div>
-        <div>
-          <p>Просимо власників квартир погасити заборгованість або звернутися до правління для узгодження графіка її погашення. Вчасна сплата внесків – запорука безпечного та комфортного життя у нашому будинку!</p>
-          <p><strong>ДЯКУЄМО ВСІМ СПІВВЛАСНИКАМ, ЯКІ СВОЄЧАСНО СПЛАЧУЮТЬ ВНЕСКИ!</strong></p>
+        <div class="gr-callout-mark">!</div>
+        <div class="gr-callout-text">
+          <div class="gr-callout-main">Просимо власників квартир погасити заборгованість або звернутися до правління для узгодження графіка її погашення.</div>
+          <div class="gr-callout-small">Вчасна сплата внесків – запорука безпечного та комфортного життя у нашому будинку!</div>
+          <div class="gr-callout-strong">ДЯКУЄМО ВСІМ СПІВВЛАСНИКАМ, ЯКІ СВОЄЧАСНО СПЛАЧУЮТЬ ВНЕСКИ!</div>
         </div>
       </div>`;
   }
@@ -1618,6 +1706,18 @@
 
   function isTabular(typeId) {
     return !!(REPORT_TYPES.find(t => t.id === typeId) || {}).tabular;
+  }
+
+  function activeReportHomeCode() {
+    const list = availableHomes();
+    const currentHomeCode = String(
+      (typeof getParam === "function" && getParam("homeCode") !== "globalReports" ? getParam("homeCode") : "")
+      || (typeof activeHomeCode !== "undefined" && activeHomeCode !== "globalReports" ? activeHomeCode : "")
+      || localStorage.getItem("last_homeCode")
+      || ""
+    );
+    const currentHome = list.find(h => String(h.code) === currentHomeCode);
+    return currentHome ? currentHome.code : (list[0] && list[0].code);
   }
 
   function updateSeparateVisibility() {
@@ -1986,6 +2086,7 @@
     const from = parseYm(document.getElementById("gr-from").value);
     const to = parseYm(document.getElementById("gr-to").value);
     const separate = !!document.getElementById("gr-separate")?.checked;
+    grState.compact = !!document.getElementById("gr-compact")?.checked;
     const out = document.getElementById("gr-output");
     const codes = selectedHomeCodes();
 
@@ -2018,6 +2119,7 @@
       });
     });
 
+    out.classList.toggle("gr-compact-output", grState.compact);
     out.innerHTML = "";
     document.getElementById("gr-actions").hidden = true;
     setProgress(0, jobs.length, "Підготовка…");
@@ -2050,7 +2152,7 @@
     const sheets = renumberSheets(out);
     bindPageActions(out);
     grState.lastPages = sheets;
-    grState.lastMeta = { typeId: typeIds.length === 1 ? typeIds[0] : "__MULTI__", typeIds, from, to, separate, codes };
+    grState.lastMeta = { typeId: typeIds.length === 1 ? typeIds[0] : "__MULTI__", typeIds, from, to, separate, compact: grState.compact, codes };
     document.getElementById("gr-actions").hidden = !sheets.length;
     updateExcelVisibility();
     setProgress(jobs.length, jobs.length, "Готово");
@@ -2165,8 +2267,63 @@
     }, 500);
   }
 
+  window.renderGeneratedReportOnly = async function renderGeneratedReportOnly(options) {
+    document.body.classList.add("files-mode");
+    const opts = options || {};
+    const typeId = opts.typeId || opts.report || opts.reportId || "payments";
+    const code = opts.homeCode || activeReportHomeCode();
+    const def = defaultPeriod();
+    const from = typeof opts.from === "string" ? parseYm(opts.from) : (opts.from || parseYm(opts.month) || parseYm(document.getElementById("gr-from")?.value) || parseYm(def.from));
+    const to = typeof opts.to === "string" ? parseYm(opts.to) : (opts.to || parseYm(opts.month) || from);
+    const compact = !!opts.compact;
+    grState.selectedTypeIds = [typeId];
+    grState.allTypes = false;
+    const container = document.getElementById("maincontainer");
+    if (!container) return;
+    container.innerHTML = `
+      <div class="gr-app gr-single-report-app">
+        <div class="gr-toolbar no-print">
+          <div class="gr-actions" id="gr-actions">
+            <button type="button" class="gr-btn" id="gr-print">Друк</button>
+            <button type="button" class="gr-btn" id="gr-pdf">PDF</button>
+            <button type="button" class="gr-btn" id="gr-excel">Excel</button>
+          </div>
+          <div class="gr-progress" id="gr-progress" hidden>
+            <div class="gr-progress-track"><div class="gr-progress-bar" id="gr-progress-bar"></div></div>
+            <div class="gr-progress-label" id="gr-progress-label"></div>
+          </div>
+        </div>
+        <div id="gr-output" class="gr-output ${compact ? "gr-compact-output" : ""}"></div>
+      </div>
+    `;
+    document.getElementById("gr-print").addEventListener("click", printReports);
+    document.getElementById("gr-pdf").addEventListener("click", downloadPdf);
+    document.getElementById("gr-excel").addEventListener("click", downloadExcel);
+    updateExcelVisibility();
+    const out = document.getElementById("gr-output");
+    try {
+      setProgress(0, 1, "Підготовка…");
+      const homeMeta = availableHomes().find(h => String(h.code) === String(code)) || { code, name: String(code) };
+      const home = await loadHomeForReport(code);
+      if (!homeMeta.org3 && home.org3) homeMeta.org3 = home.org3;
+      const snap = buildHomeSnapshot(home, homeMeta, from, to);
+      out.innerHTML = renderReportHtml(typeId, snap) || `<div class="gr-empty">Немає даних для звіту</div>`;
+      const sheets = renumberSheets(out);
+      bindPageActions(out);
+      grState.lastPages = sheets;
+      grState.lastMeta = { typeId, typeIds: [typeId], from, to, separate: false, compact, codes: [code] };
+      hideProgress();
+      document.getElementById("gr-actions").hidden = false;
+      updateExcelVisibility();
+    } catch (err) {
+      console.error(err);
+      hideProgress();
+      out.innerHTML = `<div class="gr-error">Помилка завантаження звіту: ${escapeHtml(err.message || err)}</div>`;
+    }
+  };
+
   window.renderGlobalReports = function renderGlobalReports() {
-    document.body.classList.remove("files-mode");
+    document.body.classList.add("files-mode");
     const list = availableHomes();
     const currentHomeCode = String(
       (typeof getParam === "function" && getParam("homeCode") !== "globalReports" ? getParam("homeCode") : "")
@@ -2203,18 +2360,22 @@
                 <span>Окремий звіт за кожен місяць</span>
               </label>
             </div>
-            <div class="gr-field gr-actions-field">
-              <button type="button" class="gr-btn gr-btn-primary" id="gr-generate">Сформувати</button>
+            <div class="gr-field gr-check-field">
+              <label class="gr-check">
+                <input type="checkbox" id="gr-compact">
+                <span>Компактно</span>
+              </label>
             </div>
           </div>
           <div class="gr-progress" id="gr-progress" hidden>
             <div class="gr-progress-track"><div class="gr-progress-bar" id="gr-progress-bar"></div></div>
             <div class="gr-progress-label" id="gr-progress-label"></div>
           </div>
-          <div class="gr-actions" id="gr-actions" hidden>
+          <div class="gr-actions" id="gr-actions">
             <button type="button" class="gr-btn" id="gr-print">Друк</button>
             <button type="button" class="gr-btn" id="gr-pdf">PDF</button>
             <button type="button" class="gr-btn" id="gr-excel">Excel</button>
+            <button type="button" class="gr-btn gr-btn-primary gr-generate-secondary" id="gr-generate">Сформувати</button>
           </div>
         </div>
         <div id="gr-output" class="gr-output"></div>
