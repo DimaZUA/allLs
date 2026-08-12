@@ -493,7 +493,7 @@
     document.body.classList.add("gr-printing");
     const pageStyle = document.createElement("style");
     pageStyle.id = "gr-print-page-style";
-    pageStyle.textContent = "@page { margin: 0; }";
+    pageStyle.textContent = "@page { size: A4 portrait; margin: 0; } @page gr-landscape { size: A4 landscape; margin: 0; } .gr-sheet-landscape { page: gr-landscape; }";
     document.body.setAttribute("data-gr-print-container", containerSelector || "");
     document.head.appendChild(pageStyle);
     window.print();

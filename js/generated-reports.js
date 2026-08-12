@@ -1404,15 +1404,15 @@
     </tr>`;
 
     const after = `
-      <div class="gr-formula-row">
-        <div class="gr-formula-card"><div class="gr-kpi-label">Борг на ${escapeHtml(formulaStartLbl)}</div><div class="gr-kpi-value ${debtClass(activeAccounts.reduce((s, a) => s + a.debitStart, 0))}">${moneySigned(activeAccounts.reduce((s, a) => s + a.debitStart, 0))}</div></div>
+      <div class="gr-formula-row ${showTarget ? "gr-formula-row-target" : ""}">
+        <div class="gr-formula-card gr-formula-card-date"><div class="gr-kpi-label"><span>Борг</span><span>на ${escapeHtml(formulaStartLbl)}</span></div><div class="gr-kpi-value ${debtClass(activeAccounts.reduce((s, a) => s + a.debitStart, 0))}">${moneySigned(activeAccounts.reduce((s, a) => s + a.debitStart, 0))}</div></div>
         <div class="gr-formula-op">+</div>
         <div class="gr-formula-card"><div class="gr-kpi-label">Нараховано</div><div class="gr-kpi-value">${money(activeAccounts.reduce((s, a) => s + a.regularChargesSum, 0))}</div></div>
         ${showTarget ? `<div class="gr-formula-op">+</div><div class="gr-formula-card"><div class="gr-kpi-label">Цільові внески</div><div class="gr-kpi-value">${money(activeAccounts.reduce((s, a) => s + a.targetChargesSum, 0))}</div></div>` : ""}
         <div class="gr-formula-op">−</div>
         <div class="gr-formula-card"><div class="gr-kpi-label">Сплачено</div><div class="gr-kpi-value gr-pos">${money(activeAccounts.reduce((s, a) => s + a.paymentsSum, 0))}</div></div>
         <div class="gr-formula-op">=</div>
-        <div class="gr-formula-card"><div class="gr-kpi-label">Борг на ${escapeHtml(formulaEndLbl)}</div><div class="gr-kpi-value ${debtClass(activeAccounts.reduce((s, a) => s + a.debitEnd, 0))}">${moneySigned(activeAccounts.reduce((s, a) => s + a.debitEnd, 0))}</div></div>
+        <div class="gr-formula-card gr-formula-card-date"><div class="gr-kpi-label"><span>Борг</span><span>на ${escapeHtml(formulaEndLbl)}</span></div><div class="gr-kpi-value ${debtClass(activeAccounts.reduce((s, a) => s + a.debitEnd, 0))}">${moneySigned(activeAccounts.reduce((s, a) => s + a.debitEnd, 0))}</div></div>
       </div>
       ${targetNotesHtml(snap)}`;
 
@@ -1615,12 +1615,18 @@
     return pagesToSheetsHtml([{ top, body, className: "gr-sheet-poster" }], snap);
   }
 
+  function isPosterDebtor(a) {
+    return a.debitEnd > EPS && a.debtMonths > 6 && !String(a.note || "").toLowerCase().includes("nodolg");
+  }
+
   function renderDebtsPoster(snap) {
-    const debtors = snap.accounts
-      .filter(a => a.debitEnd > EPS && a.debtMonths > 6 && !String(a.note || "").toLowerCase().includes("nodolg"))
+    const posterDebtAmount = (items) => items.reduce((sum, a) => sum + a.debitEnd, 0);
+    const posterAccounts = snap.accounts.filter(isPosterDebtor);
+    const posterDebt = posterDebtAmount(posterAccounts);
+    const debtors = posterAccounts
       .sort((a, b) => parseKvNum(a.kv) - parseKvNum(b.kv))
       .map(a => ({ kv: a.kv, amount: a.debitEnd }));
-    const ratio = snap.stats.debtRatio;
+    const ratio = snap.avgSpend > EPS ? posterDebt / snap.avgSpend : 0;
     const ratioText = ratio > 0
       ? `це майже <strong><u>${ratio.toFixed(1).replace(".", ",")}</u></strong> місяці поточних витрат будинку!`
       : "";
@@ -1630,7 +1636,7 @@
       if (!debtors.length) return "";
       if (opts && opts.checkOnly) return true;
       return `
-      <div class="gr-poster-amount">${money(snap.stats.totalPositiveDebt)} <span>грн</span></div>
+      <div class="gr-poster-amount">${money(posterDebt)} <span>грн</span></div>
       <div class="gr-poster-ratio">${ratioText}</div>
       <div class="gr-black-bar">КВАРТИРИ ІЗ ЗАБОРГОВАНІСТЮ ПОНАД 6 МІСЯЦІВ</div>
       ${debtGridHtml(debtors, 5)}
@@ -1648,12 +1654,13 @@
     });
     const pods = [...byPod.keys()].sort((a, b) => parseInt(a, 10) - parseInt(b, 10));
     const spend = mergeSpending(snap.spendingByMonth);
+    const buildingPosterDebt = snap.accounts.filter(isPosterDebtor).reduce((sum, a) => sum + a.debitEnd, 0);
 
     return pods.map(pod => {
       const items = byPod.get(pod);
-      const podDebt = items.filter(a => a.debitEnd > EPS).reduce((sum, a) => sum + a.debitEnd, 0);
-      const longDebt = items
-        .filter(a => a.debitEnd > EPS && a.debtMonths > 6 && !String(a.note || "").toLowerCase().includes("nodolg"))
+      const podPosterAccounts = items.filter(isPosterDebtor);
+      const podDebt = podPosterAccounts.reduce((sum, a) => sum + a.debitEnd, 0);
+      const longDebt = podPosterAccounts
         .sort((a, b) => parseKvNum(a.kv) - parseKvNum(b.kv))
         .map(a => ({ kv: a.kv, amount: a.debitEnd }));
       const ratio = snap.avgSpend > EPS ? podDebt / snap.avgSpend : 0;
@@ -1667,7 +1674,7 @@
         <div class="gr-poster-ratio">${ratio > 0 ? `це майже <strong><u>${ratio.toFixed(1).replace(".", ",")}</u></strong> місяці поточних витрат будинку` : ""}</div>
         <div class="gr-black-bar">КВАРТИРИ ПІДʼЇЗДУ ІЗ ЗАБОРГОВАНІСТЮ ПОНАД 6 МІСЯЦІВ</div>
         ${podDebtGridHtml(longDebt, 5)}
-        <div class="gr-building-debt">Загальна заборгованість будинку: <strong>${money(snap.stats.totalPositiveDebt)} грн</strong></div>
+        <div class="gr-building-debt">Загальна заборгованість будинку: <strong>${money(buildingPosterDebt)} грн</strong></div>
       `;
       }, spend);
     }).join("");
@@ -1723,12 +1730,12 @@
   function updateSeparateVisibility() {
     const from = parseYm(document.getElementById("gr-from")?.value);
     const to = parseYm(document.getElementById("gr-to")?.value);
-    const wrap = document.getElementById("gr-separate-wrap");
+    const cb = document.getElementById("gr-separate");
+    const wrap = cb ? cb.closest(".gr-check") : null;
     if (!wrap || !from || !to) return;
     const multi = !(from.year === to.year && from.month === to.month);
     wrap.style.display = multi ? "" : "none";
     if (!multi) {
-      const cb = document.getElementById("gr-separate");
       if (cb) cb.checked = false;
     }
   }
@@ -2354,16 +2361,14 @@
               <label for="gr-to">По</label>
               <input type="month" id="gr-to" value="${def.to}">
             </div>
-            <div class="gr-field gr-check-field" id="gr-separate-wrap" style="display:none">
-              <label class="gr-check">
-                <input type="checkbox" id="gr-separate">
-                <span>Окремий звіт за кожен місяць</span>
-              </label>
-            </div>
-            <div class="gr-field gr-check-field">
+            <div class="gr-field gr-check-field gr-check-stack-field">
               <label class="gr-check">
                 <input type="checkbox" id="gr-compact">
                 <span>Компактно</span>
+              </label>
+              <label class="gr-check">
+                <input type="checkbox" id="gr-separate">
+                <span>Окремий звіт за кожен місяць</span>
               </label>
             </div>
           </div>

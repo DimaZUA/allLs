@@ -317,6 +317,18 @@ li.folder {
   background: #fff;
 }
 .gr-check { display: flex; align-items: center; gap: 8px; font-size: 13px; min-height: 38px; }
+.gr-check-stack-field {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-self: stretch;
+  min-height: 58px;
+  gap: 2px;
+}
+.gr-check-stack-field .gr-check {
+  min-height: 18px;
+  margin: 0;
+}
 .gr-btn {
   border: 1px solid #c9ced6;
   background: #fff;
@@ -622,19 +634,26 @@ li.folder {
   font-size: 13px;
   line-height: 1.35;
 }
-.gr-formula-row { display: grid; grid-template-columns: 1fr auto 1fr auto 1fr auto 1fr; gap: 8px; align-items: stretch; margin-top: 12px; }
+.gr-formula-row { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr); gap: 8px; align-items: stretch; margin-top: 12px; }
+.gr-formula-row-target { grid-template-columns: minmax(120px, 1fr) 18px minmax(110px, 1fr) 18px minmax(110px, 1fr) 18px minmax(110px, 1fr) 18px minmax(120px, 1fr); gap: 6px; }
 .gr-formula-card {
   border: 1px solid #ccc;
   border-radius: 8px;
-  padding: 8px 10px;
+  padding: 7px 8px;
   min-width: 0;
   background: #fafbfc;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-rows: 28px auto;
   align-items: center;
-  justify-content: center;
   text-align: center;
 }
+.gr-formula-card .gr-kpi-label { align-self: end; line-height: 1.15; }
+.gr-formula-card .gr-kpi-value { align-self: start; line-height: 1.15; }
+.gr-formula-card-date .gr-kpi-label { display: flex; flex-direction: column; align-items: center; }
+.gr-formula-card-date .gr-kpi-label span { display: block; white-space: nowrap; }
+.gr-formula-row-target .gr-formula-card { padding: 6px 6px; grid-template-rows: 26px auto; }
+.gr-formula-row-target .gr-kpi-label { font-size: 11px; }
+.gr-formula-row-target .gr-kpi-value { font-size: 14px; }
 .gr-formula-op { font-size: 22px; font-weight: 700; }
 .gr-formula-op { display: flex; align-items: center; justify-content: center; }
 
@@ -830,6 +849,10 @@ li.folder {
     page-break-after: always;
     break-after: page;
   }
+  .gr-sheet.gr-sheet-landscape {
+    width: 297mm !important;
+    height: 210mm !important;
+  }
   .gr-sheet-inner { padding: 2mm 12mm 10mm !important; }
   .gr-sheet .gr-kpi-row { display: grid !important; grid-template-columns: repeat(3, 1fr) !important; }
   .gr-sheet .gr-kpi-row-5 { grid-template-columns: repeat(5, 1fr) !important; }
@@ -918,7 +941,14 @@ li.folder {
   .gr-sheet .gr-debt-summary-card .gr-kpi-value span,
   .gr-sheet .gr-kpi-formula { font-size: 11px !important; }
   .gr-sheet .gr-kpi-foot { font-size: 12px !important; }
-  .gr-sheet .gr-formula-row { grid-template-columns: 1fr auto 1fr auto 1fr auto 1fr !important; }
+  .gr-sheet .gr-formula-row { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr) !important; }
+  .gr-sheet .gr-formula-row-target { grid-template-columns: minmax(120px, 1fr) 18px minmax(110px, 1fr) 18px minmax(110px, 1fr) 18px minmax(110px, 1fr) 18px minmax(120px, 1fr) !important; gap: 6px !important; }
+  .gr-sheet .gr-formula-card { grid-template-rows: 28px auto !important; padding: 7px 8px !important; }
+  .gr-sheet .gr-formula-row-target .gr-formula-card { grid-template-rows: 26px auto !important; padding: 6px !important; }
+  .gr-sheet .gr-formula-card-date .gr-kpi-label { display: flex !important; flex-direction: column !important; align-items: center !important; }
+  .gr-sheet .gr-formula-card-date .gr-kpi-label span { display: block !important; white-space: nowrap !important; }
+  .gr-sheet .gr-formula-row-target .gr-kpi-label { font-size: 11px !important; }
+  .gr-sheet .gr-formula-row-target .gr-kpi-value { font-size: 14px !important; }
   .gr-sheet .gr-dotted { font-size: 12px !important; }
   .gr-sheet .gr-thanks-box { font-size: 13px !important; line-height: 1.35 !important; }
   .gr-sheet .gr-poster-amount { font-size: 36px !important; }
@@ -1590,6 +1620,14 @@ li.folder {
   color: #444;
   font: 9pt/1.25 Arial, sans-serif;
 }
+.mp-appendix-pod-title {
+  margin: 0 0 3mm;
+  padding: 1.5mm 2mm;
+  border-left: 4px solid #1f5a9d;
+  background: #eef4fb;
+  color: #1f4b7a;
+  font: 700 13pt/1.2 Arial, sans-serif;
+}
 .mp-notice-page {
   padding: 8mm;
   font-family: Arial, sans-serif;
@@ -1649,7 +1687,7 @@ li.folder {
 .mp-notice-sign { margin-top: 3mm; font-size: 8.5pt; }
 .mp-vote-cell {
   min-width: 15mm;
-  height: 7mm;
+  height: var(--mp-row-height, 7mm);
   text-align: center;
   white-space: nowrap;
   color: #667085;
@@ -1821,6 +1859,9 @@ li.folder {
   border: 1px solid #c9ced6;
   padding: 4px 5px;
   vertical-align: middle;
+}
+.mp-print-table tbody td {
+  height: var(--mp-row-height, auto);
 }
 .mp-print-table th {
   background: #eef2f7;

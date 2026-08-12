@@ -848,14 +848,17 @@
       if (parseKv(kv) === 0) return;
       const fio = String(item.fio || item.owner || "").trim();
       const area = Number(String(item.pl || item.area || "0").replace(",", ".")) || 0;
-      if (!byKv.has(kv)) byKv.set(kv, { id, kv, fioList: [], area: 0 });
+      const pod = String(item.pod ?? item.podezd ?? item.entrance ?? item.pid ?? "").trim();
+      if (!byKv.has(kv)) byKv.set(kv, { id, kv, pod, fioList: [], area: 0 });
       const row = byKv.get(kv);
+      if (!row.pod && pod) row.pod = pod;
       if (fio && !row.fioList.includes(fio)) row.fioList.push(fio);
       row.area += area;
     });
     return Array.from(byKv.values())
       .map(row => ({
         kv: row.kv,
+        pod: row.pod || "",
         fio: row.fioList.join(", "),
         area: row.area,
         votes: voteBasis === "area" ? row.area : 1
@@ -933,22 +936,114 @@
     return pages;
   }
 
+  function podSortKey(pod) {
+    const n = parseInt(String(pod || "").replace(/[^\d-]/g, ""), 10);
+    return Number.isFinite(n) ? n : 999999;
+  }
+
+  function groupAppendixRowsByPod(rows) {
+    const source = (rows || []).map((row, index) => Object.assign({ _seq: index + 1 }, row));
+    const byPod = new Map();
+    source.forEach(row => {
+      const pod = String(row.pod || "").trim() || "без під'їзду";
+      if (!byPod.has(pod)) byPod.set(pod, []);
+      byPod.get(pod).push(row);
+    });
+    return Array.from(byPod.entries())
+      .sort((a, b) => podSortKey(a[0]) - podSortKey(b[0]) || String(a[0]).localeCompare(String(b[0]), "uk"))
+      .map(([pod, items]) => ({
+        pod,
+        items: items.sort((a, b) => parseKv(a.kv) - parseKv(b.kv) || String(a.kv).localeCompare(String(b.kv), "uk"))
+      }));
+  }
+
+  function paginateRowsAtHeight(items, renderPage, rowHeight) {
+    const pages = [];
+    let offset = 0;
+    let pageIndex = 0;
+    const source = items.length ? items : [];
+    if (!source.length) return [{ rows: [], offset: 0, rowHeight }];
+    while (offset < source.length) {
+      let low = 1;
+      let high = source.length - offset;
+      let best = 1;
+      while (low <= high) {
+        const mid = Math.floor((low + high) / 2);
+        const rows = source.slice(offset, offset + mid);
+        if (measureSheetFits(renderPage(rows, pageIndex, offset, { measuring: true, totalPages: 999, rowHeight }))) {
+          best = mid;
+          low = mid + 1;
+        } else {
+          high = mid - 1;
+        }
+      }
+      if (best < 1) best = 1;
+      pages.push({ rows: source.slice(offset, offset + best), offset, rowHeight });
+      offset += best;
+      pageIndex += 1;
+      if (pageIndex > 300) break;
+    }
+    return pages;
+  }
+
+  function choosePodPagination(items, renderPage, options) {
+    const opts = options || {};
+    const base = Number(opts.baseRowHeight) || 8;
+    const min = Number(opts.minRowHeight) || Math.max(4.8, base * 0.65);
+    const max = Number(opts.maxRowHeight) || base * 1.8;
+    let best = paginateRowsAtHeight(items, renderPage, base);
+    const lastCount = () => best.length ? best[best.length - 1].rows.length : 0;
+    if (best.length > 1 && lastCount() <= 5) {
+      for (let h = base - 0.5; h >= min; h -= 0.5) {
+        const candidate = paginateRowsAtHeight(items, renderPage, h);
+        if (candidate.length < best.length || (candidate.length === best.length && candidate[candidate.length - 1].rows.length > lastCount())) {
+          best = candidate;
+        }
+      }
+    }
+    const pageCount = best.length;
+    for (let h = best[0].rowHeight + 0.5; h <= max; h += 0.5) {
+      const candidate = paginateRowsAtHeight(items, renderPage, h);
+      if (candidate.length === pageCount) best = candidate;
+      else break;
+    }
+    return best;
+  }
+
+  function paginateAppendixByPod(voters, renderPage, options) {
+    const groups = groupAppendixRowsByPod(voters);
+    const pages = [];
+    groups.forEach(group => {
+      const groupPages = choosePodPagination(group.items, (rows, pageIndex, offset, opts) =>
+        renderPage(rows, pageIndex, offset, Object.assign({}, opts, { pod: group.pod })), options);
+      groupPages.forEach((page, groupPageIndex) => pages.push(Object.assign({}, page, {
+        pod: group.pod,
+        groupPageIndex
+      })));
+    });
+    return pages.length ? pages : [{ rows: [], offset: 0, pod: "", groupPageIndex: 0, rowHeight: (options && options.baseRowHeight) || 8 }];
+  }
+
   function renderVotingPages(home, homeName, voters, agenda, item) {
     const questions = normalizeAgenda(agenda).filter(q => q && q.subject);
     const questionCount = Math.max(1, questions.length);
     const landscape = questionCount > 7;
     const renderPage = (pageRows, pageIndex, offset, opts) => {
       const totalPages = opts && opts.totalPages;
+      const rowHeight = opts && opts.rowHeight;
+      const groupPageIndex = opts && Number.isFinite(opts.groupPageIndex) ? opts.groupPageIndex : pageIndex;
+      const podTitle = opts && opts.pod ? `<div class="mp-appendix-pod-title">Під'їзд ${escapeHtml(opts.pod)}</div>` : "";
       const rows = pageRows.map((v, i) => `<tr>
-        <td>${offset + i + 1}</td>
+        <td>${v._seq || offset + i + 1}</td>
         <td><span class="gr-apt-no">${escapeHtml(v.kv)}</span></td>
         <td>${escapeHtml(v.fio)}</td>
         ${Array.from({ length: questionCount }, () => `<td class="mp-vote-cell"></td>`).join("")}
         <td></td>
       </tr>`).join("");
-      return `<section class="gr-sheet mp-sheet ${landscape ? "gr-sheet-landscape mp-sheet-landscape" : ""} ${pageIndex ? "mp-appendix-continuation" : ""}">
+      return `<section class="gr-sheet mp-sheet ${landscape ? "gr-sheet-landscape mp-sheet-landscape" : ""} ${groupPageIndex ? "mp-appendix-continuation" : ""}" ${rowHeight ? `style="--mp-row-height:${rowHeight}mm"` : ""}>
         <div class="mp-page">
           ${renderProtocolHeader(home, "Лист голосування", protocolAppendixText(item))}
+          ${podTitle}
           ${renderVotingAgenda(questions, item)}
           <div class="mp-voting-note">У графі питання власноруч зазначається: "за", "проти" або "утримався".</div>
           <table class="mp-print-table">
@@ -959,23 +1054,36 @@
         </div>
       </section>`;
     };
-    const pages = paginateMeasuredRows(voters, renderPage);
-    return pages.map((page, pageIndex) => renderPage(page.rows, pageIndex, page.offset, { totalPages: pages.length })).join("");
+    const pages = paginateAppendixByPod(voters, renderPage, {
+      baseRowHeight: landscape ? 7 : 8.5,
+      minRowHeight: landscape ? 5.2 : 6,
+      maxRowHeight: landscape ? 11 : 14
+    });
+    return pages.map((page, pageIndex) => renderPage(page.rows, pageIndex, page.offset, {
+      totalPages: pages.length,
+      rowHeight: page.rowHeight,
+      pod: page.pod,
+      groupPageIndex: page.groupPageIndex
+    })).join("");
   }
 
   function renderRegistrationPages(home, homeName, voters, item) {
     const renderPage = (pageRows, pageIndex, offset, opts) => {
       const totalPages = opts && opts.totalPages;
+      const rowHeight = opts && opts.rowHeight;
+      const groupPageIndex = opts && Number.isFinite(opts.groupPageIndex) ? opts.groupPageIndex : pageIndex;
+      const podTitle = opts && opts.pod ? `<div class="mp-appendix-pod-title">Під'їзд ${escapeHtml(opts.pod)}</div>` : "";
       const rows = pageRows.map((v, i) => `<tr>
-        <td>${offset + i + 1}</td>
+        <td>${v._seq || offset + i + 1}</td>
         <td><span class="gr-apt-no">${escapeHtml(v.kv)}</span></td>
         <td>${escapeHtml(v.fio)}</td>
         ${item.vote_basis === "area" ? `<td>${money(v.votes)}</td>` : ""}
         <td></td>
       </tr>`).join("");
-      return `<section class="gr-sheet mp-sheet ${pageIndex ? "mp-appendix-continuation" : ""}">
+      return `<section class="gr-sheet mp-sheet ${groupPageIndex ? "mp-appendix-continuation" : ""}" ${rowHeight ? `style="--mp-row-height:${rowHeight}mm"` : ""}>
         <div class="mp-page">
           ${renderProtocolHeader(home, "Список реєстрації", protocolAppendixText(item))}
+          ${podTitle}
           <table class="mp-print-table">
             <thead><tr><th>№</th><th>Кв.</th><th>П.І.Б.</th>${item.vote_basis === "area" ? "<th>Голосів</th>" : ""}<th>Підпис</th></tr></thead>
             <tbody>${rows}</tbody>
@@ -984,8 +1092,48 @@
         </div>
       </section>`;
     };
-    const pages = paginateMeasuredRows(voters, renderPage);
-    return pages.map((page, pageIndex) => renderPage(page.rows, pageIndex, page.offset, { totalPages: pages.length })).join("");
+    const pages = paginateAppendixByPod(voters, renderPage, { baseRowHeight: 9, minRowHeight: 6, maxRowHeight: 16 });
+    return pages.map((page, pageIndex) => renderPage(page.rows, pageIndex, page.offset, {
+      totalPages: pages.length,
+      rowHeight: page.rowHeight,
+      pod: page.pod,
+      groupPageIndex: page.groupPageIndex
+    })).join("");
+  }
+
+  function renderNoticeDeliveryPages(home, homeName, voters, item) {
+    const renderPage = (pageRows, pageIndex, offset, opts) => {
+      const totalPages = opts && opts.totalPages;
+      const rowHeight = opts && opts.rowHeight;
+      const groupPageIndex = opts && Number.isFinite(opts.groupPageIndex) ? opts.groupPageIndex : pageIndex;
+      const podTitle = opts && opts.pod ? `<div class="mp-appendix-pod-title">Під'їзд ${escapeHtml(opts.pod)}</div>` : "";
+      const rows = pageRows.map((v, i) => `<tr>
+        <td>${v._seq || offset + i + 1}</td>
+        <td><span class="gr-apt-no">${escapeHtml(v.kv)}</span></td>
+        <td>${escapeHtml(v.fio)}</td>
+        <td></td>
+        <td></td>
+        <td></td>
+      </tr>`).join("");
+      return `<section class="gr-sheet mp-sheet ${groupPageIndex ? "mp-appendix-continuation" : ""}" ${rowHeight ? `style="--mp-row-height:${rowHeight}mm"` : ""}>
+        <div class="mp-page">
+          ${renderProtocolHeader(home, "Список вручення повідомлень", protocolAppendixText(item))}
+          ${podTitle}
+          <table class="mp-print-table">
+            <thead><tr><th>№</th><th>Кв.</th><th>П.І.Б.</th><th>Дата отримання</th><th>Підпис</th><th>Примітка</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+          ${totalPages > 1 ? `<div class="mp-page-footer">сторінка ${pageIndex + 1} із ${totalPages}</div>` : ""}
+        </div>
+      </section>`;
+    };
+    const pages = paginateAppendixByPod(voters, renderPage, { baseRowHeight: 10, minRowHeight: 6.5, maxRowHeight: 18 });
+    return pages.map((page, pageIndex) => renderPage(page.rows, pageIndex, page.offset, {
+      totalPages: pages.length,
+      rowHeight: page.rowHeight,
+      pod: page.pod,
+      groupPageIndex: page.groupPageIndex
+    })).join("");
   }
 
   function renderMeetingNoticePages(home, homeName, voters, agenda, item) {
@@ -1065,7 +1213,8 @@
       q.speaker ? docxP(`Виступили: ${renderProtocolText(q.speaker, item, q)}`) : "",
       q.discussion ? docxP(`Обговорення: ${renderProtocolText(q.discussion, item, q)}`) : "",
       q.decision ? docxP(`Вирішили: ${renderProtocolText(q.decision, item, q)}`) : "",
-      docxP("Голосування: за ___, проти ___, утримались ___.")
+      docxP("Голосування: за ___, проти ___, утримались ___."),
+      docxP("Рішення прийнято.")
     ].join("");
   }
 
@@ -1190,6 +1339,7 @@
       ${q.discussion ? `<div class="mp-question-rich"><strong>Обговорення:</strong>${renderProtocolRichBlock(q.discussion, item, q, "mp-rich-p")}</div>` : ""}
       ${q.decision ? `<div class="mp-question-rich"><strong>Вирішили:</strong>${renderProtocolRichBlock(q.decision, item, q, "mp-rich-p")}</div>` : ""}
       <p><strong>Голосування:</strong> за ___, проти ___, утримались ___.</p>
+      <p><strong>Рішення прийнято.</strong></p>
     </div>`;
   }
 
@@ -1227,6 +1377,36 @@
     return pages.length ? pages : [[]];
   }
 
+  function paginateProtocolQuestionRows(questionRows, renderPage) {
+    const pages = [];
+    const source = questionRows.length ? questionRows : [];
+    if (!source.length) return [{ rows: [], offset: 0 }];
+    let offset = 0;
+    let pageIndex = 0;
+    while (offset < source.length) {
+      let low = 1;
+      let high = source.length - offset;
+      let best = 0;
+      while (low <= high) {
+        const mid = Math.floor((low + high) / 2);
+        const isLast = offset + mid >= source.length;
+        const rows = source.slice(offset, offset + mid);
+        if (measureSheetFits(renderPage(rows, pageIndex, offset, { measuring: true, totalPages: 999, isLast }))) {
+          best = mid;
+          low = mid + 1;
+        } else {
+          high = mid - 1;
+        }
+      }
+      if (best < 1) best = 1;
+      pages.push({ rows: source.slice(offset, offset + best), offset });
+      offset += best;
+      pageIndex += 1;
+      if (pageIndex > 300) break;
+    }
+    return pages;
+  }
+
   function renderProtocolDoc(item, home, voters) {
     const agenda = normalizeAgenda(item.agenda);
     const title = visibleProtocolTitle(item, agenda);
@@ -1237,8 +1417,8 @@
     const formatLabel = meetingFormatLabel(item.meeting_format || "in_person");
     const initiatorLabel = meetingInitiatorLabel(item.meeting_initiator || "board");
     const kindLabel = meetingKindLabel(meetingKindValue(item));
-    const questionPages = splitProtocolQuestions(agenda, item);
-    const protocolPages = questionPages.map((pageRows, pageIndex) => `
+    const questionRows = normalizeAgenda(agenda).map((q, index) => ({ q, index })).filter(row => row.q && row.q.subject);
+    const renderProtocolPage = (pageRows, pageIndex, offset, opts) => `
       <section class="gr-sheet mp-sheet">
         <div class="mp-page">
           ${pageIndex === 0 ? `
@@ -1262,14 +1442,18 @@
             <ol class="mp-agenda-list">${agenda.map(q => `<li>${renderProtocolRichInline(q.subject || "", item, q)}</li>`).join("") || "<li></li>"}</ol>
           ` : ``}
           ${pageRows.map(row => renderQuestionBlock(row.q, row.index, item)).join("")}
-          ${pageIndex === questionPages.length - 1 ? `
+          ${opts && opts.isLast ? `
             ${item.notes ? `<h3>Додатково</h3>${renderProtocolRichBlock(item.notes, item, null, "mp-rich-p")}` : ""}
             ${renderInlineSignatures(item)}
           ` : ""}
-          ${pageIndex > 0 ? `<div class="mp-page-footer">${escapeHtml(protocolCaption)} ${protocolDate ? escapeHtml(protocolDate) : ""} (сторінка ${pageIndex + 1} із ${questionPages.length})</div>` : ""}
+          ${pageIndex > 0 ? `<div class="mp-page-footer">${escapeHtml(protocolCaption)} ${protocolDate ? escapeHtml(protocolDate) : ""} (сторінка ${pageIndex + 1} із ${opts && opts.totalPages || 1})</div>` : ""}
         </div>
-      </section>`).join("");
-    return `${protocolPages}${item.meeting_type === "general" ? renderVotingPages(home, homeName, voters, agenda, item) : ""}`;
+      </section>`;
+    const questionPages = paginateProtocolQuestionRows(questionRows, renderProtocolPage);
+    const protocolPages = questionPages.map((page, pageIndex) =>
+      renderProtocolPage(page.rows, pageIndex, page.offset, { totalPages: questionPages.length, isLast: pageIndex === questionPages.length - 1 })
+    ).join("");
+    return protocolPages;
   }
 
   function getContainer() {
@@ -1432,7 +1616,7 @@
         <button type="button" class="gr-btn" data-mp-print>Друк</button>
         <button type="button" class="gr-btn" data-mp-pdf>PDF</button>
         <button type="button" class="gr-btn" data-mp-word="${escapeHtml(item.id || "")}"><span>Word</span></button>
-        ${item.meeting_type === "general" ? `<button type="button" class="gr-btn" data-mp-registration="${escapeHtml(item.id || "")}">Список реєстрації</button><button type="button" class="gr-btn" data-mp-polls="${escapeHtml(item.id || "")}">Листи опитування</button><button type="button" class="gr-btn" data-mp-notices="${escapeHtml(item.id || "")}">Повідомлення</button>` : ""}
+        ${item.meeting_type === "general" ? `<button type="button" class="gr-btn" data-mp-registration="${escapeHtml(item.id || "")}">Список реєстрації</button><button type="button" class="gr-btn" data-mp-voting="${escapeHtml(item.id || "")}">Лист голосування</button><button type="button" class="gr-btn" data-mp-polls="${escapeHtml(item.id || "")}">Листи опитування</button><button type="button" class="gr-btn" data-mp-notices="${escapeHtml(item.id || "")}">Повідомлення</button><button type="button" class="gr-btn" data-mp-notice-delivery="${escapeHtml(item.id || "")}">Список вручення</button>` : ""}
       </div>
       <div class="gr-output mp-output">${renderProtocolDoc(item, home, voters)}</div>
     </div>`);
@@ -1448,6 +1632,32 @@
     render(`<div class="gr-app mp-preview-app">
       <div class="od-preview-tools no-print"><button type="button" class="gr-btn" data-mp-back-to-protocol="${escapeHtml(item.id)}">Назад</button><button type="button" class="gr-btn" data-mp-print>Друк</button><button type="button" class="gr-btn" data-mp-pdf>PDF</button></div>
       <div class="gr-output mp-output">${renderRegistrationPages(home, homeName, voters, item)}</div>
+    </div>`);
+  }
+
+  async function showVotingList(id) {
+    const item = findItem(id);
+    if (!item) return;
+    const homeData = await ensureHomeData(item.home_code);
+    const home = Object.assign({}, homeData || {}, getHomeByCode(item.home_code) || {}, { code: item.home_code });
+    const voters = participantRowsForPreview(item, collectVoters(home, item.vote_basis));
+    const homeName = home?.name || home?.org || item.home_code || "";
+    render(`<div class="gr-app mp-preview-app">
+      <div class="od-preview-tools no-print"><button type="button" class="gr-btn" data-mp-back-to-protocol="${escapeHtml(item.id)}">Назад</button><button type="button" class="gr-btn" data-mp-print>Друк</button><button type="button" class="gr-btn" data-mp-pdf>PDF</button></div>
+      <div class="gr-output mp-output">${renderVotingPages(home, homeName, voters, normalizeAgenda(item.agenda), item)}</div>
+    </div>`);
+  }
+
+  async function showNoticeDeliveryList(id) {
+    const item = findItem(id);
+    if (!item) return;
+    const homeData = await ensureHomeData(item.home_code);
+    const home = Object.assign({}, homeData || {}, getHomeByCode(item.home_code) || {}, { code: item.home_code });
+    const voters = participantRowsForPreview(item, collectVoters(home, item.vote_basis));
+    const homeName = home?.name || home?.org || item.home_code || "";
+    render(`<div class="gr-app mp-preview-app">
+      <div class="od-preview-tools no-print"><button type="button" class="gr-btn" data-mp-back-to-protocol="${escapeHtml(item.id)}">Назад</button><button type="button" class="gr-btn" data-mp-print>Друк</button><button type="button" class="gr-btn" data-mp-pdf>PDF</button></div>
+      <div class="gr-output mp-output">${renderNoticeDeliveryPages(home, homeName, voters, item)}</div>
     </div>`);
   }
 
@@ -1742,10 +1952,14 @@
     });
     const registrationBtn = container.querySelector("[data-mp-registration]");
     if (registrationBtn) registrationBtn.addEventListener("click", () => showRegistrationList(registrationBtn.dataset.mpRegistration));
+    const votingBtn = container.querySelector("[data-mp-voting]");
+    if (votingBtn) votingBtn.addEventListener("click", () => showVotingList(votingBtn.dataset.mpVoting));
     const pollsBtn = container.querySelector("[data-mp-polls]");
     if (pollsBtn) pollsBtn.addEventListener("click", () => showPollSheets(pollsBtn.dataset.mpPolls));
     const noticesBtn = container.querySelector("[data-mp-notices]");
     if (noticesBtn) noticesBtn.addEventListener("click", () => showMeetingNotices(noticesBtn.dataset.mpNotices));
+    const noticeDeliveryBtn = container.querySelector("[data-mp-notice-delivery]");
+    if (noticeDeliveryBtn) noticeDeliveryBtn.addEventListener("click", () => showNoticeDeliveryList(noticeDeliveryBtn.dataset.mpNoticeDelivery));
     const printBtn = container.querySelector("[data-mp-print]");
     if (printBtn) printBtn.addEventListener("click", () => {
       if (typeof GrCommon !== "undefined") GrCommon.printSheets(".mp-output");
