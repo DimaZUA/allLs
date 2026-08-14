@@ -35,6 +35,14 @@
   const A4_HEIGHT_MM = 297;
 
   const EPS = 0.005;
+
+  function matchesSearch(value, query) {
+    if (window.GrCommon && typeof GrCommon.matchesSearch === "function") {
+      return GrCommon.matchesSearch(value, query);
+    }
+    return String(value || "").toLowerCase().includes(String(query || "").toLowerCase());
+  }
+
   let grState = {
     selectedCodes: [],
     allHomes: false,
@@ -744,6 +752,10 @@
 
   function payGridHtml(groups) {
     const cols = splitIntoWeightedColumns(groups, 3, estimatePaymentGroupWeight);
+    return payGridColumnsHtml(cols);
+  }
+
+  function payGridColumnsHtml(cols) {
     return `<div class="gr-pay-grid">${cols.map(col =>
       `<div class="gr-pay-col">${col.map(paymentBlockHtml).join("")}</div>`
     ).join("")}</div>`;
@@ -905,34 +917,41 @@
         const isFirst = pageNo === 0;
         const top = renderPageChrome(snap, title, subtitle, !isFirst);
         const prefix = isFirst ? paymentsSummaryHtml(snap, { hideDetails }) : "";
-        let low = 1;
-        let high = groups.length - offset;
-        let best = 1;
+        const cols = [[], [], []];
+        let colIndex = 0;
+        let added = 0;
 
-        while (low <= high) {
-          const mid = Math.floor((low + high) / 2);
-          const chunk = groups.slice(offset, offset + mid);
-          const body = prefix + payGridHtml(chunk);
-          if (measureSheetOverflow(top, body).ok) {
-            best = mid;
-            low = mid + 1;
-          } else {
-            high = mid - 1;
+        while (offset + added < groups.length && colIndex < cols.length) {
+          const group = groups[offset + added];
+          const candidateCols = cols.map(col => col.slice());
+          candidateCols[colIndex].push(group);
+          const fits = measureSheetOverflow(top, prefix + payGridColumnsHtml(candidateCols)).ok;
+          if (fits) {
+            cols[colIndex].push(group);
+            added += 1;
+            continue;
           }
+          if (cols[colIndex].length === 0) {
+            cols[colIndex].push(group);
+            added += 1;
+            break;
+          }
+          colIndex += 1;
         }
 
-        if (best < 1) best = 1;
-        if (isFirst && !measureSheetOverflow(top, prefix + payGridHtml(groups.slice(offset, offset + best))).ok) {
-          if (prefix && measureSheetOverflow(top, prefix).ok && !measureSheetOverflow(top, prefix + payGridHtml(groups.slice(offset, offset + 1))).ok) {
+        if (!added && isFirst) {
+          const firstOnly = [[groups[offset]], [], []];
+          if (prefix && measureSheetOverflow(top, prefix).ok && !measureSheetOverflow(top, prefix + payGridColumnsHtml(firstOnly)).ok) {
             pages.push({ top, body: prefix });
             pageNo += 1;
             continue;
           }
+          cols[0].push(groups[offset]);
+          added = 1;
         }
 
-        const chunk = groups.slice(offset, offset + best);
-        pages.push({ top, body: prefix + payGridHtml(chunk) });
-        offset += best;
+        pages.push({ top, body: prefix + payGridColumnsHtml(cols) });
+        offset += Math.max(1, added);
         pageNo += 1;
         if (pageNo > 200) break;
       }
@@ -1085,7 +1104,7 @@
   }
 
   function hasToken(text, token) {
-    return String(text || "").toLowerCase().includes(String(token || "").toLowerCase());
+    return matchesSearch(text, token);
   }
 
   function cleanAccountNote(note) {
@@ -1783,8 +1802,8 @@
   function fillHomeList(filterText) {
     const listEl = document.getElementById("gr-combo-list");
     if (!listEl) return;
-    const q = String(filterText || "").trim().toLowerCase();
-    const list = availableHomes().filter(h => !q || String(h.name).toLowerCase().includes(q));
+    const q = String(filterText || "").trim();
+    const list = availableHomes().filter(h => !q || matchesSearch([h.name, h.code, h.address].join(" "), q));
     const items = [
       { code: "__ALL__", name: "(Всі)", checked: grState.allHomes }
     ].concat(list.map(h => ({
@@ -1959,8 +1978,8 @@
   function fillReportList(filterText) {
     const listEl = document.getElementById("gr-report-list");
     if (!listEl) return;
-    const q = String(filterText || "").trim().toLowerCase();
-    const reports = REPORT_TYPES.filter(t => !q || String(t.title).toLowerCase().includes(q));
+    const q = String(filterText || "").trim();
+    const reports = REPORT_TYPES.filter(t => !q || matchesSearch(t.title, q));
     const items = [
       { id: "__ALL__", title: "(Всі)", checked: grState.allTypes }
     ].concat(reports.map(t => ({
@@ -2274,6 +2293,15 @@
     }, 500);
   }
 
+  function getReportsContainer() {
+    let preview = document.getElementById("preview");
+    if (preview) return preview;
+    const main = document.getElementById("maincontainer");
+    if (!main) return null;
+    main.innerHTML = `<div id="preview"></div>`;
+    return document.getElementById("preview");
+  }
+
   window.renderGeneratedReportOnly = async function renderGeneratedReportOnly(options) {
     document.body.classList.add("files-mode");
     const opts = options || {};
@@ -2285,7 +2313,7 @@
     const compact = !!opts.compact;
     grState.selectedTypeIds = [typeId];
     grState.allTypes = false;
-    const container = document.getElementById("maincontainer");
+    const container = getReportsContainer();
     if (!container) return;
     container.innerHTML = `
       <div class="gr-app gr-single-report-app">
@@ -2346,7 +2374,8 @@
     grState.lastPages = [];
     const def = defaultPeriod();
 
-    const container = document.getElementById("maincontainer");
+    const container = getReportsContainer();
+    if (!container) return;
     container.innerHTML = `
       <div class="gr-app">
         <div class="gr-toolbar no-print">

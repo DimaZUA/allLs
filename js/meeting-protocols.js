@@ -1,4 +1,4 @@
-// meeting-protocols.js
+﻿// meeting-protocols.js
 (function () {
   "use strict";
 
@@ -27,7 +27,7 @@
   ];
   const MEETING_KINDS = [
     { id: "none", label: "не указано" },
-    { id: "regular", label: "чергові (планові), відповідно до Статуту" },
+    { id: "regular", label: "чергові, відповідно до Статуту" },
     { id: "extraordinary", label: "Позачергові" }
   ];
   const MONTHS_UA_LOC = [
@@ -43,6 +43,13 @@
     filter: "",
     current: null
   };
+
+  function matchesSearch(value, query) {
+    if (window.GrCommon && typeof GrCommon.matchesSearch === "function") {
+      return GrCommon.matchesSearch(value, query);
+    }
+    return String(value || "").toLowerCase().includes(String(query || "").toLowerCase());
+  }
 
   function escapeHtml(value) {
     return String(value == null ? "" : value)
@@ -154,6 +161,47 @@
     return "";
   }
 
+  function homeOkpoValue(home) {
+    const direct = valueByKey(home, ["code", "okpo", "edrpou", "ЄДРПОУ", "edrpou_code"]);
+    if (direct) return direct;
+    const map = typeof getReplacementMap === "function" ? getReplacementMap(home || {}) : {};
+    return valueByKey(map, ["okpo", "code", "edrpou", "ЄДРПОУ", "edrpou_code"]);
+  }
+
+  function presentCountValue(item) {
+    const raw = String(item && item.present_count != null ? item.present_count : "").trim();
+    const n = Number(raw.replace(",", "."));
+    return raw && Number.isFinite(n) && n > 0 ? String(Math.round(n)) : "";
+  }
+
+  function presentAreaValue(item) {
+    const raw = String(item && item.present_area != null ? item.present_area : "").trim();
+    const n = Number(raw.replace(/\s+/g, "").replace(",", "."));
+    return raw && Number.isFinite(n) && n > 0 ? money(n) : "";
+  }
+
+  function presentText(item) {
+    const count = presentCountValue(item);
+    if (!count) return "";
+    if (item && item.vote_basis === "area") {
+      return `${count} (${presentAreaValue(item) || "______"} м2)`;
+    }
+    return count;
+  }
+
+  function votingText(item) {
+    const count = presentCountValue(item);
+    if (item && item.vote_basis === "area") {
+      const area = presentAreaValue(item) || "______";
+      return count
+        ? `за ${count} (${area} м2), проти 0, утримались 0.`
+        : `за ____ (${area} м2), проти ____ (______ м2), утримались ____ (______ м2).`;
+    }
+    return count
+      ? `за ${count}, проти 0, утримались 0.`
+      : "за ___, проти ___, утримались ___.";
+  }
+
   function chairFullName(homeCode) {
     const home = getHomeMeta(homeCode);
     const direct = valueByKey(home, ["головаfull", "ГоловаFull", "chairfull", "chair_full", "Председатель"]);
@@ -163,23 +211,28 @@
   }
 
   function defaultChair(homeCode) {
-    return chairFullName(homeCode);
+    return "{ГоловаFull}";
   }
 
   function defaultLocation(homeCode) {
-    const home = getHomeMeta(homeCode);
-    return valueByKey(home, ["adr", "address", "adrfull", "adrlong"]);
+    return "{adr}";
   }
 
   function detectGender(fullName) {
     const text = String(fullName || "").trim();
-    if (/\S+вна\b/i.test(text)) return "female";
-    if (/\S+вич\b/i.test(text)) return "male";
+    if (/(?:івна|ївна|овна|евна|ична)(?=$|[^А-Яа-яІіЇїЄєҐґ])/i.test(text)) return "female";
+    if (/(?:ович|евич|йович|іч|ич)(?=$|[^А-Яа-яІіЇїЄєҐґ])/i.test(text)) return "male";
     return "male";
   }
 
+  function resolveChairValue(homeCode, explicitChair) {
+    const raw = String(explicitChair || defaultChair(homeCode) || "").trim();
+    if (/^\{\s*(?:головаfull|голова)\s*\}$/i.test(raw)) return chairFullName(homeCode);
+    return raw;
+  }
+
   function chairPhrase(homeCode, explicitChair) {
-    const name = String(explicitChair || defaultChair(homeCode) || "").trim();
+    const name = resolveChairValue(homeCode, explicitChair);
     const gender = detectGender(name);
     return {
       name,
@@ -187,10 +240,27 @@
     };
   }
 
+  function renderedChairName(item) {
+    const raw = resolveChairValue(item && item.home_code, item && item.chair);
+    return renderProtocolText(raw, item || {}, null, { askUnknown: false });
+  }
+
+  function renderedLocation(item) {
+    const raw = String(item && item.location || defaultLocation(item && item.home_code) || "").trim();
+    return renderProtocolText(raw, item || {}, null, { askUnknown: false });
+  }
+
   function applyGenderVariants(text, gender) {
     return String(text || "").replace(/\{m:([^{}|]*)\|f:([^{}|]*)\}/gi, function (_match, male, female) {
       return gender === "female" ? female : male;
     });
+  }
+
+  function detectGenderFromText(text, fallback) {
+    const source = String(text || "");
+    if (/(?:івна|ївна|овна|евна|ична)(?=$|[^А-Яа-яІіЇїЄєҐґ])/i.test(source)) return "female";
+    if (/(?:ович|евич|йович|іч|ич)(?=$|[^А-Яа-яІіЇїЄєҐґ])/i.test(source)) return "male";
+    return fallback || "male";
   }
 
   function templateAvailable(template, meetingType) {
@@ -241,7 +311,7 @@
     return !!(template && template.extra_fields && template.extra_fields[fieldName]);
   }
 
-  function renderProtocolText(text, item, question) {
+  function renderProtocolText(text, item, question, options) {
     const chair = chairPhrase(item.home_code, item.chair);
     const secretaryName = String(
       item.secretary ||
@@ -253,25 +323,31 @@
     const programName = String(question && question.program_name || "").trim();
     const totalArea = totalAreaForHome(item.home_code);
     const targetContribution = totalArea > 0 ? repairAmount / totalArea : 0;
-    return applyGenderVariants(String(text || ""), chair.gender)
-      .replace(/\{головаFull\}/gi, snapshotValue(item, "головаFull", currentSnapshot.головаFull || ""))
-      .replace(/\{ГоловаFull\}/g, snapshotValue(item, "головаFull", currentSnapshot.головаFull || ""))
-      .replace(/\{голова\}/gi, snapshotValue(item, "голова", currentSnapshot.голова || ""))
+    let out = String(text || "")
+      .replace(/\{головаFull\}/gi, snapshotValue(item, "головаFull", currentSnapshot["головаFull"] || ""))
+      .replace(/\{ГоловаFull\}/g, snapshotValue(item, "головаFull", currentSnapshot["головаFull"] || ""))
+      .replace(/\{голова\}/gi, snapshotValue(item, "голова", currentSnapshot["голова"] || ""))
       .replace(/\{секретар\}/gi, snapshotValue(item, "секретар", secretaryName || "______________________________"))
-      .replace(/\{org\}/gi, snapshotValue(item, "org", currentSnapshot.org || ""))
+      .replace(/\{org\}/gi, snapshotValue(item, "org", currentSnapshot["org"] || ""))
+      .replace(/\{adr\}/gi, snapshotValue(item, "adr", currentSnapshot["adr"] || ""))
       .replace(/\{назваПрограми\}/gi, programName || "______________________________")
-      .replace(/\{месяц\}/gi, snapshotValue(item, "месяц", currentSnapshot.месяц || ""))
-      .replace(/\{СледМесяц\}/gi, snapshotValue(item, "СледМесяц", currentSnapshot.СледМесяц || ""))
-      .replace(/\{НаступнийМісяць\}/gi, snapshotValue(item, "НаступнийМісяць", currentSnapshot.НаступнийМісяць || ""))
+      .replace(/\{месяц\}/gi, snapshotValue(item, "месяц", currentSnapshot["месяц"] || ""))
+      .replace(/\{СледМесяц\}/gi, snapshotValue(item, "СледМесяц", currentSnapshot["СледМесяц"] || ""))
+      .replace(/\{НаступнийМісяць\}/gi, snapshotValue(item, "НаступнийМісяць", currentSnapshot["НаступнийМісяць"] || ""))
       .replace(/\{сумаРемонту\}/gi, repairAmount ? money(repairAmount) : "________")
       .replace(/\{цільовийВнесок\}/gi, targetContribution ? money(targetContribution) : "________");
+    out = applyGenderVariants(out, detectGenderFromText(out, chair.gender));
+    if (window.GrCommon && typeof GrCommon.replacePlaceholders === "function") {
+      out = GrCommon.replacePlaceholders(out, item && item.placeholder_values || {}, item && item.protocol_date, Object.assign({ askUnknown: !!(item && item.__askUnknownPlaceholders) }, options || {}));
+    }
+    return out;
   }
 
   function renderQuestionTemplateItems(meetingType, filter) {
-    const q = String(filter || "").trim().toLowerCase();
+    const q = String(filter || "").trim();
     const items = availableTemplates(meetingType)
       .filter(template => template.id !== "custom")
-      .filter(template => !q || String(template.label || "").toLowerCase().includes(q) || String(template.subject || "").toLowerCase().includes(q))
+      .filter(template => !q || matchesSearch(template.label, q) || matchesSearch(template.subject, q))
       .map(template => `<button type="button" data-mp-question-template-option="${escapeHtml(template.id)}">${escapeHtml(template.label)}</button>`)
       .join("");
     return items || `<div class="mp-template-empty">Нічого не знайдено</div>`;
@@ -428,19 +504,26 @@
     ).trim();
     return {
       org: valueByKey(home, ["org", "name", "orgname"]) || "",
-      головаFull: chair.name || "",
-      голова: chair.name || "",
-      секретар: secretaryName || "",
-      месяц: protocolMonthText(item.protocol_date),
-      СледМесяц: effectiveDateText(item.protocol_date),
-      НаступнийМісяць: effectiveDateText(item.protocol_date),
-      ФормаПроведення: meetingFormatLabel(item.meeting_format || "in_person"),
-      Ініціатор: meetingInitiatorLabel(item.meeting_initiator || "board"),
-      ВидЗборів: meetingKindLabel(meetingKindValue(item))
+      adr: valueByKey(home, ["adr", "address", "adrfull", "adrlong"]) || "",
+      "головаFull": chair.name || "",
+      "голова": chair.name || "",
+      "секретар": secretaryName || "",
+      "месяц": protocolMonthText(item.protocol_date),
+      "СледМесяц": effectiveDateText(item.protocol_date),
+      "НаступнийМісяць": effectiveDateText(item.protocol_date),
+      "ФормаПроведення": meetingFormatLabel(item.meeting_format || "in_person"),
+      "Ініціатор": meetingInitiatorLabel(item.meeting_initiator || "board"),
+      "ВидЗборів": meetingKindLabel(meetingKindValue(item))
     };
   }
 
   function snapshotValue(item, key, fallback) {
+    if (/^голова/i.test(String(key || "")) && /\{голова(?:full)?\}/i.test(String(item && item.chair || ""))) {
+      return fallback;
+    }
+    if (String(key || "").toLowerCase() === "adr" && /\{adr\}/i.test(String(item && item.location || ""))) {
+      return fallback;
+    }
     const values = item && item.placeholder_values && typeof item.placeholder_values === "object"
       ? item.placeholder_values
       : {};
@@ -466,7 +549,7 @@
 
   function ensureChairFirst(rows, homeCode, meetingType) {
     if (meetingType !== "board" && meetingType !== "representatives") return rows;
-    const chair = defaultChair(homeCode);
+    const chair = chairFullName(homeCode);
     if (!chair) return rows;
     const filtered = rows.filter(row => String(row.fio || "").trim() !== chair);
     return [Object.assign({}, filtered[0] || {}, { fio: chair })].concat(filtered);
@@ -501,7 +584,7 @@
 
   function filteredItems() {
     const selected = new Set(selectedHomes().map(h => String(h.code)));
-    const q = state.filter.trim().toLowerCase();
+    const q = state.filter.trim();
     return state.items.filter(item => {
       if (selected.size && !selected.has(String(item.home_code))) return false;
       if (!q) return true;
@@ -513,8 +596,8 @@
         item.chair,
         item.secretary,
         JSON.stringify(item.agenda || [])
-      ].join(" ").toLowerCase();
-      return hay.includes(q);
+      ].join(" ");
+      return matchesSearch(hay, q);
     });
   }
 
@@ -712,6 +795,8 @@
       meeting_format: "in_person",
       meeting_initiator: "board",
       meeting_kind: "regular",
+      present_count: "",
+      present_area: "",
       title: "",
       location: defaultLocation(defaultHome),
       chair: defaultChair(defaultHome),
@@ -760,7 +845,9 @@
                 ${MEETING_KINDS.map(t => `<option value="${t.id}" ${t.id === meetingKindValue(doc) ? "selected" : ""}>${escapeHtml(t.label)}</option>`).join("")}
               </select></label>
               <label>Місце проведення<input name="location" value="${escapeHtml(doc.location || "")}"></label>
-              <label>Голова зборів<input name="chair" value="${escapeHtml(doc.chair || "")}"></label>
+              <label>Кількість присутніх<input type="number" min="0" step="1" name="present_count" value="${escapeHtml(doc.present_count || "")}"></label>
+              <label class="mp-present-area-field ${doc.vote_basis === "area" ? "" : "is-hidden"}">Площа присутніх, м2<input type="number" min="0" step="0.01" name="present_area" value="${escapeHtml(doc.present_area || "")}"></label>
+              <label>Головуючий на зборах<input name="chair" value="${escapeHtml(doc.chair || "")}"></label>
               <label class="mp-secretary-field ${doc.meeting_type === "board" || doc.meeting_type === "representatives" ? "is-hidden" : ""}">Секретар<input name="secretary" value="${escapeHtml(doc.secretary || "")}"></label>
               <label class="mp-title-field gr-ph-field">Тема / короткий опис<button type="button" class="gr-ph-btn" data-gr-ph-picker title="Вставити placeholder">⋯</button><input name="title" value="${escapeHtml(doc.title || "")}"></label>
               <label class="mp-notes-field gr-ph-field">Додаткові дані<button type="button" class="gr-ph-btn" data-gr-ph-picker title="Вставити placeholder">⋯</button><textarea name="notes" rows="4">${escapeHtml(doc.notes || "")}</textarea></label>
@@ -816,6 +903,8 @@
       meeting_format: meetingType === "general" ? String(fd.get("meeting_format") || "in_person") : "in_person",
       meeting_initiator: meetingType === "general" ? String(fd.get("meeting_initiator") || "board") : "board",
       meeting_kind: meetingType === "general" ? String(fd.get("meeting_kind") || defaultMeetingKind(String(fd.get("meeting_initiator") || "board"))) : "regular",
+      present_count: String(fd.get("present_count") || "").trim(),
+      present_area: String(fd.get("present_area") || "").trim(),
       title: String(fd.get("title") || "").trim(),
       location: String(fd.get("location") || "").trim(),
       chair: String(fd.get("chair") || "").trim(),
@@ -1139,7 +1228,7 @@
   function renderMeetingNoticePages(home, homeName, voters, agenda, item) {
     const questions = normalizeAgenda(agenda).filter(q => q && q.subject && q.template_id !== "meetingChairSecretary");
     const meetingDate = item.protocol_date ? formatDate(item.protocol_date) : "__.__.____";
-    const meetingPlace = String(item.location || "________________").trim();
+    const meetingPlace = String(renderedLocation(item) || "________________").trim();
     const pages = chunks(voters, 6);
     const agendaHtml = questions.length
       ? `<ol>${questions.map(q => `<li>${renderProtocolRichInline(q.subject || "", item, q)}</li>`).join("")}</ol>`
@@ -1199,65 +1288,150 @@
       .replace(/"/g, "&quot;");
   }
 
+  function docxRun(text, opts) {
+    if (window.GrCommon && typeof GrCommon.docxRun === "function") return GrCommon.docxRun(text, opts);
+    return `<w:r><w:rPr><w:lang w:val="uk-UA" w:eastAsia="uk-UA" w:bidi="uk-UA"/></w:rPr><w:t xml:space="preserve">${xmlEscape(text || "")}</w:t></w:r>`;
+  }
+
   function docxP(text, opts) {
-    const o = opts || {};
-    const align = o.align ? `<w:jc w:val="${o.align}"/>` : "";
-    const bold = o.bold ? "<w:b/>" : "";
-    const size = o.size ? `<w:sz w:val="${Number(o.size) * 2}"/><w:szCs w:val="${Number(o.size) * 2}"/>` : "";
-    return `<w:p><w:pPr>${align}</w:pPr><w:r><w:rPr>${bold}${size}</w:rPr><w:t xml:space="preserve">${xmlEscape(text || "")}</w:t></w:r></w:p>`;
+    if (window.GrCommon && typeof GrCommon.docxP === "function") return GrCommon.docxP(text, opts);
+    return `<w:p>${docxRun(text || "", opts)}</w:p>`;
+  }
+
+  function docxPRuns(runs, opts) {
+    if (window.GrCommon && typeof GrCommon.docxPRuns === "function") return GrCommon.docxPRuns(runs, opts);
+    return `<w:p>${(runs || []).map(run => docxRun(run.text, run)).join("")}</w:p>`;
+  }
+
+  function docxLabelParagraph(label, text) {
+    if (window.GrCommon && typeof GrCommon.docxLabelParagraph === "function") return GrCommon.docxLabelParagraph(label, text);
+    return docxPRuns([{ text: label, bold: true }, { text: text ? ` ${text}` : "" }]);
+  }
+
+  function docxRichBlocks(text, item, question, opts) {
+    const replaced = renderProtocolText(text || "", item, question);
+    if (window.GrCommon && GrCommon.parseRichText && GrCommon.docxRichParagraphs) {
+      return GrCommon.docxRichParagraphs(GrCommon.parseRichText(replaced, {}, item && item.protocol_date), opts);
+    }
+    return docxP(replaced, opts);
+  }
+
+  function docxLabelRichBlocks(label, text, item, question, opts) {
+    const replaced = renderProtocolText(text || "", item, question);
+    if (window.GrCommon && GrCommon.parseRichText && GrCommon.docxLabelRichParagraphs) {
+      return GrCommon.docxLabelRichParagraphs(label, GrCommon.parseRichText(replaced, {}, item && item.protocol_date), opts);
+    }
+    return docxLabelParagraph(label, replaced);
+  }
+
+  function docxSectionRichBlocks(label, text, item, question, opts) {
+    return docxP(label, { bold: true }) + docxRichBlocks(text, item, question, Object.assign({ firstLine: 567 }, opts || {}));
   }
 
   function docxQuestion(q, index, item) {
     return [
-      docxP(`${index + 1}. ${renderProtocolText(q.subject || "", item, q)}`, { bold: true, size: 13 }),
-      q.speaker ? docxP(`Виступили: ${renderProtocolText(q.speaker, item, q)}`) : "",
-      q.discussion ? docxP(`Обговорення: ${renderProtocolText(q.discussion, item, q)}`) : "",
-      q.decision ? docxP(`Вирішили: ${renderProtocolText(q.decision, item, q)}`) : "",
-      docxP("Голосування: за ___, проти ___, утримались ___."),
-      docxP("Рішення прийнято.")
+      docxP(""),
+      docxRichBlocks(`*${index + 1}. ${q.subject || ""}*`, item, q, { size: 13 }),
+      q.speaker ? docxSectionRichBlocks("Виступили:", q.speaker, item, q, { align: "justify" }) : "",
+      q.discussion ? docxSectionRichBlocks("Обговорення:", q.discussion, item, q, { align: "justify" }) : "",
+      q.decision ? docxSectionRichBlocks("Вирішили:", q.decision, item, q, { align: "justify" }) : "",
+      docxLabelParagraph("Голосування:", votingText(item)),
+      docxP("Рішення прийнято.", { bold: true })
     ].join("");
+  }
+
+  function protocolDocxHeaderXml(item, homeName) {
+    const caption = `Протокол № ${item.protocol_number || ""}`;
+    const date = item.protocol_date ? `від ${formatDate(item.protocol_date)}` : "";
+    return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+      <w:hdr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+        <w:tbl>
+          <w:tblPr><w:tblW w:w="0" w:type="auto"/><w:tblBorders><w:top w:val="nil"/><w:left w:val="nil"/><w:bottom w:val="single" w:sz="12" w:space="1" w:color="1F5A9D"/><w:right w:val="nil"/><w:insideH w:val="nil"/><w:insideV w:val="nil"/></w:tblBorders></w:tblPr>
+          <w:tblGrid><w:gridCol w:w="5200"/><w:gridCol w:w="5200"/></w:tblGrid>
+          <w:tr>
+            <w:tc><w:tcPr><w:tcW w:w="5200" w:type="dxa"/></w:tcPr>${docxP(homeName, { bold: true, size: 10 })}</w:tc>
+            <w:tc><w:tcPr><w:tcW w:w="5200" w:type="dxa"/></w:tcPr>${docxP(`${caption} ${date}`.trim(), { bold: true, size: 10, align: "right" })}</w:tc>
+          </w:tr>
+        </w:tbl>
+      </w:hdr>`;
+  }
+
+  function docxMetaTableCell(content, width) {
+    return `<w:tc><w:tcPr><w:tcW w:w="${width}" w:type="dxa"/><w:tcBorders><w:top w:val="nil"/><w:left w:val="nil"/><w:bottom w:val="nil"/><w:right w:val="nil"/></w:tcBorders></w:tcPr>${content || docxP("")}</w:tc>`;
+  }
+
+  function docxMetaTable(items) {
+    const rows = [];
+    for (let i = 0; i < items.length; i += 2) {
+      const left = items[i];
+      const right = items[i + 1];
+      rows.push(`<w:tr>
+        ${docxMetaTableCell(docxLabelParagraph(left.label, left.value), 5000)}
+        ${docxMetaTableCell(right ? docxLabelParagraph(right.label, right.value) : docxP(""), 5000)}
+      </w:tr>`);
+    }
+    return `<w:tbl>
+      <w:tblPr><w:tblW w:w="10000" w:type="dxa"/><w:tblBorders><w:top w:val="nil"/><w:left w:val="nil"/><w:bottom w:val="nil"/><w:right w:val="nil"/><w:insideH w:val="nil"/><w:insideV w:val="nil"/></w:tblBorders></w:tblPr>
+      <w:tblGrid><w:gridCol w:w="5000"/><w:gridCol w:w="5000"/></w:tblGrid>
+      ${rows.join("")}
+    </w:tbl>`;
+  }
+
+  function protocolMetaItems(item, home, voters) {
+    const list = Array.isArray(voters) ? voters : [];
+    const formatLabel = meetingFormatLabel(item.meeting_format || "in_person");
+    const initiatorLabel = meetingInitiatorLabel(item.meeting_initiator || "board");
+    const kindLabel = meetingKindLabel(meetingKindValue(item));
+    const presentLine = presentText(item);
+    const items = [
+      { label: "Код ЄДРПОУ:", value: homeOkpoValue(home) },
+      { label: "Місце проведення:", value: renderedLocation(item) },
+      ...(item.meeting_type === "general" && formatLabel ? [{ label: "Форма проведення:", value: formatLabel }] : []),
+      ...(item.meeting_type === "general" && initiatorLabel ? [{ label: "Ініціатор:", value: initiatorLabel }] : []),
+      ...(item.meeting_type === "general" && kindLabel ? [{ label: "Вид зборів:", value: kindLabel }] : []),
+      { label: "Кількість осіб, які мають право голосу:", value: String(list.length) },
+      ...(presentLine ? [{ label: "Зареєстровано для участі у зборах:", value: `${presentLine}\nЗбори правомочні відповідно до Статуту` }] : [])
+    ];
+    if (items.length % 2) items.push({ label: "", value: "" });
+    items.push(
+      { label: item.meeting_type === "general" ? "Головуючий на зборах:" : "Голова правління:", value: renderedChairName(item) },
+      { label: "Секретар:", value: item.secretary || "" }
+    );
+    return items;
   }
 
   async function buildProtocolDocxBlob(item) {
     if (!window.JSZip) throw new Error("JSZip is not loaded");
+    item = Object.assign({}, item, { __askUnknownPlaceholders: true });
     const homeData = await ensureHomeData(item.home_code);
     const home = Object.assign({}, homeData || {}, getHomeByCode(item.home_code) || {}, { code: item.home_code });
     const voters = participantRowsForPreview(item, collectVoters(home, item.vote_basis));
-    const totalVotes = voters.reduce((sum, v) => sum + (Number(v.votes) || 0), 0);
     const homeName = home?.name || home?.org || item.home_code || "";
     const agenda = normalizeAgenda(item.agenda).filter(q => q && q.subject);
     const title = visibleProtocolTitle(item, agenda);
-    const formatLabel = meetingFormatLabel(item.meeting_format || "in_person");
-    const initiatorLabel = meetingInitiatorLabel(item.meeting_initiator || "board");
-    const kindLabel = meetingKindLabel(meetingKindValue(item));
+    const metaItems = protocolMetaItems(item, home, voters);
     const body = [
       docxP(homeName, { bold: true, size: 16, align: "center" }),
       docxP(`Протокол № ${item.protocol_number || ""} ${item.protocol_date ? `від ${formatDate(item.protocol_date)}` : ""}`, { bold: true, size: 14, align: "center" }),
       docxP(typeLabel(item.meeting_type), { bold: true, size: 14, align: "center" }),
       title ? docxP(title, { bold: true, align: "center" }) : "",
-      docxP(`Місце проведення: ${item.location || ""}`),
-      item.meeting_type === "general" && formatLabel ? docxP(`Форма проведення: ${formatLabel}`) : "",
-      item.meeting_type === "general" && initiatorLabel ? docxP(`Ініціатор: ${initiatorLabel}`) : "",
-      item.meeting_type === "general" && kindLabel ? docxP(`Вид зборів: ${kindLabel}`) : "",
-      docxP(`Облік голосів: ${voteBasisLabel(item.vote_basis)}`),
-      docxP(`Учасників у реєстрі: ${voters.length}`),
-      docxP(`Загальна кількість голосів: ${item.vote_basis === "area" ? money(totalVotes) : String(totalVotes)}`),
-      docxP("Присутні: ____________________; кворум є."),
-      docxP(`Голова: ${item.chair || ""}`),
-      docxP(`Секретар: ${item.secretary || ""}`),
-      docxP("Порядок денний", { bold: true, size: 13 }),
-      agenda.map((q, i) => docxP(`${i + 1}. ${renderProtocolText(q.subject || "", item, q)}`)).join(""),
-      agenda.map((q, i) => docxQuestion(q, i, item)).join(""),
-      item.notes ? docxP(`Додатково: ${item.notes}`) : "",
+      docxMetaTable(metaItems),
       docxP(""),
-      docxP(item.meeting_type === "general" ? `Голова зборів __________________ / ${shortInitials(item.chair || "")}` : `Голова правління __________________ / ${shortInitials(item.chair || "")}`),
+      docxP("Порядок денний", { bold: true, size: 13 }),
+      agenda.map((q, i) => docxRichBlocks(`${i + 1}. ${q.subject || ""}`, item, q, { size: 13 })).join(""),
+      agenda.map((q, i) => docxQuestion(q, i, item)).join(""),
+      item.notes ? docxLabelRichBlocks("Додатково:", item.notes, item, null) : "",
+      docxP(""),
+      docxP(item.meeting_type === "general" ? `Головуючий на зборах __________________ / ${shortInitials(renderedChairName(item))}` : `Голова правління __________________ / ${shortInitials(renderedChairName(item))}`),
+      item.meeting_type === "general" ? docxP("") : "",
       item.meeting_type === "general" ? docxP(`Секретар __________________ / ${shortInitials(item.secretary || "")}`) : ""
     ].join("");
     const zip = new JSZip();
-    zip.file("[Content_Types].xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>`);
+    zip.file("[Content_Types].xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/header1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"/></Types>`);
     zip.folder("_rels").file(".rels", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>`);
-    zip.folder("word").folder("_rels").file("document.xml.rels", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>`);
-    zip.folder("word").file("document.xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${body}<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="720" w:right="720" w:bottom="720" w:left="720" w:header="360" w:footer="360" w:gutter="0"/></w:sectPr></w:body></w:document>`);
+    zip.folder("word").folder("_rels").file("document.xml.rels", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rIdHeader1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/header" Target="header1.xml"/></Relationships>`);
+    zip.folder("word").file("header1.xml", protocolDocxHeaderXml(item, homeName));
+    zip.folder("word").file("document.xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><w:body>${body}<w:sectPr><w:headerReference w:type="default" r:id="rIdHeader1"/><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="900" w:right="720" w:bottom="720" w:left="720" w:header="360" w:footer="360" w:gutter="0"/></w:sectPr></w:body></w:document>`);
     return zip.generateAsync({ type: "blob", mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
   }
 
@@ -1308,6 +1482,14 @@
     <div class="mp-blue-line"></div>`;
   }
 
+  function renderProtocolMetaHtml(items) {
+    return (items || []).map(item => {
+      if (!item || (!item.label && !item.value)) return "<div></div>";
+      const value = escapeHtml(item.value || "").replace(/\n/g, "<br>");
+      return `<div><strong>${escapeHtml(item.label)}</strong> ${value}</div>`;
+    }).join("");
+  }
+
   function shortInitials(fullName) {
     const parts = String(fullName || "").trim().split(/\s+/).filter(Boolean);
     if (parts.length < 3) return String(fullName || "").trim();
@@ -1316,10 +1498,11 @@
 
   function renderInlineSignatures(item) {
     const participants = normalizeParticipants(item.participants).filter(row => row && row.fio);
+    const chairName = renderedChairName(item);
     if (item.meeting_type === "general") {
       return `<div class="mp-signatures">
-        <div>Голова зборів __________________ / ${escapeHtml(shortInitials(item.chair || ""))}</div>
-        <div>Секретар __________________ / ${escapeHtml(shortInitials(item.secretary || ""))}</div>
+        <div class="mp-signature-line"><span>Головуючий на зборах</span><b></b><em>/ ${escapeHtml(shortInitials(chairName))}</em></div>
+        <div class="mp-signature-line"><span>Секретар</span><b></b><em>/ ${escapeHtml(shortInitials(item.secretary || ""))}</em></div>
       </div>`;
     }
     const title = item.meeting_type === "board" ? "Члени правління:" : "Уповноважені представники:";
@@ -1327,7 +1510,7 @@
       `<div class="mp-member-signature">${escapeHtml(shortInitials(row.fio))} __________________</div>`
     ).join("");
     return `<div class="mp-signature-block">
-      <div>Голова правління __________________ / ${escapeHtml(shortInitials((participants[0] && participants[0].fio) || item.chair || ""))}</div>
+      <div>Голова правління __________________ / ${escapeHtml(shortInitials((participants[0] && participants[0].fio) || chairName || ""))}</div>
       ${participants.length > 1 ? `<div class="mp-member-signatures-title">${escapeHtml(title)}</div>${memberRows}` : ""}
     </div>`;
   }
@@ -1338,7 +1521,7 @@
       ${q.speaker ? `<div class="mp-question-rich"><strong>Виступили:</strong>${renderProtocolRichBlock(q.speaker, item, q, "mp-rich-p")}</div>` : ""}
       ${q.discussion ? `<div class="mp-question-rich"><strong>Обговорення:</strong>${renderProtocolRichBlock(q.discussion, item, q, "mp-rich-p")}</div>` : ""}
       ${q.decision ? `<div class="mp-question-rich"><strong>Вирішили:</strong>${renderProtocolRichBlock(q.decision, item, q, "mp-rich-p")}</div>` : ""}
-      <p><strong>Голосування:</strong> за ___, проти ___, утримались ___.</p>
+      <p><strong>Голосування:</strong> ${escapeHtml(votingText(item))}</p>
       <p><strong>Рішення прийнято.</strong></p>
     </div>`;
   }
@@ -1410,14 +1593,10 @@
   function renderProtocolDoc(item, home, voters) {
     const agenda = normalizeAgenda(item.agenda);
     const title = visibleProtocolTitle(item, agenda);
-    const totalVotes = voters.reduce((sum, v) => sum + (Number(v.votes) || 0), 0);
-    const homeName = home?.name || home?.org || item.home_code || "";
     const protocolCaption = `Протокол № ${item.protocol_number || ""}`;
     const protocolDate = item.protocol_date ? `від ${formatDate(item.protocol_date)}` : "";
-    const formatLabel = meetingFormatLabel(item.meeting_format || "in_person");
-    const initiatorLabel = meetingInitiatorLabel(item.meeting_initiator || "board");
-    const kindLabel = meetingKindLabel(meetingKindValue(item));
     const questionRows = normalizeAgenda(agenda).map((q, index) => ({ q, index })).filter(row => row.q && row.q.subject);
+    const metaItems = protocolMetaItems(item, home, voters);
     const renderProtocolPage = (pageRows, pageIndex, offset, opts) => `
       <section class="gr-sheet mp-sheet">
         <div class="mp-page">
@@ -1426,17 +1605,7 @@
             <h1>${escapeHtml(typeLabel(item.meeting_type))}</h1>
             ${title ? `<h2>${renderProtocolRichInline(title, item, null)}</h2>` : ""}
             <div class="mp-meta">
-              <div><strong>Будинок:</strong> ${escapeHtml(homeName)}</div>
-              <div><strong>Місце проведення:</strong> ${escapeHtml(item.location || "")}</div>
-              ${item.meeting_type === "general" && formatLabel ? `<div><strong>Форма проведення:</strong> ${escapeHtml(formatLabel)}</div>` : ""}
-              ${item.meeting_type === "general" && initiatorLabel ? `<div><strong>Ініціатор:</strong> ${escapeHtml(initiatorLabel)}</div>` : ""}
-              ${item.meeting_type === "general" && kindLabel ? `<div><strong>Вид зборів:</strong> ${escapeHtml(kindLabel)}</div>` : ""}
-              <div><strong>Облік голосів:</strong> ${escapeHtml(voteBasisLabel(item.vote_basis))}</div>
-              <div><strong>Учасників у реєстрі:</strong> ${voters.length}</div>
-              <div><strong>Загальна кількість голосів:</strong> ${item.vote_basis === "area" ? money(totalVotes) : String(totalVotes)}</div>
-              <div><strong>Присутні:</strong> ____________________; кворум є.</div>
-              <div><strong>Голова:</strong> ${escapeHtml(item.chair || "")}</div>
-              <div><strong>Секретар:</strong> ${escapeHtml(item.secretary || "")}</div>
+              ${renderProtocolMetaHtml(metaItems)}
             </div>
             <h3>Порядок денний</h3>
             <ol class="mp-agenda-list">${agenda.map(q => `<li>${renderProtocolRichInline(q.subject || "", item, q)}</li>`).join("") || "<li></li>"}</ol>
@@ -1457,16 +1626,25 @@
   }
 
   function getContainer() {
-    return document.getElementById("maincontainer");
+    return document.getElementById("preview") || document.getElementById("maincontainer");
+  }
+
+  function ensureRenderContainer() {
+    let preview = document.getElementById("preview");
+    if (preview) return preview;
+    const main = document.getElementById("maincontainer");
+    if (!main) return null;
+    main.innerHTML = `<div id="preview"></div>`;
+    return document.getElementById("preview");
   }
 
   function render(html) {
-    const container = getContainer();
+    const container = ensureRenderContainer();
     if (container) container.innerHTML = html;
     bindEvents();
     if (window.GrCommon) {
       GrCommon.initPlaceholderPicker(container, currentProtocolPlaceholderCatalog);
-      GrCommon.initPlaceholderHint(container);
+      GrCommon.initPlaceholderHint(container, { names: ["discussion", "decision"] });
     }
     enhanceProtocolPreview(container);
     if (window.lucide && typeof window.lucide.createIcons === "function") window.lucide.createIcons();
@@ -1609,6 +1787,7 @@
     if (!item) return;
     const homeData = await ensureHomeData(item.home_code);
     const home = Object.assign({}, homeData || {}, getHomeByCode(item.home_code) || {}, { code: item.home_code });
+    const renderItem = Object.assign({}, item, { __askUnknownPlaceholders: true });
     const voters = participantRowsForPreview(item, collectVoters(home, item.vote_basis));
     render(`<div class="gr-app mp-preview-app">
       <div class="od-preview-tools no-print">
@@ -1618,7 +1797,7 @@
         <button type="button" class="gr-btn" data-mp-word="${escapeHtml(item.id || "")}"><span>Word</span></button>
         ${item.meeting_type === "general" ? `<button type="button" class="gr-btn" data-mp-registration="${escapeHtml(item.id || "")}">Список реєстрації</button><button type="button" class="gr-btn" data-mp-voting="${escapeHtml(item.id || "")}">Лист голосування</button><button type="button" class="gr-btn" data-mp-polls="${escapeHtml(item.id || "")}">Листи опитування</button><button type="button" class="gr-btn" data-mp-notices="${escapeHtml(item.id || "")}">Повідомлення</button><button type="button" class="gr-btn" data-mp-notice-delivery="${escapeHtml(item.id || "")}">Список вручення</button>` : ""}
       </div>
-      <div class="gr-output mp-output">${renderProtocolDoc(item, home, voters)}</div>
+      <div class="gr-output mp-output">${renderProtocolDoc(renderItem, home, voters)}</div>
     </div>`);
   }
 
@@ -1715,6 +1894,8 @@
     if (!item || !canEditHome(item.home_code)) return;
     render(renderEditor(Object.assign({}, item, {
       id: "",
+      chair: defaultChair(item.home_code),
+      location: defaultLocation(item.home_code),
       placeholder_values: {},
       protocol_date: todayIso(),
       protocol_number: String(maxNumberForHome(item.home_code) + 1)
@@ -1911,6 +2092,12 @@
     });
   }
 
+  function updatePresentAreaVisibility(container) {
+    const voteBasis = container.querySelector('[data-mp-form] [name="vote_basis"]')?.value || "apartment";
+    const field = container.querySelector(".mp-present-area-field");
+    if (field) field.classList.toggle("is-hidden", voteBasis !== "area");
+  }
+
   function currentHomeCodeFromForm(container) {
     return container.querySelector('[data-mp-form] [name="home_code"]')?.value || defaultEditableHome();
   }
@@ -1992,6 +2179,8 @@
       const notes = container.querySelector('[name="notes"]');
       if (notes && !notes.value.trim()) notes.value = defaultNotes(homeCode, typeSelect.value, currentProtocolId(container));
     });
+    const voteBasisSelect = container.querySelector('[data-mp-form] select[name="vote_basis"]');
+    if (voteBasisSelect) voteBasisSelect.addEventListener("change", () => updatePresentAreaVisibility(container));
     const participantWrap = container.querySelector("[data-mp-participants-wrap]");
     if (participantWrap) {
       participantWrap.addEventListener("click", event => {
@@ -2094,6 +2283,7 @@
         }
       });
       updateAllQuestionPlaceholderPreviews(container);
+      updatePresentAreaVisibility(container);
     }
     refreshQuestionsUi(container);
   }

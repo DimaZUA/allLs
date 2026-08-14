@@ -1,4 +1,4 @@
-// gr-common.js — спільні утиліти для генераторів (листи, PDF, placeholders, rich text)
+﻿// gr-common.js - shared generator utilities: sheets, PDF, placeholders, rich text
 (function () {
   "use strict";
 
@@ -29,6 +29,196 @@
     return String(n).padStart(2, "0");
   }
 
+  function moneyText(value) {
+    const n = typeof value === "number" ? value : Number(String(value ?? "").replace(/\s/g, "").replace(",", "."));
+    if (!Number.isFinite(n)) return String(value ?? "");
+    return n.toLocaleString("uk-UA", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function capitalizeFirst(text) {
+    const s = String(text || "").trim();
+    return s ? s.charAt(0).toUpperCase() + s.slice(1) : "";
+  }
+
+  function wildcardPatternToRegExp(pattern) {
+    const text = String(pattern || "").trim();
+    if (!text) return null;
+    if (text.length > 1 && text.startsWith("/") && text.endsWith("/")) {
+      try {
+        return new RegExp(text.slice(1, -1), "i");
+      } catch (_err) {}
+    }
+    let out = "";
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i];
+      if (ch === "*" || /\s/.test(ch)) {
+        out += ".*";
+        while (i + 1 < text.length && (text[i + 1] === "*" || /\s/.test(text[i + 1]))) i++;
+        continue;
+      }
+      if (ch === "?") {
+        out += ".";
+        continue;
+      }
+      if (ch === "[") {
+        const end = text.indexOf("]", i + 1);
+        if (end > i + 1) {
+          const body = text.slice(i + 1, end).replace(/[\\\]\^-]/g, "\\$&");
+          out += `[${body}]`;
+          i = end;
+          continue;
+        }
+      }
+      out += ch.replace(/[\\^$+?.()|{}[\]]/g, "\\$&");
+    }
+    return new RegExp(out, "i");
+  }
+
+  function matchesSearch(value, pattern) {
+    const re = wildcardPatternToRegExp(pattern);
+    return !re || re.test(String(value || ""));
+  }
+
+  const NUM_0_19 = ["нуль", "один", "два", "три", "чотири", "п'ять", "шість", "сім", "вісім", "дев'ять", "десять", "одинадцять", "дванадцять", "тринадцять", "чотирнадцять", "п'ятнадцять", "шістнадцять", "сімнадцять", "вісімнадцять", "дев'ятнадцять"];
+  const NUM_0_19_F = ["нуль", "одна", "дві", "три", "чотири", "п'ять", "шість", "сім", "вісім", "дев'ять", "десять", "одинадцять", "дванадцять", "тринадцять", "чотирнадцять", "п'ятнадцять", "шістнадцять", "сімнадцять", "вісімнадцять", "дев'ятнадцять"];
+  const NUM_TENS = ["", "", "двадцять", "тридцять", "сорок", "п'ятдесят", "шістдесят", "сімдесят", "вісімдесят", "дев'яносто"];
+  const NUM_HUNDREDS = ["", "сто", "двісті", "триста", "чотириста", "п'ятсот", "шістсот", "сімсот", "вісімсот", "дев'ятсот"];
+
+  function pluralForm(n, forms) {
+    const x = Math.abs(Number(n) || 0) % 100;
+    const y = x % 10;
+    if (x > 10 && x < 20) return forms[2];
+    if (y === 1) return forms[0];
+    if (y >= 2 && y <= 4) return forms[1];
+    return forms[2];
+  }
+
+  function triadWords(value, feminine) {
+    const n = Math.floor(Math.abs(Number(value) || 0)) % 1000;
+    const words = [];
+    const hundreds = Math.floor(n / 100);
+    const rest = n % 100;
+    if (hundreds) words.push(NUM_HUNDREDS[hundreds]);
+    if (rest) {
+      if (rest < 20) words.push((feminine ? NUM_0_19_F : NUM_0_19)[rest]);
+      else {
+        const tens = Math.floor(rest / 10);
+        const ones = rest % 10;
+        if (tens) words.push(NUM_TENS[tens]);
+        if (ones) words.push((feminine ? NUM_0_19_F : NUM_0_19)[ones]);
+      }
+    }
+    return words.join(" ");
+  }
+
+  function intToWords(value) {
+    const n = Math.floor(Math.abs(Number(value) || 0));
+    if (n === 0) return NUM_0_19[0];
+    const millions = Math.floor(n / 1000000);
+    const thousands = Math.floor((n % 1000000) / 1000);
+    const rest = n % 1000;
+    const words = [];
+    if (millions) words.push(triadWords(millions, false), pluralForm(millions, ["мільйон", "мільйони", "мільйонів"]));
+    if (thousands) words.push(triadWords(thousands, true), pluralForm(thousands, ["тисяча", "тисячі", "тисяч"]));
+    if (rest) words.push(triadWords(rest, false));
+    return words.filter(Boolean).join(" ");
+  }
+
+  function parseLooseNumber(text) {
+    const normalized = String(text || "").replace(/[\s\u00a0]/g, "").replace(",", ".");
+    const n = Number(normalized);
+    return Number.isFinite(n) ? n : null;
+  }
+
+  function moneyToWords(value) {
+    const n = parseLooseNumber(value);
+    if (n == null) return "";
+    const abs = Math.abs(n);
+    const whole = Math.floor(abs);
+    const kop = Math.round((abs - whole) * 100);
+    const sign = n < 0 ? "мінус " : "";
+    return capitalizeFirst(`${sign}${intToWords(whole)} грн. ${pad2(kop)} коп.`);
+  }
+
+  function dateToWords(value) {
+    const m = String(value || "").match(/^(\d{1,2})\.(\d{1,2})\.(\d{2}|\d{4})$/);
+    if (!m) return "";
+    const day = Number(m[1]);
+    const month = Number(m[2]) - 1;
+    const year = Number(m[3].length === 2 ? "20" + m[3] : m[3]);
+    if (!day || month < 0 || month > 11 || !year) return "";
+    return `${day} ${MONTHS_UA_GEN[month]} ${year}`;
+  }
+
+  function previousNumberOrDateText(text) {
+    const source = String(text || "");
+    let best = null;
+    source.replace(/\b\d{1,2}\.\d{1,2}\.(?:\d{2}|\d{4})\b/g, (raw, offset) => {
+      best = { type: "date", raw, end: offset + raw.length };
+      return raw;
+    });
+    source.replace(/(?:\d{1,3}(?:[\s\u00a0]\d{3})+|\d+)(?:[,.]\d+)?/g, (raw, offset) => {
+      const end = offset + raw.length;
+      if (!best || end > best.end) best = { type: "number", raw, end };
+      return raw;
+    });
+    if (!best) return "";
+    return best.type === "date" ? dateToWords(best.raw) : moneyToWords(best.raw);
+  }
+
+  function applyPropisPlaceholders(text) {
+    let out = String(text || "");
+    const re = /\{(?:propis|пропись|прописью)\}/gi;
+    let match;
+    let result = "";
+    let last = 0;
+    while ((match = re.exec(out)) !== null) {
+      const before = out.slice(0, match.index);
+      result += out.slice(last, match.index) + previousNumberOrDateText(before);
+      last = match.index + match[0].length;
+    }
+    return result + out.slice(last);
+  }
+
+  function isTechnicalPlaceholder(key) {
+    const k = String(key || "").trim().toLowerCase();
+    return !k ||
+      k.includes("|") ||
+      k.includes("/") ||
+      /^f\d*$/.test(k) ||
+      /^\^\d+$/.test(k) ||
+      /^(=+|=>|<=|<==>|>-<)$/.test(k) ||
+      /^(propis|пропись|прописью|privatqr)$/.test(k);
+  }
+
+  function canAutoResolvePlaceholder(key, docDate) {
+    const k = String(key || "").trim();
+    if (isTechnicalPlaceholder(k)) return true;
+    const parsed = expandFormattedPlaceholder(k);
+    if (!parsed) return false;
+    return !!applyDateFormat(parsed.base, parsed.format, docDate);
+  }
+
+  function resolveUnknownPlaceholders(text, replacements, options) {
+    const opts = options || {};
+    if (!opts.askUnknown) return text;
+    return String(text || "").replace(/\{([^{}]+)\}/g, function (m, key) {
+      const rawKey = String(key || "").trim();
+      const normalized = rawKey.toLowerCase();
+      if (isTechnicalPlaceholder(rawKey) || canAutoResolvePlaceholder(rawKey, opts.docDate)) return m;
+      const existing = replacements && (replacements[rawKey] ?? replacements[normalized]);
+      if (existing != null && String(existing) !== "") return String(existing);
+      if (typeof prompt !== "function") return m;
+      const value = prompt(`Введите значение для {${rawKey}}`, "");
+      if (value == null) return m;
+      if (replacements) {
+        replacements[rawKey] = value;
+        replacements[normalized] = value;
+      }
+      return String(value);
+    });
+  }
+
   function parseDocDate(value) {
     if (!value) return new Date();
     const d = new Date(value);
@@ -55,8 +245,8 @@
         .replace(/mm/g, pad2(mm + 1))
         .replace(/dd/g, pad2(dd));
     };
-    return {
-      дата: fmt(d, "dd.mm.yyyy"),
+    const map = {
+      "дата": fmt(d, "dd.mm.yyyy"),
       date: fmt(d, "dd.mm.yyyy"),
       "1число": fmt(new Date(y, m, 1), "dd.mm.yyyy"),
       "першечисло": fmt(new Date(y, m, 1), "dd.mm.yyyy"),
@@ -68,8 +258,9 @@
       "місяць": MONTHS_UA_LOC[m] + " " + y + " р.",
       "наступниймісяцьназва": MONTHS_UA_LOC[nextMonth.getMonth()] + " " + nextMonth.getFullYear() + " р.",
       "попередніймісяцьназва": MONTHS_UA_LOC[prevMonth.getMonth()] + " " + prevMonth.getFullYear() + " р.",
-      "сегодня": fmt(new Date(), "dd.mm.yyyy")
+      "сьогодні": fmt(new Date(), "dd.mm.yyyy")
     };
+    return map;
   }
 
   function expandFormattedPlaceholder(key) {
@@ -97,16 +288,16 @@
     if (format === "dd.mm.yyyy") return `${pad2(dd)}.${pad2(mm + 1)}.${yy}`;
     if (format === "dd.mm.yy") return `${pad2(dd)}.${pad2(mm + 1)}.${pad2(yy % 100)}`;
     if (format === "dd mmmm yyyy" || format === "dd mmmm yyyy р.") return `${pad2(dd)} ${MONTHS_UA_GEN[mm]} ${yy} р.`;
-    if (format === "<<dd>> mmmm yyyy") return `«${pad2(dd)}» ${MONTHS_UA_GEN[mm]} ${yy} р.`;
+    if (format === "<<dd>> mmmm yyyy") return `«${pad2(dd)}» ${MONTHS_UA_GEN[mm]} ${yy}`;
     return `${pad2(dd)}.${pad2(mm + 1)}.${yy}`;
   }
 
   function detectGenderFromFio(fio) {
     const parts = String(fio || "").trim().split(/\s+/);
     if (parts.length >= 3 && parts[2].length > 2) {
-      const last = parts[2].slice(-1).toUpperCase();
-      if (last === "А") return 2;
-      if (last === "Ч") return 1;
+      const middle = parts[2];
+      if (/(?:івна|ївна|овна|евна|ична)$/i.test(middle)) return 2;
+      if (/(?:ович|евич|йович|іч|ич)$/i.test(middle)) return 1;
     }
     return 3;
   }
@@ -161,11 +352,11 @@
     if (fp.ok) {
       map.familia = fp.last;
       map.imia = fp.first;
-      map.poбатькові = fp.middle;
+      map["побатькові"] = fp.middle;
       map.imiapatronymic = fp.namePatronymic;
       map.initials = fp.initials;
     } else {
-      map.familia = map.imia = map.poбатькові = map.imiapatronymic = map.initials = fio;
+      map.familia = map.imia = map["побатькові"] = map.imiapatronymic = map.initials = fio;
     }
     if (accountId && periodStart && periodEnd && typeof collectAccountsPeriodData === "function") {
       const rows = collectAccountsPeriodData(periodStart, periodEnd, {
@@ -175,10 +366,10 @@
       });
       const row = rows.find(r => String(r.accountId) === String(accountId)) || rows[0];
       if (row) {
-        map.borgstart = map.borgStart = String(row.debitStart);
-        map.borgend = map.borgEnd = String(row.debitEnd);
-        map.nachislenno = map.nachisleno = map.нараховано = String(row.chargesSum);
-        map.oplacheno = map.оплачено = String(row.paymentsSum);
+        map.borgstart = map.borgStart = moneyText(row.debitStart);
+        map.borgend = map.borgEnd = moneyText(row.debitEnd);
+        map.nachislenno = map.nachisleno = map["нараховано"] = moneyText(row.chargesSum);
+        map.oplacheno = map["оплачено"] = moneyText(row.paymentsSum);
         if (typeof moneyPropis === "function") {
           map.borgstartpropis = moneyPropis(row.debitStart);
           map.borgendpropis = moneyPropis(row.debitEnd);
@@ -188,7 +379,8 @@
     return map;
   }
 
-  function replacePlaceholders(text, replacements, docDate) {
+  function replacePlaceholders(text, replacements, docDate, options) {
+    const opts = Object.assign({}, options || {}, { docDate });
     let out = String(text || "");
     const dateMap = buildDatePlaceholders(docDate);
     const all = Object.assign({}, dateMap, replacements || {});
@@ -202,10 +394,12 @@
       const val = applyDateFormat(parsed.base, parsed.format, docDate);
       return val || _m;
     });
-    return out.replace(/\{m:([^{}|]*)\|f:([^{}|]*)\}/gi, function (_m, male, female) {
-      const pol = detectGenderFromFio(replacements && (replacements.fio || replacements.головаfull));
+    out = out.replace(/\{m:([^{}|]*)\|f:([^{}|]*)\}/gi, function (_m, male, female) {
+      const pol = detectGenderFromFio(replacements && (replacements.fio || replacements["головаfull"] || replacements["ГоловаFull"]));
       return pol === 2 ? female : male;
     });
+    out = applyPropisPlaceholders(out);
+    return resolveUnknownPlaceholders(out, replacements, opts);
   }
 
   function parseInline(text, defaultSize) {
@@ -320,6 +514,97 @@
 
   function renderRichPlain(blocks) {
     return (blocks || []).map(b => (b.runs || []).map(r => r.text).join("")).join("\n");
+  }
+
+  function escapeXml(value) {
+    return String(value == null ? "" : value)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  function docxRun(text, options) {
+    const opts = options || {};
+    const props = [];
+    if (opts.font) props.push(`<w:rFonts w:ascii="${escapeXml(opts.font)}" w:hAnsi="${escapeXml(opts.font)}" w:cs="${escapeXml(opts.font)}"/>`);
+    if (opts.bold) props.push("<w:b/>");
+    if (opts.underline) props.push('<w:u w:val="single"/>');
+    if (opts.italic) props.push("<w:i/>");
+    if (opts.size) props.push(`<w:sz w:val="${Number(opts.size) * 2}"/><w:szCs w:val="${Number(opts.size) * 2}"/>`);
+    if (opts.sup) props.push('<w:vertAlign w:val="superscript"/>');
+    if (opts.color) props.push(`<w:color w:val="${escapeXml(opts.color)}"/>`);
+    props.push('<w:lang w:val="uk-UA" w:eastAsia="uk-UA" w:bidi="uk-UA"/>');
+    const rpr = props.length ? `<w:rPr>${props.join("")}</w:rPr>` : "";
+    const parts = String(text || "").split(/\r?\n/);
+    return `<w:r>${rpr}${parts.map((part, index) => {
+      const preserve = /^\s|\s$/.test(part) ? ' xml:space="preserve"' : "";
+      return `${index ? "<w:br/>" : ""}<w:t${preserve}>${escapeXml(part)}</w:t>`;
+    }).join("")}</w:r>`;
+  }
+
+  function docxPRuns(runs, options) {
+    const opts = options || {};
+    const blockAlign = opts.defaultAlign && (!opts.align || opts.align === "left") ? opts.defaultAlign : (opts.align || "left");
+    const align = { center: "center", right: "right", justify: "both", left: "left" }[blockAlign] || blockAlign || "left";
+    const spacing = `<w:spacing w:after="${opts.after == null ? 0 : Number(opts.after)}" w:before="${opts.before == null ? 0 : Number(opts.before)}" w:line="240" w:lineRule="auto"/>`;
+    const hasText = (runs || []).some(run => String(run && run.text || "").trim());
+    const indent = hasText && opts.firstLine ? `<w:ind w:firstLine="${Number(opts.firstLine) || 0}"/>` : "";
+    const body = (runs && runs.length ? runs : [{ text: "" }]).map(run => docxRun(run.text, run)).join("");
+    return `<w:p><w:pPr>${spacing}${indent}<w:jc w:val="${align}"/></w:pPr>${body}</w:p>`;
+  }
+
+  function docxP(text, options) {
+    return docxPRuns([{ text: text || "", ...(options || {}) }], options);
+  }
+
+  function docxRichParagraphs(blocks, options) {
+    const opts = options || {};
+    const runDefaults = {};
+    ["font", "size", "color"].forEach(key => {
+      if (opts[key] != null) runDefaults[key] = opts[key];
+    });
+    return (blocks || []).map(block => {
+      const runs = (block.runs || []).map(run => {
+        const merged = Object.assign({}, runDefaults, run);
+        Object.keys(runDefaults).forEach(key => {
+          if (run && run[key] == null) merged[key] = runDefaults[key];
+        });
+        return merged;
+      });
+      const align = opts.align && (!block.align || block.align === "left") ? opts.align : (block.align || opts.align || "left");
+      return docxPRuns(runs, Object.assign({}, opts, { align }));
+    }).join("");
+  }
+
+  function docxLabelParagraph(label, text, options) {
+    return docxPRuns([
+      { text: label, bold: true },
+      { text: text ? ` ${text}` : "" }
+    ], options);
+  }
+
+  function docxLabelRichParagraphs(label, blocks, options) {
+    const list = blocks && blocks.length ? blocks : [{ align: "left", runs: [{ text: "" }] }];
+    const opts = options || {};
+    const runDefaults = {};
+    ["font", "size", "color"].forEach(key => {
+      if (opts[key] != null) runDefaults[key] = opts[key];
+    });
+    return list.map((block, index) => {
+      const blockRuns = (block.runs || []).map(run => {
+        const merged = Object.assign({}, runDefaults, run);
+        Object.keys(runDefaults).forEach(key => {
+          if (run && run[key] == null) merged[key] = runDefaults[key];
+        });
+        return merged;
+      });
+      const runs = index === 0
+        ? [Object.assign({}, runDefaults, { text: label, bold: true }), Object.assign({}, runDefaults, { text: " " })].concat(blockRuns)
+        : blockRuns;
+      const align = opts.align && (!block.align || block.align === "left") ? opts.align : (block.align || opts.align || "left");
+      return docxPRuns(runs, Object.assign({}, opts, { align }));
+    }).join("");
   }
 
   function wrapSheet(bodyHtml, options) {
@@ -523,24 +808,31 @@
   function defaultPlaceholderCatalog(homeMeta, lsItem) {
     const home = homeMeta || {};
     const map = typeof getReplacementMap === "function" ? getReplacementMap(home) : {};
+    const firstValue = (...values) => {
+      for (const value of values) {
+        if (value != null && String(value).trim() !== "") return value;
+      }
+      return "";
+    };
     const items = [
-      { label: map.org || home.org || "Організація", token: "{org}" },
-      { label: map.adr || home.adr || "Адреса", token: "{adr}" },
-      { label: map.adrfull || home.adrfull || "Повна адреса", token: "{adrfull}" },
-      { label: map.okpo || home.okpo || "ЄДРПОУ", token: "{okpo}" },
-      { label: map.головаfull || home.головаfull || "Голова (ПІБ)", token: "{ГоловаFull}" },
-      { label: map.голова || "Голова (скорочено)", token: "{голова}" },
+      { label: firstValue(map.org, home.org, home.name, "Організація"), token: "{org}" },
+      { label: firstValue(map.adr, home.adr, home.address, "Адреса"), token: "{adr}" },
+      { label: firstValue(map.adrfull, home.adrfull, map.adr, home.adr, "Повна адреса"), token: "{adrfull}" },
+      { label: firstValue(map.okpo, home.okpo, home.code, "ЄДРПОУ"), token: "{okpo}" },
+      { label: firstValue(map["ГоловаFull"], map["головаfull"], home["ГоловаFull"], home["головаfull"], "Голова (ПІБ)"), token: "{ГоловаFull}" },
+      { label: firstValue(map["голова"], "Голова (скорочено)"), token: "{голова}" },
       { label: "Дата документа", token: "{дата}" },
       { label: "1 число місяця", token: "{1число}" },
       { label: "Останній день місяця", token: "{останнійдень:dd.mm.yyyy}" },
       { label: "1 число наступного місяця", token: "{наступниймісяць:dd.mm.yyyy}" },
       { label: "Дата прописом", token: "{дата:dd mmmm yyyy р.}" },
-      { label: "Дата з «»", token: "{дата:<<dd>> mmmm yyyy}" }
+      { label: "Дата з «»", token: "{дата:<<dd>> mmmm yyyy}" },
+      { label: "Число/дата прописью", token: "{propis}" }
     ];
     if (lsItem) {
       const fp = parseFioParts(lsItem.fio);
       items.push(
-        { label: lsItem.fio || "П.І.Б.", token: "{fio}" },
+        { label: lsItem.fio || "PIB", token: "{fio}" },
         { label: buildObr(lsItem.fio, lsItem.kv, lsItem.pers), token: "{obr}" },
         { label: buildObrKr(lsItem.fio), token: "{obrKr}" },
         { label: "Борг на початок", token: "{borgStart}" },
@@ -574,7 +866,8 @@
         if (!panel) {
           panel = document.createElement("div");
           panel.className = "gr-ph-panel";
-          panel.innerHTML = `<input type="search" class="gr-ph-filter" placeholder="Пошук…"><div class="gr-ph-list"></div>`;
+          panel.hidden = true;
+          panel.innerHTML = `<input type="search" class="gr-ph-filter" placeholder="Пошук..."><div class="gr-ph-list"></div>`;
           field.appendChild(panel);
           panel.querySelector(".gr-ph-filter").addEventListener("input", () => fillPanel());
           panel.addEventListener("click", ev => {
@@ -585,10 +878,10 @@
           });
         }
         function fillPanel() {
-          const q = (panel.querySelector(".gr-ph-filter").value || "").trim().toLowerCase();
+          const q = (panel.querySelector(".gr-ph-filter").value || "").trim();
           const catalog = typeof getCatalog === "function" ? getCatalog() : [];
           const list = panel.querySelector(".gr-ph-list");
-          list.innerHTML = catalog.filter(it => !q || it.label.toLowerCase().includes(q) || it.token.toLowerCase().includes(q))
+          list.innerHTML = catalog.filter(it => !q || matchesSearch(it.label, q) || matchesSearch(it.token, q))
             .map(it => `<button type="button" data-gr-ph-token="${escapeHtml(it.token)}"><span>${escapeHtml(it.label)}</span><code>${escapeHtml(it.token)}</code></button>`)
             .join("") || `<div class="gr-ph-empty">Нічого не знайдено</div>`;
         }
@@ -597,10 +890,13 @@
         if (open) { panel.hidden = false; fillPanel(); panel.querySelector(".gr-ph-filter").focus(); }
       });
     });
-    document.addEventListener("click", e => {
-      if (e.target.closest(".gr-ph-field")) return;
-      document.querySelectorAll(".gr-ph-panel").forEach(p => { p.hidden = true; });
-    });
+    if (!document.documentElement.dataset.grPhDocBound) {
+      document.documentElement.dataset.grPhDocBound = "1";
+      document.addEventListener("click", e => {
+        if (e.target.closest(".gr-ph-panel, [data-gr-ph-picker]")) return;
+        document.querySelectorAll(".gr-ph-panel").forEach(p => { p.hidden = true; });
+      });
+    }
   }
 
   function insertAtCursor(input, text) {
@@ -614,14 +910,18 @@
     input.focus();
   }
 
-  function initPlaceholderHint(root) {
+  function initPlaceholderHint(root, options) {
     if (!root) return;
+    const names = options && Array.isArray(options.names)
+      ? new Set(options.names.map(name => String(name)))
+      : null;
     root.querySelectorAll(".gr-ph-field textarea").forEach(ta => {
+      if (names && !names.has(String(ta.getAttribute("name") || ""))) return;
       if (ta.dataset.grHintBound === "1") return;
       ta.dataset.grHintBound = "1";
       const hint = document.createElement("div");
       hint.className = "gr-ph-hint";
-      hint.innerHTML = `<strong>Placeholders:</strong> {org}, {adr}, {ГоловаFull}, {дата}, {1число}<br>
+      hint.innerHTML = `<strong>Placeholders:</strong> {org}, {adr}, {ГоловаFull}, {дата}, {1число}, {propis}<br>
         <strong>Вирівнювання:</strong> {==} по центру, {=>} праворуч, {<=} ліворуч, {<==>} по ширині<br>
         <strong>Формат:</strong> *жирний*, _підкреслений_, //курсив//, {f14}розмір{f}, {m:ий|f:а}`;
       const wrap = ta.closest(".gr-ph-field") || ta.parentElement;
@@ -643,12 +943,24 @@
 
   window.GrCommon = {
     escapeHtml,
+    matchesSearch,
     buildDatePlaceholders,
     replacePlaceholders,
+    canAutoResolvePlaceholder,
+    applyPropisPlaceholders,
+    moneyToWords,
+    dateToWords,
     parseRichText,
     renderRichHtml,
     renderRichPlain,
     renderRuns,
+    escapeXml,
+    docxRun,
+    docxP,
+    docxPRuns,
+    docxRichParagraphs,
+    docxLabelParagraph,
+    docxLabelRichParagraphs,
     wrapSheet,
     renderPageActionsHtml,
     captureSheetCanvas,

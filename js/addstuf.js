@@ -4599,19 +4599,57 @@ function isMobile() {
         return result;
     }
 
+    function lsWildcardSearchRegex(pattern) {
+        const text = String(pattern || "").trim();
+        if (!text) return null;
+        if (text.length > 1 && text.startsWith("/") && text.endsWith("/")) {
+            try {
+                return new RegExp(text.slice(1, -1), "i");
+            } catch (_err) {}
+        }
+        let out = "";
+        for (let i = 0; i < text.length; i++) {
+            const ch = text[i];
+            if (ch === "*" || /\s/.test(ch)) {
+                out += ".*";
+                while (i + 1 < text.length && (text[i + 1] === "*" || /\s/.test(text[i + 1]))) i++;
+                continue;
+            }
+            if (ch === "?") {
+                out += ".";
+                continue;
+            }
+            if (ch === "[") {
+                const end = text.indexOf("]", i + 1);
+                if (end > i + 1) {
+                    const body = text.slice(i + 1, end).replace(/[\\\]\^-]/g, "\\$&");
+                    out += `[${body}]`;
+                    i = end;
+                    continue;
+                }
+            }
+            out += ch.replace(/[\\^$+?.()|{}[\]]/g, "\\$&");
+        }
+        return new RegExp(out, "i");
+    }
+
+    function lsMatchesWildcardSearch(value, pattern) {
+        const re = lsWildcardSearchRegex(pattern);
+        return !re || re.test(String(value || ""));
+    }
+
     // ----------------------------------------
     // РЕНДЕР СПИСКА
     // ----------------------------------------
 function filterList(val) {
 
-    const query = val.toLowerCase();
+    const rawQuery = String(val || "").trim();
+    const query = rawQuery.toLowerCase();
     const phoneQueries = extractPhoneQueries(val);
 
     pickerList.innerHTML = "";
     filteredIds.length = 0;
     highlightedIndex = -1;
-
-    const tokens = query.split(/\s+/).filter(Boolean);
 
     // ==============================================
     // 1. СОБИРАЕМ ВСЕ ЗАПИСИ В МАССИВ (для сортировки)
@@ -4645,19 +4683,13 @@ if (!match && kvNorm === query) {
     priority = 1;
 }
 
-// 2. Начинается с квартиры
-if (!match && kvNorm.startsWith(query)) {
-    match = true;
-    priority = 2;
-}
-
-// 3. ФИО
-if (!match && tokens.length > 0 && tokens.every(t => fio.includes(t))) {
+// 2. ФИО
+if (!match && rawQuery && lsMatchesWildcardSearch(fioSrc, rawQuery)) {
     match = true;
     priority = 3;
 }
 
-// 4. Телефон — ОТДЕЛЬНО, НЕ ELSE IF
+// 3. Телефон — ОТДЕЛЬНО, НЕ ELSE IF
 if (!match && phoneQueries.length > 0 && telNorm) {
     if (phoneQueries.some(q => telNorm.includes(q))) {
         match = true;
@@ -4665,8 +4697,8 @@ if (!match && phoneQueries.length > 0 && telNorm) {
     }
 }
 
-// 5. Примечание
-if (!match && tokens.length > 0 && tokens.every(t => note.includes(t))) {
+// 4. Примечание
+if (!match && rawQuery && lsMatchesWildcardSearch(data.note || "", rawQuery)) {
     match = true;
     priority = 5;
 }

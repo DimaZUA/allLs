@@ -27,7 +27,8 @@ function makeClientStub() {
         upsert: reject,
         eq: () => chain,
         in: () => chain,
-        order: reject,
+        lte: () => chain,
+        order: () => chain,
         limit: () => chain,
         maybeSingle: reject,
         single: reject

@@ -13,6 +13,8 @@ async function main() {
         vote_basis text not null default 'apartment',
         meeting_format text not null default 'in_person',
         meeting_initiator text not null default 'board',
+        present_count text not null default '',
+        present_area text not null default '',
         title text not null default '',
         location text not null default '',
         chair text not null default '',
@@ -28,6 +30,8 @@ async function main() {
     await tx`alter table public.meeting_protocols add column if not exists participants jsonb not null default '[]'::jsonb`;
     await tx`alter table public.meeting_protocols add column if not exists meeting_format text not null default 'in_person'`;
     await tx`alter table public.meeting_protocols add column if not exists meeting_initiator text not null default 'board'`;
+    await tx`alter table public.meeting_protocols add column if not exists present_count text not null default ''`;
+    await tx`alter table public.meeting_protocols add column if not exists present_area text not null default ''`;
     await tx`alter table public.meeting_protocols add column if not exists placeholder_values jsonb not null default '{}'::jsonb`;
     await tx`create index if not exists meeting_protocols_home_date_idx on public.meeting_protocols (home_code, protocol_date desc, protocol_number)`;
     await tx`

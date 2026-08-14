@@ -12,6 +12,49 @@ let selectedMonth = null;
 let selectedFile = null;
 let currentFolderPath = null;
 let homeCode = 0;
+let documentSectionAccess = null;
+let documentSectionAccessPromise = null;
+
+const DOCUMENT_SECTION_BY_ACTION = {
+    globalReports: "reports",
+    outgoingDocuments: "outgoing_documents",
+    meetingProtocols: "meeting_protocols"
+};
+
+async function loadDocumentSectionAccess() {
+    if (documentSectionAccessPromise) return documentSectionAccessPromise;
+    documentSectionAccessPromise = (async () => {
+        try {
+            const { data: { user } } = await client.auth.getUser();
+            if (!user) return new Set();
+            const { data, error } = await client
+                .from("user_document_sections")
+                .select("section, enabled")
+                .eq("user_id", user.id)
+                .eq("enabled", true);
+            if (error) throw error;
+            return new Set((data || []).map(row => row.section));
+        } catch (err) {
+            console.warn("Не вдалося завантажити доступ до документів:", err);
+            return new Set();
+        }
+    })();
+    documentSectionAccess = await documentSectionAccessPromise;
+    return documentSectionAccess;
+}
+
+function hasDocumentSectionAccess(section) {
+    return !!(documentSectionAccess && documentSectionAccess.has(section));
+}
+
+async function ensureDocumentSectionAccess(section) {
+    const access = await loadDocumentSectionAccess();
+    const ok = access.has(section);
+    if (!ok && typeof showMessage === "function") {
+        showMessage("Немає доступу до цього розділу документів.", "warn", 5000);
+    }
+    return ok;
+}
 
 // --- Инициализация ---
 function reportsInit(homeCodeParam = 0) {
@@ -46,6 +89,15 @@ restoreStateFromLastFile();
 
   sidebarFiles.innerHTML = "";   // очищаем
   renderFilebar();               // рисуем содержимое (СПИСОК ФАЙЛОВ)
+}
+
+function ensurePreviewContainer() {
+    let preview = document.getElementById("preview");
+    if (preview) return preview;
+    const container = document.getElementById("maincontainer");
+    if (!container) return null;
+    container.innerHTML = `<div id="preview"></div>`;
+    return document.getElementById("preview");
 }
 
 
@@ -348,6 +400,7 @@ function getFileToOpen(fileList) {
 
 function addGeneratedReportsLi(ul) {
     if (typeof handleMenuClick !== "function") return;
+    if (!hasDocumentSectionAccess("reports")) return;
     const li = document.createElement("li");
     li.className = "file reports-entry generated-reports-entry";
     li.textContent = "Звіти";
@@ -367,6 +420,7 @@ function addGeneratedReportsLi(ul) {
 
 function addOutgoingDocumentsLi(ul) {
     if (typeof openOutgoingDocuments !== "function") return;
+    if (!hasDocumentSectionAccess("outgoing_documents")) return;
     const li = document.createElement("li");
     li.className = "file reports-entry outgoing-documents-entry";
     li.textContent = "Вихідні документи";
@@ -386,6 +440,7 @@ function addOutgoingDocumentsLi(ul) {
 
 function addMeetingProtocolsLi(ul) {
     if (typeof openMeetingProtocols !== "function") return;
+    if (!hasDocumentSectionAccess("meeting_protocols")) return;
     const li = document.createElement("li");
     li.className = "file reports-entry meeting-protocols-entry";
     li.textContent = "Протоколи";
@@ -410,12 +465,18 @@ function renderFilebar() {
 
     filebar.innerHTML = "";
 
+    if (documentSectionAccess === null) {
+        filebar.innerHTML = '<div class="hint">Завантаження доступу до документів...</div>';
+        loadDocumentSectionAccess().then(renderFilebar);
+        return;
+    }
+
     const reportsUl = document.createElement("ul");
     reportsUl.className = "file-list reports-entry-list";
     addGeneratedReportsLi(reportsUl);
     addOutgoingDocumentsLi(reportsUl);
     addMeetingProtocolsLi(reportsUl);
-    filebar.appendChild(reportsUl);
+    if (reportsUl.children.length) filebar.appendChild(reportsUl);
 
     if (!files || !files.files || !files.files.length) return;
 
@@ -716,7 +777,7 @@ function getFileToOpen(fileList) {
 // --- Открытие файла ---
 function openFile(f, { userClick = false } = {}) {
 
-    const preview = document.getElementById("preview");
+    const preview = ensurePreviewContainer();
     if (!preview) return;
 
     preview.innerHTML = "";

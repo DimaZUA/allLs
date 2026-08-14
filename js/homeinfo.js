@@ -555,6 +555,13 @@ function extractPlaceholdersFromDocx(content) {
 //==========================================
 
 function isMissingValue(replacements, key) {
+  if (
+    window.GrCommon &&
+    typeof GrCommon.canAutoResolvePlaceholder === "function" &&
+    GrCommon.canAutoResolvePlaceholder(key)
+  ) {
+    return false;
+  }
   return (
     !replacements.hasOwnProperty(key) ||
     replacements[key] === null ||
@@ -568,6 +575,9 @@ function isMissingValue(replacements, key) {
 //==========================================
 
 function replacePlaceholders(text, replacements) {
+  if (window.GrCommon && typeof GrCommon.replacePlaceholders === "function") {
+    return GrCommon.replacePlaceholders(text, replacements, null, { askUnknown: false });
+  }
   let result = text;
 
   Object.keys(replacements).forEach(function (key) {
@@ -642,6 +652,32 @@ function decodeDocxXmlText(text) {
     .replace(/&amp;/g, "&")
     .replace(/&quot;/g, '"')
     .replace(/&apos;/g, "'");
+}
+
+function encodeDocxXmlText(text) {
+  return String(text || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function applyCommonPlaceholdersToDocxXml(xml, replacements) {
+  return String(xml || "").replace(/(<w:t\b[^>]*>)([\s\S]*?)(<\/w:t>)/g, function (_, open, text, close) {
+    const decoded = decodeDocxXmlText(text);
+    const replaced = replacePlaceholders(decoded, replacements);
+    return open + encodeDocxXmlText(replaced) + close;
+  });
+}
+
+function applyCommonPlaceholdersToDocxZip(zip, replacements) {
+  if (!zip || !zip.files) return;
+  Object.keys(zip.files).forEach(function (path) {
+    if (!/^word\/.*\.xml$/i.test(path)) return;
+    const file = zip.file(path);
+    if (!file) return;
+    const xml = file.asText();
+    zip.file(path, applyCommonPlaceholdersToDocxXml(xml, replacements));
+  });
 }
 
 function extractDocxParagraphText(paragraphXml) {
@@ -979,6 +1015,7 @@ function processWordFile(content, newFileName, replacements) {
   });
 
   doc.render({}); // replacements обрабатываются через parser
+  applyCommonPlaceholdersToDocxZip(doc.getZip(), replacements);
   adjustDocxHeaderPlaceholderFonts(doc.getZip(), replacements);
 
   const blob = doc.getZip().generate({ type: "blob" });

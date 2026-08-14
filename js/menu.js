@@ -34,16 +34,36 @@ function sidebarIsOpen() {
 // ================================
 let rolse = {};
 const GLOBAL_REPORTS_CODE = "globalReports";
+let meterHomeCodes = new Set();
 const actions = [
   { name: "Особові рахунки", actionCode: "accounts" },
   { name: "Перелік", actionCode: "list" },
   { name: "Платежі", actionCode: "payments" },
   { name: "Банк", actionCode: "bank" },
   { name: "Документи", actionCode: "reports" },
+  { name: "Прилади обліку", actionCode: "meters" },
   { name: "Інформація", actionCode: "info" },
   { name: "Схема будинку", actionCode: "schema" },
   { name: "Заборгованість", actionCode: "debitorka" }
 ];
+
+async function loadMeterHomeCodes() {
+  try {
+    const { data, error } = await client
+      .from("meters")
+      .select("home_code")
+      .eq("is_active", true);
+    if (error) throw error;
+    meterHomeCodes = new Set((data || []).map(row => String(row.home_code)));
+  } catch (err) {
+    console.warn("Не вдалося завантажити список будинків з приладами обліку:", err);
+    meterHomeCodes = new Set();
+  }
+}
+
+function actionsForHome(homeCode) {
+  return actions.filter(action => action.actionCode !== "meters" || meterHomeCodes.has(String(homeCode)));
+}
 
 var homes, ls, nach, files, adr, dt, org, b, what, kto, oplat, plat, us, nachnote, allnach, tarifs, spending;
 
@@ -95,7 +115,7 @@ function toggleSubMenu(homeItem, homeCode) {
   // Находим действие, которое нужно активировать
   let actionItem = Array.from(actionList.querySelectorAll("li")).find(item => {
     const span = item.querySelector("span");
-    return actions.some(a =>
+    return actionsForHome(homeCode).some(a =>
       a.actionCode === previousActionCode &&
       a.name === span.textContent
     );
@@ -105,7 +125,7 @@ function toggleSubMenu(homeItem, homeCode) {
   if (!actionItem) return;
 
   const actionLink = actionItem.querySelector("span");
-  const actionCode = actions.find(a => a.name === actionLink.textContent).actionCode;
+  const actionCode = actionsForHome(homeCode).find(a => a.name === actionLink.textContent).actionCode;
 
   // --- ТОЛЬКО ВЫЗОВ handleMenuClick, UI внутри него обновится ПОСЛЕ загрузки данных ---
   handleMenuClick(homeCode, actionCode, actionLink);
@@ -194,18 +214,34 @@ function runActionForHome(homeCode, actionCode) {
     case "bank": initBankTable(); break;
     case "reports": reportsInit(homeCode); break;
     case "globalReports":
-      if (typeof GrCommon !== "undefined" && GrCommon.ensureDocumentsSidebar) GrCommon.ensureDocumentsSidebar(homeCode);
-      else if (typeof reportsInit === "function") reportsInit(homeCode);
-      if (typeof renderGlobalReports === "function") renderGlobalReports();
+      if (typeof ensureDocumentSectionAccess === "function") {
+        ensureDocumentSectionAccess("reports").then(ok => {
+          if (!ok) return;
+          if (typeof GrCommon !== "undefined" && GrCommon.ensureDocumentsSidebar) GrCommon.ensureDocumentsSidebar(homeCode);
+          else if (typeof reportsInit === "function") reportsInit(homeCode);
+          if (typeof renderGlobalReports === "function") renderGlobalReports();
+        });
+      }
       break;
     case "outgoingDocuments":
-      if (typeof GrCommon !== "undefined" && GrCommon.ensureDocumentsSidebar) GrCommon.ensureDocumentsSidebar(homeCode);
-      openOutgoingDocuments(homeCode);
+      if (typeof ensureDocumentSectionAccess === "function") {
+        ensureDocumentSectionAccess("outgoing_documents").then(ok => {
+          if (!ok) return;
+          if (typeof GrCommon !== "undefined" && GrCommon.ensureDocumentsSidebar) GrCommon.ensureDocumentsSidebar(homeCode);
+          openOutgoingDocuments(homeCode);
+        });
+      }
       break;
     case "meetingProtocols":
-      if (typeof GrCommon !== "undefined" && GrCommon.ensureDocumentsSidebar) GrCommon.ensureDocumentsSidebar(homeCode);
-      openMeetingProtocols(homeCode);
+      if (typeof ensureDocumentSectionAccess === "function") {
+        ensureDocumentSectionAccess("meeting_protocols").then(ok => {
+          if (!ok) return;
+          if (typeof GrCommon !== "undefined" && GrCommon.ensureDocumentsSidebar) GrCommon.ensureDocumentsSidebar(homeCode);
+          openMeetingProtocols(homeCode);
+        });
+      }
       break;
+    case "meters": openMeterAdmin(homeCode); break;
     case "info": displayHomeInfo(homeCode); break;
     case "schema": initSchema(); break;
     case "debitorka": initDashboard(); break;
@@ -225,7 +261,10 @@ async function refreshActiveHomeData({ rerender = true, silent = true } = {}) {
     const home = await fetchHomeData(activeHomeCode);
     applyHomeDataToGlobals(activeHomeCode, home);
     if (rerender && activeActionCode) {
-      runActionForHome(activeHomeCode, activeActionCode);
+      const skipRerenderActions = new Set(["reports", "globalReports", "outgoingDocuments", "meetingProtocols"]);
+      if (!skipRerenderActions.has(activeActionCode)) {
+        runActionForHome(activeHomeCode, activeActionCode);
+      }
     }
     scheduleActiveHomeRefresh();
     return true;
@@ -593,6 +632,7 @@ async function loadHomesAndBuildMenu(user) {
   
   // Загружаем роли (1 запрос)
   roles = await loadHomeRoles();
+  await loadMeterHomeCodes();
 
   if (!homes || homes.length === 0) {
     alert('Нет доступных домов для пользователя');
@@ -622,7 +662,7 @@ async function loadHomesAndBuildMenu(user) {
     homeItem.appendChild(homeLink);
 
     const actionList = document.createElement("ul");
-    actions.forEach(action => {
+    actionsForHome(home.code).forEach(action => {
       const actionItem = document.createElement("li");
       const actionLink = document.createElement("span");
       actionLink.textContent = action.name;
@@ -675,14 +715,47 @@ function addSystemMenuItems(menu) {
   menu.appendChild(settingsItem);
   menu.appendChild(logoutItem);
 }
+
+function wildcardSearchRegex(pattern) {
+  var text = String(pattern || "").trim();
+  if (!text) return null;
+  if (text.length > 1 && text.startsWith("/") && text.endsWith("/")) {
+    try {
+      return new RegExp(text.slice(1, -1), "i");
+    } catch (_err) {}
+  }
+  var out = "";
+  for (var i = 0; i < text.length; i++) {
+    var ch = text[i];
+    if (ch === "*" || /\s/.test(ch)) {
+      out += ".*";
+      while (i + 1 < text.length && (text[i + 1] === "*" || /\s/.test(text[i + 1]))) i++;
+      continue;
+    }
+    if (ch === "?") {
+      out += ".";
+      continue;
+    }
+    if (ch === "[") {
+      var end = text.indexOf("]", i + 1);
+      if (end > i + 1) {
+        var body = text.slice(i + 1, end).replace(/[\\\]\^-]/g, "\\$&");
+        out += "[" + body + "]";
+        i = end;
+        continue;
+      }
+    }
+    out += ch.replace(/[\\^$+?.()|{}[\]]/g, "\\$&");
+  }
+  return new RegExp(out, "i");
+}
+
+function wildcardSearchMatches(value, pattern) {
+  var re = wildcardSearchRegex(pattern);
+  return !re || re.test(String(value || ""));
+}
+
 function filterHomes(filter) {
-  var regexPattern = filter
-    .replace(/\s+/g, ".*") // Пробелы заменяем на .*
-    .replace(/\*/g, ".*") // '*' заменяем на .*
-    .replace(/\?/g, "."); // '?' заменяем на .
-
-  var regex = new RegExp(regexPattern, "i"); // Создаем регистронезависимый RegExp
-
   document.querySelectorAll(".menu-item").forEach(function (item) {
     var homeCode = item.getAttribute("data-code"); // Получаем код дома
     if (homeCode === GLOBAL_REPORTS_CODE) { item.style.display = ""; return; }
@@ -692,7 +765,7 @@ function filterHomes(filter) {
 
     if (home) {
       var matches = Object.values(home).some(function (value) {
-        return typeof value === "string" && regex.test(value);
+        return typeof value === "string" && wildcardSearchMatches(value, filter);
       });
       item.style.display = matches ? "" : "none";
     } else {

@@ -60,6 +60,13 @@
       .slice(0, 80) || "document";
   }
 
+  function matchesSearch(value, query) {
+    if (window.GrCommon && typeof GrCommon.matchesSearch === "function") {
+      return GrCommon.matchesSearch(value, query);
+    }
+    return String(value || "").toLowerCase().includes(String(query || "").toLowerCase());
+  }
+
   function getHomeByCode(code) {
     return (homes || []).find(h => String(h.code) === String(code)) || null;
   }
@@ -142,7 +149,10 @@
       .replace(/(р-н,?)\s/gi, "$1\n");
   }
 
-  function replaceKnownPlaceholders(text, replacements) {
+  function replaceKnownPlaceholders(text, replacements, docDate) {
+    if (window.GrCommon && typeof GrCommon.replacePlaceholders === "function") {
+      return GrCommon.replacePlaceholders(text, replacements, docDate, { askUnknown: true });
+    }
     let out = String(text || "");
     Object.keys(replacements || {}).forEach(function (key) {
       const re = new RegExp(`\\{${key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\}`, "gi");
@@ -255,8 +265,8 @@
     return runs.length ? runs : [{ text: "", size, sup: false }];
   }
 
-  function parseDocumentText(text, replacements) {
-    const replaced = replaceKnownPlaceholders(text, replacements).replace(/\{PrivatQR\}/gi, "");
+  function parseDocumentText(text, replacements, docDate) {
+    const replaced = replaceKnownPlaceholders(text, replacements, docDate).replace(/\{PrivatQR\}/gi, "");
     const blocks = [];
     let pendingAlign = null;
     let defaultSize = null;
@@ -437,9 +447,9 @@
     const homeData = await ensureHomeData(doc.home_code);
     const home = Object.assign({}, homeData || {}, getHomeByCode(doc.home_code) || {}, { code: doc.home_code });
     const replacements = buildReplacementMap(home, doc.account_id || state.editorAccountId, doc);
-    const bodyBlocks = parseDocumentText(doc.body || "", replacements);
-    const signatureBlocks = parseDocumentText(getDocSignature(doc), replacements);
-    const recipientText = replaceKnownPlaceholders(doc.recipient || "", replacements);
+    const bodyBlocks = parseDocumentText(doc.body || "", replacements, doc.doc_date);
+    const signatureBlocks = parseDocumentText(getDocSignature(doc), replacements, doc.doc_date);
+    const recipientText = replaceKnownPlaceholders(doc.recipient || "", replacements, doc.doc_date);
     const orgName = replacements.org || home.name || "";
     const address = letterHeaderAddress(replacements);
     const orgFontSize = orgNameFontSizePt(orgName, 36);
@@ -466,10 +476,10 @@
   }
 
   function docFilterMatch(doc) {
-    const q = state.filter.trim().toLowerCase();
+    const q = state.filter.trim();
     if (!q) return true;
     return [doc.doc_number, doc.summary, doc.recipient, doc.body]
-      .some(v => String(v || "").toLowerCase().includes(q));
+      .some(v => matchesSearch(v, q));
   }
 
   function filteredDocs() {
@@ -701,16 +711,25 @@
   }
 
   function getContainer() {
-    return document.getElementById("maincontainer");
+    return document.getElementById("preview") || document.getElementById("maincontainer");
+  }
+
+  function ensureRenderContainer() {
+    let preview = document.getElementById("preview");
+    if (preview) return preview;
+    const main = document.getElementById("maincontainer");
+    if (!main) return null;
+    main.innerHTML = `<div id="preview"></div>`;
+    return document.getElementById("preview");
   }
 
   function render(html) {
-    const container = getContainer();
+    const container = ensureRenderContainer();
     if (container) container.innerHTML = html;
     bindEvents();
     if (window.GrCommon) {
       GrCommon.initPlaceholderPicker(container, currentEditorPlaceholderCatalog);
-      GrCommon.initPlaceholderHint(container);
+      GrCommon.initPlaceholderHint(container, { names: ["body"] });
     }
     if (window.lucide && typeof window.lucide.createIcons === "function") window.lucide.createIcons();
   }
@@ -1270,6 +1289,7 @@
       if (run.italic) props.push("<w:i/>");
       if (run.size) props.push(`<w:sz w:val="${Number(run.size) * 2}"/><w:szCs w:val="${Number(run.size) * 2}"/>`);
       if (run.sup) props.push(`<w:vertAlign w:val="superscript"/>`);
+      props.push('<w:lang w:val="uk-UA" w:eastAsia="uk-UA" w:bidi="uk-UA"/>');
       const rpr = props.length ? `<w:rPr>${props.join("")}</w:rPr>` : "";
       const preserve = /^\s|\s$/.test(run.text || "") ? ' xml:space="preserve"' : "";
       return `<w:r>${rpr}<w:t${preserve}>${xmlEscape(run.text)}</w:t></w:r>`;
@@ -1285,7 +1305,7 @@
   }
 
   function metaParagraph(text, align, bold) {
-    const rpr = bold ? "<w:rPr><w:b/></w:rPr>" : "";
+    const rpr = `<w:rPr>${bold ? "<w:b/>" : ""}<w:lang w:val="uk-UA" w:eastAsia="uk-UA" w:bidi="uk-UA"/></w:rPr>`;
     const runs = String(text || "").split(/\r?\n/).map((line, index) =>
       `<w:r>${rpr}${index ? "<w:br/>" : ""}<w:t>${xmlEscape(line)}</w:t></w:r>`
     ).join("");
@@ -1299,6 +1319,7 @@
     if (opts.bold) props.push("<w:b/>");
     if (opts.size) props.push(`<w:sz w:val="${Number(opts.size) * 2}"/><w:szCs w:val="${Number(opts.size) * 2}"/>`);
     if (opts.color) props.push(`<w:color w:val="${opts.color}"/>`);
+    props.push('<w:lang w:val="uk-UA" w:eastAsia="uk-UA" w:bidi="uk-UA"/>');
     const preserve = /^\s|\s$/.test(text || "") ? ' xml:space="preserve"' : "";
     return `<w:r>${props.length ? `<w:rPr>${props.join("")}</w:rPr>` : ""}<w:t${preserve}>${xmlEscape(text)}</w:t></w:r>`;
   }
@@ -1351,7 +1372,7 @@
       doc.doc_number ? `Вихідний № ${doc.doc_number}` : "",
       doc.doc_date ? `від ${formatDate(doc.doc_date)}` : ""
     ].filter(Boolean).join("\n");
-    const rightLines = replaceKnownPlaceholders(doc.recipient || "", replacements).trim();
+    const rightLines = replaceKnownPlaceholders(doc.recipient || "", replacements, doc.doc_date).trim();
     if (!leftLines && !rightLines) return "";
     return `
       <w:tbl>
@@ -1368,7 +1389,7 @@
   function headerXml(replacements, home) {
     const orgName = replacements.org || home.name || "";
     const address = letterHeaderAddress(replacements);
-    const orgFontSize = orgNameFontSizePt(orgName, 36);
+    const orgFontSize = orgNameFontSizePt(orgName, 30);
     const bankLines = [
       replacements.iban ? `IBAN: ${replacements.iban}` : "",
       replacements.bank ? replacements.bank : "",
@@ -1413,9 +1434,9 @@
   async function docxBodyForDoc(doc) {
     const homeData = await ensureHomeData(doc.home_code);
     const home = Object.assign({}, homeData || {}, getHomeByCode(doc.home_code) || {}, { code: doc.home_code });
-    const replacements = buildReplacementMap(home);
-    const blocks = parseDocumentText(doc.body || "", replacements);
-    const signatureBlocks = parseDocumentText(getDocSignature(doc), replacements);
+    const replacements = buildReplacementMap(home, doc.account_id || "", doc);
+    const blocks = parseDocumentText(doc.body || "", replacements, doc.doc_date);
+    const signatureBlocks = parseDocumentText(getDocSignature(doc), replacements, doc.doc_date);
     const signaturePrefix = signatureBlocks.length ? [blankParagraphXml(), blankParagraphXml(), blankParagraphXml()] : [];
     const body = [
       routingTableXml(doc, replacements),
@@ -1449,7 +1470,7 @@
     zip.folder("_rels").file(".rels", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>`);
     zip.folder("word").folder("_rels").file("document.xml.rels", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${documentRelationships.join("")}</Relationships>`);
     zip.folder("word").folder("media").file("logo.png", logoSmallBase64ToUint8Array());
-    zip.folder("word").file("styles.xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:rPr><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr></w:style></w:styles>`);
+    zip.folder("word").file("styles.xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:docDefaults><w:rPrDefault><w:rPr><w:lang w:val="uk-UA" w:eastAsia="uk-UA" w:bidi="uk-UA"/></w:rPr></w:rPrDefault></w:docDefaults><w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:rPr><w:sz w:val="24"/><w:szCs w:val="24"/><w:lang w:val="uk-UA" w:eastAsia="uk-UA" w:bidi="uk-UA"/></w:rPr></w:style></w:styles>`);
     zip.folder("word").file("document.xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><w:body>${docParts.join("")}</w:body></w:document>`);
     return zip.generateAsync({ type: "blob", mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
   }

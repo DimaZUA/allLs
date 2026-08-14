@@ -2158,11 +2158,50 @@ function bindMultiHomePicker(options) {
     if (typeof opts.onChange === "function") opts.onChange(selectedCodes, allSelected);
   };
 
+  function wildcardSearchRegex(pattern) {
+    const text = String(pattern || "").trim();
+    if (!text) return null;
+    if (text.length > 1 && text.startsWith("/") && text.endsWith("/")) {
+      try {
+        return new RegExp(text.slice(1, -1), "i");
+      } catch (_err) {}
+    }
+    let out = "";
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i];
+      if (ch === "*" || /\s/.test(ch)) {
+        out += ".*";
+        while (i + 1 < text.length && (text[i + 1] === "*" || /\s/.test(text[i + 1]))) i++;
+        continue;
+      }
+      if (ch === "?") {
+        out += ".";
+        continue;
+      }
+      if (ch === "[") {
+        const end = text.indexOf("]", i + 1);
+        if (end > i + 1) {
+          const body = text.slice(i + 1, end).replace(/[\\\]\^-]/g, "\\$&");
+          out += `[${body}]`;
+          i = end;
+          continue;
+        }
+      }
+      out += ch.replace(/[\\^$+?.()|{}[\]]/g, "\\$&");
+    }
+    return new RegExp(out, "i");
+  }
+
+  function matchesWildcardSearch(value, pattern) {
+    const re = wildcardSearchRegex(pattern);
+    return !re || re.test(String(value || ""));
+  }
+
   function fill(filterText) {
-    const q = String(filterText || "").trim().toLowerCase();
+    const q = String(filterText || "").trim();
     const selection = getSelection();
     const selected = new Set(selection.selectedCodes.map(String));
-    const visibleHomes = getHomes().filter(h => !q || String(h.name || h.code).toLowerCase().includes(q));
+    const visibleHomes = getHomes().filter(h => !q || matchesWildcardSearch([h.name, h.code, h.address].join(" "), q));
     const allChecked = selection.allSelected;
     const items = [
       { code: "__ALL__", name: opts.allLabel || "(Всі)", checked: allChecked }

@@ -1,6 +1,45 @@
 ﻿// ===================== 📅 Работа с датами =====================
 
 // Определяет минимальную дату (по начислениям и оплатам) и текущую дату.
+function tableWildcardSearchRegex(pattern) {
+  const text = String(pattern || "").trim();
+  if (!text) return null;
+  if (text.length > 1 && text.startsWith("/") && text.endsWith("/")) {
+    try {
+      return new RegExp(text.slice(1, -1), "i");
+    } catch (_err) {}
+  }
+  let out = "";
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (ch === "*" || /\s/.test(ch)) {
+      out += ".*";
+      while (i + 1 < text.length && (text[i + 1] === "*" || /\s/.test(text[i + 1]))) i++;
+      continue;
+    }
+    if (ch === "?") {
+      out += ".";
+      continue;
+    }
+    if (ch === "[") {
+      const end = text.indexOf("]", i + 1);
+      if (end > i + 1) {
+        const body = text.slice(i + 1, end).replace(/[\\\]\^-]/g, "\\$&");
+        out += `[${body}]`;
+        i = end;
+        continue;
+      }
+    }
+    out += ch.replace(/[\\^$+?.()|{}[\]]/g, "\\$&");
+  }
+  return new RegExp(out, "i");
+}
+
+function tableMatchesWildcardSearch(value, pattern) {
+  const re = tableWildcardSearchRegex(pattern);
+  return !re || re.test(String(value || ""));
+}
+
 function getMinMaxDate() {
   let minDate = null;
   const currentDate = new Date();
@@ -1026,17 +1065,7 @@ const rows = Array.from(table.tBodies[0].children).filter(row =>
         if (!matchNumberFilter(value, filter, true)) visible = false;
 
       } else if (colIndex === 1) {
-        let pattern = filter
-          .replace(/\s+/g, ".*")
-          .replace(/[IiиИїЇІіыЫ]/g, "[IiиИїЇІіыЫ]+")
-          .replace(/[ЕеЭэєЄ]/g, "[ЕеЭэєЄ]+");
-
-        try {
-          const regex = new RegExp(pattern, "i");
-          if (!regex.test(text)) visible = false;
-        } catch {
-          if (!text.toLowerCase().includes(filter.toLowerCase())) visible = false;
-        }
+        if (!tableMatchesWildcardSearch(text, filter)) visible = false;
 
       } else {
 const normalized = text.replace(/[\s\u00A0]+/g, "").replace(",", ".");

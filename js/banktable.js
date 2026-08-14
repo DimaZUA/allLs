@@ -1,5 +1,44 @@
 ﻿let bankTableAbortController = new AbortController();
 
+function bankWildcardSearchRegex(pattern) {
+    var text = String(pattern || '').trim();
+    if (!text) return null;
+    if (text.length > 1 && text.startsWith('/') && text.endsWith('/')) {
+        try {
+            return new RegExp(text.slice(1, -1), 'i');
+        } catch (_err) {}
+    }
+    var out = '';
+    for (var i = 0; i < text.length; i++) {
+        var ch = text[i];
+        if (ch === '*' || /\s/.test(ch)) {
+            out += '.*';
+            while (i + 1 < text.length && (text[i + 1] === '*' || /\s/.test(text[i + 1]))) i++;
+            continue;
+        }
+        if (ch === '?') {
+            out += '.';
+            continue;
+        }
+        if (ch === '[') {
+            var end = text.indexOf(']', i + 1);
+            if (end > i + 1) {
+                var body = text.slice(i + 1, end).replace(/[\\\]\^-]/g, '\\$&');
+                out += '[' + body + ']';
+                i = end;
+                continue;
+            }
+        }
+        out += ch.replace(/[\\^$+?.()|{}[\]]/g, '\\$&');
+    }
+    return new RegExp(out, 'i');
+}
+
+function bankMatchesWildcardSearch(value, pattern) {
+    var re = bankWildcardSearchRegex(pattern);
+    return !re || re.test(String(value || ''));
+}
+
 function initBankTable() {
     // Вставка контейнера с фильтрами и таблицей
 document.getElementById('maincontainer').innerHTML =
@@ -183,7 +222,7 @@ async function generateBankTable() {
     var fromDate = new Date(document.getElementById('fromDate').value);
     var toDate = new Date(document.getElementById('toDate').value);
     var selectedMonth = document.getElementById('monthSelect').value;
-    var filterText = document.getElementById('textFilter').value.toLowerCase(); // Текст для фильтрации
+    var filterText = document.getElementById('textFilter').value; // Текст для фильтрации
     var selectedType = document.getElementById('typeSelect').value; // Получаем выбранный тип из выпадающего списка
 
         // Конвертируем начальную и конечную даты в год и месяц для сравнения
@@ -295,11 +334,10 @@ var yearInt = parseInt(year);
                 if (selectedMonth>1&&paymentMonth != selectedMonth) continue;
                 if (filterText){
                    // Получаем данные для фильтрации
-                   var paymentText = payment[5] ? payment[5].toLowerCase() : ''; // Назначение платежа
-                   var contargent = kto[payment[2]]; // Назначение (по кодам)
-                   var paymentType = what[payment[3]]; // "За что"
-                   var regex = new RegExp(filterText.replace(/[\*\s]+/g, '.*'), 'i'); 
-                   if (!regex.test(paymentText) && !regex.test(contargent) && !regex.test(paymentType)) {
+                    var paymentText = payment[5] || ''; // Назначение платежа
+                    var contargent = kto[payment[2]]; // Назначение (по кодам)
+                    var paymentType = what[payment[3]]; // "За что"
+                    if (!bankMatchesWildcardSearch(paymentText, filterText) && !bankMatchesWildcardSearch(contargent, filterText) && !bankMatchesWildcardSearch(paymentType, filterText)) {
 		    continue;
 		   }
 
