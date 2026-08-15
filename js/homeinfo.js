@@ -588,6 +588,61 @@ function replacePlaceholders(text, replacements) {
   return result;
 }
 
+function isAutoResolvedPlaceholder(tag) {
+  if (!window.GrCommon || typeof GrCommon.canAutoResolvePlaceholder !== "function") return false;
+  return GrCommon.canAutoResolvePlaceholder(String(tag || "").trim());
+}
+
+function isPropisPlaceholderText(text) {
+  return /\{(?:propis|пропись|прописью)\}/i.test(String(text || ""));
+}
+
+function previousDocxNumberOrDateText(text) {
+  const source = String(text || "");
+  let best = null;
+  source.replace(/\b\d{1,2}\.\d{1,2}\.(?:\d{2}|\d{4})\b/g, function (raw, offset) {
+    best = { type: "date", raw: raw, end: offset + raw.length };
+    return raw;
+  });
+  source.replace(/(?:\d{1,3}(?:[\s\u00a0]\d{3})+|\d+)(?:[,.]\d+)?/g, function (raw, offset) {
+    const end = offset + raw.length;
+    if (!best || end > best.end) best = { type: "number", raw: raw, end: end };
+    return raw;
+  });
+  if (!best || !window.GrCommon) return "";
+  if (best.type === "date" && typeof GrCommon.dateToWords === "function") return GrCommon.dateToWords(best.raw);
+  if (best.type === "number" && typeof GrCommon.moneyToWords === "function") return GrCommon.moneyToWords(best.raw);
+  return "";
+}
+
+function replacePlaceholdersKeepingPropis(text, replacements) {
+  const tokens = [];
+  const protectedText = String(text || "").replace(/\{(?:propis|пропись|прописью)\}/gi, function (match) {
+    const token = "__GR_PROPIS_PLACEHOLDER_" + tokens.length + "__";
+    tokens.push(match);
+    return token;
+  });
+  let replaced = replacePlaceholders(protectedText, replacements);
+  tokens.forEach(function (value, index) {
+    replaced = replaced.replace("__GR_PROPIS_PLACEHOLDER_" + index + "__", value);
+  });
+  return replaced;
+}
+
+function applyDocxPropisPlaceholders(text, visibleBefore) {
+  const source = String(text || "");
+  const re = /\{(?:propis|пропись|прописью)\}/gi;
+  let match;
+  let result = "";
+  let last = 0;
+  while ((match = re.exec(source)) !== null) {
+    const before = String(visibleBefore || "") + source.slice(0, match.index);
+    result += source.slice(last, match.index) + previousDocxNumberOrDateText(before);
+    last = match.index + match[0].length;
+  }
+  return result + source.slice(last);
+}
+
 function replaceCellValue(cellValue, replacements) {
   const text =
     cellValue && cellValue.formula
@@ -662,9 +717,14 @@ function encodeDocxXmlText(text) {
 }
 
 function applyCommonPlaceholdersToDocxXml(xml, replacements) {
+  let visibleBefore = "";
   return String(xml || "").replace(/(<w:t\b[^>]*>)([\s\S]*?)(<\/w:t>)/g, function (_, open, text, close) {
     const decoded = decodeDocxXmlText(text);
-    const replaced = replacePlaceholders(decoded, replacements);
+    const replacedCommon = isPropisPlaceholderText(decoded)
+      ? replacePlaceholdersKeepingPropis(decoded, replacements)
+      : replacePlaceholders(decoded, replacements);
+    const replaced = applyDocxPropisPlaceholders(replacedCommon, visibleBefore);
+    visibleBefore += replaced;
     return open + encodeDocxXmlText(replaced) + close;
   });
 }
@@ -989,6 +1049,10 @@ function processWordFile(content, newFileName, replacements) {
     parser: function (tag) {
       return {
         get: function (scope) {
+          if (isAutoResolvedPlaceholder(tag)) {
+            return `{${tag}}`;
+          }
+
           // 1. Условный {A/B}
           if (tag.includes("/")) {
             const resolved = resolveConditionalKey(tag, data.org);
@@ -1183,25 +1247,7 @@ modal.querySelector("#okBtn").onclick = () => {
   const inputs = modal.querySelectorAll("input[data-key]");
 
   inputs.forEach(input => {
-    let val = input.value.trim();
-
-    if (val === "") {
-      replacements[input.dataset.key] = "";
-      return;
-    }
-
-    // убираем пробелы (разделители тысяч)
-    let normalized = val.replace(/\s+/g, "");
-
-    // заменяем запятую на точку
-    normalized = normalized.replace(",", ".");
-
-    // строгая проверка числа
-    if (/^-?\d+(\.\d+)?$/.test(normalized)) {
-      replacements[input.dataset.key] = Number(normalized);
-    } else {
-      replacements[input.dataset.key] = val;
-    }
+    replacements[input.dataset.key] = input.value.trim();
   });
       document.body.removeChild(overlay);
       resolve(true);
