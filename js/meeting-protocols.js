@@ -3,7 +3,7 @@
   "use strict";
 
   const TABLE = "meeting_protocols";
-  const EDIT_ROLES = new Set(["Правление", "Администратор"]);
+  const SECTION = "meeting_protocols";
   const MEETING_TYPES = [
     { id: "board", label: "Засідання правління" },
     { id: "general", label: "Загальні збори" },
@@ -97,8 +97,8 @@
   }
 
   function canEditHome(code) {
-    const role = roles && roles[String(code)];
-    return EDIT_ROLES.has(role);
+    void code;
+    return typeof hasDocumentSectionAccess !== "function" || hasDocumentSectionAccess(SECTION);
   }
 
   function show(text, type, duration) {

@@ -53,6 +53,10 @@
     font-weight: 700;
     margin: 10px 0 18px;
 }
+.dash-total-average{
+    font-size: 16px;
+    font-weight: 300;
+}
 
 /* ================================
    TABLES

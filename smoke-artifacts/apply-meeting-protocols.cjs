@@ -75,7 +75,12 @@ async function main() {
           select 1 from public.user_homes uh
           where uh.user_id = auth.uid()
             and uh.home_code::text = meeting_protocols.home_code
-            and uh.role in ('Правление', 'Администратор')
+        )
+        and exists (
+          select 1 from public.user_document_sections uds
+          where uds.user_id = auth.uid()
+            and uds.section = 'meeting_protocols'
+            and uds.enabled = true
         )
       )
     `;
@@ -87,7 +92,12 @@ async function main() {
           select 1 from public.user_homes uh
           where uh.user_id = auth.uid()
             and uh.home_code::text = meeting_protocols.home_code
-            and uh.role in ('Правление', 'Администратор')
+        )
+        and exists (
+          select 1 from public.user_document_sections uds
+          where uds.user_id = auth.uid()
+            and uds.section = 'meeting_protocols'
+            and uds.enabled = true
         )
       )
       with check (
@@ -95,7 +105,12 @@ async function main() {
           select 1 from public.user_homes uh
           where uh.user_id = auth.uid()
             and uh.home_code::text = meeting_protocols.home_code
-            and uh.role in ('Правление', 'Администратор')
+        )
+        and exists (
+          select 1 from public.user_document_sections uds
+          where uds.user_id = auth.uid()
+            and uds.section = 'meeting_protocols'
+            and uds.enabled = true
         )
       )
     `;
@@ -107,7 +122,12 @@ async function main() {
           select 1 from public.user_homes uh
           where uh.user_id = auth.uid()
             and uh.home_code::text = meeting_protocols.home_code
-            and uh.role in ('Правление', 'Администратор')
+        )
+        and exists (
+          select 1 from public.user_document_sections uds
+          where uds.user_id = auth.uid()
+            and uds.section = 'meeting_protocols'
+            and uds.enabled = true
         )
       )
     `;

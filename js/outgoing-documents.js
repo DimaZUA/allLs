@@ -3,7 +3,7 @@
   "use strict";
 
   const TABLE = "outgoing_documents";
-  const EDIT_ROLES = new Set(["Правление", "Администратор"]);
+  const SECTION = "outgoing_documents";
   const DEFAULT_SIGNATURE_TEXT = "З повагою,\nГолова правління {org}________________/{Голова}";
   const state = {
     homeCode: "",
@@ -72,8 +72,8 @@
   }
 
   function canEditHome(code) {
-    const role = roles && roles[String(code)];
-    return EDIT_ROLES.has(role);
+    void code;
+    return typeof hasDocumentSectionAccess !== "function" || hasDocumentSectionAccess(SECTION);
   }
 
   function selectedHomes() {

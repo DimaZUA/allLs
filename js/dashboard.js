@@ -61,6 +61,18 @@ const MONTH_NAMES_UA_SHORT = [
 // ===============================
 // Вспомогательное: последние 6 месяцев
 // ===============================
+function calcAverage(values) {
+    if (!values || values.length <= 1) return 0;
+
+    // Исключаем последний элемент — текущий месяц
+    const completedMonths = values.slice(0, -1);
+
+    return completedMonths.reduce(
+        (sum, v) => sum + (Number(v) || 0),
+        0
+    ) / completedMonths.length;
+}
+
 function getLastMonths(year, month, count = 6) {
     const res = [];
     let y = year, m = month;
@@ -342,6 +354,8 @@ function niceCeil(value) {
 
 
 
+
+
 function renderDashboard(data) {
 
     // ===== ТЕКУЩИЙ МЕСЯЦ (динамически) =====
@@ -349,6 +363,15 @@ function renderDashboard(data) {
         month: 'long',
         year: 'numeric'
     }).format(new Date());
+
+    // ===== СРЕДНИЕ ЗА ИСТОРИЮ =====
+    const cashBalanceAvg   = calcAverage(data.cashHistory);
+    const cashIncomeAvg    = calcAverage(data.cashIncomeHistory);
+    const cashExpenseAvg   = calcAverage(data.cashExpenseHistory);
+
+    const residentsDebtAvg    = calcAverage(data.residentsHistory);
+    const residentsAccruedAvg = calcAverage(data.residentsAccruedHistory);
+    const residentsPaidAvg    = calcAverage(data.residentsPaidHistory);
 
     // начальные режимы
     dashState.cash = 'balance';
@@ -363,7 +386,15 @@ function renderDashboard(data) {
 
                 <div id="cash-total"
                      class="dash-total ${data.cashBalance >= 0 ? 'green' : 'red'}">
-                    ${data.cashBalance.toFixedWithComma(2)} ₴
+
+                    <span class="dash-total-value">
+                        ${data.cashBalance.toFixedWithComma(2)} ₴
+                    </span>
+
+                    <span class="dash-total-average">
+                        (середнє: ${cashBalanceAvg.toFixedWithComma(2)} ₴)
+                    </span>
+
                 </div>
 
                 <table id="cash-table" class="dash-table">
@@ -371,6 +402,7 @@ function renderDashboard(data) {
                         <td>Надходження (${monthLabel})</td>
                         <td>${data.cashMonth.income.toFixedWithComma(2)} ₴</td>
                     </tr>
+
                     <tr id="cash-expense">
                         <td>Витрати (${monthLabel})</td>
                         <td>${data.cashMonth.expense.toFixedWithComma(2)} ₴</td>
@@ -382,6 +414,7 @@ function renderDashboard(data) {
                 </div>
             </div>
 
+
             <!-- ================= RESIDENTS ================= -->
             <div class="dash-card">
                 <div id="residents-title" class="dash-title">
@@ -390,18 +423,29 @@ function renderDashboard(data) {
 
                 <div id="residents-total"
                      class="dash-total ${data.residentsDebt >= 0 ? 'green' : 'red'}">
-                    ${data.residentsDebt.toFixedWithComma(2)} ₴
+
+                    <span class="dash-total-value">
+                        ${data.residentsDebt.toFixedWithComma(2)} ₴
+                    </span>
+                        
+                    <span class="dash-total-average">
+                        (середнє: ${residentsDebtAvg.toFixedWithComma(2)} ₴)
+                    </span>
+
                 </div>
 
                 <table id="residents-table" class="dash-table">
+
                     <tr id="residents-accrued">
                         <td>Нараховано (${monthLabel})</td>
                         <td>${data.residentsMonth.accrued.toFixedWithComma(2)} ₴</td>
                     </tr>
+
                     <tr id="residents-paid">
                         <td>Сплачено (${monthLabel})</td>
                         <td>${data.residentsMonth.paid.toFixedWithComma(2)} ₴</td>
                     </tr>
+
                 </table>
 
                 <div id="residents-hist">
@@ -409,201 +453,357 @@ function renderDashboard(data) {
                 </div>
             </div>
 
+
             <!-- ================= LIABILITIES ================= -->
             ${data.liabilities ? renderLiabilitiesCards(data.liabilities) : ''}
 
         </div>
     `;
 
+
     // ===== АНИМАЦИЯ ЦИФР =====
     requestAnimationFrame(() => {
-        document.querySelectorAll('.dash-total').forEach(el => {
+
+        document.querySelectorAll('.dash-total-value').forEach(el => {
+
             let txt = el.textContent
                 .replace(/\s| /g, '')
                 .replace('₴', '')
+                .replace('(середнє:', '')
                 .replace(',', '.');
 
             const value = Number(txt);
+
             if (!isNaN(value)) {
+
                 el.textContent = '0 ₴';
+
                 animateNumber(el, value);
             }
         });
+
     });
 
+
     // ===== КЛИКИ (ТОЛЬКО СТРОКИ) =====
+
     document.getElementById('cash-income')?.addEventListener('click', () =>
-        switchDash('cash', 'income', data));
+        switchDash('cash', 'income', data)
+    );
 
     document.getElementById('cash-expense')?.addEventListener('click', () =>
-        switchDash('cash', 'expense', data));
+        switchDash('cash', 'expense', data)
+    );
 
     document.getElementById('residents-accrued')?.addEventListener('click', () =>
-        switchDash('residents', 'accrued', data));
+        switchDash('residents', 'accrued', data)
+    );
 
     document.getElementById('residents-paid')?.addEventListener('click', () =>
-        switchDash('residents', 'paid', data));
+        switchDash('residents', 'paid', data)
+    );
 }
+
 
 function switchDash(card, mode, data) {
 
     dashState[card] = mode;
 
     const cfg = DASH_MODES[card].find(m => m.key === mode);
+
     const monthLabel = new Intl.DateTimeFormat('uk-UA', {
         month: 'long',
         year: 'numeric'
     }).format(new Date());
 
-    let value, history;
+    let value;
+    let history;
+    let average;
+
 
     // ================= CASH =================
+
     if (card === 'cash') {
 
         document.getElementById('cash-title').textContent = cfg.title;
 
+
+        // ===== ЗАЛИШОК КОШТІВ =====
         if (mode === 'balance') {
+
             value = data.cashBalance;
             history = data.cashHistory;
+            average = calcAverage(data.cashHistory);
 
             document.getElementById('cash-table').innerHTML = `
+
                 <tr id="cash-income">
                     <td>Надходження (${monthLabel})</td>
                     <td>${data.cashMonth.income.toFixedWithComma(2)} ₴</td>
                 </tr>
+
                 <tr id="cash-expense">
                     <td>Витрати (${monthLabel})</td>
                     <td>${data.cashMonth.expense.toFixedWithComma(2)} ₴</td>
                 </tr>
+
             `;
         }
 
+
+        // ===== НАДХОДЖЕННЯ =====
         if (mode === 'income') {
+
             value = data.cashMonth.income;
             history = data.cashIncomeHistory;
+            average = calcAverage(data.cashIncomeHistory);
 
             document.getElementById('cash-table').innerHTML = `
+
                 <tr id="cash-balance">
                     <td>Залишок коштів</td>
                     <td>${data.cashBalance.toFixedWithComma(2)} ₴</td>
                 </tr>
+
                 <tr id="cash-expense">
                     <td>Витрати (${monthLabel})</td>
                     <td>${data.cashMonth.expense.toFixedWithComma(2)} ₴</td>
                 </tr>
+
             `;
         }
 
+
+        // ===== ВИТРАТИ =====
         if (mode === 'expense') {
+
             value = data.cashMonth.expense;
             history = data.cashExpenseHistory;
+            average = calcAverage(data.cashExpenseHistory);
 
             document.getElementById('cash-table').innerHTML = `
+
                 <tr id="cash-income">
                     <td>Надходження (${monthLabel})</td>
                     <td>${data.cashMonth.income.toFixedWithComma(2)} ₴</td>
                 </tr>
+
                 <tr id="cash-balance">
                     <td>Залишок коштів</td>
                     <td>${data.cashBalance.toFixedWithComma(2)} ₴</td>
                 </tr>
+
             `;
         }
 
-        // клики
+
+        // ===== КЛИКИ =====
+
         document.getElementById('cash-income')?.addEventListener('click', () =>
-            switchDash('cash', 'income', data));
+            switchDash('cash', 'income', data)
+        );
+
         document.getElementById('cash-expense')?.addEventListener('click', () =>
-            switchDash('cash', 'expense', data));
+            switchDash('cash', 'expense', data)
+        );
+
         document.getElementById('cash-balance')?.addEventListener('click', () =>
-            switchDash('cash', 'balance', data));
+            switchDash('cash', 'balance', data)
+        );
 
-        document.getElementById('cash-total').textContent = '0 ₴';
-        animateNumber(document.getElementById('cash-total'), value);
 
-const cashHist = document.getElementById('cash-hist');
-cashHist.innerHTML = renderHistogram(history, data.months);
+        // ===== ОБНОВЛЯЕМ ГЛАВНУЮ СУММУ =====
 
-requestAnimationFrame(() => {
-    cashHist
-        .querySelectorAll('.hist-bar')
-        .forEach(b => b.classList.add('animate'));
-});
+        const cashTotal = document.getElementById('cash-total');
+
+        cashTotal.className =
+            `dash-total ${value >= 0 ? 'green' : 'red'}`;
+
+        cashTotal.innerHTML = `
+
+            <span class="dash-total-value">
+                0 ₴
+            </span>
+
+            <span class="dash-total-average">
+                (середнє: ${average.toFixedWithComma(2)} ₴)
+            </span>
+
+        `;
+
+        const cashValueEl =
+            cashTotal.querySelector('.dash-total-value');
+
+        animateNumber(cashValueEl, value);
+
+        const cashAvgueEl =
+            cashTotal.querySelector('.dash-total-average');
+
+        animateNumber(cashAvgueEl, average,700,' (середнє: ');
+
+        // ===== ГИСТОГРАММА =====
+
+        const cashHist = document.getElementById('cash-hist');
+
+        cashHist.innerHTML =
+            renderHistogram(history, data.months);
+
+        requestAnimationFrame(() => {
+
+            cashHist
+                .querySelectorAll('.hist-bar')
+                .forEach(b => b.classList.add('animate'));
+
+        });
 
     }
 
+
     // ================= RESIDENTS =================
+
     if (card === 'residents') {
 
-        document.getElementById('residents-title').textContent = cfg.title;
+        document.getElementById('residents-title').textContent =
+            cfg.title;
+
+
+        // ===== БОРГ СПІВВЛАСНИКІВ =====
 
         if (mode === 'debt') {
+
             value = data.residentsDebt;
             history = data.residentsHistory;
+            average = calcAverage(data.residentsHistory);
 
             document.getElementById('residents-table').innerHTML = `
+
                 <tr id="residents-accrued">
                     <td>Нараховано (${monthLabel})</td>
                     <td>${data.residentsMonth.accrued.toFixedWithComma(2)} ₴</td>
                 </tr>
+
                 <tr id="residents-paid">
                     <td>Сплачено (${monthLabel})</td>
                     <td>${data.residentsMonth.paid.toFixedWithComma(2)} ₴</td>
                 </tr>
+
             `;
         }
+
+
+        // ===== НАРАХОВАНО =====
 
         if (mode === 'accrued') {
+
             value = data.residentsMonth.accrued;
             history = data.residentsAccruedHistory;
+            average = calcAverage(data.residentsAccruedHistory);
 
             document.getElementById('residents-table').innerHTML = `
+
                 <tr id="residents-debt">
                     <td>Борг співвласників</td>
                     <td>${data.residentsDebt.toFixedWithComma(2)} ₴</td>
                 </tr>
+
                 <tr id="residents-paid">
                     <td>Сплачено (${monthLabel})</td>
                     <td>${data.residentsMonth.paid.toFixedWithComma(2)} ₴</td>
                 </tr>
+
             `;
         }
 
+
+        // ===== СПЛАЧЕНО =====
+
         if (mode === 'paid') {
+
             value = data.residentsMonth.paid;
             history = data.residentsPaidHistory;
+            average = calcAverage(data.residentsPaidHistory);
 
             document.getElementById('residents-table').innerHTML = `
+
                 <tr id="residents-accrued">
                     <td>Нараховано (${monthLabel})</td>
                     <td>${data.residentsMonth.accrued.toFixedWithComma(2)} ₴</td>
                 </tr>
+
                 <tr id="residents-debt">
                     <td>Борг співвласників</td>
                     <td>${data.residentsDebt.toFixedWithComma(2)} ₴</td>
                 </tr>
+
             `;
         }
 
-        // клики
+
+        // ===== КЛИКИ =====
+
         document.getElementById('residents-accrued')?.addEventListener('click', () =>
-            switchDash('residents', 'accrued', data));
+            switchDash('residents', 'accrued', data)
+        );
+
         document.getElementById('residents-paid')?.addEventListener('click', () =>
-            switchDash('residents', 'paid', data));
+            switchDash('residents', 'paid', data)
+        );
+
         document.getElementById('residents-debt')?.addEventListener('click', () =>
-            switchDash('residents', 'debt', data));
+            switchDash('residents', 'debt', data)
+        );
 
-        document.getElementById('residents-total').textContent = '0 ₴';
-        animateNumber(document.getElementById('residents-total'), value);
 
-const resHist = document.getElementById('residents-hist');
-resHist.innerHTML = renderHistogram(history, data.months);
+        // ===== ОБНОВЛЯЕМ ГЛАВНУЮ СУММУ =====
 
-requestAnimationFrame(() => {
-    resHist
-        .querySelectorAll('.hist-bar')
-        .forEach(b => b.classList.add('animate'));
-});
+        const residentsTotal =
+            document.getElementById('residents-total');
+
+        residentsTotal.className =
+            `dash-total ${value >= 0 ? 'green' : 'red'}`;
+
+        residentsTotal.innerHTML = `
+
+            <span class="dash-total-value">
+                0 ₴
+            </span>
+
+            <span class="dash-total-average">
+                (середнє: ${average.toFixedWithComma(2)} ₴)
+            </span>
+
+        `;
+
+const residentsValueEl =
+    residentsTotal.querySelector('.dash-total-value');
+
+animateNumber(residentsValueEl, value);
+
+const residentsAvgEl =
+    residentsTotal.querySelector('.dash-total-average');
+
+animateNumber(
+    residentsAvgEl,
+    average,
+    700,
+    ' (середнє: '
+);
+
+        // ===== ГИСТОГРАММА =====
+
+        const resHist =
+            document.getElementById('residents-hist');
+
+        resHist.innerHTML =
+            renderHistogram(history, data.months);
+
+        requestAnimationFrame(() => {
+
+            resHist
+                .querySelectorAll('.hist-bar')
+                .forEach(b => b.classList.add('animate'));
+
+        });
 
     }
 }
@@ -837,7 +1037,7 @@ function toggleLiab(id) {
 
 
 
-function animateNumber(el, target, duration = 300) {
+function animateNumber(el, target, duration = 300, prefix = '') {
     const start = 0;
     const startTime = performance.now();
 
@@ -848,15 +1048,25 @@ function animateNumber(el, target, duration = 300) {
         const noise = Math.random() * 0.08;
         const value = target * (progress + noise * (1 - progress));
 
-        el.textContent = round2(value).toFixedWithComma(2) + ' ₴';
+        el.textContent =
+            prefix +
+            round2(value).toFixedWithComma(2) +
+            ' ₴' +
+            (prefix !== '' ? ')' : '');
 
-        if (progress < 1) requestAnimationFrame(tick);
-        else el.textContent = target.toFixedWithComma(2) + ' ₴';
+        if (progress < 1) {
+            requestAnimationFrame(tick);
+        } else {
+            el.textContent =
+                prefix +
+                target.toFixedWithComma(2) +
+                ' ₴' +
+                (prefix !== '' ? ')' : '');
+        }
     }
 
     requestAnimationFrame(tick);
 }
-
 // ===============================
 // 7. ИНИЦИАЛИЗАЦИЯ
 // ===============================
