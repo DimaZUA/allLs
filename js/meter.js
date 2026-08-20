@@ -19,6 +19,7 @@
     loading: false,
     warnTimers: new WeakMap()
   };
+  state.mobileView = "input";
 
   function escapeHtml(value) {
     if (window.GrCommon && GrCommon.escapeHtml) return GrCommon.escapeHtml(value);
@@ -283,7 +284,7 @@
     return `<strong>${escapeHtml(meterText)}</strong>${small.length ? `<small>${escapeHtml(small.join(" · "))}</small>` : ""}`;
   }
 
-  function inputCell(meter, channel, index) {
+  function inputCell(meter, channel, index, mode) {
     const reading = readingForMeter(meter.id);
     const current = currentValueFor(channel.id, reading && reading.id);
     const previous = previousValueFor(meter.id, channel.id);
@@ -292,11 +293,26 @@
     const report = delta == null ? null : delta * factor;
     const autoBounds = autoConsumptionBounds(meter.id, channel.id);
     const deltaId = `ma-delta-${index}`;
-    return `<td data-ma-reading-row data-meter-id="${escapeHtml(meter.id)}" data-channel-id="${escapeHtml(channel.id)}" data-previous="${escapeHtml(previous)}" data-factor="${escapeHtml(factor)}" data-min="${escapeHtml(meter.min_consumption ?? "")}" data-max="${escapeHtml(meter.max_consumption ?? "")}" data-auto-min="${escapeHtml(autoBounds.min)}" data-auto-max="${escapeHtml(autoBounds.max)}" data-delta-target="${escapeHtml(deltaId)}">
+    return `<td data-ma-reading-row data-ma-mode="${escapeHtml(mode || "desktop")}" data-meter-id="${escapeHtml(meter.id)}" data-channel-id="${escapeHtml(channel.id)}" data-previous="${escapeHtml(previous)}" data-factor="${escapeHtml(factor)}" data-min="${escapeHtml(meter.min_consumption ?? "")}" data-max="${escapeHtml(meter.max_consumption ?? "")}" data-auto-min="${escapeHtml(autoBounds.min)}" data-auto-max="${escapeHtml(autoBounds.max)}" data-delta-target="${escapeHtml(deltaId)}">
       <input name="current_value" value="${escapeHtml(current)}">
       <div class="ma-reading-warning" data-ma-warning hidden></div>
       <span data-ma-report hidden>${escapeHtml(report == null ? "" : fmt(report))}</span>
     </td><td id="${escapeHtml(deltaId)}" data-ma-delta>${escapeHtml(delta == null ? "" : fmt(delta))}</td>`;
+  }
+
+  function readingInputAttrs(meter, channel, index, mode) {
+    const reading = readingForMeter(meter.id);
+    const current = currentValueFor(channel.id, reading && reading.id);
+    const previous = previousValueFor(meter.id, channel.id);
+    const factor = num(channel.unit_factor, 1) * num(meter.calculation_factor, 1);
+    const delta = current !== "" && previous !== "" ? num(current, 0) - num(previous, 0) : null;
+    const autoBounds = autoConsumptionBounds(meter.id, channel.id);
+    return {
+      current,
+      previous,
+      delta,
+      attrs: `data-ma-reading-row data-ma-mode="${escapeHtml(mode)}" data-meter-id="${escapeHtml(meter.id)}" data-channel-id="${escapeHtml(channel.id)}" data-previous="${escapeHtml(previous)}" data-factor="${escapeHtml(factor)}" data-min="${escapeHtml(meter.min_consumption ?? "")}" data-max="${escapeHtml(meter.max_consumption ?? "")}" data-auto-min="${escapeHtml(autoBounds.min)}" data-auto-max="${escapeHtml(autoBounds.max)}" data-delta-target="ma-mobile-delta-${escapeHtml(index)}"`
+    };
   }
 
   function historyForMeter(meterId) {
@@ -413,6 +429,61 @@
         })).join("") || `<tr><td colspan="${2 + maxChannels * 2}" class="ma-empty-cell">Історії ще немає.</td></tr>`}
       </tbody>
     </table>`;
+  }
+
+  function renderMobileInput(meters) {
+    let index = 0;
+    return `<section class="ma-mobile-section ma-mobile-input">
+      <label class="ma-mobile-date">Дата<input type="date" data-ma-reading-date value="${escapeHtml(state.readingDate)}"></label>
+      ${meters.map(meter => {
+        const channels = readingChannelsFor(meter);
+        return `<article class="ma-mobile-card">
+          <div class="ma-mobile-meter-title">
+            <strong>${escapeHtml(meterLabel(meter))}</strong>
+            ${meter.meter_number ? `<small>№ ${escapeHtml(meter.meter_number)}</small>` : ""}
+          </div>
+          ${channels.map(channel => {
+            const itemIndex = index++;
+            const data = readingInputAttrs(meter, channel, itemIndex, "mobile");
+            const channelName = channels.length > 1 ? (channel.label || channel.code || "") : "";
+            const unit = channel.input_unit || "";
+            return `<div class="ma-mobile-channel" ${data.attrs}>
+              ${channelName ? `<div class="ma-mobile-channel-name">${escapeHtml(channelName)}${unit ? ` <small>${escapeHtml(unit)}</small>` : ""}</div>` : (unit ? `<div class="ma-mobile-channel-name"><small>${escapeHtml(unit)}</small></div>` : "")}
+              <div class="ma-mobile-prev">Попереднє: <strong>${escapeHtml(data.previous)}</strong></div>
+              <input name="current_value" inputmode="decimal" autocomplete="off" value="${escapeHtml(data.current)}">
+              <div class="ma-mobile-delta">Різниця: <strong id="ma-mobile-delta-${escapeHtml(itemIndex)}" data-ma-delta>${escapeHtml(data.delta == null ? "" : fmt(data.delta))}</strong></div>
+              <div class="ma-reading-warning" data-ma-warning hidden></div>
+            </div>`;
+          }).join("") || `<div class="ma-empty">Немає активних каналів.</div>`}
+        </article>`;
+      }).join("") || `<div class="ma-empty">Немає активних каналів показань.</div>`}
+      <div class="ma-mobile-savebar">
+        <button type="button" class="gr-btn gr-btn-primary" data-ma-save-readings>Зберегти показання</button>
+      </div>
+    </section>`;
+  }
+
+  function renderMobileHistory(meters) {
+    const electricityWide = state.selectedMeterId === ELECTRICITY_GROUP_ID && meters.length < 6;
+    return `<section class="ma-mobile-section ma-mobile-history">
+      <div class="ma-history-scroll">
+        ${meters.length ? (electricityWide ? renderWideReadingsTable(meters) : renderMeterRowsReadingsTable(meters)) : `<div class="ma-empty">Історії ще немає.</div>`}
+      </div>
+    </section>`;
+  }
+
+  function renderMobileView(meters, selected) {
+    const view = ["input", "history", "act"].includes(state.mobileView) ? state.mobileView : "input";
+    return `<div class="ma-mobile-view">
+      <div class="ma-mobile-switch">
+        <button type="button" class="${view === "input" ? "is-selected" : ""}" data-ma-mobile-view="input">Введення</button>
+        <button type="button" class="${view === "history" ? "is-selected" : ""}" data-ma-mobile-view="history">Історія</button>
+        <button type="button" class="${view === "act" ? "is-selected" : ""}" data-ma-mobile-view="act">Акт</button>
+      </div>
+      ${view === "history" ? renderMobileHistory(meters) : ""}
+      ${view === "act" ? `<section class="ma-mobile-section ma-mobile-act">${renderAct(selected)}</section>` : ""}
+      ${view === "input" ? renderMobileInput(meters) : ""}
+    </div>`;
   }
 
   function currentReadingSnapshot(meter, readingDate) {
@@ -673,7 +744,7 @@
   function renderReadings() {
     const meters = selectedInputMeters();
     const electricityWide = state.selectedMeterId === ELECTRICITY_GROUP_ID && meters.length < 6;
-    return `<div class="ma-panel ma-readings">
+    return `<div class="ma-panel ma-readings ma-desktop-readings">
       <div class="ma-form-head">
         <h3>Показання та історія</h3>
         <div class="ma-reading-tools">
@@ -697,7 +768,8 @@
         <div class="ma-layout ma-layout-single">
           <main class="ma-main">
             ${renderReadings()}
-            ${renderAct(selected)}
+            ${renderMobileView(selectedInputMeters(), selected)}
+            <div class="ma-desktop-act">${renderAct(selected)}</div>
           </main>
         </div>
       `}
@@ -791,7 +863,8 @@
 
   async function saveReadings() {
     if (!canEditHome(state.homeCode)) return show("Немає прав на зміну показань цього будинку", "warn");
-    const rows = Array.from(document.querySelectorAll("[data-ma-reading-row]"));
+    const mode = window.matchMedia && window.matchMedia("(max-width: 700px)").matches ? "mobile" : "desktop";
+    const rows = Array.from(document.querySelectorAll(`[data-ma-reading-row][data-ma-mode="${mode}"]`));
     const warnings = rows.map(row => validateReadingRow(row, true)).filter(Boolean);
     if (warnings.length && typeof confirm === "function" && !confirm("Є показання за межами встановленого контролю. Все одно зберегти?")) {
       show("Збереження скасовано", "warn");
@@ -1014,16 +1087,21 @@
   }
 
   function bindEvents(container) {
+    container.querySelectorAll("[data-ma-mobile-view]").forEach(btn => btn.addEventListener("click", () => {
+      state.mobileView = btn.dataset.maMobileView || "input";
+      render();
+    }));
     container.querySelectorAll("button[data-ma-select-meter]").forEach(btn => btn.addEventListener("click", () => {
       state.selectedMeterId = btn.dataset.maSelectMeter || "";
       state.actReadingDate = "";
+      state.mobileView = "input";
       render();
     }));
-    container.querySelector("[data-ma-reading-date]")?.addEventListener("change", async event => {
+    container.querySelectorAll("[data-ma-reading-date]").forEach(input => input.addEventListener("change", async event => {
       state.readingDate = event.target.value || nearestMonthEndIso();
       await loadChildren();
       render();
-    });
+    }));
     container.querySelectorAll("[data-ma-reading-row] input").forEach(input => input.addEventListener("input", () => {
       const row = input.closest("[data-ma-reading-row]");
       if (row) {
@@ -1033,7 +1111,7 @@
         scheduleReadingWarning(input);
       }
     }));
-    container.querySelector("[data-ma-save-readings]")?.addEventListener("click", saveReadings);
+    container.querySelectorAll("[data-ma-save-readings]").forEach(btn => btn.addEventListener("click", saveReadings));
     container.querySelectorAll("[data-ma-act-date]").forEach(row => row.addEventListener("click", () => {
       if (row.dataset.maSelectMeter) state.selectedMeterId = row.dataset.maSelectMeter;
       state.actReadingDate = row.dataset.maActDate || "";

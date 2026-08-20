@@ -1398,6 +1398,10 @@ li.folder {
   gap: 8px;
 }
 
+.ma-mobile-view {
+  display: none;
+}
+
 .ma-act-sheet {
   margin: 0 auto;
   padding: 28px 32px;
@@ -1594,6 +1598,209 @@ li.folder {
   .ma-layout,
   .ma-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 700px) {
+  .ma-app {
+    max-width: none;
+    padding: 10px;
+    padding-bottom: 88px;
+  }
+
+  .ma-toolbar {
+    display: grid;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+
+  .ma-toolbar h2 {
+    font-size: 22px;
+  }
+
+  .ma-meter-tabs {
+    justify-content: stretch;
+    max-width: none;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    padding-bottom: 2px;
+  }
+
+  .ma-meter-row {
+    flex: 0 0 auto;
+    min-width: 220px;
+    padding: 10px;
+    border-color: #d8dee8;
+    background: #fff;
+  }
+
+  .ma-desktop-readings,
+  .ma-desktop-act {
+    display: none;
+  }
+
+  .ma-mobile-view {
+    display: grid;
+    gap: 10px;
+  }
+
+  .ma-mobile-switch {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: #f8fafc;
+    padding: 4px 0 6px;
+  }
+
+  .ma-mobile-switch button {
+    min-height: 44px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    background: #fff;
+    color: #111827;
+    font-size: 15px;
+    font-weight: 700;
+  }
+
+  .ma-mobile-switch button.is-selected {
+    border-color: #1f5a9d;
+    background: #1f5a9d;
+    color: #fff;
+  }
+
+  .ma-mobile-section {
+    display: grid;
+    gap: 10px;
+  }
+
+  .ma-mobile-date,
+  .ma-mobile-card {
+    background: #fff;
+    border: 1px solid #d8dee8;
+    border-radius: 8px;
+    padding: 12px;
+  }
+
+  .ma-mobile-date {
+    display: grid;
+    gap: 6px;
+    color: #4b5563;
+    font-size: 14px;
+    font-weight: 700;
+  }
+
+  .ma-mobile-date input {
+    width: 100%;
+    min-height: 50px;
+    border: 1px solid #94a3b8;
+    border-radius: 8px;
+    padding: 0 12px;
+    font-size: 22px;
+    color: #111827;
+  }
+
+  .ma-mobile-meter-title {
+    display: grid;
+    gap: 3px;
+    margin-bottom: 10px;
+  }
+
+  .ma-mobile-meter-title strong {
+    font-size: 18px;
+    line-height: 1.2;
+  }
+
+  .ma-mobile-meter-title small,
+  .ma-mobile-channel-name small {
+    color: #64748b;
+    font-size: 13px;
+  }
+
+  .ma-mobile-channel {
+    display: grid;
+    gap: 7px;
+    padding-top: 10px;
+    border-top: 1px solid #e5eaf1;
+  }
+
+  .ma-mobile-channel:first-of-type {
+    padding-top: 0;
+    border-top: 0;
+  }
+
+  .ma-mobile-channel + .ma-mobile-channel {
+    margin-top: 12px;
+  }
+
+  .ma-mobile-channel-name {
+    font-size: 15px;
+    font-weight: 800;
+  }
+
+  .ma-mobile-prev,
+  .ma-mobile-delta {
+    font-size: 17px;
+    line-height: 1.25;
+  }
+
+  .ma-mobile-channel input[name="current_value"] {
+    width: 100%;
+    min-height: 58px;
+    border: 2px solid #94a3b8;
+    border-radius: 9px;
+    padding: 4px 12px;
+    font-size: 28px;
+    font-weight: 800;
+    color: #111827;
+    background: #fff;
+  }
+
+  .ma-mobile-channel input[name="current_value"]:focus,
+  .ma-mobile-date input:focus {
+    outline: 3px solid #93c5fd;
+    border-color: #1f5a9d;
+  }
+
+  .ma-mobile-savebar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 50;
+    padding: 10px;
+    background: rgba(248, 250, 252, .96);
+    border-top: 1px solid #d8dee8;
+  }
+
+  .ma-mobile-savebar .gr-btn {
+    width: 100%;
+    min-height: 56px;
+    font-size: 19px;
+    font-weight: 800;
+  }
+
+  .ma-mobile-history .ma-input-history-row {
+    display: none;
+  }
+
+  .ma-mobile-history .ma-history-scroll {
+    max-height: calc(100vh - 160px);
+  }
+
+  .ma-mobile-act {
+    overflow-x: auto;
+  }
+
+  .ma-mobile-act .ma-act-tools {
+    justify-content: stretch;
+  }
+
+  .ma-mobile-act .ma-act-tools .gr-btn {
+    flex: 1 1 auto;
+    min-height: 44px;
   }
 }
 
