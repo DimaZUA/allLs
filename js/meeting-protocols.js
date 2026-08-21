@@ -59,6 +59,13 @@
       .replace(/"/g, "&quot;");
   }
 
+  function apartmentHtml(kv, accountId, homeCode) {
+    if (window.GrCommon && typeof GrCommon.apartmentLinkHtml === "function") {
+      return GrCommon.apartmentLinkHtml(kv, accountId, homeCode);
+    }
+    return `<span class="gr-apt-no">${escapeHtml(kv)}</span>`;
+  }
+
   function todayIso() {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -473,6 +480,14 @@
     return meta.ls || (String(homeCode || "") === String(activeHomeCode || "") ? window.ls : null) || {};
   }
 
+  function accountIdByKv(homeCode, kv) {
+    const target = String(kv || "").trim();
+    if (!target) return "";
+    const source = sourceLsForHome(homeCode);
+    const found = Object.entries(source).find(([, item]) => String(item && item.kv || "").trim() === target);
+    return found ? found[0] : "";
+  }
+
   function totalAreaForHome(homeCode) {
     const source = sourceLsForHome(homeCode);
     return Object.values(source).reduce((sum, item) => {
@@ -767,6 +782,7 @@
     return normalizeParticipants(item.participants)
       .filter(row => row && (row.fio || row.kv))
       .map(row => ({
+        account_id: row.account_id || accountIdByKv(item.home_code, row.kv),
         passport: row.passport || "",
         tax_id: row.tax_id || row.code || "",
         birth_date: row.birth_date || "",
@@ -938,14 +954,16 @@
       const fio = String(item.fio || item.owner || "").trim();
       const area = Number(String(item.pl || item.area || "0").replace(",", ".")) || 0;
       const pod = String(item.pod ?? item.podezd ?? item.entrance ?? item.pid ?? "").trim();
-      if (!byKv.has(kv)) byKv.set(kv, { id, kv, pod, fioList: [], area: 0 });
+      if (!byKv.has(kv)) byKv.set(kv, { account_id: id, kv, pod, fioList: [], area: 0 });
       const row = byKv.get(kv);
+      if (!row.account_id && id) row.account_id = id;
       if (!row.pod && pod) row.pod = pod;
       if (fio && !row.fioList.includes(fio)) row.fioList.push(fio);
       row.area += area;
     });
     return Array.from(byKv.values())
       .map(row => ({
+        account_id: row.account_id || accountIdByKv(homeData?.code, row.kv),
         kv: row.kv,
         pod: row.pod || "",
         fio: row.fioList.join(", "),
@@ -1124,7 +1142,7 @@
       const podTitle = opts && opts.pod ? `<div class="mp-appendix-pod-title">Під'їзд ${escapeHtml(opts.pod)}</div>` : "";
       const rows = pageRows.map((v, i) => `<tr>
         <td>${v._seq || offset + i + 1}</td>
-        <td><span class="gr-apt-no">${escapeHtml(v.kv)}</span></td>
+        <td>${apartmentHtml(v.kv, v.account_id, item.home_code)}</td>
         <td>${escapeHtml(v.fio)}</td>
         ${Array.from({ length: questionCount }, () => `<td class="mp-vote-cell"></td>`).join("")}
         <td></td>
@@ -1164,7 +1182,7 @@
       const podTitle = opts && opts.pod ? `<div class="mp-appendix-pod-title">Під'їзд ${escapeHtml(opts.pod)}</div>` : "";
       const rows = pageRows.map((v, i) => `<tr>
         <td>${v._seq || offset + i + 1}</td>
-        <td><span class="gr-apt-no">${escapeHtml(v.kv)}</span></td>
+        <td>${apartmentHtml(v.kv, v.account_id, item.home_code)}</td>
         <td>${escapeHtml(v.fio)}</td>
         ${item.vote_basis === "area" ? `<td>${money(v.votes)}</td>` : ""}
         <td></td>
@@ -1198,7 +1216,7 @@
       const podTitle = opts && opts.pod ? `<div class="mp-appendix-pod-title">Під'їзд ${escapeHtml(opts.pod)}</div>` : "";
       const rows = pageRows.map((v, i) => `<tr>
         <td>${v._seq || offset + i + 1}</td>
-        <td><span class="gr-apt-no">${escapeHtml(v.kv)}</span></td>
+        <td>${apartmentHtml(v.kv, v.account_id, item.home_code)}</td>
         <td>${escapeHtml(v.fio)}</td>
         <td></td>
         <td></td>
@@ -2109,6 +2127,9 @@
   function bindEvents() {
     const container = getContainer();
     if (!container) return;
+    if (window.GrCommon && typeof GrCommon.bindAccountLinks === "function") {
+      GrCommon.bindAccountLinks(container);
+    }
     bindHomeCombo(container);
     bindRowButtons(container);
     const filter = container.querySelector("[data-mp-filter]");

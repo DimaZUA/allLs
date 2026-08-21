@@ -6,12 +6,26 @@ pdfjsLib.GlobalWorkerOptions.workerSrc =
 const BASE_URL = "https://pub-bf08b4f84d3e447e8021dc49cca3a1bf.r2.dev/";
 const monthLabels = ["січ","лют","бер","квіт","трав","черв","лип","серп","вер","жовт","лист","груд"];
 const BOTTOM_MARGIN_PX = 20;
+const GENERATED_MONTHLY_REPORTS = [
+    { fileName: "ОР за боргом.pdf", typeId: "accountsDebt" },
+    { fileName: "Оплата співвласників.pdf", typeId: "payments" },
+    { fileName: "ОР по квартирам.pdf", typeId: "accountsPods" },
+    { fileName: "ОР борг 3 місяці+.pdf", typeId: "debtorsList" },
+    { fileName: "ОР передоплата.pdf", typeId: "accountsOverpay" },
+    { fileName: "Витарти будинку.pdf", typeId: "debtsPoster" },
+    { fileName: "ОР борг по підїздам.pdf", typeId: "podPoster" }
+];
+const GENERATED_YEAR_REPORTS = [
+    { fileName: "ОР по квартирам з січня.pdf", typeId: "accountsPods" },
+    { fileName: "Оплата співвласників з січня.pdf", typeId: "payments" }
+];
 
 let selectedYear = null;
 let selectedMonth = null;
 let selectedFile = null;
 let currentFolderPath = null;
 let homeCode = 0;
+let activeGeneratedReport = null;
 let documentSectionAccess = null;
 let documentSectionAccessPromise = null;
 
@@ -120,6 +134,7 @@ function addFileLi(ul, f) {
 
     li.onclick = () => {
         if (selectedFile === f) return;
+        activeGeneratedReport = null;
         selectedFile = f;
         highlightFileInPanel(f);
         localStorage.setItem("viewed:" + f, "1");
@@ -144,6 +159,125 @@ if (files._restrictedFiles?.includes(f)) {
 }
 
     ul.appendChild(li);
+}
+
+function normalizeReportFileName(name) {
+    return String(name || "")
+        .replace(/[ʼ'`´]/g, "")
+        .replace(/\s+/g, " ")
+        .trim()
+        .toLowerCase();
+}
+
+function generatedReportVirtualPath(periodKind, year, month, fileName) {
+    const ym = periodKind === "month"
+        ? `${year}/${month}`
+        : `${year}/year-to-${month}`;
+    return `generated://${homeCode}/${ym}/${fileName}`;
+}
+
+function getCurrentReportMonth() {
+    const now = new Date();
+    let month = now.getDate() >= 25 ? now.getMonth() + 1 : now.getMonth();
+    if (month < 1) {
+        month = 12;
+    }
+    return String(month).padStart(2, "0");
+}
+
+function getCurrentReportYear() {
+    const now = new Date();
+    return String(now.getMonth() === 0 && now.getDate() < 25
+        ? now.getFullYear() - 1
+        : now.getFullYear());
+}
+
+function getGeneratedYearEndMonth(year) {
+    return String(year) === getCurrentReportYear() ? getCurrentReportMonth() : "12";
+}
+
+function hasGeneratedMonthlyReportsFor(year, month) {
+    return !!GENERATED_MONTHLY_REPORTS.length
+        && getCurrentReportYear() === String(year)
+        && getCurrentReportMonth() === String(month);
+}
+
+function getGeneratedReportDefForCurrentPeriod() {
+    if (!activeGeneratedReport || !selectedYear) return null;
+    const isYear = activeGeneratedReport.periodKind === "year";
+    const defs = isYear ? GENERATED_YEAR_REPORTS : GENERATED_MONTHLY_REPORTS;
+    const base = defs.find(d => d.typeId === activeGeneratedReport.typeId);
+    if (!base) return null;
+    const month = isYear ? getGeneratedYearEndMonth(selectedYear) : selectedMonth;
+    if (!isYear && !month) return null;
+    return {
+        ...base,
+        periodKind: activeGeneratedReport.periodKind,
+        year: selectedYear,
+        month
+    };
+}
+
+function refreshActiveGeneratedReport() {
+    const def = getGeneratedReportDefForCurrentPeriod();
+    if (!def) return false;
+    selectedFile = generatedReportVirtualPath(def.periodKind, def.year, def.month, def.fileName);
+    highlightFileInPanel(selectedFile);
+    openGeneratedReportFromTree(def);
+    return true;
+}
+
+function openGeneratedReportFromTree(def) {
+    if (typeof renderGeneratedReportOnly !== "function") {
+        if (typeof showMessage === "function") {
+            showMessage("Генератор звітів ще не завантажений.", "warn", 4000);
+        }
+        return;
+    }
+    const period = def.periodKind === "year"
+        ? {
+            from: `${def.year}-01`,
+            to: `${def.year}-${getGeneratedYearEndMonth(def.year)}`
+        }
+        : {
+            from: `${def.year}-${def.month}`,
+            to: `${def.year}-${def.month}`
+        };
+    renderGeneratedReportOnly({
+        typeId: def.typeId,
+        homeCode: homeCode || (typeof activeHomeCode !== "undefined" ? activeHomeCode : ""),
+        from: period.from,
+        to: period.to
+    });
+}
+
+function addGeneratedReportLi(ul, def) {
+    const li = document.createElement("li");
+    const path = generatedReportVirtualPath(def.periodKind, def.year, def.month, def.fileName);
+    li.className = "file pdf generated-report-proxy";
+    li.textContent = def.fileName;
+    li.dataset.path = path;
+    if (selectedFile === path) li.classList.add("active-file");
+    li.onclick = () => {
+        if (selectedFile === path) return;
+        activeGeneratedReport = {
+            typeId: def.typeId,
+            periodKind: def.periodKind
+        };
+        selectedFile = path;
+        highlightFileInPanel(path);
+        openGeneratedReportFromTree(def);
+        autoCloseSidebarOnFileClick();
+    };
+    ul.appendChild(li);
+}
+
+function addMissingGeneratedReports(ul, fileList, defs, context) {
+    const existing = new Set((fileList || []).map(f => normalizeReportFileName(f.split("/").pop())));
+    defs.forEach(def => {
+        if (existing.has(normalizeReportFileName(def.fileName))) return;
+        addGeneratedReportLi(ul, { ...def, ...context });
+    });
 }
 
 
@@ -584,9 +718,12 @@ function renderFilebar() {
             if (y === selectedYear) btn.classList.add("active-year");
             btn.onclick = () => {
                 selectedYear = y;
-                selectedMonth = null;
+                if (!activeGeneratedReport || activeGeneratedReport.periodKind !== "year") {
+                    selectedMonth = null;
+                }
                 currentFolderPath = null;
                 renderFilebar();
+                if (refreshActiveGeneratedReport()) return;
             };
             yearsDiv.appendChild(btn);
         });
@@ -648,6 +785,20 @@ if (!selectedYear || !rootDir.years.includes(selectedYear)) {
         const ul = document.createElement("ul");
         ul.className = "file-list year-files";
         yearFiles.forEach(f => addFileLi(ul, f));
+        addMissingGeneratedReports(ul, yearFiles, GENERATED_YEAR_REPORTS, {
+            periodKind: "year",
+            year: selectedYear,
+            month: getGeneratedYearEndMonth(selectedYear)
+        });
+        filebar.appendChild(ul);
+    } else if (GENERATED_YEAR_REPORTS.length) {
+        const ul = document.createElement("ul");
+        ul.className = "file-list year-files";
+        addMissingGeneratedReports(ul, yearFiles, GENERATED_YEAR_REPORTS, {
+            periodKind: "year",
+            year: selectedYear,
+            month: getGeneratedYearEndMonth(selectedYear)
+        });
         filebar.appendChild(ul);
     }
 
@@ -666,11 +817,12 @@ if (!selectedYear || !rootDir.years.includes(selectedYear)) {
         const m = String(i).padStart(2, "0");
         const monthPath = yearPath + "/" + m;
         const monthDir = listDir(monthPath);
+        const hasVirtualReports = hasGeneratedMonthlyReportsFor(selectedYear, m);
 
         const btn = document.createElement("button");
         btn.textContent = monthLabels[i - 1];
         btn.className = "month-btn";
-        btn.disabled = !monthDir.files.length && !monthDir.folders.length;
+        btn.disabled = !monthDir.files.length && !monthDir.folders.length && !hasVirtualReports;
 
         if (!btn.disabled) availableMonths.push(m);
 
@@ -678,6 +830,7 @@ if (!selectedYear || !rootDir.years.includes(selectedYear)) {
             selectedMonth = m;
             currentFolderPath = null;
             renderFilebar();
+            if (refreshActiveGeneratedReport()) return;
             const open = getFileToOpen(monthDir.files);
             if (open) openFile(open);
         };
@@ -727,8 +880,9 @@ if (!selectedMonth) {
     if (selectedMonth) {
         const mp = yearPath + "/" + selectedMonth;
         const md = listDir(mp);
+        const hasVirtualReports = hasGeneratedMonthlyReportsFor(selectedYear, selectedMonth);
 
-        if (md.folders.length || md.files.length) {
+        if (md.folders.length || md.files.length || hasVirtualReports) {
             const ul = document.createElement("ul");
             ul.className = "file-list month-files";
 
@@ -747,10 +901,17 @@ if (!selectedMonth) {
             });
 
             md.files.forEach(f => addFileLi(ul, f));
+            addMissingGeneratedReports(ul, md.files, GENERATED_MONTHLY_REPORTS, {
+                periodKind: "month",
+                year: selectedYear,
+                month: selectedMonth
+            });
             filebar.appendChild(ul);
 
-            const open = getFileToOpen(md.files);
-            if (open) openFile(open);
+            if (!activeGeneratedReport) {
+                const open = getFileToOpen(md.files);
+                if (open) openFile(open);
+            }
         }
     }
 
@@ -780,6 +941,7 @@ function openFile(f, { userClick = false } = {}) {
     const preview = ensurePreviewContainer();
     if (!preview) return;
 
+    activeGeneratedReport = null;
     preview.innerHTML = "";
     selectedFile = f;
     highlightFileInPanel(f);

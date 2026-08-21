@@ -425,14 +425,21 @@
       const font = rest.match(/^\{f(\d+)\}/i);
       if (font) { push(bufferSup); size = Number(font[1]) || null; bufferSup = false; i += font[0].length; continue; }
       if (/^\{f\}/i.test(rest)) { push(bufferSup); size = null; bufferSup = false; i += 3; continue; }
-      const sup = rest.match(/^\{\^(\d+)\}/);
+      const sup = rest.match(/^\{\^([^{}]+)\}/);
       if (sup) {
         push(bufferSup);
-        const count = Number(sup[1]) || 1;
         i += sup[0].length;
-        const value = text.slice(i, i + count);
-        if (value) runs.push({ text: value, size, sup: true });
-        i += value.length;
+        const value = sup[1];
+        if (value) {
+          runs.push({
+            text: value,
+            size,
+            sup: true,
+            bold: mark.bold,
+            underline: mark.underline,
+            italic: mark.italic
+          });
+        }
         bufferSup = false;
         continue;
       }
@@ -774,11 +781,49 @@
     pdf.save(fileName || "document.pdf");
   }
 
+  function collectPrintableSheets(containerSelector) {
+    const root = containerSelector ? document.querySelector(containerSelector) : document.querySelector("#preview");
+    const scope = root || document;
+    return Array.from(scope.querySelectorAll(".gr-sheet"))
+      .filter(sheet => sheet.offsetWidth > 0 || sheet.offsetHeight > 0 || sheet.getClientRects().length > 0);
+  }
+
+  function buildPrintPageStyle(sheets) {
+    const list = Array.isArray(sheets) ? sheets : [];
+    const hasSheets = list.length > 0;
+    const hasLandscape = list.some(sheet => sheet.classList.contains("gr-sheet-landscape"));
+    const allLandscape = hasSheets && hasLandscape && list.every(sheet => sheet.classList.contains("gr-sheet-landscape"));
+    if (allLandscape) {
+      return "@page { size: A4 landscape; margin: 0; } .gr-sheet-landscape { page: auto; }";
+    }
+    return "@page { size: A4 portrait; margin: 0; } @page gr-landscape { size: A4 landscape; margin: 0; } .gr-sheet-landscape { page: gr-landscape; }";
+  }
+
+  function ensureAutoPrintPageStyle() {
+    if (document.getElementById("gr-print-page-style") || document.getElementById("gr-auto-print-page-style")) return;
+    const sheets = collectPrintableSheets();
+    if (!sheets.some(sheet => sheet.classList.contains("gr-sheet-landscape"))) return;
+    const pageStyle = document.createElement("style");
+    pageStyle.id = "gr-auto-print-page-style";
+    pageStyle.textContent = buildPrintPageStyle(sheets);
+    document.head.appendChild(pageStyle);
+  }
+
+  function removeAutoPrintPageStyle() {
+    document.getElementById("gr-auto-print-page-style")?.remove();
+  }
+
+  if (!window.__grAutoPrintPageStyleBound) {
+    window.__grAutoPrintPageStyleBound = true;
+    window.addEventListener("beforeprint", ensureAutoPrintPageStyle);
+    window.addEventListener("afterprint", removeAutoPrintPageStyle);
+  }
+
   function printSheets(containerSelector) {
     document.body.classList.add("gr-printing");
     const pageStyle = document.createElement("style");
     pageStyle.id = "gr-print-page-style";
-    pageStyle.textContent = "@page { size: A4 portrait; margin: 0; } @page gr-landscape { size: A4 landscape; margin: 0; } .gr-sheet-landscape { page: gr-landscape; }";
+    pageStyle.textContent = buildPrintPageStyle(collectPrintableSheets(containerSelector));
     document.body.setAttribute("data-gr-print-container", containerSelector || "");
     document.head.appendChild(pageStyle);
     window.print();
@@ -788,7 +833,6 @@
       pageStyle.remove();
     }, 500);
   }
-
   function bindPageActions(container, getSheets) {
     if (!container || container.dataset.grPageActionsBound === "1") return;
     container.dataset.grPageActionsBound = "1";
@@ -941,6 +985,52 @@
     document.body.classList.add("files-mode");
   }
 
+  function apartmentLinkHtml(kv, accountId, homeCode) {
+    const attrs = accountId
+      ? ` role="button" tabindex="0" title="Відкрити особовий рахунок" data-gr-account-id="${escapeHtml(accountId)}" data-gr-home-code="${escapeHtml(homeCode || "")}"`
+      : "";
+    return `<span class="gr-apt-no${accountId ? " gr-apt-link" : ""}"${attrs}>${escapeHtml(kv)}</span>`;
+  }
+
+  async function openAccountFromDocument(el) {
+    const accountId = el && el.getAttribute("data-gr-account-id");
+    const targetHomeCode = el && el.getAttribute("data-gr-home-code");
+    if (!accountId) return;
+    try {
+      if (targetHomeCode && typeof handleMenuClick === "function") {
+        await handleMenuClick(String(targetHomeCode), "accounts", null);
+      }
+      const account = (typeof ls !== "undefined" && ls) ? ls[accountId] : null;
+      if (account && typeof setParam === "function") setParam("kv", account.kv || account.ls || accountId);
+      if (!document.getElementById("din") && typeof initLS === "function") initLS();
+      const input = document.getElementById("number");
+      if (input && account) input.value = account.kv || "";
+      if (typeof addStuff === "function") addStuff(accountId);
+    } catch (err) {
+      console.error("Не вдалося відкрити особовий рахунок", err);
+      if (typeof showMessage === "function") showMessage("Не вдалося відкрити особовий рахунок", "err", 4000);
+    }
+  }
+
+  function bindAccountLinks(container) {
+    if (!container || container.dataset.grAccountLinksBound === "1") return;
+    container.dataset.grAccountLinksBound = "1";
+    container.addEventListener("click", e => {
+      const account = e.target.closest("[data-gr-account-id]");
+      if (!account || !container.contains(account)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      openAccountFromDocument(account);
+    });
+    container.addEventListener("keydown", e => {
+      if (e.key !== "Enter" && e.key !== " ") return;
+      const account = e.target.closest("[data-gr-account-id]");
+      if (!account || !container.contains(account)) return;
+      e.preventDefault();
+      openAccountFromDocument(account);
+    });
+  }
+
   window.GrCommon = {
     escapeHtml,
     matchesSearch,
@@ -981,6 +1071,10 @@
     initPlaceholderPicker,
     initPlaceholderHint,
     insertAtCursor,
-    ensureDocumentsSidebar
+    ensureDocumentsSidebar,
+    apartmentLinkHtml,
+    openAccountFromDocument,
+    bindAccountLinks
   };
 })();
+

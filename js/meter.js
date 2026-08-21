@@ -7,6 +7,7 @@
     { id: "heat", label: "Тепло" }
   ];
   const ELECTRICITY_GROUP_ID = "__electricity__";
+  const LOCAL_SERVER_URL = "http://localhost:3000";
   const state = {
     homeCode: "",
     meters: [],
@@ -17,6 +18,7 @@
     readingDate: nearestMonthEndIso(),
     actReadingDate: "",
     loading: false,
+    localServerStatus: "unknown",
     warnTimers: new WeakMap()
   };
   state.mobileView = "input";
@@ -226,11 +228,91 @@
     return `${escapeHtml(label)}${unit ? `<small>${escapeHtml(unit)}</small>` : ""}`;
   }
 
+  function oblenergoRowId(channel) {
+    const direct = channel.oblenergo_id || channel.external_id || channel.operator_row_id || channel.provider_row_id;
+    const fallback = /^\d+$/.test(String(channel.code || "").trim()) ? channel.code : "";
+    return String(direct || fallback || "").trim();
+  }
+
+  function channelById(channelId) {
+    return state.channels.find(channel => String(channel.id) === String(channelId)) || null;
+  }
+
+  async function checkLocalServer() {
+    const ctrl = new AbortController();
+    const timer = window.setTimeout(() => ctrl.abort(), 1500);
+    try {
+      const res = await fetch(`${LOCAL_SERVER_URL}/api/health`, { signal: ctrl.signal });
+      return res.ok;
+    } catch (_err) {
+      return false;
+    } finally {
+      window.clearTimeout(timer);
+    }
+  }
+
+  async function refreshLocalServerStatus() {
+    if (!selectedInputMeters().some(meter => meter.resource_type === "electricity")) {
+      state.localServerStatus = "unknown";
+      return;
+    }
+    state.localServerStatus = "checking";
+    render();
+    state.localServerStatus = await checkLocalServer() ? "ok" : "down";
+    render();
+  }
+
   function selectedMeter() {
     if (state.selectedMeterId === ELECTRICITY_GROUP_ID) {
       return state.meters.find(meter => meter.is_active !== false && meter.resource_type === "electricity") || null;
     }
     return state.meters.find(meter => String(meter.id) === String(state.selectedMeterId)) || null;
+  }
+
+  function meterById(meterId) {
+    return state.meters.find(meter => String(meter.id) === String(meterId)) || null;
+  }
+
+  async function sendElectricityReadingsToOperator(rows) {
+    const items = rows
+      .map(row => {
+        const channel = channelById(row.channelId);
+        const meter = meterById(row.meterId);
+        return {
+          id: channel ? oblenergoRowId(channel) : "",
+          value: row.current,
+          resource_type: "electricity",
+          meter_id: row.meterId,
+          channel_id: row.channelId,
+          home_okpo: homeOkpo(state.homeCode),
+          operator_account: meter ? (meter.operator_account || "") : "",
+          eic_code: meter ? (meter.eic_code || "") : "",
+          meter_number: meter ? (meter.meter_number || "") : "",
+          meter_label: meter ? meterLabel(meter) : "",
+          channel_label: channel ? (channel.label || channel.code || "") : ""
+        };
+      })
+      .filter(item => item.value);
+    if (!items.length) return { skipped: true };
+    const available = await checkLocalServer();
+    if (!available) {
+      show("Показання збережено у нас, але сервер обміну з Обленерго не запущен.", "warn", 9000);
+      return { skipped: true };
+    }
+    const res = await fetch(`${LOCAL_SERVER_URL}/api/oblenergo/send-readings`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ readings: items })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.error) throw new Error(data.error || "Обленерго не прийняло показання");
+    const failed = (data.results || []).filter(item => !item.success);
+    if (failed.length) {
+      show(`Показання збережено у нас. Обленерго не прийняло ${failed.length} знач.`, "warn", 9000);
+    } else {
+      show(`Показання збережено і передано в Обленерго: ${items.length}`, "ok", 7000);
+    }
+    return data;
   }
 
   function renderMeterList() {
@@ -812,6 +894,7 @@
     await loadChildren();
     state.loading = false;
     render();
+    refreshLocalServerStatus();
   }
 
   async function loadChildren() {
@@ -863,7 +946,7 @@
 
   async function saveReadings() {
     if (!canEditHome(state.homeCode)) return show("Немає прав на зміну показань цього будинку", "warn");
-    const mode = window.matchMedia && window.matchMedia("(max-width: 700px)").matches ? "mobile" : "desktop";
+    const mode = window.matchMedia && window.matchMedia("(max-width: 1024px)").matches ? "mobile" : "desktop";
     const rows = Array.from(document.querySelectorAll(`[data-ma-reading-row][data-ma-mode="${mode}"]`));
     const warnings = rows.map(row => validateReadingRow(row, true)).filter(Boolean);
     if (warnings.length && typeof confirm === "function" && !confirm("Є показання за межами встановленого контролю. Все одно зберегти?")) {
@@ -879,14 +962,23 @@
       grouped.get(meterId).push(row);
     });
     if (!grouped.size) return show("Немає заповнених показань", "warn");
+    const operatorRows = [];
     try {
       for (const [meterId, groupRows] of grouped.entries()) {
         const reading = await upsertReading(meterId);
+        const meter = meterById(meterId);
         const payload = groupRows.map(row => {
           const current = String(row.querySelector('[name="current_value"]')?.value || "").trim();
           const previous = String(row.dataset.previous || "").trim();
           const delta = current !== "" && previous !== "" ? num(current, 0) - num(previous, 0) : null;
           const factor = num(row.dataset.factor, 1);
+          if (meter && meter.resource_type === "electricity") {
+            operatorRows.push({
+              meterId,
+              channelId: row.dataset.channelId,
+              current
+            });
+          }
           return {
             reading_id: reading.id,
             channel_id: row.dataset.channelId,
@@ -903,6 +995,12 @@
         if (error) throw error;
       }
       show("Показання збережено", "ok");
+      try {
+        await sendElectricityReadingsToOperator(operatorRows);
+      } catch (err) {
+        console.error(err);
+        show(`Показання збережено у нас, але не передано в Обленерго: ${err.message}`, "warn", 10000);
+      }
       state.actReadingDate = state.readingDate;
       await loadChildren();
       render();
@@ -1096,6 +1194,7 @@
       state.actReadingDate = "";
       state.mobileView = "input";
       render();
+      refreshLocalServerStatus();
     }));
     container.querySelectorAll("[data-ma-reading-date]").forEach(input => input.addEventListener("change", async event => {
       state.readingDate = event.target.value || nearestMonthEndIso();

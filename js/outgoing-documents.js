@@ -117,8 +117,8 @@
     source["сегодня"] = formatDate(new Date());
     const map = typeof getReplacementMap === "function" ? getReplacementMap(source) : {};
     map.org = map.org || source.org || "";
-    map.adr = map.adr || source.adr || "";
-    map.adrfull = map.adrfull || source.adrfull || source.adr || "";
+    map.adr = oneLineAddress(map.adr || source.adr || "");
+    map.adrfull = oneLineAddress(map.adrfull || source.adrfull || source.adr || "");
     map.okpo = map.okpo || map.code || source.okpo || "";
     map["сегодня"] = map["сегодня"] || source["сегодня"];
     map["голова"] = chairNameWithFullInitials(map["головаfull"] || source["головаfull"] || source["голова"] || map["голова"]);
@@ -130,7 +130,16 @@
       const end = new Date(d.getFullYear(), d.getMonth() + 1, 0, 12);
       Object.assign(map, GrCommon.buildLsPlaceholders(lsItem, accountId, source, start, end));
     }
+    map.adr = oneLineAddress(map.adr || source.adr || "");
+    map.adrfull = oneLineAddress(map.adrfull || source.adrfull || map.adr || "");
     return map;
+  }
+
+  function oneLineAddress(value) {
+    return String(value || "")
+      .replace(/\r?\n+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
   }
 
   function chairNameWithFullInitials(value) {
@@ -145,7 +154,7 @@
   }
 
   function letterHeaderAddress(replacements) {
-    return String((replacements && (replacements.adrfull || replacements.adr)) || "")
+    return oneLineAddress(replacements && (replacements.adrfull || replacements.adr))
       .replace(/(р-н,?)\s/gi, "$1\n");
   }
 
@@ -211,14 +220,21 @@
         i += 3;
         continue;
       }
-      const sup = rest.match(/^\{\^(\d+)\}/);
+      const sup = rest.match(/^\{\^([^{}]+)\}/);
       if (sup) {
         push(bufferSup);
-        const count = Number(sup[1]) || 1;
         i += sup[0].length;
-        const value = text.slice(i, i + count);
-        if (value) runs.push({ text: value, size, sup: true });
-        i += value.length;
+        const value = sup[1];
+        if (value) {
+          runs.push({
+            text: value,
+            size,
+            sup: true,
+            bold: mark.bold,
+            underline: mark.underline,
+            italic: mark.italic
+          });
+        }
         bufferSup = false;
         continue;
       }

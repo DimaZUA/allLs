@@ -83,7 +83,10 @@
     return `<span class="${cls}" ${excelNumberAttr(v)}>${html == null ? money(v) : html}</span>`;
   }
 
-  function apartmentHtml(kv) {
+  function apartmentHtml(kv, accountId, homeCode) {
+    if (window.GrCommon && typeof GrCommon.apartmentLinkHtml === "function") {
+      return GrCommon.apartmentLinkHtml(kv, accountId, homeCode);
+    }
     return `<span class="gr-apt-no">${escapeHtml(kv)}</span>`;
   }
 
@@ -365,7 +368,7 @@
     const columns = splitIntoColumns(debtors, cols).filter(col => col.length);
     return `<div class="gr-debt-grid">${columns.map(col => {
       const rows = col.map(d =>
-        `<div class="gr-debt-pill"><span class="gr-debt-kv">${apartmentHtml(d.kv)}</span><span class="gr-debt-amt" ${excelNumberAttr(d.amount)}>${money(d.amount)}</span></div>`
+        `<div class="gr-debt-pill"><span class="gr-debt-kv">${apartmentHtml(d.kv, d.accountId, d.homeCode)}</span><span class="gr-debt-amt" ${excelNumberAttr(d.amount)}>${money(d.amount)}</span></div>`
       ).join("");
       return `<div class="gr-debt-col"><div class="gr-debt-list">${rows}</div></div>`;
     }).join("")}</div>`;
@@ -386,7 +389,7 @@
     const columns = splitIntoColumns(debtors, cols).filter(col => col.length);
     return `<div class="gr-debt-grid">${columns.map(col => {
       const rows = col.map(d =>
-        `<div class="gr-debt-pill"><span class="gr-debt-kv">${apartmentHtml(d.kv)}</span><span class="gr-debt-amt" ${excelNumberAttr(d.amount)}>${money(d.amount)}</span></div>`
+        `<div class="gr-debt-pill"><span class="gr-debt-kv">${apartmentHtml(d.kv, d.accountId, d.homeCode)}</span><span class="gr-debt-amt" ${excelNumberAttr(d.amount)}>${money(d.amount)}</span></div>`
       ).join("");
       return `<div class="gr-debt-col"><div class="gr-debt-list">${rows}</div></div>`;
     }).join("")}</div>`;
@@ -441,12 +444,14 @@
     payments.forEach(p => {
       const key = String(p.kv);
       if (!map.has(key)) {
-        map.set(key, { kv: p.kv, fio: p.fio, payments: [], total: 0 });
+        map.set(key, { kv: p.kv, fio: p.fio, accountId: p.accountId, homeCode: p.homeCode, payments: [], total: 0 });
       }
       const g = map.get(key);
       g.payments.push(p);
       g.total += p.sum;
       if (!g.fio && p.fio) g.fio = p.fio;
+      if (!g.accountId && p.accountId) g.accountId = p.accountId;
+      if (!g.homeCode && p.homeCode) g.homeCode = p.homeCode;
     });
     return Array.from(map.values());
   }
@@ -579,7 +584,8 @@
       email: (home.ls && home.ls[a.accountId] && home.ls[a.accountId].email) || "",
       note: (home.ls && home.ls[a.accountId] && home.ls[a.accountId].note) || ""
     }));
-    const payments = collectPayments(home.oplat || {}, home.ls || {}, start, end);
+    const payments = collectPayments(home.oplat || {}, home.ls || {}, start, end)
+      .map(p => ({ ...p, homeCode: homeMeta.code }));
     const months = listMonthsInRange(fromYm, toYm);
     const spendingByMonth = months.map(m => ({
       ...m,
@@ -735,7 +741,7 @@
   function paymentBlockHtml(g) {
     const head = `<div class="gr-pay-apt"><span class="gr-pay-fio">${escapeHtml(g.fio)}</span></div>`;
     const lines = g.payments.map((p, idx) =>
-      `<div class="gr-pay-line">${idx === 0 ? apartmentHtml(g.kv) : "<span></span>"}<span class="gr-pay-date">${escapeHtml(p.date)}</span>${amountSpan(p.sum, money(p.sum), "gr-pay-sum")}</div>`
+      `<div class="gr-pay-line">${idx === 0 ? apartmentHtml(g.kv, g.accountId, g.homeCode) : "<span></span>"}<span class="gr-pay-date">${escapeHtml(p.date)}</span>${amountSpan(p.sum, money(p.sum), "gr-pay-sum")}</div>`
     ).join("");
     const total = g.payments.length > 1
       ? `<div class="gr-pay-total"><span></span><span class="gr-pay-date">Разом</span>${amountSpan(g.total, money(g.total), "gr-pay-sum")}</div>`
@@ -1174,7 +1180,7 @@
         ? amountSpan(a.paymentsSum, money(a.paymentsSum), "gr-pos")
         : `<span class="gr-neg">—</span>`;
       return `<tr class="${idx % 2 ? "gr-zebra" : ""}">
-        <td>${apartmentHtml(a.kv)}</td>
+        <td>${apartmentHtml(a.kv, a.accountId, snap.homeCode)}</td>
         <td>${escapeHtml(a.fio)}</td>
         <td>${a.pers || 0} / ${String(a.pl).replace(".", ",")}</td>
         ${amountCell(a.debitStart, moneySigned(a.debitStart), debtClass(a.debitStart))}
@@ -1309,7 +1315,7 @@
 
     function accountRows(a, idx) {
       return `<tr class="${idx % 2 ? "gr-zebra" : ""}">
-        <td>${apartmentHtml(a.kv)}</td>
+        <td>${apartmentHtml(a.kv, a.accountId, snap.homeCode)}</td>
         <td>${escapeHtml(a.fio)}</td>
         ${amountCell(a.chargesSum)}
         ${a.paymentsSum > EPS ? amountCell(a.paymentsSum, money(a.paymentsSum), "gr-pos") : `<td class="gr-amount-cell">—</td>`}
@@ -1392,7 +1398,7 @@
           ? amountSpan(a.paymentsSum, money(a.paymentsSum), "gr-pos")
           : `<span class="gr-neg">—</span>`;
         rowHtmlList.push(`<tr class="${idx % 2 ? "gr-zebra" : ""}">
-          <td>${apartmentHtml(a.kv)}</td>
+          <td>${apartmentHtml(a.kv, a.accountId, snap.homeCode)}</td>
           <td>${escapeHtml(a.fio)}</td>
           <td>${a.pers || 0} / ${String(a.pl).replace(".", ",")}</td>
           ${amountCell(a.debitStart, moneySigned(a.debitStart), debtClass(a.debitStart))}
@@ -1468,7 +1474,7 @@
         ? amountSpan(a.paymentsSum, money(a.paymentsSum), "gr-pos")
         : `<span class="gr-muted">—</span>`;
       return `<tr class="${idx % 2 ? "gr-zebra" : ""}">
-        <td>${apartmentHtml(a.kv)}</td>
+        <td>${apartmentHtml(a.kv, a.accountId, snap.homeCode)}</td>
         <td>${escapeHtml(a.fio)}</td>
         <td>${a.pers || 0} / ${String(a.pl).replace(".", ",")}</td>
         ${amountCell(a.debitStart, moneySigned(a.debitStart), debtClass(a.debitStart))}
@@ -1644,7 +1650,7 @@
     const posterDebt = posterDebtAmount(posterAccounts);
     const debtors = posterAccounts
       .sort((a, b) => parseKvNum(a.kv) - parseKvNum(b.kv))
-      .map(a => ({ kv: a.kv, amount: a.debitEnd }));
+      .map(a => ({ kv: a.kv, accountId: a.accountId, homeCode: snap.homeCode, amount: a.debitEnd }));
     const ratio = snap.avgSpend > EPS ? posterDebt / snap.avgSpend : 0;
     const ratioText = ratio > 0
       ? `це майже <strong><u>${ratio.toFixed(1).replace(".", ",")}</u></strong> місяці поточних витрат будинку!`
@@ -1681,7 +1687,7 @@
       const podDebt = podPosterAccounts.reduce((sum, a) => sum + a.debitEnd, 0);
       const longDebt = podPosterAccounts
         .sort((a, b) => parseKvNum(a.kv) - parseKvNum(b.kv))
-        .map(a => ({ kv: a.kv, amount: a.debitEnd }));
+        .map(a => ({ kv: a.kv, accountId: a.accountId, homeCode: snap.homeCode, amount: a.debitEnd }));
       const ratio = snap.avgSpend > EPS ? podDebt / snap.avgSpend : 0;
       const title = `ПІДʼЇЗД №${pod}`;
       return fitPosterPage(snap, title, (opts) => {
@@ -2081,6 +2087,9 @@
   }
 
   function bindPageActions(container) {
+    if (window.GrCommon && typeof GrCommon.bindAccountLinks === "function") {
+      GrCommon.bindAccountLinks(container);
+    }
     if (container.dataset.grPageActionsBound === "1") return;
     container.dataset.grPageActionsBound = "1";
     container.addEventListener("click", (e) => {
