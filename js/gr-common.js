@@ -713,6 +713,17 @@
     }
   }
 
+  function addPdfTextMarkers(pdf, markers, pageSize) {
+    (markers || []).forEach(marker => {
+      if (!marker || !marker.text) return;
+      pdf.setFontSize(Number(marker.size) || 1);
+      const color = marker.color || [255, 255, 255];
+      pdf.setTextColor(color[0], color[1], color[2]);
+      pdf.text(String(marker.text), Number(marker.x) || 10, Number(marker.y) || (pageSize.height - 10));
+    });
+    pdf.setTextColor(0, 0, 0);
+  }
+
   function getSheetsFromContainer(container) {
     return [...(container || document).querySelectorAll(".gr-sheet")];
   }
@@ -762,21 +773,26 @@
     }, "image/png");
   }
 
-  async function downloadPdfFromSheets(sheets, fileName, onProgress) {
+  async function downloadPdfFromSheets(sheets, fileName, onProgress, options) {
     if (!sheets.length) return;
     if (typeof html2canvas !== "function" || !window.jspdf?.jsPDF) {
       if (typeof showMessage === "function") showMessage("Бібліотеки PDF не завантажені", "err");
       return;
     }
     const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+    const firstLandscape = sheets[0] && sheets[0].classList.contains("gr-sheet-landscape");
+    const pdf = new jsPDF({ orientation: firstLandscape ? "landscape" : "portrait", unit: "mm", format: "a4" });
     for (let i = 0; i < sheets.length; i++) {
       if (onProgress) onProgress(i, sheets.length);
       const landscape = sheets[i].classList.contains("gr-sheet-landscape");
       if (i > 0) pdf.addPage("a4", landscape ? "l" : "p");
       const img = await captureSheetDataUrl(sheets[i], "image/jpeg", 0.95);
-      if (landscape) pdf.addImage(img, "JPEG", 0, 0, 297, 210);
-      else pdf.addImage(img, "JPEG", 0, 0, 210, 297);
+      const pageSize = landscape ? { width: 297, height: 210 } : { width: 210, height: 297 };
+      const markers = typeof (options && options.textMarkers) === "function"
+        ? options.textMarkers(sheets[i], i, pageSize)
+        : (options && options.textMarkers);
+      addPdfTextMarkers(pdf, markers, pageSize);
+      pdf.addImage(img, "JPEG", 0, 0, pageSize.width, pageSize.height);
     }
     pdf.save(fileName || "document.pdf");
   }

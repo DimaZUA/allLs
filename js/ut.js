@@ -776,7 +776,7 @@ function showConfirmDialog(options) {
         .app-confirm-overlay{position:fixed;inset:0;z-index:10000;display:flex;align-items:center;justify-content:center;background:rgba(15,23,42,.32)}
         .app-confirm-modal{width:min(420px,calc(100vw - 32px));border:1px solid #cfd6df;border-radius:10px;background:#fff;box-shadow:0 18px 42px rgba(15,23,42,.24);padding:16px;font-family:Arial,sans-serif;color:#111}
         .app-confirm-title{font-weight:700;font-size:17px;margin-bottom:8px}
-        .app-confirm-message{font-size:14px;line-height:1.4;color:#333}
+        .app-confirm-message{font-size:14px;line-height:1.4;color:#333;white-space:pre-line;max-height:min(55vh,420px);overflow:auto}
         .app-confirm-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
         .app-confirm-btn{border:1px solid #c9ced6;background:#fff;border-radius:8px;padding:8px 14px;cursor:pointer;font:14px/1.2 Arial,sans-serif}
         .app-confirm-btn:hover{background:#edf4ff}

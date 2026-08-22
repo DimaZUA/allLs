@@ -20,6 +20,7 @@ async function main() {
         calculation_factor numeric not null default 1,
         min_consumption numeric,
         max_consumption numeric,
+        heat_loss text not null default '',
         zones_count int not null default 1 check (zones_count between 1 and 3),
         connection_name text not null default '',
         object_name text not null default '',
@@ -42,6 +43,7 @@ async function main() {
         report_unit text not null default '',
         unit_factor numeric not null default 1,
         max_value numeric,
+        is_reverse boolean not null default false,
         value_type text not null default 'number' check (value_type in ('number', 'text', 'date', 'time')),
         is_reading boolean not null default true,
         is_active boolean not null default true,
@@ -51,6 +53,8 @@ async function main() {
         unique (meter_id, code)
       )
     `;
+
+    await tx`alter table public.meter_channels add column if not exists is_reverse boolean not null default false`;
 
     await tx`
       create table if not exists public.meter_relations (
@@ -99,6 +103,7 @@ async function main() {
     await tx`create index if not exists meters_home_active_idx on public.meters (home_code, is_active, resource_type, sort_order)`;
     await tx`alter table public.meters add column if not exists min_consumption numeric`;
     await tx`alter table public.meters add column if not exists max_consumption numeric`;
+    await tx`alter table public.meters add column if not exists heat_loss text not null default ''`;
     await tx`create index if not exists meter_channels_meter_idx on public.meter_channels (meter_id, is_active, sort_order)`;
     await tx`create index if not exists meter_relations_parent_idx on public.meter_relations (parent_meter_id, is_active)`;
     await tx`create index if not exists meter_relations_child_idx on public.meter_relations (child_meter_id, is_active)`;
