@@ -191,7 +191,7 @@
     const count = presentCountValue(item);
     if (!count) return "";
     if (item && item.vote_basis === "area") {
-      return `${count} (${presentAreaValue(item) || "______"} м2)`;
+      return `${count} (${presentAreaValue(item) || "______"} м²)`;
     }
     return count;
   }
@@ -201,8 +201,8 @@
     if (item && item.vote_basis === "area") {
       const area = presentAreaValue(item) || "______";
       return count
-        ? `за ${count} (${area} м2), проти 0, утримались 0.`
-        : `за ____ (${area} м2), проти ____ (______ м2), утримались ____ (______ м2).`;
+        ? `за ${count} (${area} м²), проти 0, утримались 0.`
+        : `за ____ (${area} м²), проти ____ (______ м²), утримались ____ (______ м²).`;
     }
     return count
       ? `за ${count}, проти 0, утримались 0.`
@@ -862,7 +862,7 @@
               </select></label>
               <label>Місце проведення<input name="location" value="${escapeHtml(doc.location || "")}"></label>
               <label>Кількість присутніх<input type="number" min="0" step="1" name="present_count" value="${escapeHtml(doc.present_count || "")}"></label>
-              <label class="mp-present-area-field ${doc.vote_basis === "area" ? "" : "is-hidden"}">Площа присутніх, м2<input type="number" min="0" step="0.01" name="present_area" value="${escapeHtml(doc.present_area || "")}"></label>
+              <label class="mp-present-area-field ${doc.vote_basis === "area" ? "" : "is-hidden"}">Площа присутніх, м²<input type="number" min="0" step="0.01" name="present_area" value="${escapeHtml(doc.present_area || "")}"></label>
               <label>Головуючий на зборах<input name="chair" value="${escapeHtml(doc.chair || "")}"></label>
               <label class="mp-secretary-field ${doc.meeting_type === "board" || doc.meeting_type === "representatives" ? "is-hidden" : ""}">Секретар<input name="secretary" value="${escapeHtml(doc.secretary || "")}"></label>
               <label class="mp-title-field gr-ph-field">Тема / короткий опис<button type="button" class="gr-ph-btn" data-gr-ph-picker title="Вставити placeholder">⋯</button><input name="title" value="${escapeHtml(doc.title || "")}"></label>
