@@ -1361,17 +1361,29 @@
       const key = chartScaleKey(point);
       maxByScale.set(key, Math.max(maxByScale.get(key) || 1, Math.max(0, Number(point.value) || 0)));
     });
+    const visibleUnits = Array.from(new Set(points.map(point => String(point.unit || "").trim()).filter(Boolean)));
+    const absoluteAxis = visibleUnits.length === 1;
+    const pointValues = points.map(point => Number(point.value)).filter(Number.isFinite);
+    const minPointValue = pointValues.length ? Math.min(...pointValues) : 0;
+    const maxPointValue = pointValues.length ? Math.max(...pointValues) : 1;
+    const axisMin = absoluteAxis ? Math.max(0, minPointValue - Math.abs(minPointValue) * 0.1) : 0;
+    const axisMax = absoluteAxis ? Math.max(axisMin + 1, maxPointValue) : 1;
     const seriesList = Array.from(bySeries.values()).map(series => {
       const scaleKey = chartScaleKey(series[0]);
       const maxValue = Math.max(1, maxByScale.get(scaleKey) || 1);
       return { series, maxValue, color: stableColorForKey(chartSeriesKey(series[0])) };
     });
-    const y = (value, maxValue) => pad.top + plotH - Math.max(0, Number(value) || 0) / maxValue * plotH;
+    const y = (value, maxValue) => {
+      const n = Number(value) || 0;
+      if (absoluteAxis) return pad.top + plotH - (Math.max(axisMin, n) - axisMin) / (axisMax - axisMin) * plotH;
+      return pad.top + plotH - Math.max(0, n) / maxValue * plotH;
+    };
     const ticks = [0, 0.25, 0.5, 0.75, 1];
     return `<svg class="ma-chart-svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="Графік споживання">
       ${ticks.map(part => {
         const yy = pad.top + plotH - part * plotH;
-        return `<line x1="${pad.left}" y1="${yy}" x2="${width - pad.right}" y2="${yy}" class="ma-chart-grid"></line><text x="${pad.left - 8}" y="${yy + 4}" class="ma-chart-axis" text-anchor="end">${escapeHtml(Math.round(part * 100))}%</text>`;
+        const label = absoluteAxis ? fmt(axisMin + part * (axisMax - axisMin)) : `${Math.round(part * 100)}%`;
+        return `<line x1="${pad.left}" y1="${yy}" x2="${width - pad.right}" y2="${yy}" class="ma-chart-grid"></line><text x="${pad.left - 8}" y="${yy + 4}" class="ma-chart-axis" text-anchor="end">${escapeHtml(label)}</text>`;
       }).join("")}
       <line x1="${pad.left}" y1="${pad.top}" x2="${pad.left}" y2="${height - pad.bottom}" class="ma-chart-axis-line"></line>
       <line x1="${pad.left}" y1="${height - pad.bottom}" x2="${width - pad.right}" y2="${height - pad.bottom}" class="ma-chart-axis-line"></line>
@@ -1390,7 +1402,8 @@
           return series.map(point => {
             const xx = x(point.date) - (monthlyCount * barW) / 2 + monthlyIndex * barW;
             const yy = y(point.value, maxValue);
-            const h = pad.top + plotH - yy;
+            const baselineY = absoluteAxis ? y(axisMin, maxValue) : pad.top + plotH;
+            const h = baselineY - yy;
             return `<rect x="${xx}" y="${yy}" width="${barW - 2}" height="${Math.max(1, h)}" fill="${color}" opacity="0.82"><title>${escapeHtml(`${dateLabel(point.date)} · ${meterLabel(point.meter)} · ${uiChannelLabel(point.channel)}: ${fmt(point.value)} ${point.unit || ""}/міс.; різниця ${fmt(point.delta)} ${point.unit || ""} за ${point.days} дн.`)}</title></rect>`;
           }).join("");
         }
@@ -1414,17 +1427,22 @@
       bySeries.set(key, arr);
     });
     const maxByScale = new Map();
+    const sampleByScale = new Map();
     points.forEach(point => {
       const key = chartScaleKey(point);
       maxByScale.set(key, Math.max(maxByScale.get(key) || 1, Math.max(0, Number(point.value) || 0)));
+      if (!sampleByScale.has(key)) sampleByScale.set(key, point);
     });
+    const scaleInfo = Array.from(sampleByScale.entries()).map(([key, sample]) => {
+      const suffix = sample.kind === "monthly" ? `${sample.unit || ""}/міс.` : (sample.unit || "");
+      return `<span>${escapeHtml(uiChannelLabel(sample.channel))}: max ${escapeHtml(fmt(maxByScale.get(key) || 0))}${suffix ? ` ${escapeHtml(suffix)}` : ""}</span>`;
+    }).join("");
     return `<div class="ma-chart-legend">${Array.from(bySeries.values()).map(series => {
       const sample = series[0];
-      const maxValue = Math.max(1, maxByScale.get(chartScaleKey(sample)) || 1);
       const suffix = sample.kind === "monthly" ? `${sample.unit || ""}/міс.` : (sample.unit || "");
       const shape = sample.kind === "monthly" ? "стовпці" : "лінія";
-      return `<span><i style="background:${stableColorForKey(chartSeriesKey(sample))}"></i>${escapeHtml(meterLabel(sample.meter))} · ${escapeHtml(uiChannelLabel(sample.channel))}: max ${escapeHtml(fmt(maxValue))} ${escapeHtml(suffix)} <small>${shape}</small></span>`;
-    }).join("")}</div>`;
+      return `<span><i style="background:${stableColorForKey(chartSeriesKey(sample))}"></i>${escapeHtml(meterLabel(sample.meter))} · ${escapeHtml(uiChannelLabel(sample.channel))}${suffix ? ` <small>${escapeHtml(suffix)}</small>` : ""} <small>${shape}</small></span>`;
+    }).join("")}${scaleInfo ? `<div class="ma-chart-scale-info">${scaleInfo}</div>` : ""}</div>`;
   }
 
   function renderMeterChart() {

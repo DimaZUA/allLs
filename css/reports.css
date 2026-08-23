@@ -1791,6 +1791,15 @@ li.folder {
   color: #64748b;
 }
 
+.ma-chart-scale-info {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  flex-basis: 100%;
+  color: #475569;
+  font-size: 12px;
+}
+
 @media (max-width: 980px) {
   .ma-layout,
   .ma-grid {
