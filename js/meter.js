@@ -1373,6 +1373,11 @@
       const maxValue = Math.max(1, maxByScale.get(scaleKey) || 1);
       return { series, maxValue, color: stableColorForKey(chartSeriesKey(series[0])) };
     });
+    const datePositions = dates.map(date => x(date)).sort((a, b) => a - b);
+    const minDateGap = datePositions.slice(1).reduce((min, value, index) => {
+      const gap = value - datePositions[index];
+      return gap > 0 ? Math.min(min, gap) : min;
+    }, plotW);
     const y = (value, maxValue) => {
       const n = Number(value) || 0;
       if (absoluteAxis) return pad.top + plotH - (Math.max(axisMin, n) - axisMin) / (axisMax - axisMin) * plotH;
@@ -1397,8 +1402,8 @@
         if (isMonthly) {
           const monthlyCount = Math.max(1, seriesList.filter(item => item.series[0] && item.series[0].kind === "monthly").length);
           const monthlyIndex = seriesList.slice(0, seriesIndex).filter(item => item.series[0] && item.series[0].kind === "monthly").length;
-          const step = dates.length <= 1 ? plotW : plotW / Math.max(1, dates.length - 1);
-          const barW = Math.max(5, Math.min(28, step / (monthlyCount + 1)));
+          const step = dates.length <= 1 ? plotW : Math.max(8, minDateGap);
+          const barW = Math.max(2, Math.min(28, step * 0.82 / monthlyCount));
           return series.map(point => {
             const xx = x(point.date) - (monthlyCount * barW) / 2 + monthlyIndex * barW;
             const yy = y(point.value, maxValue);
