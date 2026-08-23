@@ -21,6 +21,7 @@
     chartDisabledMeters: new Set(),
     chartDisabledChannels: new Set(),
     chartEnabledChannels: new Set(),
+    chartMeterDefaultsHome: "",
     loading: false,
     inputCarryover: null,
     warnTimers: new WeakMap()
@@ -78,6 +79,34 @@
 
   function applyDefaultReadingDate() {
     if (!state.readingDateManual) state.readingDate = defaultReadingDate();
+  }
+
+  function activeHeatMeters() {
+    return activeMeters("heat");
+  }
+
+  function meterById(id) {
+    return state.meters.find(meter => String(meter.id) === String(id)) || null;
+  }
+
+  function applyChartMeterDefaults() {
+    if (state.chartMeterDefaultsHome === state.homeCode) return;
+    state.chartMeterDefaultsHome = state.homeCode;
+    activeHeatMeters().forEach(meter => state.chartDisabledMeters.add(String(meter.id)));
+  }
+
+  function selectMeter(nextId) {
+    const previousId = String(state.selectedMeterId || "");
+    const next = String(nextId || "");
+    const previousMeter = meterById(previousId);
+    const nextMeter = meterById(next);
+    state.selectedMeterId = next;
+    if (!nextMeter || nextMeter.resource_type !== "heat") return;
+    const nextChartId = String(nextMeter.id);
+    if (state.chartDisabledMeters.has(nextChartId)) {
+      state.chartDisabledMeters.delete(nextChartId);
+      if (previousMeter && previousMeter.resource_type === "heat") state.chartDisabledMeters.add(String(previousMeter.id));
+    }
   }
 
   function monthCodeFromDate(value) {
@@ -831,6 +860,11 @@
     </div>`;
   }
 
+  function actPageActionsHtml() {
+    if (window.GrCommon && GrCommon.renderPageActionsHtml) return GrCommon.renderPageActionsHtml(0);
+    return "";
+  }
+
   function heatActRows(meter, readingDate) {
     const previousReading = latestPreviousReading(meter.id);
     const currentReading = readingForMeterAt(meter.id, readingDate);
@@ -889,6 +923,7 @@
     const energyGcal = heatEnergyDeltaGcal(snap.rows);
     const previousDate = snap.previousReading ? snap.previousReading.reading_date : "";
     return `${actTools()}
+    <div class="gr-sheet-wrap">
     <div class="gr-sheet gr-sheet-landscape ma-act-sheet ma-act-heat-sheet">
       <div class="ma-act ma-act-heat">
         <h2>Відомість обліку споживання теплової енергії</h2>
@@ -930,7 +965,8 @@
           <div>Прийняв ________________________________<br><br>Контролер теплозбуту:____________________</div>
         </div>
       </div>
-    </div>`;
+    </div>
+    ${actPageActionsHtml()}</div>`;
   }
 
   function mainReadingChannel(meter) {
@@ -968,6 +1004,7 @@
     const chair = homeChair(meter.home_code);
     const total = rows.reduce((sum, row) => sum + (Number(row.report) || 0), 0);
     return `${actTools()}
+    <div class="gr-sheet-wrap">
     <div class="gr-sheet gr-sheet-landscape ma-act-sheet ma-act-electric-sheet">
       <div class="ma-act ma-act-electric">
         <table class="ma-act-plain-table ma-act-electric-top"><tbody><tr>
@@ -1026,7 +1063,8 @@
           <td>Оператор системи розподілу прийняв:<br><br>________________ / ____________________</td>
         </tr></tbody></table>
       </div>
-    </div>`;
+    </div>
+    ${actPageActionsHtml()}</div>`;
   }
 
   function renderAct(meter) {
@@ -1038,6 +1076,7 @@
     const total = snap.rows.reduce((sum, row) => sum + (Number(row.report) || 0), 0);
     const home = homeName(meter.home_code);
     return `${actTools()}
+    <div class="gr-sheet-wrap">
     <div class="gr-sheet gr-sheet-landscape ma-act-sheet">
       <div class="ma-act">
         <div class="ma-act-top">
@@ -1071,7 +1110,8 @@
           <div>Представник оператора ____________________</div>
         </div>
       </div>
-    </div>`;
+    </div>
+    ${actPageActionsHtml()}</div>`;
   }
 
   function chartMeters() {
@@ -1081,6 +1121,7 @@
       return main.length ? main : activeMeters("electricity");
     }
     const meter = selectedMeter();
+    if (meter && meter.resource_type === "heat") return activeHeatMeters();
     return meter ? [meter] : [];
   }
 
@@ -1099,7 +1140,9 @@
   function chartScaleKey(point) {
     const code = String(point.channel && point.channel.code || "");
     const parts = code.split("_").filter(Boolean);
-    const unit = chartChannelUnit(point.channel);
+    const unit = point.unit || chartChannelUnit(point.channel);
+    const normalizedCode = chartNormalizedCode(point.channel);
+    if (normalizedCode) return `${normalizedCode}:${unit}`;
     if (parts.length > 1) return `${parts[parts.length - 1]}:${unit}`;
     return `${code || point.channelKey}:${unit}`;
   }
@@ -1119,6 +1162,57 @@
 
   function chartChannelUnit(channel) {
     return channelShowsDelta(channel) ? (channel.report_unit || channel.input_unit || "") : (channel.input_unit || channel.report_unit || "");
+  }
+
+  function normalizedUnitText(unit) {
+    return String(unit || "")
+      .trim()
+      .toLowerCase()
+      .replace(/³/g, "3")
+      .replace(/·/g, "")
+      .replace(/\s+/g, "");
+  }
+
+  function chartNormalizedCode(channel) {
+    const code = String(channel && channel.code || "").toLowerCase();
+    if (code === "energy") return "energy";
+    if (/^volume\d*$/.test(code)) return "volume";
+    if (code === "flow") return "flow";
+    if (code === "power") return "power";
+    return "";
+  }
+
+  function chartUnitFactor(channel) {
+    const code = chartNormalizedCode(channel);
+    const unit = normalizedUnitText(chartChannelUnit(channel));
+    if (code === "energy") {
+      if (unit.includes("гдж") || unit.includes("gj")) return { unit: "Gcal", factor: 1 / 4.1868 };
+      if (unit.includes("мдж") || unit.includes("mj")) return { unit: "Gcal", factor: 1 / 4186.8 };
+      if (unit.includes("кдж") || unit.includes("kj")) return { unit: "Gcal", factor: 1 / 4186800 };
+      if (unit.includes("мкал") || unit.includes("mcal")) return { unit: "Gcal", factor: 0.001 };
+      if (unit.includes("ккал") || unit.includes("kcal")) return { unit: "Gcal", factor: 0.000001 };
+      return { unit: "Gcal", factor: 1 };
+    }
+    if (code === "volume") {
+      if (unit === "л" || unit === "l" || unit.includes("литр") || unit.includes("літр")) return { unit: "м³", factor: 0.001 };
+      return { unit: "м³", factor: 1 };
+    }
+    if (code === "flow") {
+      if (unit.includes("л/") || unit.includes("l/") || unit.includes("лгод") || unit.includes("lh")) return { unit: "м³/год", factor: 0.001 };
+      return { unit: "м³/год", factor: 1 };
+    }
+    if (code === "power") {
+      if (unit.includes("мвт") || unit.includes("mw")) return { unit: "kW", factor: 1000 };
+      if (unit === "вт" || unit === "w") return { unit: "kW", factor: 0.001 };
+      return { unit: "kW", factor: 1 };
+    }
+    return { unit: chartChannelUnit(channel), factor: 1 };
+  }
+
+  function chartPointFactor(meter, channel) {
+    const normalized = chartUnitFactor(channel);
+    if (meter && meter.resource_type === "heat") return normalized.factor;
+    return normalized.factor * num(channel.unit_factor, 1) * num(meter && meter.calculation_factor, 1);
   }
 
   function chartChannelDefaultEnabled(channel, meter) {
@@ -1163,17 +1257,18 @@
           return { reading, current, delta };
         }).filter(item => Number.isFinite(item.current));
         const showDelta = channelShowsDelta(channel);
+        const chartUnit = chartUnitFactor(channel).unit;
         if (!showDelta) {
           values.forEach(item => {
             points.push({
               meter,
               channel,
               channelKey: chartChannelKey(channel),
-              unit: chartChannelUnit(channel),
+              unit: chartUnit,
               date: item.reading.reading_date,
               days: null,
               delta: null,
-              value: item.current,
+              value: item.current * chartPointFactor(meter, channel),
               kind: "value"
             });
           });
@@ -1185,16 +1280,17 @@
           const days = daysBetweenDates(prev.reading.reading_date, curr.reading.reading_date);
           const delta = Number.isFinite(curr.delta) ? curr.delta : readingDelta(curr.current, prev.current, channel);
           if (!days || !Number.isFinite(delta)) continue;
-          const factor = num(channel.unit_factor, 1) * num(meter.calculation_factor, 1);
+          const factor = chartPointFactor(meter, channel);
+          const normalizedDelta = delta * factor;
           points.push({
             meter,
             channel,
             channelKey: chartChannelKey(channel),
-            unit: chartChannelUnit(channel),
+            unit: chartUnit,
             date: curr.reading.reading_date,
             days,
-            delta,
-            value: delta * factor / days * 30.44,
+            delta: normalizedDelta,
+            value: normalizedDelta / days * 30.44,
             kind: "monthly"
           });
         }
@@ -1227,7 +1323,7 @@
         if (!existing) byKey.set(key, {
           key,
           label: uiChannelLabel(channel) || key,
-          unit: chartChannelUnit(channel),
+          unit: chartUnitFactor(channel).unit,
           valueType: channel.value_type || "number",
           showDelta: channelShowsDelta(channel),
           defaultEnabled
@@ -1295,13 +1391,13 @@
             const xx = x(point.date) - (monthlyCount * barW) / 2 + monthlyIndex * barW;
             const yy = y(point.value, maxValue);
             const h = pad.top + plotH - yy;
-            return `<rect x="${xx}" y="${yy}" width="${barW - 2}" height="${Math.max(1, h)}" fill="${color}" opacity="0.82"><title>${escapeHtml(`${dateLabel(point.date)} · ${meterLabel(point.meter)} · ${uiChannelLabel(point.channel)}: ${fmt(point.value)} / міс.; різниця ${fmt(point.delta)} за ${point.days} дн.`)}</title></rect>`;
+            return `<rect x="${xx}" y="${yy}" width="${barW - 2}" height="${Math.max(1, h)}" fill="${color}" opacity="0.82"><title>${escapeHtml(`${dateLabel(point.date)} · ${meterLabel(point.meter)} · ${uiChannelLabel(point.channel)}: ${fmt(point.value)} ${point.unit || ""}/міс.; різниця ${fmt(point.delta)} ${point.unit || ""} за ${point.days} дн.`)}</title></rect>`;
           }).join("");
         }
         const path = series.map(point => `${x(point.date)},${y(point.value, maxValue)}`).join(" ");
         return `<polyline points="${path}" fill="none" stroke="${color}" stroke-width="2.5"></polyline>${series.map(point => {
           const detail = point.kind === "monthly"
-            ? `${fmt(point.value)} / міс.; різниця ${fmt(point.delta)} за ${point.days} дн.`
+            ? `${fmt(point.value)} ${point.unit || ""}/міс.; різниця ${fmt(point.delta)} ${point.unit || ""} за ${point.days} дн.`
             : `${fmt(point.value)} ${point.unit || ""}`;
           return `<circle cx="${x(point.date)}" cy="${y(point.value, maxValue)}" r="3.5" fill="${color}"><title>${escapeHtml(`${dateLabel(point.date)} · ${meterLabel(point.meter)} · ${uiChannelLabel(point.channel)}: ${detail}`)}</title></circle>`;
         }).join("")}`;
@@ -1325,7 +1421,7 @@
     return `<div class="ma-chart-legend">${Array.from(bySeries.values()).map(series => {
       const sample = series[0];
       const maxValue = Math.max(1, maxByScale.get(chartScaleKey(sample)) || 1);
-      const suffix = sample.kind === "monthly" ? "/міс." : (sample.unit || "");
+      const suffix = sample.kind === "monthly" ? `${sample.unit || ""}/міс.` : (sample.unit || "");
       const shape = sample.kind === "monthly" ? "стовпці" : "лінія";
       return `<span><i style="background:${stableColorForKey(chartSeriesKey(sample))}"></i>${escapeHtml(meterLabel(sample.meter))} · ${escapeHtml(uiChannelLabel(sample.channel))}: max ${escapeHtml(fmt(maxValue))} ${escapeHtml(suffix)} <small>${shape}</small></span>`;
     }).join("")}</div>`;
@@ -1421,13 +1517,14 @@
         return;
       }
       state.meters = metersData || [];
+      applyChartMeterDefaults();
       const hasElectricity = state.meters.some(meter => meter.is_active !== false && meter.resource_type === "electricity");
       const selectedExists = state.selectedMeterId === ELECTRICITY_GROUP_ID
         ? hasElectricity
         : state.meters.some(m => String(m.id) === String(state.selectedMeterId));
       if (!selectedExists) {
         const firstHeat = state.meters.find(meter => meter.is_active !== false && meter.resource_type === "heat");
-        state.selectedMeterId = hasElectricity ? ELECTRICITY_GROUP_ID : (firstHeat ? firstHeat.id : (state.meters[0] ? state.meters[0].id : ""));
+        selectMeter(hasElectricity ? ELECTRICITY_GROUP_ID : (firstHeat ? firstHeat.id : (state.meters[0] ? state.meters[0].id : "")));
       }
       applyDefaultReadingDate();
       await loadChildren();
@@ -1981,7 +2078,7 @@
       render();
     }));
     container.querySelectorAll("button[data-ma-select-meter]").forEach(btn => btn.addEventListener("click", () => {
-      state.selectedMeterId = btn.dataset.maSelectMeter || "";
+      selectMeter(btn.dataset.maSelectMeter || "");
       applyDefaultReadingDate();
       state.inputCarryover = null;
       state.actReadingDate = "";
@@ -2012,13 +2109,23 @@
     }));
     container.querySelectorAll("[data-ma-save-readings]").forEach(btn => btn.addEventListener("click", saveReadings));
     container.querySelectorAll("[data-ma-act-date]").forEach(row => row.addEventListener("click", () => {
-      if (row.dataset.maSelectMeter) state.selectedMeterId = row.dataset.maSelectMeter;
+      if (row.dataset.maSelectMeter) selectMeter(row.dataset.maSelectMeter);
       state.actReadingDate = row.dataset.maActDate || "";
       render();
     }));
     container.querySelector("[data-ma-print-act]")?.addEventListener("click", printAct);
     container.querySelector("[data-ma-pdf-act]")?.addEventListener("click", pdfAct);
     container.querySelector("[data-ma-word-act]")?.addEventListener("click", wordAct);
+    container.querySelectorAll("[data-gr-copy-page], [data-gr-share-page]").forEach(btn => btn.addEventListener("click", event => {
+      const wrap = event.currentTarget.closest(".gr-sheet-wrap");
+      const sheet = wrap && wrap.querySelector(".gr-sheet");
+      if (!sheet || !window.GrCommon) return;
+      if (event.currentTarget.hasAttribute("data-gr-copy-page") && GrCommon.copyPageImage) {
+        GrCommon.copyPageImage(sheet, "meter-act.png");
+      } else if (GrCommon.sharePageImage) {
+        GrCommon.sharePageImage(sheet, "meter-act.png");
+      }
+    }));
     container.querySelectorAll("[data-ma-chart-meter]").forEach(input => input.addEventListener("change", () => {
       const id = String(input.dataset.maChartMeter || "");
       if (!id) return;
@@ -2047,7 +2154,8 @@
   async function openMeterAdmin(homeCodeParam) {
     const first = editableHomes()[0];
     state.homeCode = String(homeCodeParam || activeHomeCode || (first && first.code) || "");
-    state.selectedMeterId = "";
+    selectMeter("");
+    state.chartMeterDefaultsHome = "";
     document.body.classList.remove("files-mode");
     await loadData();
   }
