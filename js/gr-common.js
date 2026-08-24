@@ -40,6 +40,30 @@
     return s ? s.charAt(0).toUpperCase() + s.slice(1) : "";
   }
 
+  function applyPlaceholderCase(text, placeholderName) {
+    const value = String(text || "").trim();
+    const name = String(placeholderName || "");
+    if (!value) return "";
+    if (name && name === name.toUpperCase()) return value.toUpperCase();
+    if (name && name.charAt(0) === name.charAt(0).toUpperCase()) return capitalizeFirst(value);
+    return value.toLowerCase();
+  }
+
+  function placeholderCaseMode(placeholderName) {
+    const name = String(placeholderName || "");
+    if (name && name === name.toUpperCase()) return "upper";
+    if (name && name.charAt(0) === name.charAt(0).toUpperCase()) return "capital";
+    return "lower";
+  }
+
+  function applyCaseMode(text, mode) {
+    const value = String(text || "").trim();
+    if (!value) return "";
+    if (mode === "upper") return value.toUpperCase();
+    if (mode === "capital") return capitalizeFirst(value);
+    return value.toLowerCase();
+  }
+
   function wildcardPatternToRegExp(pattern) {
     const text = String(pattern || "").trim();
     if (!text) return null;
@@ -79,10 +103,57 @@
     return !re || re.test(String(value || ""));
   }
 
-  const NUM_0_19 = ["нуль", "один", "два", "три", "чотири", "п'ять", "шість", "сім", "вісім", "дев'ять", "десять", "одинадцять", "дванадцять", "тринадцять", "чотирнадцять", "п'ятнадцять", "шістнадцять", "сімнадцять", "вісімнадцять", "дев'ятнадцять"];
-  const NUM_0_19_F = ["нуль", "одна", "дві", "три", "чотири", "п'ять", "шість", "сім", "вісім", "дев'ять", "десять", "одинадцять", "дванадцять", "тринадцять", "чотирнадцять", "п'ятнадцять", "шістнадцять", "сімнадцять", "вісімнадцять", "дев'ятнадцять"];
-  const NUM_TENS = ["", "", "двадцять", "тридцять", "сорок", "п'ятдесят", "шістдесят", "сімдесят", "вісімдесят", "дев'яносто"];
-  const NUM_HUNDREDS = ["", "сто", "двісті", "триста", "чотириста", "п'ятсот", "шістсот", "сімсот", "вісімсот", "дев'ятсот"];
+  const NUMBER_LANGS = {
+    ua: {
+      zero: "нуль",
+      minus: "мінус",
+      ones: {
+        m: ["", "один", "два", "три", "чотири", "п'ять", "шість", "сім", "вісім", "дев'ять"],
+        f: ["", "одна", "дві", "три", "чотири", "п'ять", "шість", "сім", "вісім", "дев'ять"],
+        n: ["", "одно", "два", "три", "чотири", "п'ять", "шість", "сім", "вісім", "дев'ять"]
+      },
+      teens: ["десять", "одинадцять", "дванадцять", "тринадцять", "чотирнадцять", "п'ятнадцять", "шістнадцять", "сімнадцять", "вісімнадцять", "дев'ятнадцять"],
+      tens: ["", "", "двадцять", "тридцять", "сорок", "п'ятдесят", "шістдесят", "сімдесят", "вісімдесят", "дев'яносто"],
+      hundreds: ["", "сто", "двісті", "триста", "чотириста", "п'ятсот", "шістсот", "сімсот", "вісімсот", "дев'ятсот"],
+      scales: [
+        null,
+        { gender: "f", forms: ["тисяча", "тисячі", "тисяч"] },
+        { gender: "m", forms: ["мільйон", "мільйона", "мільйонів"] },
+        { gender: "m", forms: ["мільярд", "мільярда", "мільярдів"] },
+        { gender: "m", forms: ["трильйон", "трильйона", "трильйонів"] }
+      ],
+      monthGen: MONTHS_UA_GEN
+    },
+    ru: {
+      zero: "ноль",
+      minus: "минус",
+      ones: {
+        m: ["", "один", "два", "три", "четыре", "пять", "шесть", "семь", "восемь", "девять"],
+        f: ["", "одна", "две", "три", "четыре", "пять", "шесть", "семь", "восемь", "девять"],
+        n: ["", "одно", "два", "три", "четыре", "пять", "шесть", "семь", "восемь", "девять"]
+      },
+      teens: ["десять", "одиннадцать", "двенадцать", "тринадцать", "четырнадцать", "пятнадцать", "шестнадцать", "семнадцать", "восемнадцать", "девятнадцать"],
+      tens: ["", "", "двадцать", "тридцать", "сорок", "пятьдесят", "шестьдесят", "семьдесят", "восемьдесят", "девяносто"],
+      hundreds: ["", "сто", "двести", "триста", "четыреста", "пятьсот", "шестьсот", "семьсот", "восемьсот", "девятьсот"],
+      scales: [
+        null,
+        { gender: "f", forms: ["тысяча", "тысячи", "тысяч"] },
+        { gender: "m", forms: ["миллион", "миллиона", "миллионов"] },
+        { gender: "m", forms: ["миллиард", "миллиарда", "миллиардов"] },
+        { gender: "m", forms: ["триллион", "триллиона", "триллионов"] }
+      ],
+      monthGen: ["января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"]
+    },
+    en: {
+      zero: "zero",
+      minus: "minus",
+      ones: ["", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"],
+      teens: ["ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen"],
+      tens: ["", "", "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety"],
+      scales: ["", "thousand", "million", "billion", "trillion"],
+      monthGen: ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
+    }
+  };
 
   function pluralForm(n, forms) {
     const x = Math.abs(Number(n) || 0) % 100;
@@ -93,34 +164,150 @@
     return forms[2];
   }
 
-  function triadWords(value, feminine) {
+  function normalizePropisLang(value) {
+    const lang = String(value || "").trim().toLowerCase();
+    if (lang === "ru" || lang === "rus") return "ru";
+    if (lang === "ua" || lang === "uk" || lang === "ukr") return "ua";
+    if (lang === "en" || lang === "eng") return "en";
+    return "";
+  }
+
+  function normalizePropisGender(value) {
+    const g = String(value || "").trim().toLowerCase().charAt(0);
+    if (g === "ж" || g === "f") return "f";
+    if (g === "с" || g === "n") return "n";
+    return "m";
+  }
+
+  function englishPluralForm(n, forms) {
+    return Math.abs(Number(n) || 0) === 1 ? forms[0] : forms[2];
+  }
+
+  function normalizeUnitForms(parts) {
+    if (parts.length >= 4) return [parts[3], parts[2], parts[1]];
+    if (parts.length >= 2) return [parts[1], parts[1], parts[1]];
+    return ["", "", ""];
+  }
+
+  function parsePropisUnitSpec(spec, defaults) {
+    const text = String(spec ?? "").trim();
+    if (!text) return null;
+    const parts = text.replace(/;/g, "|").split("|").map(part => part.trim());
+    const gender = normalizePropisGender(parts[0] || (defaults && defaults.gender));
+    const unit = {
+      gender,
+      forms: normalizeUnitForms(parts),
+      decimals: defaults && defaults.decimals,
+      format: defaults && defaults.format,
+      glue: defaults && defaults.glue,
+      words: !!(defaults && defaults.words)
+    };
+    if (parts.length >= 5) {
+      const fmt = String(parts[4] || "").trim();
+      const decimals = parseInt(fmt.charAt(0), 10);
+      if (Number.isFinite(decimals)) unit.decimals = Math.max(0, Math.min(6, decimals));
+      unit.glue = fmt.charAt(1) || "";
+      unit.format = fmt.slice(2).trim() || "0";
+      unit.words = false;
+    }
+    return unit;
+  }
+
+  function defaultPropisOptions(lang) {
+    return {
+      lang,
+      whole: { gender: "m", forms: ["грн.", "грн.", "грн."] },
+      fraction: { gender: "f", forms: ["коп.", "коп.", "коп."], decimals: 2, format: "00", glue: "", words: false }
+    };
+  }
+
+  function parsePropisOptions(args) {
+    const raw = String(args || "").trim();
+    if (!raw) return defaultPropisOptions("ua");
+    const parts = raw.split(",").map(part => part.trim());
+    let lang = normalizePropisLang(parts[2]) || "";
+    if (!lang && parts.length === 2 && normalizePropisLang(parts[1])) {
+      lang = normalizePropisLang(parts[1]);
+      parts[1] = "";
+    }
+    if (!lang && parts.length === 1 && normalizePropisLang(parts[0])) {
+      const opts = defaultPropisOptions(normalizePropisLang(parts[0]));
+      return opts;
+    }
+    lang = lang || "ua";
+    const opts = defaultPropisOptions(lang);
+    opts.whole = parsePropisUnitSpec(parts[0], { gender: "m" }) || { gender: "m", forms: ["", "", ""] };
+    opts.fraction = parsePropisUnitSpec(parts[1], { gender: "f", decimals: 2, format: "00", glue: "", words: true });
+    return opts;
+  }
+
+  function propisUnitText(n, unit, lang) {
+    if (!unit || !unit.forms) return "";
+    const forms = unit.forms;
+    if (!forms[0] && !forms[1] && !forms[2]) return "";
+    return lang === "en" ? englishPluralForm(n, forms) : pluralForm(n, forms);
+  }
+
+  function triadWords(value, gender, lang) {
+    const data = NUMBER_LANGS[lang] || NUMBER_LANGS.ua;
     const n = Math.floor(Math.abs(Number(value) || 0)) % 1000;
     const words = [];
     const hundreds = Math.floor(n / 100);
     const rest = n % 100;
-    if (hundreds) words.push(NUM_HUNDREDS[hundreds]);
+    if (lang === "en") {
+      if (hundreds) words.push(data.ones[hundreds], "hundred");
+      if (rest) {
+        if (rest < 10) words.push(data.ones[rest]);
+        else if (rest < 20) words.push(data.teens[rest - 10]);
+        else {
+          const tens = Math.floor(rest / 10);
+          const ones = rest % 10;
+          if (tens) words.push(data.tens[tens]);
+          if (ones) words.push(data.ones[ones]);
+        }
+      }
+      return words.join(" ");
+    }
+    if (hundreds) words.push(data.hundreds[hundreds]);
     if (rest) {
-      if (rest < 20) words.push((feminine ? NUM_0_19_F : NUM_0_19)[rest]);
+      if (rest < 10) words.push(data.ones[gender || "m"][rest]);
+      else if (rest < 20) words.push(data.teens[rest - 10]);
       else {
         const tens = Math.floor(rest / 10);
         const ones = rest % 10;
-        if (tens) words.push(NUM_TENS[tens]);
-        if (ones) words.push((feminine ? NUM_0_19_F : NUM_0_19)[ones]);
+        if (tens) words.push(data.tens[tens]);
+        if (ones) words.push(data.ones[gender || "m"][ones]);
       }
     }
     return words.join(" ");
   }
 
-  function intToWords(value) {
+  function intToWords(value, options) {
+    const opts = options || {};
+    const lang = normalizePropisLang(opts.lang) || "ua";
+    const data = NUMBER_LANGS[lang] || NUMBER_LANGS.ua;
+    const gender = normalizePropisGender(opts.gender);
     const n = Math.floor(Math.abs(Number(value) || 0));
-    if (n === 0) return NUM_0_19[0];
-    const millions = Math.floor(n / 1000000);
-    const thousands = Math.floor((n % 1000000) / 1000);
-    const rest = n % 1000;
+    if (n === 0) return data.zero;
+    const triads = [];
+    let restValue = n;
+    while (restValue > 0) {
+      triads.push(restValue % 1000);
+      restValue = Math.floor(restValue / 1000);
+    }
     const words = [];
-    if (millions) words.push(triadWords(millions, false), pluralForm(millions, ["мільйон", "мільйони", "мільйонів"]));
-    if (thousands) words.push(triadWords(thousands, true), pluralForm(thousands, ["тисяча", "тисячі", "тисяч"]));
-    if (rest) words.push(triadWords(rest, false));
+    for (let i = triads.length - 1; i >= 0; i--) {
+      const triad = triads[i];
+      if (!triad) continue;
+      if (lang === "en") {
+        words.push(triadWords(triad, gender, lang));
+        if (i > 0 && data.scales[i]) words.push(data.scales[i]);
+      } else {
+        const scale = data.scales[i];
+        words.push(triadWords(triad, scale ? scale.gender : gender, lang));
+        if (scale) words.push(pluralForm(triad, scale.forms));
+      }
+    }
     return words.filter(Boolean).join(" ");
   }
 
@@ -130,51 +317,95 @@
     return Number.isFinite(n) ? n : null;
   }
 
-  function moneyToWords(value) {
+  function propisNumberToWords(value, options) {
     const n = parseLooseNumber(value);
     if (n == null) return "";
+    const opts = Object.assign(defaultPropisOptions("ua"), options || {});
+    opts.lang = normalizePropisLang(opts.lang) || "ua";
+    const caseMode = opts.caseMode || "lower";
     const abs = Math.abs(n);
-    const whole = Math.floor(abs);
-    const kop = Math.round((abs - whole) * 100);
-    const sign = n < 0 ? "мінус " : "";
-    return capitalizeFirst(`${sign}${intToWords(whole)} грн. ${pad2(kop)} коп.`);
+    const decimals = opts.fraction && Number.isFinite(opts.fraction.decimals) ? opts.fraction.decimals : 0;
+    const scale = opts.fraction ? Math.pow(10, decimals) : 1;
+    const roundedTotal = opts.fraction ? Math.round(abs * scale) : Math.floor(abs);
+    const whole = opts.fraction ? Math.floor(roundedTotal / scale) : roundedTotal;
+    const fraction = opts.fraction ? roundedTotal % scale : 0;
+    const sign = n < 0 ? (NUMBER_LANGS[opts.lang].minus + " ") : "";
+    const wholeUnit = propisUnitText(whole, opts.whole, opts.lang);
+    const wholeWords = applyCaseMode(sign + intToWords(whole, { lang: opts.lang, gender: opts.whole && opts.whole.gender }), caseMode);
+    const words = [wholeWords];
+    if (wholeUnit) words.push(wholeUnit);
+    let out = words.filter(Boolean).join(" ");
+    if (opts.fraction) {
+      const format = opts.fraction.format || "0".repeat(decimals);
+      const fractionCaseMode = caseMode === "upper" ? "upper" : "lower";
+      const fractionText = opts.fraction.words
+        ? applyCaseMode(intToWords(fraction, { lang: opts.lang, gender: opts.fraction.gender }), fractionCaseMode)
+        : String(fraction).padStart(Math.max(format.length, decimals), "0");
+      const fractionUnit = propisUnitText(fraction, opts.fraction, opts.lang);
+      if (opts.fraction.glue && out) out += opts.fraction.glue;
+      out = [out, fractionText, fractionUnit].filter(Boolean).join(" ");
+    }
+    return out.trim();
   }
 
-  function dateToWords(value) {
+  function moneyToWords(value, options) {
+    return propisNumberToWords(value, options);
+  }
+
+  function dateToWords(value, options) {
+    const lang = normalizePropisLang(options && options.lang) || "ua";
     const m = String(value || "").match(/^(\d{1,2})\.(\d{1,2})\.(\d{2}|\d{4})$/);
     if (!m) return "";
     const day = Number(m[1]);
     const month = Number(m[2]) - 1;
     const year = Number(m[3].length === 2 ? "20" + m[3] : m[3]);
     if (!day || month < 0 || month > 11 || !year) return "";
-    return `${day} ${MONTHS_UA_GEN[month]} ${year}`;
+    const data = NUMBER_LANGS[lang] || NUMBER_LANGS.ua;
+    return `${day} ${data.monthGen[month]} ${year}`;
   }
 
-  function previousNumberOrDateText(text) {
+  function previousNumberOrDateInfo(text) {
     const source = String(text || "");
     let best = null;
     source.replace(/\b\d{1,2}\.\d{1,2}\.(?:\d{2}|\d{4})\b/g, (raw, offset) => {
-      best = { type: "date", raw, end: offset + raw.length };
+      best = { type: "date", raw, start: offset, end: offset + raw.length };
       return raw;
     });
     source.replace(/(?:\d{1,3}(?:[\s\u00a0]\d{3})+|\d+)(?:[,.]\d+)?/g, (raw, offset) => {
       const end = offset + raw.length;
-      if (!best || end > best.end) best = { type: "number", raw, end };
+      if (!best || end > best.end) best = { type: "number", raw, start: offset, end };
       return raw;
     });
+    return best;
+  }
+
+  function previousNumberOrDateText(text, propisArgs, placeholderName) {
+    const options = parsePropisOptions(propisArgs);
+    const best = previousNumberOrDateInfo(text);
     if (!best) return "";
-    return best.type === "date" ? dateToWords(best.raw) : moneyToWords(best.raw);
+    if (best.type === "date") return applyPlaceholderCase(dateToWords(best.raw, options), placeholderName || "Propis");
+    return moneyToWords(best.raw, Object.assign({}, options, { caseMode: placeholderCaseMode(placeholderName || "Propis") }));
   }
 
   function applyPropisPlaceholders(text) {
     let out = String(text || "");
-    const re = /\{(?:propis|пропись|прописью)\}/gi;
+    const re = /\{(propis|пропись|прописью)(?::([^{}]*))?\}/gi;
     let match;
     let result = "";
     let last = 0;
     while ((match = re.exec(out)) !== null) {
       const before = out.slice(0, match.index);
-      result += out.slice(last, match.index) + previousNumberOrDateText(before);
+      const best = previousNumberOrDateInfo(before);
+      const removeAttachedNumber = /\d$/.test(before) && best && best.end === before.length && best.start >= last;
+      const replaceFrom = removeAttachedNumber ? best.start : match.index;
+      const options = parsePropisOptions(match[2]);
+      const rawWords = best
+        ? (best.type === "date"
+          ? applyPlaceholderCase(dateToWords(best.raw, options), match[1])
+          : moneyToWords(best.raw, Object.assign({}, options, { caseMode: placeholderCaseMode(match[1]) })))
+        : "";
+      const words = rawWords;
+      result += out.slice(last, replaceFrom) + words;
       last = match.index + match[0].length;
     }
     return result + out.slice(last);
@@ -188,7 +419,149 @@
       /^f\d*$/.test(k) ||
       /^\^\d+$/.test(k) ||
       /^(=+|=>|<=|<==>|>-<)$/.test(k) ||
-      /^(propis|пропись|прописью|privatqr)$/.test(k);
+      /^(propis|пропись|прописью)(?::.*)?$/.test(k) ||
+      /^(privatqr)$/.test(k);
+  }
+
+  function unknownPlaceholderCancelSet(replacements) {
+    const target = replacements || {};
+    if (!Object.prototype.hasOwnProperty.call(target, "__grCancelledUnknownPlaceholders")) {
+      try {
+        Object.defineProperty(target, "__grCancelledUnknownPlaceholders", {
+          value: new Set(),
+          enumerable: false,
+          configurable: true
+        });
+      } catch (_err) {
+        target.__grCancelledUnknownPlaceholders = new Set();
+      }
+    }
+    return target.__grCancelledUnknownPlaceholders;
+  }
+
+  function hasReplacementValue(replacements, rawKey, normalized) {
+    if (!replacements) return false;
+    return Object.prototype.hasOwnProperty.call(replacements, rawKey) ||
+      Object.prototype.hasOwnProperty.call(replacements, normalized);
+  }
+
+  function collectUnknownPlaceholderKeys(texts, replacements, docDate) {
+    const source = Array.isArray(texts) ? texts : [texts];
+    const keys = [];
+    const seen = new Set();
+    const cancelled = unknownPlaceholderCancelSet(replacements);
+    source.forEach(text => {
+      String(text || "").replace(/\{([^{}]+)\}/g, function (_m, key) {
+        const rawKey = String(key || "").trim();
+        const normalized = rawKey.toLowerCase();
+        if (seen.has(normalized)) return _m;
+        if (cancelled.has(normalized)) return _m;
+        if (isTechnicalPlaceholder(rawKey) || canAutoResolvePlaceholder(rawKey, docDate)) return _m;
+        if (hasReplacementValue(replacements, rawKey, normalized)) return _m;
+        seen.add(normalized);
+        keys.push(rawKey);
+        return _m;
+      });
+    });
+    return keys;
+  }
+
+  function requestMissingPlaceholdersFromUI(keys, replacements, options) {
+    const list = Array.from(new Set((keys || []).map(key => String(key || "").trim()).filter(Boolean)));
+    if (!list.length) return Promise.resolve(true);
+    if (typeof document === "undefined" || !document.body) return Promise.resolve(false);
+    const opts = options || {};
+    return new Promise(resolve => {
+      const overlay = document.createElement("div");
+      overlay.style.position = "fixed";
+      overlay.style.inset = "0";
+      overlay.style.background = "rgba(15, 23, 42, 0.42)";
+      overlay.style.zIndex = "9999";
+      overlay.style.display = "flex";
+      overlay.style.alignItems = "center";
+      overlay.style.justifyContent = "center";
+      overlay.style.padding = "20px";
+
+      const modal = document.createElement("div");
+      modal.style.background = "#fff";
+      modal.style.borderRadius = "8px";
+      modal.style.width = "min(520px, 100%)";
+      modal.style.maxHeight = "82vh";
+      modal.style.overflowY = "auto";
+      modal.style.boxShadow = "0 18px 50px rgba(15, 23, 42, 0.28)";
+      modal.style.padding = "20px";
+      modal.innerHTML = `
+        <h3 style="margin:0 0 8px;font-size:18px">Заполните данные</h3>
+        <p style="margin:0 0 16px;color:#64748b;font-size:13px">Найдены неизвестные placeholders. Пустые поля будут заменены пустым значением.</p>
+        <div data-gr-missing-fields></div>
+        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:18px">
+          <button type="button" data-gr-missing-cancel style="padding:8px 12px;border:1px solid #cbd5e1;background:#fff;border-radius:6px;cursor:pointer">Отмена</button>
+          <button type="button" data-gr-missing-ok style="padding:8px 14px;border:1px solid #2563eb;background:#2563eb;color:#fff;border-radius:6px;cursor:pointer">${opts.okText || "Продолжить"}</button>
+        </div>
+      `;
+      const fields = modal.querySelector("[data-gr-missing-fields]");
+      list.forEach(key => {
+        const wrapper = document.createElement("label");
+        wrapper.style.display = "block";
+        wrapper.style.marginBottom = "10px";
+        const caption = document.createElement("span");
+        caption.textContent = `{${key}}`;
+        caption.style.display = "block";
+        caption.style.fontSize = "12px";
+        caption.style.color = "#475569";
+        caption.style.marginBottom = "4px";
+        const input = document.createElement("input");
+        input.type = "text";
+        input.dataset.key = key;
+        input.style.boxSizing = "border-box";
+        input.style.width = "100%";
+        input.style.padding = "8px 10px";
+        input.style.border = "1px solid #cbd5e1";
+        input.style.borderRadius = "6px";
+        wrapper.appendChild(caption);
+        wrapper.appendChild(input);
+        fields.appendChild(wrapper);
+      });
+
+      function close(result) {
+        if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+        resolve(result);
+      }
+
+      modal.querySelector("[data-gr-missing-cancel]").addEventListener("click", () => {
+        const cancelled = unknownPlaceholderCancelSet(replacements);
+        list.forEach(key => cancelled.add(String(key || "").trim().toLowerCase()));
+        close(false);
+      });
+      modal.querySelector("[data-gr-missing-ok]").addEventListener("click", () => {
+        modal.querySelectorAll("input[data-key]").forEach(input => {
+          const key = input.dataset.key;
+          const value = String(input.value || "").trim();
+          if (replacements) {
+            replacements[key] = value;
+            replacements[String(key || "").toLowerCase()] = value;
+          }
+        });
+        close(true);
+      });
+      overlay.addEventListener("click", event => {
+        if (event.target === overlay) {
+          const cancelled = unknownPlaceholderCancelSet(replacements);
+          list.forEach(key => cancelled.add(String(key || "").trim().toLowerCase()));
+          close(false);
+        }
+      });
+      overlay.appendChild(modal);
+      document.body.appendChild(overlay);
+      const first = modal.querySelector("input[data-key]");
+      if (first) first.focus();
+    });
+  }
+
+  async function ensureUnknownPlaceholders(texts, replacements, docDate, options) {
+    const keys = collectUnknownPlaceholderKeys(texts, replacements, docDate);
+    if (!keys.length) return true;
+    return requestMissingPlaceholdersFromUI(keys, replacements, options);
   }
 
   function canAutoResolvePlaceholder(key, docDate) {
@@ -206,16 +579,14 @@
       const rawKey = String(key || "").trim();
       const normalized = rawKey.toLowerCase();
       if (isTechnicalPlaceholder(rawKey) || canAutoResolvePlaceholder(rawKey, opts.docDate)) return m;
-      const existing = replacements && (replacements[rawKey] ?? replacements[normalized]);
-      if (existing != null && String(existing) !== "") return String(existing);
-      if (typeof prompt !== "function") return m;
-      const value = prompt(`Введите значение для {${rawKey}}`, "");
-      if (value == null) return m;
-      if (replacements) {
-        replacements[rawKey] = value;
-        replacements[normalized] = value;
+      if (unknownPlaceholderCancelSet(replacements).has(normalized)) return m;
+      if (hasReplacementValue(replacements, rawKey, normalized)) {
+        const value = Object.prototype.hasOwnProperty.call(replacements, rawKey)
+          ? replacements[rawKey]
+          : replacements[normalized];
+        return String(value == null ? "" : value);
       }
-      return String(value);
+      return m;
     });
   }
 
@@ -1053,7 +1424,12 @@
     buildDatePlaceholders,
     replacePlaceholders,
     canAutoResolvePlaceholder,
+    collectUnknownPlaceholderKeys,
+    requestMissingPlaceholdersFromUI,
+    ensureUnknownPlaceholders,
     applyPropisPlaceholders,
+    previousNumberOrDateInfo,
+    previousNumberOrDateText,
     moneyToWords,
     dateToWords,
     parseRichText,

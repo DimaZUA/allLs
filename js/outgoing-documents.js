@@ -335,6 +335,15 @@
     return blocks;
   }
 
+  async function prepareUnknownPlaceholdersForDoc(doc, replacements) {
+    if (!window.GrCommon || typeof GrCommon.ensureUnknownPlaceholders !== "function") return true;
+    return GrCommon.ensureUnknownPlaceholders([
+      doc && doc.recipient || "",
+      doc && doc.body || "",
+      getDocSignature(doc)
+    ], replacements, doc && doc.doc_date, { okText: "Продолжить" });
+  }
+
   function renderRuns(runs) {
     return (runs || []).map(function (run) {
       const style = run.size ? ` style="font-size:${Number(run.size)}pt"` : "";
@@ -463,6 +472,7 @@
     const homeData = await ensureHomeData(doc.home_code);
     const home = Object.assign({}, homeData || {}, getHomeByCode(doc.home_code) || {}, { code: doc.home_code });
     const replacements = buildReplacementMap(home, doc.account_id || state.editorAccountId, doc);
+    await prepareUnknownPlaceholdersForDoc(doc, replacements);
     const bodyBlocks = parseDocumentText(doc.body || "", replacements, doc.doc_date);
     const signatureBlocks = parseDocumentText(getDocSignature(doc), replacements, doc.doc_date);
     const recipientText = replaceKnownPlaceholders(doc.recipient || "", replacements, doc.doc_date);
@@ -1451,6 +1461,7 @@
     const homeData = await ensureHomeData(doc.home_code);
     const home = Object.assign({}, homeData || {}, getHomeByCode(doc.home_code) || {}, { code: doc.home_code });
     const replacements = buildReplacementMap(home, doc.account_id || "", doc);
+    await prepareUnknownPlaceholdersForDoc(doc, replacements);
     const blocks = parseDocumentText(doc.body || "", replacements, doc.doc_date);
     const signatureBlocks = parseDocumentText(getDocSignature(doc), replacements, doc.doc_date);
     const signaturePrefix = signatureBlocks.length ? [blankParagraphXml(), blankParagraphXml(), blankParagraphXml()] : [];

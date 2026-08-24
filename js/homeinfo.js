@@ -594,21 +594,32 @@ function isAutoResolvedPlaceholder(tag) {
 }
 
 function isPropisPlaceholderText(text) {
-  return /\{(?:propis|пропись|прописью)\}/i.test(String(text || ""));
+  return /\{(?:propis|пропись|прописью)(?::[^{}]*)?\}/i.test(String(text || ""));
 }
 
-function previousDocxNumberOrDateText(text) {
+function previousDocxNumberOrDateInfo(text) {
+  if (window.GrCommon && typeof GrCommon.previousNumberOrDateInfo === "function") {
+    return GrCommon.previousNumberOrDateInfo(text);
+  }
   const source = String(text || "");
   let best = null;
   source.replace(/\b\d{1,2}\.\d{1,2}\.(?:\d{2}|\d{4})\b/g, function (raw, offset) {
-    best = { type: "date", raw: raw, end: offset + raw.length };
+    best = { type: "date", raw: raw, start: offset, end: offset + raw.length };
     return raw;
   });
   source.replace(/(?:\d{1,3}(?:[\s\u00a0]\d{3})+|\d+)(?:[,.]\d+)?/g, function (raw, offset) {
     const end = offset + raw.length;
-    if (!best || end > best.end) best = { type: "number", raw: raw, end: end };
+    if (!best || end > best.end) best = { type: "number", raw: raw, start: offset, end: end };
     return raw;
   });
+  return best;
+}
+
+function previousDocxNumberOrDateText(text, propisArgs, placeholderName) {
+  if (window.GrCommon && typeof GrCommon.previousNumberOrDateText === "function") {
+    return GrCommon.previousNumberOrDateText(text, propisArgs, placeholderName);
+  }
+  const best = previousDocxNumberOrDateInfo(text);
   if (!best || !window.GrCommon) return "";
   if (best.type === "date" && typeof GrCommon.dateToWords === "function") return GrCommon.dateToWords(best.raw);
   if (best.type === "number" && typeof GrCommon.moneyToWords === "function") return GrCommon.moneyToWords(best.raw);
@@ -617,7 +628,7 @@ function previousDocxNumberOrDateText(text) {
 
 function replacePlaceholdersKeepingPropis(text, replacements) {
   const tokens = [];
-  const protectedText = String(text || "").replace(/\{(?:propis|пропись|прописью)\}/gi, function (match) {
+  const protectedText = String(text || "").replace(/\{(?:propis|пропись|прописью)(?::[^{}]*)?\}/gi, function (match) {
     const token = "__GR_PROPIS_PLACEHOLDER_" + tokens.length + "__";
     tokens.push(match);
     return token;
@@ -631,13 +642,18 @@ function replacePlaceholdersKeepingPropis(text, replacements) {
 
 function applyDocxPropisPlaceholders(text, visibleBefore) {
   const source = String(text || "");
-  const re = /\{(?:propis|пропись|прописью)\}/gi;
+  const re = /\{(propis|пропись|прописью)(?::([^{}]*))?\}/gi;
   let match;
   let result = "";
   let last = 0;
   while ((match = re.exec(source)) !== null) {
-    const before = String(visibleBefore || "") + source.slice(0, match.index);
-    result += source.slice(last, match.index) + previousDocxNumberOrDateText(before);
+    const currentBefore = source.slice(0, match.index);
+    const before = String(visibleBefore || "") + currentBefore;
+    const best = previousDocxNumberOrDateInfo(before);
+    const visibleLength = String(visibleBefore || "").length;
+    const removeAttachedNumber = /\d$/.test(currentBefore) && best && best.end === before.length && best.start >= visibleLength;
+    const replaceFrom = removeAttachedNumber ? best.start - visibleLength : match.index;
+    result += source.slice(last, replaceFrom) + previousDocxNumberOrDateText(before, match[2], match[1]);
     last = match.index + match[0].length;
   }
   return result + source.slice(last);
@@ -1183,6 +1199,12 @@ function textHasOsbbMarker(text) {
 //==========================================
 
 function requestMissingValuesFromUI(keys, replacements) {
+  if (window.GrCommon && typeof GrCommon.requestMissingPlaceholdersFromUI === "function") {
+    return GrCommon.requestMissingPlaceholdersFromUI(keys, replacements, { okText: "Скачать" }).then(ok => {
+      if (!ok) throw new Error("User cancelled");
+      return true;
+    });
+  }
   return new Promise((resolve, reject) => {
     // overlay
     const overlay = document.createElement("div");

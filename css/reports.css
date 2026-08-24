@@ -2731,6 +2731,10 @@ li.folder {
   margin: 5mm 0 2mm;
   font: 700 12pt/1.25 Arial, sans-serif;
 }
+.mp-page h3.mp-section-title {
+  text-align: center;
+  text-transform: uppercase;
+}
 .mp-continuation-title {
   margin: 0 0 3mm;
   text-align: center;
@@ -2855,6 +2859,10 @@ li.folder {
   margin-bottom: 5mm;
 }
 .mp-agenda-list { margin: 0 0 5mm 8mm; padding-left: 6mm; }
+.mp-agenda-list li,
+.mp-question-view > h3 {
+  text-align: justify;
+}
 .mp-question-view p { margin: 0 0 2mm; text-align: justify; text-indent: 8mm; }
 .mp-question-rich {
   margin: 0 0 2mm;
@@ -3019,12 +3027,32 @@ li.folder {
   margin-top: 12mm;
   line-height: 1.8;
 }
+.mp-signature-block-compact {
+  margin-top: 8mm;
+  line-height: 1.45;
+}
 .mp-member-signatures-title {
   margin-top: 5mm;
   font-weight: 700;
 }
+.mp-signature-block-compact .mp-member-signatures-title {
+  margin-top: 3mm;
+}
+.mp-member-signatures-list {
+  display: block;
+}
+.mp-signature-block-compact .mp-member-signatures-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 8mm;
+  row-gap: 1mm;
+}
 .mp-member-signature {
   padding-left: 10mm;
+}
+.mp-signature-block-compact .mp-member-signature {
+  padding-left: 0;
+  white-space: nowrap;
 }
 .mp-print-table {
   width: 100%;
