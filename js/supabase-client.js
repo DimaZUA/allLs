@@ -13,6 +13,7 @@ function makeClientStub() {
   return {
     auth: {
       signInWithPassword: reject,
+      signInWithOAuth: reject,
       signUp: reject,
       getSession: async () => ({ data: { session: null }, error: makeClientUnavailableError() }),
       refreshSession: async () => ({ data: { session: null }, error: makeClientUnavailableError() }),

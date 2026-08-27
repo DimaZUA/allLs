@@ -479,6 +479,27 @@
   function setupLoginForm() {
     const form = document.getElementById("login-form");
     if (!form) return;
+    const googleButton = document.getElementById("google-login");
+
+    if (googleButton) {
+      googleButton.addEventListener("click", async () => {
+        const statusEl = document.getElementById("login-status");
+        googleButton.disabled = true;
+        if (statusEl) statusEl.textContent = "Перенаправлення до Google...";
+
+        const { error } = await client.auth.signInWithOAuth({
+          provider: "google",
+          options: {
+            redirectTo: `${window.location.origin}${window.location.pathname}`
+          }
+        });
+
+        if (error) {
+          googleButton.disabled = false;
+          if (statusEl) statusEl.textContent = `Помилка входу через Google: ${error.message}`;
+        }
+      });
+    }
 
     form.addEventListener("submit", async event => {
       event.preventDefault();
