@@ -11,6 +11,7 @@ let activeActionCode = "";
 let activeActionLink = null;
 let activeHomeRefreshTimer = null;
 let activeHomeRefreshInFlight = false;
+let searchHomesFilterEnabled = true;
 
 function getScreenMode() {
   const w = window.innerWidth;
@@ -688,15 +689,21 @@ async function loadHomesAndBuildMenu(user) {
 
   // Логика фильтра (поиск)
   if (homes.length > 5 && searchInput) {
+    setSearchHomesFilterEnabled(true, searchInput);
     if (localStorage.getItem("searchHomes")) {
       searchInput.value = localStorage.getItem("searchHomes");
-      filterHomes(searchInput.value);
+      applySearchHomesFilter(searchInput);
     }
     // Используем 'input' для живого поиска
     searchInput.oninput = function() {
       const filter = this.value.trim();
       localStorage.setItem("searchHomes", filter);
-      filterHomes(filter);
+      setSearchHomesFilterEnabled(true, this);
+      applySearchHomesFilter(this);
+    };
+    searchInput.ondblclick = function() {
+      setSearchHomesFilterEnabled(!searchHomesFilterEnabled, this);
+      applySearchHomesFilter(this);
     };
   }
 
@@ -759,6 +766,20 @@ function wildcardSearchRegex(pattern) {
 function wildcardSearchMatches(value, pattern) {
   var re = wildcardSearchRegex(pattern);
   return !re || re.test(String(value || ""));
+}
+
+function setSearchHomesFilterEnabled(enabled, input) {
+  searchHomesFilterEnabled = !!enabled;
+  if (!input) input = document.getElementById("searchHomes");
+  if (input) {
+    input.classList.toggle("filter-disabled", !searchHomesFilterEnabled);
+    input.title = searchHomesFilterEnabled ? "Фільтр увімкнено. Подвійний клік вимкне фільтр." : "Фільтр вимкнено. Подвійний клік увімкне фільтр.";
+  }
+}
+
+function applySearchHomesFilter(input) {
+  const filter = searchHomesFilterEnabled ? (input && input.value || "").trim() : "";
+  filterHomes(filter);
 }
 
 function filterHomes(filter) {

@@ -205,6 +205,11 @@ body.files-mode .sidebar-files {
   font-size: 16px;
 }
 
+#searchHomes.filter-disabled {
+  opacity: 0.65;
+  background: #f1f1f1;
+}
+
 /* =====================================================
    CONTENT
 ===================================================== */
