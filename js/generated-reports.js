@@ -738,6 +738,62 @@
     return el ? el.innerText.replace(/\s+/g, " ").trim() : "";
   }
 
+  function excelReportTitleFromPage(page) {
+    return String(page && page.querySelector(".gr-title, h1")?.textContent || "").replace(/\s+/g, " ").trim();
+  }
+
+  function excelReportBaseName(page) {
+    const sheetName = page.getAttribute("data-gr-sheet")
+      || [
+          homesFilePrefix(grState.lastMeta.codes),
+          periodFilePart(grState.lastMeta.from, grState.lastMeta.to)
+        ].join("_")
+      || "Аркуш";
+    const title = excelReportTitleFromPage(page);
+    const type = REPORT_TYPES.find(t => t.title === title);
+    return [sheetName, type ? type.fileRu : title].filter(Boolean).join("_");
+  }
+
+  function excelReportKey(page) {
+    return [
+      page.getAttribute("data-gr-sheet") || "",
+      excelReportTitleFromPage(page)
+    ].join("|");
+  }
+
+  function appendTableToWorksheet(ws, table, skipHeader) {
+    const rows = [...table.querySelectorAll("tr")].filter(tr => !skipHeader || !tr.closest("thead"));
+    rows.forEach(tr => {
+      const domCells = [...tr.children];
+      const row = ws.addRow(domCells.map(excelCellValueFromElement));
+      domCells.forEach((td, idx) => {
+        const cell = row.getCell(idx + 1);
+        if (td.hasAttribute("data-gr-number") || td.querySelector("[data-gr-number]")) {
+          cell.numFmt = "#,##0.00";
+          cell.alignment = { horizontal: "right" };
+        }
+      });
+    });
+  }
+
+  function appendPaymentBlocksToWorksheet(ws, page, includeHeader) {
+    const blocks = [...page.querySelectorAll(".gr-pay-block")];
+    if (includeHeader) ws.addRow(["Кв.", "П.І.Б.", "Дата", "Сума"]);
+    blocks.forEach(block => {
+      const head = block.querySelector(".gr-pay-apt");
+      const fio = head?.querySelector(".gr-pay-fio")?.textContent || "";
+      const blockKv = block.querySelector(".gr-pay-line .gr-apt-no")?.textContent || "";
+      block.querySelectorAll(".gr-pay-line").forEach(line => {
+        const kv = line.querySelector(".gr-apt-no")?.textContent || blockKv;
+        const date = line.querySelector(".gr-pay-date")?.textContent || "";
+        const sumEl = line.querySelector(".gr-pay-sum");
+        const row = ws.addRow([kv, fio, date, excelCellValueFromElement(sumEl)]);
+        row.getCell(4).numFmt = "#,##0.00";
+        row.getCell(4).alignment = { horizontal: "right" };
+      });
+    });
+  }
+
   function paymentBlockHtml(g) {
     const head = `<div class="gr-pay-apt"><span class="gr-pay-fio">${escapeHtml(g.fio)}</span></div>`;
     const lines = g.payments.map((p, idx) =>
@@ -2229,45 +2285,27 @@
     const wb = new ExcelJS.Workbook();
     const pages = document.querySelectorAll("#gr-output .gr-sheet");
     const usedNames = new Set();
+    const sheetsByReport = new Map();
     pages.forEach((page) => {
       const table = page.querySelector("table.gr-table");
-      const baseName = page.getAttribute("data-gr-sheet")
-        || [
-            homesFilePrefix(grState.lastMeta.codes),
-            periodFilePart(grState.lastMeta.from, grState.lastMeta.to)
-          ].join("_")
-        || "Аркуш";
-      const ws = wb.addWorksheet(uniqueExcelSheetName(baseName, usedNames));
-      if (table) {
-        const rows = [...table.querySelectorAll("tr")];
-        rows.forEach(tr => {
-          const domCells = [...tr.children];
-          const row = ws.addRow(domCells.map(excelCellValueFromElement));
-          domCells.forEach((td, idx) => {
-            const cell = row.getCell(idx + 1);
-            if (td.hasAttribute("data-gr-number") || td.querySelector("[data-gr-number]")) {
-              cell.numFmt = "#,##0.00";
-              cell.alignment = { horizontal: "right" };
-            }
-          });
-        });
-      } else {
-        const blocks = [...page.querySelectorAll(".gr-pay-block")];
-        ws.addRow(["Кв.", "П.І.Б.", "Дата", "Сума"]);
-        blocks.forEach(block => {
-          const head = block.querySelector(".gr-pay-apt");
-          const fio = head?.querySelector(".gr-pay-fio")?.textContent || "";
-          const blockKv = block.querySelector(".gr-pay-line .gr-apt-no")?.textContent || "";
-          block.querySelectorAll(".gr-pay-line").forEach(line => {
-            const kv = line.querySelector(".gr-apt-no")?.textContent || blockKv;
-            const date = line.querySelector(".gr-pay-date")?.textContent || "";
-            const sumEl = line.querySelector(".gr-pay-sum");
-            const row = ws.addRow([kv, fio, date, excelCellValueFromElement(sumEl)]);
-            row.getCell(4).numFmt = "#,##0.00";
-            row.getCell(4).alignment = { horizontal: "right" };
-          });
-        });
+      const key = excelReportKey(page);
+      let item = sheetsByReport.get(key);
+      if (!item) {
+        item = {
+          ws: wb.addWorksheet(uniqueExcelSheetName(excelReportBaseName(page), usedNames)),
+          hasRows: false
+        };
+        sheetsByReport.set(key, item);
       }
+      const ws = item.ws;
+      if (table) {
+        appendTableToWorksheet(ws, table, item.hasRows);
+      } else {
+        appendPaymentBlocksToWorksheet(ws, page, !item.hasRows);
+      }
+      item.hasRows = true;
+    });
+    wb.worksheets.forEach(ws => {
       ws.columns.forEach(col => {
         let max = 10;
         col.eachCell({ includeEmpty: true }, cell => {

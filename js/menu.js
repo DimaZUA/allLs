@@ -634,8 +634,17 @@ async function loadHomesAndBuildMenu(user) {
   roles = await loadHomeRoles();
   await loadMeterHomeCodes();
 
+  const menu = document.getElementById("menu");
+  menu.innerHTML = '';
+
   if (!homes || homes.length === 0) {
-    alert('Нет доступных домов для пользователя');
+    addSystemMenuItems(menu);
+    const message = "Для цього користувача немає доступних будинків.";
+    if (typeof showMessage === "function") showMessage(message, "warn", 10000);
+    const preview = document.getElementById("preview") || document.getElementById("maincontainer");
+    if (preview) {
+      preview.innerHTML = `<div class="empty-state" style="padding:24px;background:#fff;border:1px solid #d7dbe2;border-radius:8px;margin:16px;">${message}<br>Можна вийти з акаунта через пункт меню «Вийти».</div>`;
+    }
     return;
   }
 
@@ -648,9 +657,6 @@ async function loadHomesAndBuildMenu(user) {
   homes.sort((a, b) => a.name.localeCompare(b.name));
 
   // Генерируем меню
-  const menu = document.getElementById("menu");
-  menu.innerHTML = '';
-
   homes.forEach(home => {
     const homeItem = document.createElement("li");
     homeItem.setAttribute("data-code", home.code);
@@ -756,7 +762,7 @@ function wildcardSearchMatches(value, pattern) {
 }
 
 function filterHomes(filter) {
-  document.querySelectorAll(".menu-item").forEach(function (item) {
+  document.querySelectorAll(".menu-item[data-code]").forEach(function (item) {
     var homeCode = item.getAttribute("data-code"); // Получаем код дома
     if (homeCode === GLOBAL_REPORTS_CODE) { item.style.display = ""; return; }
     var home = homes.find(function (h) {
