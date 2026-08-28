@@ -606,7 +606,7 @@
     const report = delta == null ? null : delta * factor;
     const autoBounds = autoConsumptionBounds(meter.id, channel.id);
     const deltaId = `ma-delta-${index}`;
-    return `<td data-ma-reading-row data-ma-mode="${escapeHtml(mode || "desktop")}" data-meter-id="${escapeHtml(meter.id)}" data-channel-id="${escapeHtml(channel.id)}" data-previous="${escapeHtml(previous)}" data-factor="${escapeHtml(factor)}" data-min="${escapeHtml(meter.min_consumption ?? "")}" data-max="${escapeHtml(meter.max_consumption ?? "")}" data-auto-min="${escapeHtml(autoBounds.min)}" data-auto-max="${escapeHtml(autoBounds.max)}" data-delta-target="${escapeHtml(deltaId)}">
+    return `<td data-ma-reading-row data-ma-mode="${escapeHtml(mode || "desktop")}" data-meter-id="${escapeHtml(meter.id)}" data-channel-id="${escapeHtml(channel.id)}" data-previous="${escapeHtml(previous)}" data-factor="${escapeHtml(factor)}" data-min="${escapeHtml(channel.min_consumption ?? "")}" data-max="${escapeHtml(channel.max_consumption ?? "")}" data-auto-min="${escapeHtml(autoBounds.min)}" data-auto-max="${escapeHtml(autoBounds.max)}" data-delta-target="${escapeHtml(deltaId)}">
       <input name="current_value" value="${escapeHtml(current)}">
       <div class="ma-reading-warning" data-ma-warning hidden></div>
       <span data-ma-report hidden>${escapeHtml(report == null ? "" : fmt(report))}</span>
@@ -626,7 +626,7 @@
       previous,
       showDelta,
       delta,
-      attrs: `data-ma-reading-row data-ma-mode="${escapeHtml(mode)}" data-meter-id="${escapeHtml(meter.id)}" data-channel-id="${escapeHtml(channel.id)}" data-previous="${escapeHtml(previous)}" data-factor="${escapeHtml(factor)}" data-min="${escapeHtml(meter.min_consumption ?? "")}" data-max="${escapeHtml(meter.max_consumption ?? "")}" data-auto-min="${escapeHtml(autoBounds.min)}" data-auto-max="${escapeHtml(autoBounds.max)}" data-delta-target="ma-mobile-delta-${escapeHtml(index)}"`
+      attrs: `data-ma-reading-row data-ma-mode="${escapeHtml(mode)}" data-meter-id="${escapeHtml(meter.id)}" data-channel-id="${escapeHtml(channel.id)}" data-previous="${escapeHtml(previous)}" data-factor="${escapeHtml(factor)}" data-min="${escapeHtml(channel.min_consumption ?? "")}" data-max="${escapeHtml(channel.max_consumption ?? "")}" data-auto-min="${escapeHtml(autoBounds.min)}" data-auto-max="${escapeHtml(autoBounds.max)}" data-delta-target="ma-mobile-delta-${escapeHtml(index)}"`
     };
   }
 

@@ -64,7 +64,10 @@
     if (window.GrCommon && typeof GrCommon.matchesSearch === "function") {
       return GrCommon.matchesSearch(value, query);
     }
-    return String(value || "").toLowerCase().includes(String(query || "").toLowerCase());
+    const text = String(query || "").trim().toLowerCase();
+    if (!text) return true;
+    return text.split("|").map(part => part.trim()).filter(Boolean)
+      .some(part => String(value || "").toLowerCase().includes(part));
   }
 
   function getHomeByCode(code) {

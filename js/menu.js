@@ -737,30 +737,34 @@ function wildcardSearchRegex(pattern) {
       return new RegExp(text.slice(1, -1), "i");
     } catch (_err) {}
   }
-  var out = "";
-  for (var i = 0; i < text.length; i++) {
-    var ch = text[i];
-    if (ch === "*" || /\s/.test(ch)) {
-      out += ".*";
-      while (i + 1 < text.length && (text[i + 1] === "*" || /\s/.test(text[i + 1]))) i++;
-      continue;
-    }
-    if (ch === "?") {
-      out += ".";
-      continue;
-    }
-    if (ch === "[") {
-      var end = text.indexOf("]", i + 1);
-      if (end > i + 1) {
-        var body = text.slice(i + 1, end).replace(/[\\\]\^-]/g, "\\$&");
-        out += "[" + body + "]";
-        i = end;
+  var parts = text.split("|").map(function (x) { return x.trim(); }).filter(Boolean);
+  var source = (parts.length ? parts : [text]).map(function (part) {
+    var out = "";
+    for (var i = 0; i < part.length; i++) {
+      var ch = part[i];
+      if (ch === "*" || /\s/.test(ch)) {
+        out += ".*";
+        while (i + 1 < part.length && (part[i + 1] === "*" || /\s/.test(part[i + 1]))) i++;
         continue;
       }
+      if (ch === "?") {
+        out += ".";
+        continue;
+      }
+      if (ch === "[") {
+        var end = part.indexOf("]", i + 1);
+        if (end > i + 1) {
+          var body = part.slice(i + 1, end).replace(/[\\\]\^-]/g, "\\$&");
+          out += "[" + body + "]";
+          i = end;
+          continue;
+        }
+      }
+      out += ch.replace(/[\\^$+?.(){}[\]]/g, "\\$&");
     }
-    out += ch.replace(/[\\^$+?.()|{}[\]]/g, "\\$&");
-  }
-  return new RegExp(out, "i");
+    return out;
+  }).join("|");
+  return new RegExp(source, "i");
 }
 
 function wildcardSearchMatches(value, pattern) {
@@ -791,9 +795,13 @@ function filterHomes(filter) {
     }); // Находим объект дома
 
     if (home) {
-      var matches = Object.values(home).some(function (value) {
-        return typeof value === "string" && wildcardSearchMatches(value, filter);
-      });
+      var searchText = Object.values(home).map(function (value) {
+        return value == null ? "" : String(value);
+      }).join(" ");
+      if (meterHomeCodes.has(String(homeCode))) {
+        searchText += " прилад обліку прибор учета счетчик показания покази";
+      }
+      var matches = wildcardSearchMatches(searchText, filter);
       item.style.display = matches ? "" : "none";
     } else {
       // если нет соответствия дома, прячем элемент

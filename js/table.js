@@ -9,30 +9,34 @@ function tableWildcardSearchRegex(pattern) {
       return new RegExp(text.slice(1, -1), "i");
     } catch (_err) {}
   }
-  let out = "";
-  for (let i = 0; i < text.length; i++) {
-    const ch = text[i];
-    if (ch === "*" || /\s/.test(ch)) {
-      out += ".*";
-      while (i + 1 < text.length && (text[i + 1] === "*" || /\s/.test(text[i + 1]))) i++;
-      continue;
-    }
-    if (ch === "?") {
-      out += ".";
-      continue;
-    }
-    if (ch === "[") {
-      const end = text.indexOf("]", i + 1);
-      if (end > i + 1) {
-        const body = text.slice(i + 1, end).replace(/[\\\]\^-]/g, "\\$&");
-        out += `[${body}]`;
-        i = end;
+  const parts = text.split("|").map(part => part.trim()).filter(Boolean);
+  const source = (parts.length ? parts : [text]).map(part => {
+    let out = "";
+    for (let i = 0; i < part.length; i++) {
+      const ch = part[i];
+      if (ch === "*" || /\s/.test(ch)) {
+        out += ".*";
+        while (i + 1 < part.length && (part[i + 1] === "*" || /\s/.test(part[i + 1]))) i++;
         continue;
       }
+      if (ch === "?") {
+        out += ".";
+        continue;
+      }
+      if (ch === "[") {
+        const end = part.indexOf("]", i + 1);
+        if (end > i + 1) {
+          const body = part.slice(i + 1, end).replace(/[\\\]\^-]/g, "\\$&");
+          out += `[${body}]`;
+          i = end;
+          continue;
+        }
+      }
+      out += ch.replace(/[\\^$+?.(){}[\]]/g, "\\$&");
     }
-    out += ch.replace(/[\\^$+?.()|{}[\]]/g, "\\$&");
-  }
-  return new RegExp(out, "i");
+    return out;
+  }).join("|");
+  return new RegExp(source, "i");
 }
 
 function tableMatchesWildcardSearch(value, pattern) {
