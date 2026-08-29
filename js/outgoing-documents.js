@@ -22,7 +22,8 @@
     previewBack: null,
     editorHomeCodes: [],
     editorDocIdsByHome: {},
-    editorAccountId: ""
+    editorAccountId: "",
+    templatesMode: false
   };
 
   function escapeHtml(value) {
@@ -77,6 +78,16 @@
   function canEditHome(code) {
     void code;
     return typeof hasDocumentSectionAccess !== "function" || hasDocumentSectionAccess(SECTION);
+  }
+
+  function canUseTemplates() {
+    return typeof hasDocumentSectionAccess !== "function" || hasDocumentSectionAccess("court_claims");
+  }
+
+  function normalizeTemplatesMode() {
+    if (state.templatesMode && !canUseTemplates()) {
+      state.templatesMode = false;
+    }
   }
 
   function selectedHomes() {
@@ -512,9 +523,11 @@
   }
 
   function filteredDocs() {
+    normalizeTemplatesMode();
     const codes = new Set(selectedHomeCodes());
     return state.docs
       .filter(d => codes.has(String(d.home_code)))
+      .filter(d => state.templatesMode ? !!d.is_template : !d.is_template)
       .filter(docFilterMatch)
       .sort(function (a, b) {
         const ad = String(a.doc_date || "");
@@ -534,10 +547,19 @@
       const home = getHomeByCode(doc.home_code);
       const editable = canEditHome(doc.home_code);
       const draftBadge = doc.is_draft ? `<span class="od-draft-badge">Чернетка</span>` : "";
+      const templateBadge = doc.is_template ? `<span class="od-draft-badge od-template-badge">Шаблон</span>` : "";
       const selectedClass = String(doc.id) === String(state.selectedRowId) ? " od-row-selected" : "";
+      const dropdown = doc.is_template
+        ? `<button type="button" data-od-edit="${escapeHtml(doc.id)}" ${editable ? "" : "disabled"}><i data-lucide="pencil"></i><span>Редагувати</span></button>
+           <button type="button" data-od-delete="${escapeHtml(doc.id)}" ${editable ? "" : "disabled"}><i data-lucide="trash-2"></i><span>Видалити</span></button>`
+        : `<button type="button" data-od-show="${escapeHtml(doc.id)}"><i data-lucide="eye"></i><span>Показати</span></button>
+           <button type="button" data-od-download="${escapeHtml(doc.id)}"><i data-lucide="file-text"></i><span>Word</span></button>
+           <button type="button" data-od-copy="${escapeHtml(doc.id)}" ${editable ? "" : "disabled"}><i data-lucide="copy"></i><span>Копія</span></button>
+           <button type="button" data-od-edit="${escapeHtml(doc.id)}" ${editable ? "" : "disabled"}><i data-lucide="pencil"></i><span>Редагувати</span></button>
+           <button type="button" data-od-delete="${escapeHtml(doc.id)}" ${editable ? "" : "disabled"}><i data-lucide="trash-2"></i><span>Видалити</span></button>`;
       return `<tr data-od-row="${escapeHtml(doc.id)}" ${editable ? `data-od-edit-row="${escapeHtml(doc.id)}"` : ""} class="${editable ? "od-clickable-row" : ""}${selectedClass}" tabindex="-1">
         <td>${escapeHtml(formatDate(doc.doc_date))}</td>
-        <td>${escapeHtml(doc.doc_number || "")}${draftBadge}</td>
+        <td>${escapeHtml(doc.doc_number || "")}${draftBadge}${templateBadge}</td>
         <td>${escapeHtml(home ? home.name : doc.home_code)}</td>
         <td>${escapeHtml(doc.recipient || "")}</td>
         <td>${escapeHtml(doc.summary || "")}</td>
@@ -545,16 +567,12 @@
           <div class="od-action-menu">
             <button type="button" class="od-action-toggle" data-od-menu-toggle aria-label="Дії">⋮</button>
             <div class="od-action-dropdown">
-              <button type="button" data-od-show="${escapeHtml(doc.id)}"><i data-lucide="eye"></i><span>Показати</span></button>
-              <button type="button" data-od-download="${escapeHtml(doc.id)}"><i data-lucide="file-text"></i><span>Word</span></button>
-              <button type="button" data-od-copy="${escapeHtml(doc.id)}" ${editable ? "" : "disabled"}><i data-lucide="copy"></i><span>Копія</span></button>
-              <button type="button" data-od-edit="${escapeHtml(doc.id)}" ${editable ? "" : "disabled"}><i data-lucide="pencil"></i><span>Редагувати</span></button>
-              <button type="button" data-od-delete="${escapeHtml(doc.id)}" ${editable ? "" : "disabled"}><i data-lucide="trash-2"></i><span>Видалити</span></button>
+              ${dropdown}
             </div>
           </div>
         </td>
       </tr>`;
-    }).join("") || `<tr><td colspan="6" class="od-empty">Документів не знайдено</td></tr>`;
+    }).join("") || `<tr><td colspan="6" class="od-empty">${state.templatesMode ? "Шаблонів не знайдено" : "Документів не знайдено"}</td></tr>`;
   }
 
   function renderHomeCombo() {
@@ -577,6 +595,10 @@
   }
 
   function renderList() {
+    normalizeTemplatesMode();
+    const templatesButton = canUseTemplates()
+      ? `<button type="button" class="gr-btn" data-od-templates>${state.templatesMode ? "Документи" : "Шаблони"}</button>`
+      : "";
     return `
       <div class="gr-app od-app">
         <div class="gr-toolbar od-toolbar">
@@ -588,7 +610,8 @@
             </div>
             <div class="gr-field od-toolbar-actions">
               <label>&nbsp;</label>
-              <button type="button" class="gr-btn gr-btn-primary" data-od-new>Новий документ</button>
+              ${templatesButton}
+              <button type="button" class="gr-btn gr-btn-primary" data-od-new>${state.templatesMode ? "Новий шаблон" : "Новий документ"}</button>
             </div>
           </div>
         </div>
@@ -613,7 +636,7 @@
 
   function maxNumberForHome(homeCode, excludeId) {
     return state.docs
-      .filter(d => String(d.home_code) === String(homeCode) && d.id !== excludeId)
+      .filter(d => String(d.home_code) === String(homeCode) && d.id !== excludeId && !d.is_template)
       .map(d => Number(String(d.doc_number || "").replace(/[^\d]/g, "")))
       .filter(Number.isFinite)
       .reduce((max, n) => Math.max(max, n), 0);
@@ -700,7 +723,7 @@
       account_id: "",
       is_draft: true
     };
-    if (isNew && item.home_code && !item.doc_number) {
+    if (isNew && item.home_code && !item.doc_number && !item.is_template) {
       item.doc_number = String(maxNumberForHome(item.home_code) + 1);
     }
     const relatedDocs = (opts.docs || [item]).filter(Boolean);
@@ -714,11 +737,11 @@
       <div class="gr-app od-app">
         <div class="od-editor">
           <div class="od-editor-head">
-            <h2>${isNew ? "Новий вихідний документ" : "Редагування документа"} <span class="od-editor-draft-badge ${item.is_draft ? "" : "is-hidden"}" data-od-editor-draft>${item.is_draft ? "Чернетка" : "Не збережено"}</span></h2>
+            <h2>${isNew ? (item.is_template ? "Новий шаблон" : "Новий вихідний документ") : (item.is_template ? "Редагування шаблону" : "Редагування документа")} <span class="od-editor-draft-badge ${item.is_draft ? "" : "is-hidden"}" data-od-editor-draft>${item.is_draft ? "Чернетка" : "Не збережено"}</span></h2>
             <div class="od-editor-actions">
               <button type="button" class="gr-btn" data-od-cancel><i data-lucide="arrow-left"></i><span>Назад</span></button>
-              <button type="button" class="gr-btn" data-od-editor-show><i data-lucide="eye"></i><span>Показати</span></button>
-              <button type="button" class="gr-btn" data-od-editor-download><i data-lucide="file-text"></i><span>Word</span></button>
+              ${item.is_template ? "" : '<button type="button" class="gr-btn" data-od-editor-show><i data-lucide="eye"></i><span>Показати</span></button>'}
+              ${item.is_template ? "" : '<button type="button" class="gr-btn" data-od-editor-download><i data-lucide="file-text"></i><span>Word</span></button>'}
               <button type="button" class="gr-btn gr-btn-primary" data-od-save><i data-lucide="save"></i><span>${isNew ? "Створити" : "Зберегти"}</span></button>
             </div>
           </div>
@@ -728,6 +751,7 @@
               ${renderAccountPicker(item)}
               <label>Дата<input type="date" name="doc_date" value="${escapeHtml(shortDate(item.doc_date))}"></label>
               <label>Номер<input name="doc_number" value="${escapeHtml(item.doc_number || "")}"></label>
+              <label class="od-template-field"><span>Шаблон</span><input type="checkbox" name="is_template" ${item.is_template ? "checked" : ""}></label>
               <label class="gr-ph-field">Кому<button type="button" class="gr-ph-btn" data-gr-ph-picker title="Вставити placeholder">⋯</button><textarea name="recipient" rows="3">${escapeHtml(item.recipient || "")}</textarea></label>
               <label class="od-editor-summary">Короткий опис<input name="summary" value="${escapeHtml(item.summary || "")}"></label>
               <label class="od-editor-body gr-ph-field">Текст<button type="button" class="gr-ph-btn" data-gr-ph-picker title="Вставити placeholder">⋯</button><textarea name="body" rows="22">${escapeHtml(item.body || "")}</textarea></label>
@@ -869,7 +893,8 @@
       summary: String(fd.get("summary") || ""),
       body: String(fd.get("body") || ""),
       signature_text: String(fd.get("signature_text") || ""),
-      account_id: String(fd.get("account_id") || "")
+      account_id: String(fd.get("account_id") || ""),
+      is_template: !!fd.get("is_template")
     };
   }
 
@@ -952,8 +977,9 @@
         home_code: String(code),
         is_draft: opts.final ? false : form.dataset.odDraft === "true"
       });
+      payload.is_template = !!basePayload.is_template;
       const updatesExisting = !!existingId;
-      if (!updatesExisting) payload.doc_number = String(maxNumberForHome(code) + 1);
+      if (!updatesExisting && !payload.is_template) payload.doc_number = String(maxNumberForHome(code) + 1);
       if (homeCodes.length > 1 && updatesExisting && !payload.doc_number) {
         payload.doc_number = String(maxNumberForHome(code, existingId) + 1);
       }
@@ -1034,11 +1060,24 @@
   }
 
   function newDoc() {
-    render(renderEditor(null));
+    normalizeTemplatesMode();
+    render(renderEditor({
+      home_code: defaultEditableHome(),
+      doc_date: todayIso(),
+      doc_number: "",
+      recipient: "",
+      summary: "",
+      body: "",
+      signature_text: DEFAULT_SIGNATURE_TEXT,
+      account_id: "",
+      is_draft: true,
+      is_template: !!state.templatesMode
+    }));
   }
 
   function editDoc(id) {
     const doc = findDoc(id);
+    if (doc && doc.is_template && !canUseTemplates()) return;
     if (!doc || !canEditHome(doc.home_code)) return;
     render(renderEditor(doc));
   }
@@ -1177,6 +1216,13 @@
     bindRowButtons(container);
     const add = container.querySelector("[data-od-new]");
     if (add) add.addEventListener("click", newDoc);
+    const templates = container.querySelector("[data-od-templates]");
+    if (templates) templates.addEventListener("click", function () {
+      if (!canUseTemplates()) return;
+      state.templatesMode = !state.templatesMode;
+      state.selectedRowId = "";
+      render(renderList());
+    });
     const back = container.querySelector("[data-od-back], [data-od-cancel]");
     if (back) back.addEventListener("click", handleBack);
     const print = container.querySelector("[data-od-print]");

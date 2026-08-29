@@ -773,6 +773,23 @@ button:hover {
   background: #e4e4e4;
 }
 
+.buttons-container .court-doc-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #9a9a9a;
+  background: #efefef;
+  font-weight: 700;
+  font-size: 13px;
+  line-height: 1;
+  color: #1b1b1b;
+  cursor: pointer;
+}
+
+.buttons-container .court-doc-button:hover {
+  background: #e4e4e4;
+}
+
 .buttons-container .pay-link-button {
   width: auto !important;
   min-width: 84px;

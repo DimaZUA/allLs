@@ -5,7 +5,7 @@ async function main() {
     await tx`
       create table if not exists public.user_document_sections (
         user_id uuid not null references auth.users(id) on delete cascade,
-        section text not null check (section in ('reports', 'outgoing_documents', 'meeting_protocols')),
+        section text not null check (section in ('reports', 'outgoing_documents', 'meeting_protocols', 'court_claims')),
         enabled boolean not null default false,
         updated_at timestamptz not null default now(),
         primary key (user_id, section)

@@ -124,6 +124,7 @@ async function main() {
         signature_text text,
         account_id text not null default '',
         is_draft boolean not null default false,
+        is_template boolean not null default false,
         legacy_code text unique,
         created_at timestamptz not null default now(),
         updated_at timestamptz not null default now()
@@ -132,6 +133,7 @@ async function main() {
     await tx`alter table public.outgoing_documents add column if not exists signature_text text`;
     await tx`alter table public.outgoing_documents add column if not exists account_id text not null default ''`;
     await tx`alter table public.outgoing_documents add column if not exists is_draft boolean not null default false`;
+    await tx`alter table public.outgoing_documents add column if not exists is_template boolean not null default false`;
     await tx`create index if not exists outgoing_documents_home_date_idx on public.outgoing_documents (home_code, doc_date desc, doc_number)`;
     await tx`create index if not exists outgoing_documents_draft_updated_idx on public.outgoing_documents (is_draft, updated_at)`;
     await tx`
