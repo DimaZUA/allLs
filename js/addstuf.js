@@ -347,7 +347,7 @@ function getTarifRowsByService(source, y, m, monthTransactions, isResidentMode, 
   });
   return byService;
 }
-function buildTarifMonthNotes(year, month, monthTransactions, prevMonthTransactions, accountMeta, isResidentMode, residentHistoryStartMonth) {
+function buildTarifMonthNotes(year, month, monthTransactions, prevMonthTransactions, accountMeta, isResidentMode, residentHistoryStartMonth, serviceFilter) {
   const source = Array.isArray(tarifs)
     ? tarifs
     : (tarifs && typeof tarifs === "object" ? Object.values(tarifs) : []);
@@ -360,6 +360,8 @@ function buildTarifMonthNotes(year, month, monthTransactions, prevMonthTransacti
   const byService = getTarifRowsByService(source, y, m, monthTransactions, isResidentMode, startMonthInt);
   if (!Object.keys(byService).length) return out;
   Object.keys(byService).forEach(function (serviceId) {
+    const sid = String(serviceId || "").trim();
+    if (serviceFilter && !serviceFilter.has(sid)) return;
     const serviceRows = byService[serviceId];
     const serviceName = String((us && us[serviceId]) || "").trim();
     const currentCharge = Number((monthTransactions && monthTransactions[serviceId]) || 0);
@@ -1065,15 +1067,27 @@ function showCourtAccountDialog(accountId, accountData) {
   });
 }
 
+function courtEffectiveEndCode(rawEndCode, options) {
+  const endCode = Number(rawEndCode);
+  if (!Number.isFinite(endCode)) return rawEndCode;
+  if (options && (options.inflation || options.annual3)) return endCode;
+  const now = new Date();
+  const currentCode = courtMonthCode(now.getFullYear(), now.getMonth() + 1);
+  const currentMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  const lastClosedCode = now.getDate() < currentMonthEnd.getDate() ? currentCode - 1 : currentCode;
+  return Math.min(endCode, lastClosedCode);
+}
+
 function buildCourtRows(accountId, accountMeta, accountData, paymentData, options) {
   const selected = courtSelectedServiceIds(options);
   const allCodes = courtAllMonthCodes(accountData, paymentData);
   if (!allCodes.length) return { rows: [], serviceTotals: {}, paidTotal: 0, chargeTotal: 0, openingDebt: 0, closingDebt: 0, startCode: null, endCode: null };
-  const endCode = options.lastCode || allCodes[allCodes.length - 1];
+  const endCode = courtEffectiveEndCode(options.lastCode || allCodes[allCodes.length - 1], options);
   const firstCode = allCodes[0];
   let startCode = firstCode;
   if (options.period === "3y") startCode = Math.max(firstCode, endCode - 35);
   if (options.period === "from" && options.fromCode) startCode = Math.max(firstCode, options.fromCode);
+  if (endCode < startCode) startCode = endCode;
   const openingDebt = options.mode === "withOpening"
     ? Math.max(0, calculateCourtBalance(accountData, paymentData, startCode, selected).debtStart)
     : 0;
@@ -1092,7 +1106,7 @@ function buildCourtRows(accountId, accountMeta, accountData, paymentData, option
       serviceTotals[serviceId] = (serviceTotals[serviceId] || 0) + charge.byService[serviceId];
     });
     const m = courtMonthFromCode(code);
-    const notes = buildTarifMonthNotes(m.year, m.month, (((accountData || {})[m.year] || {})[m.month]) || {}, getPrevMonthTransactions(accountData, m.year, m.month), accountMeta || {}, false, 0);
+    const notes = buildTarifMonthNotes(m.year, m.month, (((accountData || {})[m.year] || {})[m.month]) || {}, getPrevMonthTransactions(accountData, m.year, m.month), accountMeta || {}, false, 0, selected);
     const targetNote = nachnote?.[accountId]?.[m.year]?.[m.month]?.[13];
     rows.push({
       code,
@@ -1103,7 +1117,9 @@ function buildCourtRows(accountId, accountMeta, accountData, paymentData, option
       paid: payments.total,
       balance: normalizeMoney(balance),
       notes: notes.slice(),
-      targetNote: Array.isArray(targetNote) ? targetNote.join("; ") : String(targetNote || "")
+      targetNote: selected.has("10") && (Number(charge.byService["10"]) || 0) !== 0
+        ? (Array.isArray(targetNote) ? targetNote.join("; ") : String(targetNote || ""))
+        : ""
     });
   }
   return {
@@ -1118,10 +1134,14 @@ function buildCourtRows(accountId, accountMeta, accountData, paymentData, option
   };
 }
 
+function courtPaymentDueDateForChargeMonth(monthCodeValue) {
+  const m = courtMonthFromCode(monthCodeValue);
+  return new Date(m.year, m.month, 20);
+}
+
 function courtBuildLots(rows, options) {
   const lots = [];
   rows.forEach(function (row) {
-    const m = courtMonthFromCode(row.code);
     Object.keys(row.charges || {}).forEach(function (serviceId) {
       const amount = Number(row.charges[serviceId]) || 0;
       if (!(amount > 0)) return;
@@ -1131,7 +1151,7 @@ function courtBuildLots(rows, options) {
         label: row.label,
         amount,
         rest: amount,
-        dueDate: new Date(m.year, m.month, 0)
+        dueDate: courtPaymentDueDateForChargeMonth(row.code)
       });
     });
     let paid = row.paid;
@@ -1199,6 +1219,37 @@ async function fetchCourtInflationRates() {
   return map;
 }
 
+async function fetchCourtFeeInfo(asOfDate) {
+  const date = asOfDate || new Date();
+  const effectiveDate = `${date.getFullYear()}-01-01`;
+  if (!window.client) throw new Error("Supabase SDK unavailable");
+  let { data, error } = await client
+    .from("living_wage_minimums")
+    .select("effective_date,able_bodied_amount")
+    .eq("effective_date", effectiveDate)
+    .maybeSingle();
+  if (error && error.code !== "PGRST116") throw error;
+  if (!data) {
+    const fallback = await client
+      .from("living_wage_minimums")
+      .select("effective_date,able_bodied_amount")
+      .lte("effective_date", effectiveDate)
+      .order("effective_date", { ascending: false })
+      .limit(1);
+    if (fallback.error) throw fallback.error;
+    data = fallback.data && fallback.data[0];
+  }
+  const livingWage = Number(data && data.able_bodied_amount);
+  if (!Number.isFinite(livingWage) || livingWage <= 0) {
+    throw new Error("прожитковий мінімум для працездатних осіб не завантажений в базу");
+  }
+  return {
+    effectiveDate: data.effective_date,
+    livingWage,
+    courtFee: normalizeMoney(livingWage * 0.1 * 0.8)
+  };
+}
+
 function calculateCourtInflation(lots, rates, asOfDate) {
   const end = asOfDate || new Date();
   const endCode = courtMonthCode(end.getFullYear(), end.getMonth() + 1);
@@ -1237,6 +1288,42 @@ function buildCourtInflationRows(lots, rates, asOfDate) {
     };
   }).filter(function (row) {
     return row.rest > 0.005 && row.amount > 0.005;
+  });
+}
+
+function buildCourtPenaltyRows(lots, rates, asOfDate, includeAnnual3, includeInflation) {
+  const end = asOfDate || new Date();
+  const endCode = courtMonthCode(end.getFullYear(), end.getMonth() + 1);
+  return (lots || []).map(function (lot) {
+    const start = new Date(lot.dueDate.getFullYear(), lot.dueDate.getMonth(), lot.dueDate.getDate() + 1);
+    const days = Math.max(0, Math.floor((end - start) / 86400000));
+    const startCode = courtMonthCode(lot.dueDate.getFullYear(), lot.dueDate.getMonth() + 2);
+    let factor = 1;
+    let missing = 0;
+    if (includeInflation && rates) {
+      for (let code = startCode; code <= endCode; code += 1) {
+        if (rates.has(code)) factor *= rates.get(code);
+        else missing += 1;
+      }
+    }
+    const inflationAmount = includeInflation
+      ? normalizeMoney(Math.max(0, lot.rest * (factor - 1)))
+      : 0;
+    const annual3Amount = includeAnnual3
+      ? normalizeMoney(lot.rest * 0.03 * days / 365)
+      : 0;
+    return {
+      label: lot.label,
+      rest: normalizeMoney(lot.rest),
+      period: `${formatDate(start, "DD.MM.YYYY")} - ${formatDate(end, "DD.MM.YYYY")}`,
+      days,
+      index: includeInflation ? factor : null,
+      missing,
+      inflationAmount,
+      annual3Amount
+    };
+  }).filter(function (row) {
+    return row.rest > 0.005 && (row.inflationAmount > 0.005 || row.annual3Amount > 0.005);
   });
 }
 
@@ -1336,7 +1423,7 @@ function courtCleanFlatAddress(value) {
     .trim();
 }
 
-function courtDebtSummaryMarkdown(calc, annual3, inflation, grandTotal, debtByService, options) {
+function courtDebtSummaryMarkdown(calc, annual3, inflation, grandTotal, debtByService, options, courtFeeInfo) {
   const selected = courtSelectedServiceIds(options);
   const tpvDebt = normalizeMoney(debtByService && debtByService["7"]);
   const housingDebt = normalizeMoney(calc.closingDebt - (selected.has("7") ? tpvDebt : 0));
@@ -1353,15 +1440,94 @@ function courtDebtSummaryMarkdown(calc, annual3, inflation, grandTotal, debtBySe
   if (options && options.annual3) {
     lines.push(`* три проценти річних — **${courtMoney(annual3)}**.`);
   }
-  lines.push(`**Усього до стягнення за основними вимогами: ${courtMoney(grandTotal)}.**`);
-  return lines.join("\n");
+  if (lines.length > 1) {
+    lines.push(`**Усього до стягнення за основними вимогами: ${courtMoney(grandTotal)}.**`);
+  }
+  return lines.join("\n").replace(/;\s*$/, ".");
 }
 
-function courtClaimsRequestsMarkdown(accountMeta, calc, annual3, inflation, grandTotal, debtByService, homeName, okpo, addressText, options) {
+function courtDebtAmounts(calc, debtByService, options) {
+  const selected = courtSelectedServiceIds(options);
+  const tpvDebt = normalizeMoney(debtByService && debtByService["7"]);
+  const housingDebt = normalizeMoney(calc.closingDebt - (selected.has("7") ? tpvDebt : 0));
+  return { selected, tpvDebt, housingDebt };
+}
+
+function courtDebtSummarySections(calc, annual3, inflation, debtByService, options) {
+  const amounts = courtDebtAmounts(calc, debtByService, options);
+  const sections = [];
+  if (amounts.housingDebt > 0.005) sections.push("housing");
+  if (amounts.selected.has("7") && amounts.tpvDebt > 0.005) sections.push("tpv");
+  if (options && options.inflation) sections.push("inflation");
+  if (options && options.annual3) sections.push("annual3");
+  if (sections.length > 1) sections.push("total");
+  return sections;
+}
+
+function courtPenaltyTextMarkdown(annual3, inflation, options) {
+  const hasInflation = !!(options && options.inflation);
+  const hasAnnual3 = !!(options && options.annual3);
+
+  if (!hasInflation && !hasAnnual3) {
+    return "";
+  }
+
+  const inflationText = hasInflation
+    ? `\n\n**інфляційні втрати — ${courtMoney(inflation && inflation.total)};**`
+    : "";
+
+  const annual3Text = hasAnnual3
+    ? `\n\n**три проценти річних — ${courtMoney(annual3)}.**`
+    : "";
+
+  const detailText =
+    hasInflation && hasAnnual3
+      ? "Детальний розрахунок інфляційних втрат та трьох процентів річних додається до заяви."
+      : hasInflation
+        ? "Детальний розрахунок інфляційних втрат додається до заяви."
+        : "Детальний розрахунок трьох процентів річних додається до заяви.";
+
+  const article625 =
+    hasInflation && hasAnnual3
+      ? "Відповідно до частини другої статті 625 Цивільного кодексу України боржник, який прострочив виконання грошового зобов’язання, на вимогу кредитора зобов’язаний сплатити суму боргу з урахуванням установленого індексу інфляції за весь час прострочення, а також три проценти річних від простроченої суми, якщо інший розмір процентів не встановлений договором або законом."
+      : hasInflation
+        ? "Відповідно до частини другої статті 625 Цивільного кодексу України боржник, який прострочив виконання грошового зобов’язання, на вимогу кредитора зобов’язаний сплатити суму боргу з урахуванням установленого індексу інфляції за весь час прострочення."
+        : "Відповідно до частини другої статті 625 Цивільного кодексу України боржник, який прострочив виконання грошового зобов’язання, на вимогу кредитора зобов’язаний сплатити три проценти річних від простроченої суми, якщо інший розмір процентів не встановлений договором або законом.";
+
+  return `${article625}
+
+У зв’язку з простроченням боржником виконання грошових зобов’язань заявником нараховано:${inflationText}${annual3Text}
+
+${detailText}`;
+}
+
+function courtPenaltyAppendicesMarkdown(options) {
+  const hasInflation = !!(options && options.inflation);
+  const hasAnnual3 = !!(options && options.annual3);
+  if (hasInflation && hasAnnual3) return "1. Розрахунок інфляційних втрат та трьох процентів річних.";
+  if (hasInflation) return "1. Розрахунок інфляційних втрат.";
+  if (hasAnnual3) return "1. Розрахунок трьох процентів річних.";
+  return "";
+}
+
+function courtPenaltyMode(options) {
+  const hasInflation = !!(options && options.inflation);
+  const hasAnnual3 = !!(options && options.annual3);
+  if (hasInflation && hasAnnual3) return "both";
+  if (hasInflation) return "inflation";
+  if (hasAnnual3) return "annual3";
+  return "none";
+}
+
+function courtCivilCodeArticles(options) {
+  return options && (options.inflation || options.annual3) ? "509, 525, 526, 625" : "509, 525, 526";
+}
+
+function courtClaimsRequestsMarkdown(accountMeta, calc, annual3, inflation, grandTotal, totalWithCourtFee, debtByService, homeName, okpo, addressText, options, courtFeeInfo) {
   const selected = courtSelectedServiceIds(options);
   const fio = accountMeta.fio || "";
   const kv = accountMeta.kv || "";
-  const pl = accountMeta.pl || accountMeta.area || "";
+  const pl = courtFormatArea(accountMeta.pl || accountMeta.area || "");
   const tpvDebt = normalizeMoney(debtByService && debtByService["7"]);
   const housingDebt = normalizeMoney(calc.closingDebt - (selected.has("7") ? tpvDebt : 0));
   const orgKind = courtOrgKind(homeName);
@@ -1373,7 +1539,7 @@ function courtClaimsRequestsMarkdown(accountMeta, calc, annual3, inflation, gran
   const flat = `за квартирою загальною площею ${pl} кв. м, розташованою за адресою: ${addressText}`;
   const items = [];
   if (housingDebt > 0.005) {
-    items.push(`1. **Стягнути ${base} ${debtText} ${flat}, у розмірі ${courtMoney(housingDebt)}.**`);
+    items.push(`1. **Видати судовий наказ про стягнення ${base} ${debtText} ${flat}, у розмірі ${courtMoney(housingDebt)}.**`);
   }
   if (selected.has("7") && tpvDebt > 0.005) {
     items.push(`${items.length + 1}. **Стягнути ${base} заборгованість зі сплати платежів за вивезення побутових відходів ${flat}, у розмірі ${courtMoney(tpvDebt)}.**`);
@@ -1384,20 +1550,49 @@ function courtClaimsRequestsMarkdown(accountMeta, calc, annual3, inflation, gran
   if (options && options.annual3 && normalizeMoney(annual3) > 0.005) {
     items.push(`${items.length + 1}. **Стягнути ${base} три проценти річних у розмірі ${courtMoney(annual3)}.**`);
   }
-  items.push(`${items.length + 1}. **Усього стягнути ${base} ${courtMoney(grandTotal)}.**`);
+  if (courtFeeInfo && normalizeMoney(courtFeeInfo.courtFee) > 0.005) {
+    items.push(`${items.length + 1}. **Стягнути ${base} судовий збір у розмірі ${courtMoney(courtFeeInfo.courtFee)}.**`);
+  }
   return items.join("\n");
 }
 
-function courtPlaceholderMap(accountId, accountMeta, calc, annual3, inflation, grandTotal, homeName, okpo, addressText, homeMeta, debtByService, options) {
+function courtClaimsRequestSections(calc, annual3, inflation, debtByService, options, courtFeeInfo) {
+  const amounts = courtDebtAmounts(calc, debtByService, options);
+  const sections = [];
+  if (amounts.housingDebt > 0.005) sections.push("housing");
+  if (amounts.selected.has("7") && amounts.tpvDebt > 0.005) sections.push("tpv");
+  if (options && options.inflation && normalizeMoney(inflation && inflation.total) > 0.005) sections.push("inflation");
+  if (options && options.annual3 && normalizeMoney(annual3) > 0.005) sections.push("annual3");
+  if (courtFeeInfo && normalizeMoney(courtFeeInfo.courtFee) > 0.005) sections.push("courtFee");
+  return sections;
+}
+
+function courtFormatArea(value) {
+  return String(value == null ? "" : value).trim().replace(".", ",");
+}
+
+function courtPlaceholderMap(accountId, accountMeta, calc, annual3, inflation, grandTotal, totalWithCourtFee, homeName, okpo, addressText, homeMeta, debtByService, options, courtFeeInfo) {
   const m1 = calc.startCode ? courtMonthFromCode(calc.startCode) : null;
   const m2 = calc.endCode ? courtMonthFromCode(calc.endCode) : null;
   const startDate = m1 ? `01.${String(m1.month).padStart(2, "0")}.${m1.year}` : "";
-  const endDate = m2 ? `${String(new Date(m2.year, m2.month, 0).getDate()).padStart(2, "0")}.${String(m2.month).padStart(2, "0")}.${m2.year}` : "";
+  let endDate = "";
+  if (m2) {
+    const monthEnd = new Date(m2.year, m2.month, 0);
+    const todayDate = new Date();
+    const hasPenaltyCalculation = !!(options && (options.inflation || options.annual3));
+    const actualEnd = monthEnd > todayDate
+      ? (hasPenaltyCalculation ? todayDate : new Date(m2.year, m2.month - 1, 0))
+      : monthEnd;
+    endDate = formatDate(actualEnd, "DD.MM.YYYY");
+  }
   const tpvDebt = debtByService && debtByService["7"] ? debtByService["7"] : 0;
+  const selected = courtSelectedServiceIds(options);
+  const housingDebt = normalizeMoney(calc.closingDebt - (selected.has("7") ? normalizeMoney(tpvDebt) : 0));
   const home = homeMeta || {};
   const orgAddress = courtFirstValue(home.adrfull, home.adrlong, home.adr, home.address);
   const headName = courtFirstValue(home["Голова"], home["голова"], home["головаfull"], home.Podpis, home["Дир"]);
   const today = formatDate(new Date(), "DD.MM.YYYY");
+  const calculationDate = (options && (options.inflation || options.annual3)) ? today : endDate;
   return {
     org: homeName,
     okpo,
@@ -1406,11 +1601,11 @@ function courtPlaceholderMap(accountId, accountMeta, calc, annual3, inflation, g
     flatAddress: addressText,
     kv: accountMeta.kv || "",
     ls: accountMeta.ls || accountId,
-    pl: accountMeta.pl || accountMeta.area || "",
+    pl: courtFormatArea(accountMeta.pl || accountMeta.area || ""),
     Pers: accountMeta.pers || accountMeta.Pers || accountMeta.people || "",
     "дата початку": startDate,
     "дата закінчення": endDate,
-    "дата розрахунку": today,
+    "дата розрахунку": calculationDate || today,
     "дата": today,
     "адреса осбб": orgAddress,
     "адреса кооперативу": orgAddress,
@@ -1421,14 +1616,29 @@ function courtPlaceholderMap(accountId, accountMeta, calc, annual3, inflation, g
     "головаfull": headName,
     "ГоловаFull": headName,
     "сума основної заборгованості": courtMoneyNumber(calc.closingDebt),
+    "сума заборгованості на утримання будинку": courtMoneyNumber(housingDebt),
     "сума заборгованості за тпв": courtMoneyNumber(tpvDebt),
     "сума інфляційних втрат": courtMoneyNumber(inflation && inflation.total),
     "сума 3 % річних": courtMoneyNumber(annual3),
     "сума 3% річних": courtMoneyNumber(annual3),
+    "сума судового збору": courtMoneyNumber(courtFeeInfo && courtFeeInfo.courtFee),
+    "судовий збір": courtMoneyNumber(courtFeeInfo && courtFeeInfo.courtFee),
+    "прожитковий мінімум": courtMoneyNumber(courtFeeInfo && courtFeeInfo.livingWage),
     "сума": courtMoneyNumber(grandTotal),
-    tozrahunokBorgu: courtDebtSummaryMarkdown(calc, annual3, inflation, grandTotal, debtByService, options),
-    rozrahunokBorgu: courtDebtSummaryMarkdown(calc, annual3, inflation, grandTotal, debtByService, options),
-    courtClaimsRequests: courtClaimsRequestsMarkdown(accountMeta, calc, annual3, inflation, grandTotal, debtByService, homeName, okpo, addressText, options),
+    "сума разом із судовим збором": courtMoneyNumber(totalWithCourtFee || grandTotal),
+    tozrahunokBorgu: courtDebtSummaryMarkdown(calc, annual3, inflation, grandTotal, debtByService, options, courtFeeInfo),
+    rozrahunokBorgu: courtDebtSummaryMarkdown(calc, annual3, inflation, grandTotal, debtByService, options, courtFeeInfo),
+    courtPenaltyText: courtPenaltyTextMarkdown(annual3, inflation, options),
+    courtPenaltyAppendices: courtPenaltyAppendicesMarkdown(options),
+    courtPenaltyMode: courtPenaltyMode(options),
+    courtDebtSummarySections: courtDebtSummarySections(calc, annual3, inflation, debtByService, options),
+    courtClaimsRequestSections: courtClaimsRequestSections(calc, annual3, inflation, debtByService, options, courtFeeInfo),
+    courtCivilCodeArticles: courtCivilCodeArticles(options),
+    "статті цк": courtCivilCodeArticles(options),
+    "текст основної заборгованості": courtOrgKind(homeName) === "osbb"
+      ? "заборгованості зі сплати внесків та платежів ОСББ"
+      : "заборгованості зі сплати внесків та платежів на утримання та експлуатацію багатоквартирного будинку і прибудинкової території",
+    courtClaimsRequests: courtClaimsRequestsMarkdown(accountMeta, calc, annual3, inflation, grandTotal, totalWithCourtFee, debtByService, homeName, okpo, addressText, options, courtFeeInfo),
     "___": courtMoney(grandTotal)
   };
 }
@@ -1453,13 +1663,284 @@ function courtReplaceTemplateText(text, map) {
     .replace(/\[СУМА ЗАБОРГОВАНОСТІ ЗА ТПВ\]/gi, map["сума заборгованості за тпв"] || "")
     .replace(/\[СУМА ІНФЛЯЦІЙНИХ ВТРАТ\]/gi, map["сума інфляційних втрат"] || "")
     .replace(/\[СУМА 3 % РІЧНИХ\]/gi, map["сума 3 % річних"] || "")
+    .replace(/\[СУМА СУДОВОГО ЗБОРУ\]/gi, map["сума судового збору"] || "")
     .replace(/\[СУМА\]/gi, map["сума"] || "");
+  out = courtReplaceTemplateChoiceBlocks(out, map);
+  out = courtReplaceTemplateSectionBlocks(out, map);
+  out = courtReplacePenaltyTemplateBlocks(out, map);
+  out = courtNormalizeCivilCodeArticles(out, map);
+  out = courtNormalizeProtocolDecisionText(out, map);
+  out = courtNormalizeProtocolAppendices(out);
+  out = courtCleanupTemplateControls(out);
+  return courtNormalizeCourtFeeParagraph(courtCleanOrgText(out, map && map.org));
+}
+
+function courtReplaceTemplateSectionBlocks(text, map) {
+  let out = String(text || "");
+  out = courtReplaceNamedSectionBlock(out, "courtDebtSummary", map && map.courtDebtSummarySections, false);
+  out = courtReplaceNamedSectionBlock(out, "courtClaimsRequests", map && map.courtClaimsRequestSections, true);
+  out = out.replace(/\{courtDebtSummary\s*\n([\s\S]*?)\n\}/gi, function (_full, body) {
+    return courtSelectTemplateSections(body, map && map.courtDebtSummarySections, false);
+  });
+  out = out.replace(/\{courtClaimsRequests\s*\n([\s\S]*?)\n\}/gi, function (_full, body) {
+    return courtSelectTemplateSections(body, map && map.courtClaimsRequestSections, true);
+  });
   return out;
 }
 
-function courtTemplateHtml(text) {
-  const html = courtReplaceMarkdown(courtNormalizeTemplate(text));
-  return `<section class="claim">${html}</section><div class="page-break"></div>`;
+function courtReplaceNamedSectionBlock(text, blockName, enabledSections, numbered) {
+  return courtReplaceNamedTemplateBlock(text, blockName, function (body) {
+    return courtSelectTemplateSections(body, enabledSections, numbered);
+  });
+}
+
+function courtSelectTemplateSections(body, enabledSections, numbered) {
+  const enabled = new Set((Array.isArray(enabledSections) ? enabledSections : []).map(function (key) {
+    return String(key).toLowerCase();
+  }));
+  const source = String(body || "").replace(/\r\n/g, "\n");
+  const re = /^@@([a-z0-9_]+)\s*$/gim;
+  const markers = [];
+  let match;
+  while ((match = re.exec(source))) {
+    markers.push({ key: match[1].toLowerCase(), start: match.index, end: re.lastIndex });
+  }
+  const parts = [];
+  for (let i = 0; i < markers.length; i += 1) {
+    if (!enabled.has(markers[i].key)) continue;
+    const next = markers[i + 1] ? markers[i + 1].start : source.length;
+    const part = source.slice(markers[i].end, next).trim();
+    if (part) parts.push(part);
+  }
+  if (!numbered) {
+    const text = parts.join("\n").trim();
+    return text.replace(/;\s*$/, ".");
+  }
+  return parts.map(function (part, index) {
+    return `${index + 1}. ${part.replace(/^\d+[\.\)]\s*/, "")}`;
+  }).join("\n");
+}
+
+function courtReplaceTemplateChoiceBlocks(text, map) {
+  const mode = String(map && map.courtPenaltyMode || "none").toLowerCase();
+  let out = String(text || "");
+  out = courtReplaceNamedChoiceBlock(out, "courtPenaltyText", mode);
+  out = courtReplaceNamedChoiceBlock(out, "courtPenaltyAppendices", mode);
+  out = out.replace(/\{courtPenaltyText\s*\n([\s\S]*?)\n\}/gi, function (_full, body) {
+    return courtSelectTemplateChoice(body, mode);
+  });
+  out = out.replace(/\{courtPenaltyAppendices\s*\n([\s\S]*?)\n\}/gi, function (_full, body) {
+    return courtSelectTemplateChoice(body, mode);
+  });
+  return out;
+}
+
+function courtReplaceNamedChoiceBlock(text, blockName, mode) {
+  return courtReplaceNamedTemplateBlock(text, blockName, function (body) {
+    return courtSelectTemplateChoice(body, mode);
+  });
+}
+
+function courtReplaceNamedTemplateBlock(text, blockName, replacer) {
+  const lines = String(text || "").replace(/\r\n/g, "\n").split("\n");
+  const out = [];
+  for (let i = 0; i < lines.length; i += 1) {
+    if (lines[i].trim().toLowerCase() !== `{${String(blockName).toLowerCase()}`) {
+      out.push(lines[i]);
+      continue;
+    }
+    const body = [];
+    i += 1;
+    while (i < lines.length && lines[i].trim() !== "}") {
+      body.push(lines[i]);
+      i += 1;
+    }
+    out.push(replacer(body.join("\n")));
+  }
+  return out.join("\n");
+}
+
+function courtSelectTemplateChoice(body, mode) {
+  const source = String(body || "").replace(/\r\n/g, "\n");
+  const re = /^@@(both|inflation|annual3|none)\s*$/gim;
+  const markers = [];
+  let match;
+  while ((match = re.exec(source))) {
+    markers.push({ key: match[1].toLowerCase(), start: match.index, end: re.lastIndex });
+  }
+  for (let i = 0; i < markers.length; i += 1) {
+    if (markers[i].key !== mode) continue;
+    const next = markers[i + 1] ? markers[i + 1].start : source.length;
+    return source.slice(markers[i].end, next).trim();
+  }
+  return "";
+}
+
+function courtCleanupTemplateControls(text) {
+  const seenListItems = new Set();
+  const out = [];
+  String(text || "").replace(/\r\n/g, "\n").split("\n").forEach(function (line) {
+    const trimmed = line.trim();
+    if (/^@@[a-z0-9_]+\s*$/i.test(trimmed)) return;
+    if (trimmed === "}") return;
+    const listMatch = trimmed.match(/^\d+[\.\)]\s+(.+)$/);
+    if (listMatch) {
+      const key = listMatch[1].replace(/\s+/g, " ").trim().toLowerCase();
+      if (seenListItems.has(key)) return;
+      seenListItems.add(key);
+    }
+    out.push(line);
+  });
+  return out.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+}
+
+function courtNormalizeProtocolDecisionText(text, map) {
+  let out = String(text || "");
+  const orgName = map && map.org ? String(map.org) : "";
+  const mainText = `Розміри внесків та платежів на утримання та експлуатацію багатоквартирного будинку і прибудинкової території затверджені відповідними рішеннями загальних зборів ${orgName}, оформленими протоколами, копії яких додаються до заяви.`;
+  const tpvText = `Розміри платежів за вивезення побутових відходів затверджені відповідними рішеннями загальних зборів ${orgName}, оформленими протоколами, копії яких додаються до заяви.`;
+  out = out.replace(
+    /Рішенням загальних зборів\s+[^,\n]+,\s*оформленим протоколом №\s*\*\*[^*\n]*\*\*\s*від\s*\*\*[^*\n]*\*\*,\s*затверджено розмір внесків та платежів співвласників\./gi,
+    mainText
+  );
+  out = out.replace(
+    /Рішенням загальних зборів\s+[^,\n]+,\s*оформленим протоколом №\s*\*\*[^*\n]*\*\*\s*від\s*\*\*[^*\n]*\*\*,\s*затверджено розміри внесків та платежів на утримання та експлуатацію багатоквартирного будинку і прибудинкової території\./gi,
+    mainText
+  );
+  out = out.replace(
+    /Рішенням загальних зборів\s+[^,\n]+,\s*оформленим протоколом №\s*\*\*[^*\n]*\*\*\s*від\s*\*\*[^*\n]*\*\*,\s*затверджено розмір платежу співвласників за вивезення побутових відходів\./gi,
+    tpvText
+  );
+  out = out.replace(
+    /Розмір платежу за вивезення побутових відходів затверджено рішенням загальних зборів\s+[^,\n]+,\s*оформленим протоколом №\s*\*\*[^*\n]*\*\*\s*від\s*\*\*[^*\n]*\*\*\./gi,
+    tpvText
+  );
+  return out;
+}
+
+function courtNormalizeProtocolAppendices(text) {
+  const appendixText = "Копії протоколів (витяги з протоколів) загальних зборів Кооперативу, якими встановлено розміри внесків та платежів, що діяли у відповідних розрахункових періодах.";
+  let out = String(text || "");
+  out = out.replace(
+    /^\d+[\.\)]\s*Копія протоколу[^\n]*(загальних зборів|протоколу|протоколів)[^\n]*(внесків|платежів|вивезення побутових|ТПВ)[^\n]*$/gim,
+    `1. ${appendixText}`
+  );
+  out = out.replace(
+    /^\d+[\.\)]\s*Копії протоколів[^\n]*(загальних зборів|протоколу|протоколів)[^\n]*(внесків|платежів|вивезення побутових|ТПВ)[^\n]*$/gim,
+    `1. ${appendixText}`
+  );
+  out = out.replace(
+    /^\s*(1\.\s+Копії протоколів[^\n]+)\s*\n\s*\1\s*$/gim,
+    "$1"
+  );
+  return out;
+}
+
+function courtNormalizeCivilCodeArticles(text, map) {
+  const articles = map && map.courtCivilCodeArticles ? String(map.courtCivilCodeArticles) : "509, 525, 526";
+  return String(text || "")
+    .replace(/статтями\s+509,\s*525,\s*526,\s*625\s+Цивільного кодексу України/gi, `статтями ${articles} Цивільного кодексу України`)
+    .replace(/статтями\s+509,\s*525,\s*526\s+Цивільного кодексу України/gi, `статтями ${articles} Цивільного кодексу України`);
+}
+
+function courtReplacePenaltyTemplateBlocks(text, map) {
+  const penaltyText = map && map.courtPenaltyText ? String(map.courtPenaltyText) : "";
+  const appendixText = map && map.courtPenaltyAppendices ? String(map.courtPenaltyAppendices) : "";
+let out = String(text || "");
+
+out = out.replace(
+  /Відповідно до частини другої статті 625 Цивільного кодексу України[\s\S]*?Детальний розрахунок інфляційних втрат та трьох процентів річних додається до заяви\./gi,
+  penaltyText
+);
+
+out = out.replace(
+  /Відповідно до частини другої статті 625 Цивільного кодексу України[\s\S]*?Детальний розрахунок інфляційних втрат додається до заяви\./gi,
+  penaltyText
+);
+
+out = out.replace(
+  /Відповідно до частини другої статті 625 Цивільного кодексу України[\s\S]*?Детальний розрахунок трьох процентів річних додається до заяви\./gi,
+  penaltyText
+);
+  out = out.replace(
+    /^\d+[\.\)]\s*Розрахунок інфляційних втрат\.\s*\n\d+[\.\)]\s*Розрахунок трьох процентів річних\.\s*$/gim,
+    appendixText
+  );
+  out = out
+    .replace(/^\d+[\.\)]\s*Розрахунок інфляційних втрат та трьох процентів річних\.\s*$/gim, appendixText)
+    .replace(/^\d+[\.\)]\s*Розрахунок інфляційних втрат\.\s*$/gim, appendixText)
+    .replace(/^\d+[\.\)]\s*Розрахунок трьох процентів річних\.\s*$/gim, appendixText);
+  out = out.replace(/^\s*(1\.\s+Розрахунок[^\n]+)\s*\n\s*\1\s*$/gim, "$1");
+  return out;
+}
+
+function courtNormalizeCourtFeeParagraph(text) {
+  return String(text || "").replace(
+    /^При зверненні до суду[\s\S]*?сплачено судовий збір у розмірі\s*\*\*([^*\n]+?)\*\*,\s*що підтверджується платіжним документом\./gim,
+    "Заява подається до суду в електронній формі через підсистему «Електронний суд». З урахуванням коефіцієнта 0,8, передбаченого частиною третьою статті 4 Закону України «Про судовий збір», заявником сплачено судовий збір у розмірі **$1**, що підтверджується платіжним документом."
+  );
+}
+
+function courtCleanOrgText(text, orgName) {
+  let out = String(text || "");
+  const org = String(orgName || "").trim();
+  if (!org) return out;
+  const escapedOrg = org.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  [
+    "Житловим кооперативом",
+    "Житлового кооперативу",
+    "Житловий кооператив",
+    "Житловому кооперативу",
+    "Кооперативом",
+    "Кооперативу",
+    "ОСББ",
+    "Об’єднанням співвласників багатоквартирного будинку",
+    "Об’єднання співвласників багатоквартирного будинку"
+  ].forEach(function (prefix) {
+    const re = new RegExp(`${prefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s+«?${escapedOrg}»?`, "gi");
+    out = out.replace(re, org);
+  });
+  return out
+    .replace(/Житловим кооперативом\s+(Житловий кооператив|ЖК|ЖБК)\b/gi, "$1")
+    .replace(/Житлового кооперативу\s+(Житловий кооператив|ЖК|ЖБК)\b/gi, "$1")
+    .replace(/Житловий кооператив\s+(Житловий кооператив|ЖК|ЖБК)\b/gi, "$1")
+    .replace(/ОСББ\s+ОСББ\b/gi, "ОСББ");
+}
+
+function courtStripInactiveTemplateParts(text, options) {
+  let out = String(text || "");
+  if (!courtTemplateNeedTpv(options)) {
+    out = out
+      .replace(/^\d+[\.\)]\s+Копія договору[^\n]*(вивезення побутових|ТПВ)[^\n]*\n?/gim, "")
+      .replace(/^\d+[\.\)]\s+Копія протоколу[^\n]*(вивезення побутових|ТПВ)[^\n]*\n?/gim, "")
+      .replace(/^\d+[\.\)]\s+Копія [^\n]*(вивезення побутових|ТПВ)[^\n]*\n?/gim, "")
+      .replace(/^\d+[\.\)]\s+Розрахунок [^\n]*(вивезення побутових|ТПВ)[^\n]*\n?/gim, "");
+  }
+  return out;
+}
+
+function courtWordPageBreak() {
+  return '<br clear="all" style="mso-special-character:line-break;page-break-before:always">';
+}
+
+function courtWordSectionBreak() {
+  return '<br clear="all" style="page-break-before:always;mso-break-type:section-break">';
+}
+
+function courtWordSectionBreakAfter() {
+  return '<br clear="all" style="page-break-after:always;mso-break-type:section-break">';
+}
+
+function courtTemplateHtml(text, options) {
+  let html = courtReplaceMarkdown(courtStripInactiveTemplateParts(courtNormalizeTemplate(text), options));
+  const titleIndex = html.search(/<h[12]\b/i);
+  if (titleIndex > 0) {
+    const headerStyle = "margin:0cm;margin-bottom:0cm;text-align:left;text-indent:0cm;line-height:100%;mso-line-height-rule:exactly";
+    const gapStyle = "margin:0cm;margin-bottom:0cm;text-align:left;text-indent:0cm;line-height:100%;mso-line-height-rule:exactly";
+    const headerHtml = html.slice(0, titleIndex).replace(/<p style="[^"]*"/g, `<p style="${headerStyle}"`);
+    html = `<table class="claim-header" style="width:100%;border-collapse:collapse;table-layout:fixed"><tr><td style="width:50%;border:none;padding:0">&nbsp;</td><td style="width:50%;border:none;padding:0">${headerHtml}</td></tr></table><p style="${gapStyle}">&nbsp;</p>${html.slice(titleIndex)}`;
+  }
+  return `<div class="WordSectionClaim" style="page:WordSectionClaim"><section class="claim">${html}</section></div>${courtWordSectionBreak()}`;
 }
 
 function courtNormalizeTemplate(text) {
@@ -1468,6 +1949,11 @@ function courtNormalizeTemplate(text) {
 
 function courtReplaceMarkdown(text) {
   const lines = courtNormalizeTemplate(text).split("\n");
+  const pStyle = "margin:0cm;margin-bottom:0cm;text-align:justify;text-indent:1.0cm;line-height:100%;mso-line-height-rule:exactly";
+  const h1Style = "margin:0cm;margin-bottom:0cm;text-align:center;line-height:100%;mso-line-height-rule:exactly";
+  const h2Style = "margin:0cm;margin-bottom:0cm;text-align:center;line-height:100%;mso-line-height-rule:exactly";
+  const h3Style = "margin:0cm;margin-bottom:0cm;text-align:justify;text-indent:0cm;line-height:100%;mso-line-height-rule:exactly";
+  const liStyle = "margin:0cm;margin-bottom:0cm;text-align:justify;line-height:100%;mso-line-height-rule:exactly";
   let inOl = false;
   let inUl = false;
   const closeLists = function () {
@@ -1478,26 +1964,29 @@ function courtReplaceMarkdown(text) {
   };
   return lines.map(function (line) {
     const t = line.trim();
-    if (!t) return closeLists() + "<p></p>";
+    if (!t) {
+      if (inOl || inUl) return "";
+      return closeLists() + `<p style="${pStyle}">&nbsp;</p>`;
+    }
     let match = t.match(/^#\s+(.+)/);
-    if (match) return closeLists() + `<h1>${courtInlineMarkdown(match[1])}</h1>`;
+    if (match) return closeLists() + `<h1 style="${h1Style}">${courtInlineMarkdown(match[1])}</h1>`;
     match = t.match(/^##\s+(.+)/);
-    if (match) return closeLists() + `<h2>${courtInlineMarkdown(match[1])}</h2>`;
+    if (match) return closeLists() + `<h2 style="${h2Style}">${courtInlineMarkdown(match[1])}</h2>`;
     match = t.match(/^###\s+(.+)/);
-    if (match) return closeLists() + `<h3>${courtInlineMarkdown(match[1])}</h3>`;
+    if (match) return closeLists() + `<h3 style="${h3Style}">${courtInlineMarkdown(match[1])}</h3>`;
     match = t.match(/^\d+\.\s+(.+)/);
     if (match) {
       const open = inOl ? "" : (closeLists() + "<ol>");
       inOl = true;
-      return `${open}<li>${courtInlineMarkdown(match[1])}</li>`;
+      return `${open}<li style="${liStyle}">${courtInlineMarkdown(match[1])}</li>`;
     }
     match = t.match(/^\*\s+(.+)/);
     if (match) {
       const open = inUl ? "" : (closeLists() + "<ul>");
       inUl = true;
-      return `${open}<li>${courtInlineMarkdown(match[1])}</li>`;
+      return `${open}<li style="${liStyle}">${courtInlineMarkdown(match[1])}</li>`;
     }
-    return closeLists() + `<p>${courtInlineMarkdown(t)}</p>`;
+    return closeLists() + `<p style="${pStyle}">${courtInlineMarkdown(t)}</p>`;
   }).join("") + closeLists();
 }
 
@@ -1527,21 +2016,27 @@ async function exportCourtAccountWord(accountId, accountMeta, accountData, payme
   const lots = courtBuildLots(calc.rows, options);
   const debtByService = courtDebtByService(lots);
   const annual3 = options.annual3 ? calculateCourtAnnual3(lots, new Date()) : 0;
-  const annual3Rows = options.annual3 ? buildCourtAnnual3Rows(lots, new Date()) : [];
   let inflation = { total: 0, missing: 0 };
-  let inflationRows = [];
+  let inflationRates = null;
   let inflationNote = "";
   if (options.inflation) {
     try {
-      const rates = await fetchCourtInflationRates();
-      inflation = calculateCourtInflation(lots, rates, new Date());
-      inflationRows = buildCourtInflationRows(lots, rates, new Date());
+      inflationRates = await fetchCourtInflationRates();
+      inflation = calculateCourtInflation(lots, inflationRates, new Date());
       if (inflation.missing) inflationNote = "Індекс інфляції розраховано за доступними місяцями.";
     } catch (err) {
       inflationNote = `Індекс інфляції не розраховано: не вдалося прочитати індекси з бази (${err && err.message ? err.message : err}).`;
     }
   }
   const grandTotal = normalizeMoney(calc.closingDebt + annual3 + inflation.total);
+  let courtFeeInfo = { livingWage: 0, courtFee: 0 };
+  let courtFeeNote = "";
+  try {
+    courtFeeInfo = await fetchCourtFeeInfo(new Date());
+  } catch (err) {
+    courtFeeNote = `Судовий збір не розраховано: не вдалося прочитати прожитковий мінімум з бази (${err && err.message ? err.message : err}).`;
+  }
+  const totalWithCourtFee = normalizeMoney(grandTotal + (courtFeeInfo.courtFee || 0));
   const homeName = document.querySelector("#topbar-title")?.textContent || document.querySelector(".topbar-title")?.textContent || org || "";
   const homeCode = String(getParam("homeCode") || activeHomeCode || "");
   const homeMeta = (Array.isArray(homes) ? homes.find(function (h) { return String(h && h.code) === homeCode; }) : null) || {};
@@ -1555,56 +2050,85 @@ async function exportCourtAccountWord(accountId, accountMeta, accountData, payme
     return `<th>${escapeHtml(service.name)}</th>`;
   }).join("");
   const tableColspan = 1 + services.length + (showChargeTotal ? 1 : 0) + 2;
+  const serviceTotals = {};
+  services.forEach(function (service) {
+    serviceTotals[service.id] = normalizeMoney(calc.rows.reduce(function (sum, row) {
+      return sum + (Number(row.charges[service.id]) || 0);
+    }, 0));
+  });
+  const chargeTotal = normalizeMoney(calc.rows.reduce(function (sum, row) {
+    return sum + (Number(row.chargeTotal) || 0);
+  }, 0));
+  const paidTotal = normalizeMoney(calc.rows.reduce(function (sum, row) {
+    return sum + (row.payments || []).reduce(function (inner, payment) {
+      return inner + courtPaymentSum(payment);
+    }, 0);
+  }, 0));
   const rowsHtml = calc.rows.map(function (row) {
-    const charges = services.map(function (service) {
-      return `<td class="num">${row.charges[service.id] ? courtMoney(row.charges[service.id]) : ""}</td>`;
-    }).join("");
     const noteParts = [];
     if (row.targetNote) noteParts.push(`Цільовий внесок: ${row.targetNote}`);
     row.notes.forEach(function (note) { if (noteParts.indexOf(note) < 0) noteParts.push(note); });
     const noteText = noteParts.join(" ");
+    const bottomBorder = noteText ? ' style="border-bottom:1px solid #cfd6df"' : "";
+    const chargesWithBorder = services.map(function (service) {
+      return `<td class="num"${bottomBorder}>${row.charges[service.id] ? courtMoney(row.charges[service.id]) : ""}</td>`;
+    }).join("");
     return `<tr>
-      <td>${escapeHtml(row.label)}</td>
-      ${charges}
-      ${showChargeTotal ? `<td class="num">${row.chargeTotal ? courtMoney(row.chargeTotal) : ""}</td>` : ""}
-      <td>${escapeHtml(courtPaymentText(row.payments))}</td>
-      <td class="num">${courtMoney(row.balance)}</td>
-    </tr>${noteText ? `<tr class="court-note-row"><td></td><td colspan="${tableColspan - 1}">${escapeHtml(noteText)}</td></tr>` : ""}`;
+      <td${noteText ? ' rowspan="2"' : ""}>${escapeHtml(row.label)}</td>
+      ${chargesWithBorder}
+      ${showChargeTotal ? `<td class="num"${bottomBorder}>${row.chargeTotal ? courtMoney(row.chargeTotal) : ""}</td>` : ""}
+      <td${bottomBorder}>${escapeHtml(courtPaymentText(row.payments))}</td>
+      <td class="num"${bottomBorder}>${courtMoney(row.balance)}</td>
+    </tr>${noteText ? `<tr class="court-note-row"><td colspan="${tableColspan - 1}" style="border-top:1px solid #cfd6df;border-bottom:1px solid #444;color:#333;font-size:8.5pt">${escapeHtml(noteText)}</td></tr>` : ""}`;
+  }).join("");
+  const totalsChargesHtml = services.map(function (service) {
+    return `<td class="num"><strong>${courtMoney(serviceTotals[service.id])}</strong></td>`;
   }).join("");
   const includedServices = services.map(function (service) {
     return `<li>${escapeHtml(service.id)}: ${escapeHtml(service.name)}</li>`;
   }).join("");
-  const annual3RowsHtml = annual3Rows.map(function (row) {
-    return `<tr>
-      <td>${escapeHtml(row.label)}</td>
-      <td class="num">${courtMoney(row.rest)}</td>
-      <td>${escapeHtml(row.startDate)}</td>
-      <td class="num">${row.days}</td>
-      <td class="num">${courtMoney(row.amount)}</td>
-    </tr>`;
-  }).join("");
-  const inflationRowsHtml = inflationRows.map(function (row) {
+  const penaltyRows = buildCourtPenaltyRows(lots, inflationRates, new Date(), !!options.annual3, !!options.inflation && !!inflationRates);
+  const penaltyRowsHtml = penaltyRows.map(function (row) {
     return `<tr>
       <td>${escapeHtml(row.label)}</td>
       <td class="num">${courtMoney(row.rest)}</td>
       <td>${escapeHtml(row.period)}</td>
-      <td class="num">${row.index.toFixed(6).replace(".", ",")}</td>
-      <td class="num">${row.missing || ""}</td>
-      <td class="num">${courtMoney(row.amount)}</td>
+      <td class="num">${row.days}</td>
+      <td class="num">${row.index == null ? "" : row.index.toFixed(6).replace(".", ",")}</td>
+      <td class="num">${options.inflation ? courtMoney(row.inflationAmount) : ""}</td>
+      <td class="num">${options.annual3 ? courtMoney(row.annual3Amount) : ""}</td>
     </tr>`;
   }).join("");
+  const penaltyRestTotal = normalizeMoney(penaltyRows.reduce(function (sum, row) {
+    return sum + (Number(row.rest) || 0);
+  }, 0));
   const template = await fetchCourtTemplate(homeCode, homeName, options);
   const templatePrefix = template && template.body
-    ? courtTemplateHtml(courtReplaceTemplateText(template.body, courtPlaceholderMap(accountId, accountMeta, calc, annual3, inflation, grandTotal, homeName, okpo, addressText, homeMeta, debtByService, options)))
+    ? courtTemplateHtml(courtReplaceTemplateText(template.body, courtPlaceholderMap(accountId, accountMeta, calc, annual3, inflation, grandTotal, totalWithCourtFee, homeName, okpo, addressText, homeMeta, debtByService, options, courtFeeInfo)), options)
     : "";
+  const accountSectionName = services.length < 5 ? "WordSectionClaim" : "WordSectionLandscape";
+  const showPenaltyTable = !!(options.annual3 || options.inflation);
+  const accountSectionBreakAfter = courtWordSectionBreakAfter();
   const html = `<!doctype html>
-<html>
+<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" lang="uk-UA">
 <head>
 <meta charset="utf-8">
+<meta http-equiv="Content-Language" content="uk-UA">
 <title>Копія особового рахунку № ${escapeHtml(accountNo)}</title>
+<xml>
+<w:WordDocument>
+<w:View>Print</w:View>
+<w:Zoom>100</w:Zoom>
+<w:DoNotOptimizeForBrowser/>
+</w:WordDocument>
+</xml>
 <style>
-@page{size:A4 landscape;margin:12mm}
-body{font-family:Arial, sans-serif;color:#111;font-size:10pt}
+@page WordSectionClaim{size:595.3pt 841.9pt;mso-page-orientation:portrait;margin:28.35pt 28.35pt 28.35pt 56.7pt}
+@page WordSectionLandscape{size:841.9pt 595.3pt;mso-page-orientation:landscape;margin:28.35pt 28.35pt 28.35pt 56.7pt}
+div.WordSectionClaim{page:WordSectionClaim}
+div.WordSectionLandscape{page:WordSectionLandscape}
+body{font-family:Arial, sans-serif;color:#111;font-size:10pt;line-height:100%;mso-line-height-rule:exactly;mso-ansi-language:UK;mso-fareast-language:UK}
+*{mso-ansi-language:UK;mso-fareast-language:UK}
 h1{font-size:16pt;text-align:center;margin:0 0 4mm}
 h2{font-size:12pt;margin:5mm 0 2mm}
 .meta{display:grid;grid-template-columns:1fr 1fr;gap:2mm 8mm;margin-bottom:4mm}
@@ -1612,27 +2136,31 @@ h2{font-size:12pt;margin:5mm 0 2mm}
 table{border-collapse:collapse;width:100%;table-layout:fixed}
 th,td{border:1px solid #444;padding:3px 4px;vertical-align:top}
 th{background:#eef2f6;text-align:center}
+tfoot td{font-weight:bold;background:#f3f6fa}
 .num{text-align:right;white-space:nowrap}
-.court-note-row td{border-top:1px solid #cfd6df;border-bottom:1px solid #cfd6df;color:#333;font-size:8.5pt}
-.court-note-row td:first-child{border-right:1px solid #444}
-.summary{width:42%;margin-left:auto;margin-top:5mm}
+.court-note-row td{border-top:1px solid #cfd6df;border-bottom:1px solid #444;color:#333;font-size:8.5pt}
+.summary{width:70%;margin-top:3mm;border-collapse:collapse}
+.summary td{border:none;padding:2px 0}
 .summary td:first-child{font-weight:bold}
-.annual3-table{width:68%;margin-top:3mm;font-size:9pt}
-.inflation-table{width:86%;margin-top:3mm;font-size:9pt}
+.penalty-table{width:100%;margin-top:3mm;font-size:9pt}
 .note{font-size:9pt;color:#333}
-.claim{font-size:12pt;line-height:1.25}
-.claim h1{font-size:16pt;text-align:center;margin:6mm 0 2mm}
-.claim h2{font-size:13pt;text-align:center;margin:4mm 0 2mm}
-.claim h3{font-size:12pt;margin:4mm 0 2mm}
-.claim p{margin:0 0 2.2mm;text-align:justify}
-.claim ul,.claim ol{margin:0 0 2.2mm 8mm;padding-left:7mm}
-.page-break{page-break-after:always}
+.claim{font-size:12pt;line-height:1;mso-line-height-rule:exactly}
+.claim-header{width:100%;border-collapse:collapse;table-layout:fixed}
+.claim-header td{border:none;padding:0}
+.claim-header p{margin:0cm;margin-bottom:0cm;text-align:left;text-indent:0cm;line-height:100%;mso-line-height-rule:exactly}
+.claim h1{font-size:16pt;text-align:center;margin:0}
+.claim h2{font-size:13pt;text-align:center;margin:0}
+.claim h3{font-size:12pt;margin:0}
+.claim p{margin:0;text-align:justify;text-indent:1cm}
+.claim ul,.claim ol{margin:0 0 0 8mm;padding-left:7mm;text-align:justify}
+.claim li{margin:0;text-align:justify}
 .page-break-before{page-break-before:always}
 </style>
 </head>
 <body>
 ${templatePrefix}
-<section class="court-account-section page-break-before">
+<div class="${accountSectionName}" style="page:${accountSectionName}">
+<section class="court-account-section">
 <h1>Копія особового рахунку № ${escapeHtml(accountNo)}<br>та розрахунок заборгованості</h1>
 <div class="meta">
   <div><strong>Організація:</strong> ${escapeHtml(homeName)}</div>
@@ -1655,28 +2183,40 @@ ${calc.openingDebt ? `<p><strong>Заборгованість на почато�
     </tr>
   </thead>
   <tbody>${rowsHtml}</tbody>
+  <tfoot>
+    <tr>
+      <td>Разом</td>
+      ${totalsChargesHtml}
+      ${showChargeTotal ? `<td class="num">${courtMoney(chargeTotal)}</td>` : ""}
+      <td class="num">${courtMoney(paidTotal)}</td>
+      <td class="num">${courtMoney(calc.closingDebt)}</td>
+    </tr>
+  </tfoot>
 </table>
-${options.annual3 ? `<div class="page-break-before"></div><h2>Розрахунок 3% річних</h2>
-<p class="note">3% річних розраховано за непогашеними залишками нарахувань: сума боргу × 3% × кількість днів прострочення / 365. Строк прострочення рахується з дня, наступного за останнім днем місяця нарахування.</p>
-<table class="annual3-table">
-  <thead><tr><th>Місяць</th><th>Непогашений залишок</th><th>Початок прострочення</th><th>Днів</th><th>3% річних</th></tr></thead>
-  <tbody>${annual3RowsHtml || '<tr><td colspan="5">Немає непогашених залишків для нарахування 3% річних.</td></tr>'}</tbody>
+</section>
+</div>
+${accountSectionBreakAfter}
+<div class="WordSectionClaim" style="page:WordSectionClaim">
+${showPenaltyTable ? `<h2>Розрахунок інфляційних втрат та 3% річних</h2>
+<p class="note">Розрахунок виконано за непогашеними залишками нарахувань за період прострочення. Інфляційні втрати розраховано із застосуванням щомісячних індексів інфляції; 3% річних розраховано за формулою: сума боргу × 3% × кількість днів прострочення / 365.</p>
+<table class="penalty-table">
+  <thead><tr><th>Місяць</th><th>Непогашений залишок</th><th>Період прострочення</th><th>Днів</th><th>Коефіцієнт</th><th>Інфляційні втрати</th><th>3% річних</th></tr></thead>
+  <tbody>${penaltyRowsHtml || '<tr><td colspan="7">Немає непогашених залишків для нарахування інфляційних втрат та 3% річних.</td></tr>'}</tbody>
+  <tfoot><tr><td>Разом</td><td class="num">${courtMoney(penaltyRestTotal)}</td><td></td><td></td><td></td><td class="num">${options.inflation ? courtMoney(inflation.total) : ""}</td><td class="num">${options.annual3 ? courtMoney(annual3) : ""}</td></tr></tfoot>
 </table>` : ""}
-${options.inflation ? `<div class="page-break-before"></div><h2>Розрахунок інфляційних втрат</h2>
-<p class="note">Інфляційні втрати розраховано за непогашеними залишками нарахувань із застосуванням щомісячних індексів інфляції за період прострочення.</p>
-<table class="inflation-table">
-  <thead><tr><th>Місяць</th><th>Непогашений залишок</th><th>Період індексації</th><th>Коефіцієнт</th><th>Міс. без індексу</th><th>Інфляційні втрати</th></tr></thead>
-  <tbody>${inflationRowsHtml || '<tr><td colspan="6">Немає даних для нарахування інфляційних втрат.</td></tr>'}</tbody>
-</table>` : ""}
+<h2>Підсумок до стягнення</h2>
 <table class="summary">
   <tr><td>Основна заборгованість</td><td class="num">${courtMoney(calc.closingDebt)}</td></tr>
   <tr><td>3% річних</td><td class="num">${options.annual3 ? courtMoney(annual3) : "не нараховувались"}</td></tr>
   <tr><td>Індекс інфляції</td><td class="num">${options.inflation ? courtMoney(inflation.total) : "не нараховувався"}</td></tr>
-  <tr><td>Разом до стягнення</td><td class="num"><strong>${courtMoney(grandTotal)}</strong></td></tr>
+  <tr><td>Разом за основними вимогами</td><td class="num"><strong>${courtMoney(grandTotal)}</strong></td></tr>
+  <tr><td>Судовий збір</td><td class="num">${courtFeeInfo.courtFee ? courtMoney(courtFeeInfo.courtFee) : "не розраховано"}</td></tr>
+  <tr><td>Разом із судовим збором</td><td class="num"><strong>${courtMoney(totalWithCourtFee)}</strong></td></tr>
 </table>
 ${inflationNote ? `<p class="note">${escapeHtml(inflationNote)}</p>` : ""}
+${courtFeeNote ? `<p class="note">${escapeHtml(courtFeeNote)}</p>` : ""}
 <p class="note">Розрахунок сформовано за даними особового рахунку, оплатами та нарахуваннями, що містяться в обліковій системі.</p>
-</section>
+</div>
 </body>
 </html>`;
   exportCourtDownload(html, `Копія особового рахунку ${accountNo}.doc`);
