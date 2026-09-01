@@ -11,6 +11,7 @@
     homeCode: "",
     meters: [],
     channels: [],
+    relations: [],
     readings: [],
     values: [],
     selectedMeterId: "",
@@ -23,6 +24,11 @@
     chartEnabledChannels: new Set(),
     chartMeterDefaultsHome: "",
     loading: false,
+    historyLoading: false,
+    historyLoaded: false,
+    historyChunksVisible: 1,
+    loadGeneration: 0,
+    inputDirty: false,
     inputCarryover: null,
     warnTimers: new WeakMap()
   };
@@ -658,12 +664,24 @@
     return valueForReading(reading && reading.id, channel.id);
   }
 
-  function historyDatesForMeters(meters) {
+  function allHistoryDatesForMeters(meters) {
     return Array.from(new Set(state.readings
       .filter(row => meters.some(meter => String(meter.id) === String(row.meter_id)))
       .map(row => row.reading_date)))
       .filter(date => date !== state.readingDate)
       .sort((a, b) => String(b).localeCompare(String(a)));
+  }
+
+  function historyChunkMonths(meters) {
+    return meters.length < 10 ? 60 : 1;
+  }
+
+  function visibleHistoryDates(meters, allDates) {
+    return allDates.slice(0, historyChunkMonths(meters) * state.historyChunksVisible);
+  }
+
+  function moreHistoryLabel(meters) {
+    return meters.length < 10 ? "Показати ще 5 років" : "Показати ще 1 місяць";
   }
 
   function renderWideReadingsTable(meters) {
@@ -673,7 +691,8 @@
     });
     const selected = selectedMeter();
     const selectedDate = selected ? actDateForMeter(selected) : "";
-    const dates = historyDatesForMeters(meters);
+    const allDates = allHistoryDatesForMeters(meters);
+    const dates = visibleHistoryDates(meters, allDates);
     const tableColspan = 1 + pairs.reduce((sum, pair) => sum + (pair.showDelta ? 2 : 1), 0);
     return `<table class="ma-table ma-history-table ma-history-table-wide">
       <thead>
@@ -681,7 +700,7 @@
         <tr>${pairs.map(pair => pair.showDelta ? `<th>Покази</th><th>Різниця</th>` : "").join("")}</tr>
       </thead>
       <tbody>
-        <tr class="ma-input-history-row">
+        <tr class="ma-input-history-row ${selectedDate === state.readingDate ? "is-selected" : ""}" data-ma-act-date="${escapeHtml(state.readingDate)}">
           <td><input type="date" data-ma-reading-date value="${escapeHtml(state.readingDate)}"></td>
           ${pairs.map((pair, index) => inputCell(pair.meter, pair.channel, index, "desktop", pair.showDelta)).join("")}
         </tr>
@@ -695,6 +714,7 @@
             }).join("")}
           </tr>`;
         }).join("") || `<tr><td colspan="${tableColspan}" class="ma-empty-cell">Історії ще немає.</td></tr>`}
+        ${allDates.length > dates.length ? `<tr class="ma-history-more-row"><td colspan="${tableColspan}"><button type="button" class="gr-btn" data-ma-more-history>${moreHistoryLabel(meters)}</button></td></tr>` : ""}
       </tbody>
     </table>`;
   }
@@ -703,7 +723,8 @@
     const selected = selectedMeter();
     const selectedDate = selected ? actDateForMeter(selected) : "";
     const maxChannels = Math.max(1, ...meters.map(meter => readingChannelsFor(meter).length));
-    const dates = historyDatesForMeters(meters);
+    const allDates = allHistoryDatesForMeters(meters);
+    const dates = visibleHistoryDates(meters, allDates);
     const columnShowDelta = Array.from({ length: maxChannels }, (_, index) => meters.some(meter => {
       const channel = readingChannelsFor(meter)[index];
       return channel && channelShowsDelta(channel);
@@ -737,7 +758,7 @@
         <tr>${Array.from({ length: maxChannels }, (_x, index) => columnShowDelta[index] ? `<th>Покази</th><th>Різниця</th>` : "").join("")}</tr>
       </thead>
       <tbody>
-        ${meters.map((meter, meterIndex) => `<tr class="ma-input-history-row">
+        ${meters.map((meter, meterIndex) => `<tr class="ma-input-history-row ${String(meter.id) === String(selected && selected.id) && selectedDate === state.readingDate ? "is-selected" : ""}" data-ma-act-date="${escapeHtml(state.readingDate)}">
           ${meterIndex === 0 ? `<td rowspan="${meters.length}"><input type="date" data-ma-reading-date value="${escapeHtml(state.readingDate)}"></td>` : ""}
           <td><strong>${escapeHtml(meterLabel(meter))}</strong></td>
           ${renderCells(meter, state.readingDate, meterIndex * maxChannels)}
@@ -750,6 +771,7 @@
             ${renderCells(meter, date, null)}
           </tr>`;
         })).join("") || `<tr><td colspan="${tableColspan}" class="ma-empty-cell">Історії ще немає.</td></tr>`}
+        ${allDates.length > dates.length ? `<tr class="ma-history-more-row"><td colspan="${tableColspan}"><button type="button" class="gr-btn" data-ma-more-history>${moreHistoryLabel(meters)}</button></td></tr>` : ""}
       </tbody>
     </table>`;
   }
@@ -1002,69 +1024,151 @@
     const rows = electricityActRows(actDate);
     const home = homeName(meter.home_code);
     const chair = homeChair(meter.home_code);
-    const total = rows.reduce((sum, row) => sum + (Number(row.report) || 0), 0);
+    const total = rows.reduce((sum, row) => sum + (electricitySignedReport(row) || 0), 0);
+    const objectNames = Array.from(new Set(rows.map(row => String(row.meter.object_name || "").trim()).filter(Boolean)));
+    const commonObjectName = objectNames.length === 1 ? objectNames[0] : "";
+    const renderPage = (pageRows, pageIndex, offset, options) => {
+      const opts = options || {};
+      return `<div class="gr-sheet gr-sheet-landscape ma-act-sheet ma-act-electric-sheet">
+        <div class="ma-act ma-act-electric">
+          ${pageIndex === 0 ? `
+          <table class="ma-act-plain-table ma-act-electric-top"><tbody><tr>
+            <td>Код ЄДРПОУ: <strong>${escapeHtml(homeOkpo(meter.home_code))}</strong></td>
+            <td>Особовий рахунок: <strong>${escapeHtml(meter.operator_account || "")}</strong></td>
+          </tr></tbody></table>
+          <h2>Звіт про покази засобів обліку електричної енергії</h2>
+          <h3>${escapeHtml(home)}</h3>
+          <div class="ma-act-subtitle">відповідно до договору про надання послуг з розподілу електричної енергії № ${escapeHtml(meter.contract_number || "")} від ${escapeHtml(dateLabel(meter.contract_date || ""))}</div>
+          <div class="ma-act-subtitle">за ${escapeHtml(monthYearLabel(actDate))}</div>
+          ` : `<div class="ma-act-continuation"><strong>Звіт про покази засобів обліку електричної енергії</strong><br>${escapeHtml(home)} · ${escapeHtml(monthYearLabel(actDate))} · продовження</div>`}
+          <table class="ma-act-table ma-electric-table">
+            <colgroup>
+              <col class="ma-el-col-no">
+              <col class="ma-el-col-date">
+              <col class="ma-el-col-name">
+              <col class="ma-el-col-eic">
+              <col class="ma-el-col-meter">
+              <col class="ma-el-col-type">
+              <col class="ma-el-col-value">
+              <col class="ma-el-col-value">
+              <col class="ma-el-col-factor">
+              <col class="ma-el-col-consumption">
+            </colgroup>
+            <thead>
+              <tr>
+                <th>№ з/п</th>
+                <th>Дата зняття показів</th>
+                <th>Найменування приєднання</th>
+                <th>EIC-код</th>
+                <th>№ електро-<br>лічильника</th>
+                <th>Тип вимірювань</th>
+                <th>Поточні</th>
+                <th>Поперед-<br>ні</th>
+                <th class="ma-el-factor-head">Розрахун-<br>ковий коефі-<br>цієнт</th>
+                <th>Обсяг спожи-вання, кВт*г</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${commonObjectName ? `<tr class="ma-electric-object-row"><td colspan="10">${escapeHtml(commonObjectName)}</td></tr>` : ""}
+              ${pageRows.map((row, rowIndex) => {
+                const model = String(row.meter.meter_type || "");
+                const modelClass = model.length > 16 ? "ma-electric-meter-model-long" : "";
+                const connectionLabel = commonObjectName
+                  ? (row.meter.connection_name || row.meter.name || "")
+                  : ([row.meter.connection_name, row.meter.object_name].filter(Boolean).join("; ") || row.meter.name || "");
+                return `<tr>
+                  <td>${offset + rowIndex + 1}</td>
+                  <td>${escapeHtml(dateLabel(actDate))}</td>
+                  <td>${escapeHtml(connectionLabel)}</td>
+                  <td>${escapeHtml(row.meter.eic_code || "")}</td>
+                  <td><span class="${modelClass}">${escapeHtml(model)}</span>${model && row.meter.meter_number ? "<br>" : ""}${escapeHtml(row.meter.meter_number || "")}</td>
+                  <td>${escapeHtml(row.meter.measurement_type || "")}</td>
+                  <td><strong>${escapeHtml(row.current)}</strong></td>
+                  <td>${escapeHtml(row.previous)}</td>
+                  <td>${escapeHtml(fmt(row.factor))}</td>
+                  <td><strong>${escapeHtml(row.report == null ? "" : fmt(electricitySignedReport(row)))}</strong></td>
+                </tr>`;
+              }).join("")}
+              ${opts.isLast ? `<tr class="ma-act-total-row"><td colspan="9">Разом:</td><td><strong>${escapeHtml(fmt(total))}</strong></td></tr>` : ""}
+            </tbody>
+          </table>
+          ${opts.isLast ? `
+          <table class="ma-act-plain-table ma-act-sign-table"><tbody><tr>
+            <td>Голова правління___________________/${escapeHtml(chair)}<br>${escapeHtml(dateLabel(actDate))}<span class="ma-ecp-anchor" aria-hidden="true"></span></td>
+            <td>Оператор системи розподілу прийняв:<br><br>________________ / ____________________</td>
+          </tr></tbody></table>
+          ` : ""}
+        </div>
+      </div>`;
+    };
+    const pages = paginateElectricityActRows(rows, renderPage);
     return `${actTools()}
     <div class="gr-sheet-wrap">
-    <div class="gr-sheet gr-sheet-landscape ma-act-sheet ma-act-electric-sheet">
-      <div class="ma-act ma-act-electric">
-        <table class="ma-act-plain-table ma-act-electric-top"><tbody><tr>
-          <td>Код ЄДРПОУ: <strong>${escapeHtml(homeOkpo(meter.home_code))}</strong></td>
-          <td>Особовий рахунок: <strong>${escapeHtml(meter.operator_account || "")}</strong></td>
-        </tr></tbody></table>
-        <h2>Звіт про покази засобів обліку електричної енергії</h2>
-        <h3>${escapeHtml(home)}</h3>
-        <div class="ma-act-subtitle">відповідно до договору про надання послуг з розподілу електричної енергії № ${escapeHtml(meter.contract_number || "")} від ${escapeHtml(dateLabel(meter.contract_date || ""))}</div>
-        <div class="ma-act-subtitle">за ${escapeHtml(monthYearLabel(actDate))}</div>
-        <table class="ma-act-table ma-electric-table">
-          <colgroup>
-            <col class="ma-el-col-no">
-            <col class="ma-el-col-date">
-            <col class="ma-el-col-name">
-            <col class="ma-el-col-eic">
-            <col class="ma-el-col-meter">
-            <col class="ma-el-col-type">
-            <col class="ma-el-col-value">
-            <col class="ma-el-col-value">
-            <col class="ma-el-col-factor">
-            <col class="ma-el-col-consumption">
-          </colgroup>
-          <thead>
-            <tr>
-              <th>№ з/п</th>
-              <th>Дата зняття показів</th>
-              <th>Найменування приєднання та об’єкту</th>
-              <th>EIC-код</th>
-              <th>№ електро-<br>лічильника</th>
-              <th>Тип вимірювань</th>
-              <th>Поточні</th>
-              <th>Поперед-<br>ні</th>
-              <th class="ma-el-factor-head">Розрахун-<br>ковий коефі-<br>цієнт</th>
-              <th>Обсяг<br>споживання,<br>кВт*г</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${rows.map((row, index) => `<tr>
-              <td>${index + 1}</td>
-              <td>${escapeHtml(dateLabel(actDate))}</td>
-              <td>${escapeHtml([row.meter.connection_name, row.meter.object_name].filter(Boolean).join("; ") || row.meter.name || "")}</td>
-              <td>${escapeHtml(row.meter.eic_code || "")}</td>
-              <td>${escapeHtml(row.meter.meter_type || "")}${row.meter.meter_type && row.meter.meter_number ? "<br>" : ""}${escapeHtml(row.meter.meter_number || "")}</td>
-              <td>${escapeHtml(row.meter.measurement_type || "")}</td>
-              <td><strong>${escapeHtml(row.current)}</strong></td>
-              <td>${escapeHtml(row.previous)}</td>
-              <td>${escapeHtml(fmt(row.factor))}</td>
-              <td><strong>${escapeHtml(row.report == null ? "" : fmt(row.report))}</strong></td>
-            </tr>`).join("")}
-            <tr class="ma-act-total-row"><td colspan="9">Разом:</td><td><strong>${escapeHtml(fmt(total))}</strong></td></tr>
-          </tbody>
-        </table>
-        <table class="ma-act-plain-table ma-act-sign-table"><tbody><tr>
-          <td>Голова правління___________________/${escapeHtml(chair)}<br>${escapeHtml(dateLabel(actDate))}<span class="ma-ecp-anchor" aria-hidden="true"></span></td>
-          <td>Оператор системи розподілу прийняв:<br><br>________________ / ____________________</td>
-        </tr></tbody></table>
-      </div>
+    <div class="ma-act-pages">
+    ${pages.map((page, pageIndex) => renderPage(page.rows, pageIndex, page.offset, {
+      totalPages: pages.length,
+      isLast: pageIndex === pages.length - 1
+    })).join("")}
     </div>
     ${actPageActionsHtml()}</div>`;
+  }
+
+  function electricityMeterSign(meter) {
+    const relation = state.relations.find(row => String(row.child_meter_id) === String(meter && meter.id));
+    const relationSign = Number(relation && relation.sign);
+    if (relationSign === -1 || relationSign === 1) return relationSign;
+    return String(meter && meter.role || "").toLowerCase() === "resident" ? -1 : 1;
+  }
+
+  function electricitySignedReport(row) {
+    if (!row || row.report == null) return null;
+    const value = Number(row.report) * electricityMeterSign(row.meter);
+    return Object.is(value, -0) ? 0 : value;
+  }
+
+  function measureActSheetFits(sheetHtml) {
+    let host = document.getElementById("gr-measure-host");
+    if (!host) {
+      host = document.createElement("div");
+      host.id = "gr-measure-host";
+      host.setAttribute("aria-hidden", "true");
+      document.body.appendChild(host);
+    }
+    host.innerHTML = sheetHtml;
+    const sheet = host.querySelector(".gr-sheet");
+    const fits = sheet ? sheet.scrollHeight <= sheet.clientHeight + 2 : true;
+    host.innerHTML = "";
+    return fits;
+  }
+
+  function paginateElectricityActRows(rows, renderPage) {
+    const source = rows || [];
+    if (!source.length) return [{ rows: [], offset: 0 }];
+    const pages = [];
+    let offset = 0;
+    let pageIndex = 0;
+    while (offset < source.length) {
+      let low = 1;
+      let high = source.length - offset;
+      let best = 0;
+      while (low <= high) {
+        const count = Math.floor((low + high) / 2);
+        const pageRows = source.slice(offset, offset + count);
+        const isLast = offset + count >= source.length;
+        if (measureActSheetFits(renderPage(pageRows, pageIndex, offset, { measuring: true, totalPages: 999, isLast }))) {
+          best = count;
+          low = count + 1;
+        } else {
+          high = count - 1;
+        }
+      }
+      if (best < 1) best = 1;
+      pages.push({ rows: source.slice(offset, offset + best), offset });
+      offset += best;
+      pageIndex += 1;
+      if (pageIndex > 300) break;
+    }
+    return pages;
   }
 
   function renderAct(meter) {
@@ -1480,6 +1584,7 @@
       <div class="ma-form-head">
         <h3>Показання та історія</h3>
         <div class="ma-reading-tools">
+          ${state.historyLoading ? `<span class="ma-history-loading" data-ma-history-status>Завантажую попередні місяці...</span>` : ""}
           <button type="button" class="gr-btn gr-btn-primary" data-ma-save-readings>Зберегти показання</button>
         </div>
       </div>
@@ -1524,8 +1629,14 @@
 
   async function loadData() {
     if (!state.homeCode) return;
+    const generation = ++state.loadGeneration;
     state.loading = true;
+    state.historyLoading = false;
+    state.historyLoaded = false;
+    state.historyChunksVisible = 1;
+    state.inputDirty = false;
     render();
+    let loadHistoryAfterRender = false;
     try {
       const { data: metersData, error: metersError } = await client
         .from("meters")
@@ -1537,6 +1648,7 @@
         console.error(metersError);
         show("Не вдалося завантажити прилади обліку", "err", 7000);
         state.meters = [];
+        state.relations = [];
         return;
       }
       state.meters = metersData || [];
@@ -1550,50 +1662,180 @@
         selectMeter(hasElectricity ? ELECTRICITY_GROUP_ID : (firstHeat ? firstHeat.id : (state.meters[0] ? state.meters[0].id : "")));
       }
       applyDefaultReadingDate();
-      await loadChildren();
+      await loadChildren({ recentOnly: true });
+      if (generation !== state.loadGeneration) return;
+      state.historyLoading = true;
+      loadHistoryAfterRender = true;
       state.inputCarryover = null;
     } catch (err) {
       console.error(err);
       state.meters = [];
       state.channels = [];
+      state.relations = [];
       state.readings = [];
       state.values = [];
       show("Не вдалося завантажити прилади обліку", "err", 7000);
     } finally {
       state.loading = false;
       render();
+      if (loadHistoryAfterRender) {
+        setTimeout(() => loadHistoryInBackground(state.meters.map(meter => meter.id).filter(Boolean), generation), 0);
+      }
     }
   }
 
-  async function loadChildren() {
+  async function loadChildren(options) {
+    const opts = options || {};
     const ids = state.meters.map(meter => meter.id).filter(Boolean);
     state.channels = [];
+    state.relations = [];
     state.readings = [];
     state.values = [];
     if (!ids.length) return;
-    const [{ data: channelsData, error: channelsError }, { data: readingsData, error: readingsError }] = await Promise.all([
-      client.from("meter_channels").select("*").in("meter_id", ids).order("sort_order", { ascending: true }),
-      client.from("meter_readings").select("*").in("meter_id", ids).order("reading_date", { ascending: false }).limit(1500)
-    ]);
-    if (channelsError || readingsError) {
-      console.error(channelsError || readingsError);
+    let channelsData;
+    let relationsData;
+    let readingsData;
+    try {
+      [channelsData, relationsData, readingsData] = await Promise.all([
+        loadMeterChannelsInBatches(ids),
+        loadMeterRelationsInBatches(ids),
+        opts.recentOnly ? loadRecentMeterReadingsInBatches(ids, opts.includeDate) : loadMeterReadingsInBatches(ids)
+      ]);
+    } catch (error) {
+      console.error(error);
       show("Не вдалося завантажити канали або показання", "err", 7000);
       return;
     }
-    state.channels = channelsData || [];
-    state.readings = readingsData || [];
-    const readingIds = state.readings.map(row => row.id).filter(Boolean);
-    if (!readingIds.length) return;
-    const { data: valuesData, error: valuesError } = await client
-      .from("meter_reading_values")
-      .select("*")
-      .in("reading_id", readingIds);
-    if (valuesError) {
-      console.error(valuesError);
-      show("Не вдалося завантажити значення показань", "err", 7000);
-      return;
+    state.channels = channelsData.sort((a, b) => (Number(a.sort_order) || 0) - (Number(b.sort_order) || 0));
+    state.relations = relationsData;
+    applyReadingsData(readingsData);
+  }
+
+  function applyReadingsData(readingsData) {
+    state.values = [];
+    state.readings = readingsData.map(row => {
+      const reading = Object.assign({}, row);
+      const values = Array.isArray(reading.meter_reading_values) ? reading.meter_reading_values : [];
+      state.values.push(...values);
+      delete reading.meter_reading_values;
+      return reading;
+    }).sort((a, b) => String(b.reading_date || "").localeCompare(String(a.reading_date || "")));
+  }
+
+  async function loadHistoryInBackground(meterIds, generation) {
+    try {
+      const readingsData = await loadMeterReadingsInBatches(meterIds);
+      if (generation !== state.loadGeneration) return;
+      applyReadingsData(readingsData);
+      state.historyLoaded = true;
+    } catch (error) {
+      if (generation !== state.loadGeneration) return;
+      console.error(error);
+      show("Не вдалося завантажити повну історію показань", "err", 7000);
+    } finally {
+      if (generation !== state.loadGeneration) return;
+      state.historyLoading = false;
+      const activeInput = document.activeElement && document.activeElement.closest && document.activeElement.closest("[data-ma-reading-row]");
+      if (!state.inputDirty && !activeInput) {
+        render();
+      } else {
+        document.querySelectorAll("[data-ma-history-status]").forEach(node => {
+          node.textContent = "Історію завантажено";
+          node.classList.add("is-loaded");
+        });
+        if (!state.inputDirty && activeInput) {
+          activeInput.addEventListener("blur", () => {
+            if (!state.inputDirty && generation === state.loadGeneration) render();
+          }, { once: true });
+        }
+      }
     }
-    state.values = valuesData || [];
+  }
+
+  async function loadMeterChannelsInBatches(meterIds) {
+    const batches = splitIntoBatches(meterIds, 50);
+    const results = await Promise.all(batches.map(async batch => {
+      const { data, error } = await client
+        .from("meter_channels")
+        .select("*")
+        .in("meter_id", batch)
+        .order("sort_order", { ascending: true });
+      if (error) throw error;
+      return data || [];
+    }));
+    return results.flat();
+  }
+
+  async function loadMeterReadingsInBatches(meterIds) {
+    const pageSize = 1000;
+    const batches = splitIntoBatches(meterIds, 20);
+    const results = await Promise.all(batches.map(async batch => {
+      const rows = [];
+      for (let from = 0; ; from += pageSize) {
+        const { data, error } = await client
+          .from("meter_readings")
+          .select("*,meter_reading_values(*)")
+          .in("meter_id", batch)
+          .order("reading_date", { ascending: false })
+          .range(from, from + pageSize - 1);
+        if (error) throw error;
+        const page = data || [];
+        rows.push(...page);
+        if (page.length < pageSize) break;
+      }
+      return rows;
+    }));
+    return results.flat();
+  }
+
+  async function loadRecentMeterReadingsInBatches(meterIds, includeDate) {
+    const batches = splitIntoBatches(meterIds, 50);
+    const latestRows = await Promise.all(batches.map(async batch => {
+      const { data, error } = await client
+        .from("meter_readings")
+        .select("reading_date")
+        .in("meter_id", batch)
+        .order("reading_date", { ascending: false })
+        .limit(1);
+      if (error) throw error;
+      return data && data[0] ? data[0].reading_date : "";
+    }));
+    const latestDate = latestRows.filter(Boolean).sort((a, b) => String(b).localeCompare(String(a)))[0] || "";
+    if (!latestDate) return [];
+    const dates = Array.from(new Set([latestDate, includeDate].filter(Boolean)));
+    const results = await Promise.all(batches.map(async batch => {
+      const { data, error } = await client
+        .from("meter_readings")
+        .select("*,meter_reading_values(*)")
+        .in("meter_id", batch)
+        .in("reading_date", dates)
+        .order("reading_date", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    }));
+    return results.flat();
+  }
+
+  async function loadMeterRelationsInBatches(meterIds) {
+    const batches = splitIntoBatches(meterIds, 50);
+    const results = await Promise.all(batches.map(async batch => {
+      const { data, error } = await client
+        .from("meter_relations")
+        .select("child_meter_id,sign,is_active")
+        .in("child_meter_id", batch)
+        .eq("is_active", true);
+      if (error) throw error;
+      return data || [];
+    }));
+    return results.flat();
+  }
+
+  function splitIntoBatches(values, size) {
+    const result = [];
+    for (let index = 0; index < values.length; index += size) {
+      result.push(values.slice(index, index + size));
+    }
+    return result;
   }
 
   async function upsertReading(meterId) {
@@ -1668,21 +1910,31 @@
       }
       show("Показання збережено", "ok");
       state.actReadingDate = state.readingDate;
-      await loadChildren();
+      const generation = ++state.loadGeneration;
+      await loadChildren({ recentOnly: true, includeDate: state.readingDate });
+      state.inputDirty = false;
+      state.inputCarryover = null;
+      state.historyLoading = true;
+      state.historyLoaded = false;
       render();
+      setTimeout(() => loadHistoryInBackground(state.meters.map(meter => meter.id).filter(Boolean), generation), 0);
     } catch (err) {
       console.error(err);
       show("Не вдалося зберегти показання", "err", 7000);
     }
   }
 
-  function actSheet() {
-    return document.querySelector(".ma-act-sheet");
+  function actSheets() {
+    const containers = Array.from(document.querySelectorAll(".ma-mobile-act, .ma-desktop-act"))
+      .filter(container => container.querySelector(".ma-act-sheet"));
+    const visible = containers.find(container => container.offsetParent !== null);
+    const scope = visible || containers.find(container => container.classList.contains("ma-desktop-act")) || containers[0];
+    return scope ? Array.from(scope.querySelectorAll(".ma-act-sheet")) : [];
   }
 
   function printAct() {
-    const sheet = actSheet();
-    if (!sheet) return;
+    const sheets = actSheets();
+    if (!sheets.length) return;
     const frame = document.createElement("iframe");
     frame.style.position = "fixed";
     frame.style.right = "0";
@@ -1697,8 +1949,9 @@
     doc.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><style>
       @page{size:A4 landscape;margin:0}
       *{box-sizing:border-box}
-      html,body{margin:0;padding:0;width:297mm;height:210mm;overflow:hidden;background:#fff;color:#111;font-family:Arial,sans-serif}
-      .ma-act-print-page{width:297mm;height:210mm;padding:28px 32px;overflow:hidden}
+      html,body{margin:0;padding:0;width:297mm;overflow:visible;background:#fff;color:#111;font-family:Arial,sans-serif}
+      .ma-act-print-page{width:297mm;height:210mm;padding:28px 32px;overflow:hidden;page-break-after:always;break-after:page}
+      .ma-act-print-page:last-child{page-break-after:auto;break-after:auto}
       .ma-act{width:100%;font-size:14px;color:#111}
       h2,h3{text-align:center;margin:0}
       h2{font-size:22px;line-height:1.25}
@@ -1719,7 +1972,7 @@
       .ma-heat-table .ma-heat-col-date{width:88px}
       .ma-heat-table .ma-heat-col-small{width:76px}
       .ma-heat-table .ma-heat-col-narrow{width:64px}
-      .ma-electric-table th:nth-child(3),.ma-electric-table td:nth-child(3){text-align:left}
+      .ma-electric-table th:nth-child(3),.ma-electric-table td:nth-child(3){text-align:left;overflow-wrap:anywhere;word-break:break-word}
       .ma-electric-table .ma-el-col-no{width:28px}
       .ma-electric-table .ma-el-col-date{width:82px}
       .ma-electric-table .ma-el-col-name{width:210px}
@@ -1731,10 +1984,13 @@
       .ma-electric-table .ma-el-col-consumption{width:94px}
       .ma-electric-table th{font-size:13px;line-height:1.08;overflow-wrap:anywhere}
       .ma-electric-table .ma-el-factor-head{font-size:11px;line-height:1.02}
+      .ma-electric-object-row td{font-weight:700;text-align:left!important;background:#f6f7f9}
+      .ma-electric-meter-model-long{font-size:8pt;line-height:1.05}
+      .ma-act-continuation{text-align:center;margin-bottom:8px;font-size:14px}
       .ma-act-total-row th,.ma-act-total-row td{font-weight:700}
       .ma-act-total{margin-top:8px;font-size:18px;font-weight:700}
       .ma-ecp-marker{display:inline-block;color:#fff;background:#fff;font-size:1px;line-height:1}
-    </style></head><body><div class="ma-act-print-page">${sheet.innerHTML}</div></body></html>`);
+    </style></head><body>${sheets.map(sheet => `<div class="ma-act-print-page">${sheet.innerHTML}</div>`).join("")}</body></html>`);
     doc.close();
     setTimeout(() => {
       let cleanupTimer = null;
@@ -1751,10 +2007,10 @@
 
   async function pdfAct() {
     if (!window.GrCommon || !GrCommon.downloadPdfFromSheets) return show("PDF недоступний", "warn");
-    const sheet = actSheet();
-    if (!sheet) return;
+    const sheets = actSheets();
+    if (!sheets.length) return;
     const meter = selectedMeter();
-    await GrCommon.downloadPdfFromSheets([sheet], "meter-act.pdf", null, {
+    await GrCommon.downloadPdfFromSheets(sheets, "meter-act.pdf", null, {
       textMarkers: (pdfSheet, _index, pageSize) => {
         const anchor = pdfSheet.querySelector(".ma-ecp-anchor");
         const sheetRect = pdfSheet.getBoundingClientRect();
@@ -1772,8 +2028,15 @@
     });
   }
 
-  function wordActHtml(sheet) {
+  function wordActHtml(sheet, includeMarker) {
     const clone = sheet.cloneNode(true);
+    const thead = clone.querySelector(".ma-electric-table thead");
+    if (thead) {
+      thead.style.display = "table-header-group";
+      thead.querySelectorAll("tr").forEach(row => {
+        row.style.cssText = `${row.style.cssText};mso-table-header-repeat:yes;`;
+      });
+    }
     clone.querySelectorAll(".ma-act-plain-table").forEach(table => {
       table.setAttribute("border", "0");
       table.setAttribute("cellspacing", "0");
@@ -1787,30 +2050,72 @@
         cell.style.textAlign = "right";
       });
     });
-    const meter = selectedMeter();
-    const marker = document.createElement("span");
-    marker.className = "ma-ecp-marker";
-    marker.textContent = `ЕЦП ${homeOkpo(meter && meter.home_code)}`;
-    const signCell = clone.querySelector(".ma-act-sign-table td:first-child");
-    if (signCell) {
-      signCell.appendChild(document.createTextNode("\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0"));
-      signCell.appendChild(marker);
-    } else {
-      const signer = clone.querySelector(".ma-act-signatures div:first-child");
-      if (signer) {
-        signer.appendChild(document.createElement("br"));
-        signer.appendChild(marker);
+    if (includeMarker) {
+      const meter = selectedMeter();
+      const marker = document.createElement("span");
+      marker.className = "ma-ecp-marker";
+      marker.textContent = `ЕЦП ${homeOkpo(meter && meter.home_code)}`;
+      const signCell = clone.querySelector(".ma-act-sign-table td:first-child");
+      if (signCell) {
+        signCell.appendChild(document.createTextNode("\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0"));
+        signCell.appendChild(marker);
+      } else {
+        const signer = clone.querySelector(".ma-act-signatures div:first-child");
+        if (signer) {
+          signer.appendChild(document.createElement("br"));
+          signer.appendChild(marker);
+        }
       }
     }
     return clone.innerHTML;
   }
 
+  function combinedElectricityWordSheet(sheets) {
+    const combined = sheets[0].cloneNode(true);
+    const targetTable = combined.querySelector(".ma-electric-table");
+    const targetBody = targetTable && targetTable.tBodies[0];
+    if (!targetTable || !targetBody) return combined;
+    let totalRow = targetBody.querySelector(".ma-act-total-row");
+    if (totalRow) totalRow.remove();
+    sheets.slice(1).forEach(sheet => {
+      const sourceBody = sheet.querySelector(".ma-electric-table tbody");
+      if (!sourceBody) return;
+      Array.from(sourceBody.children).forEach(row => {
+        if (row.classList.contains("ma-electric-object-row")) return;
+        if (row.classList.contains("ma-act-total-row")) {
+          totalRow = row.cloneNode(true);
+          return;
+        }
+        targetBody.appendChild(row.cloneNode(true));
+      });
+    });
+    if (totalRow) targetBody.appendChild(totalRow);
+    if (!combined.querySelector(".ma-act-sign-table")) {
+      const lastSignatures = sheets[sheets.length - 1].querySelector(".ma-act-sign-table");
+      if (lastSignatures) targetTable.insertAdjacentElement("afterend", lastSignatures.cloneNode(true));
+    }
+    combined.querySelectorAll(".ma-act-continuation").forEach(node => node.remove());
+    return combined;
+  }
+
+  function electricityWordHeaderHtml(sheets) {
+    if (sheets.length < 2) return "";
+    const continuation = sheets[1].querySelector(".ma-act-continuation");
+    if (!continuation) return "";
+    return `<div class="ma-word-header" style="mso-element:header" id="h1">${continuation.innerHTML}</div>
+      <div class="ma-word-first-header" style="mso-element:header" id="fh1"><p>&nbsp;</p></div>`;
+  }
+
   function wordAct() {
-    const sheet = actSheet();
-    if (!sheet) return;
-    const bodyHtml = wordActHtml(sheet);
+    const sheets = actSheets();
+    if (!sheets.length) return;
+    const isElectricity = sheets[0].classList.contains("ma-act-electric-sheet");
+    const bodyHtml = isElectricity
+      ? wordActHtml(combinedElectricityWordSheet(sheets), true)
+      : sheets.map((sheet, index) => `<div class="ma-word-page">${wordActHtml(sheet, index === sheets.length - 1)}</div>`).join("");
+    const headerHtml = isElectricity ? electricityWordHeaderHtml(sheets) : "";
     const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>
-      @page WordSection1{size:841.9pt 595.3pt;mso-page-orientation:landscape;margin:28.35pt 28.35pt 28.35pt 28.35pt}
+      @page WordSection1{size:841.9pt 595.3pt;mso-page-orientation:landscape;margin:28.35pt 28.35pt 28.35pt 28.35pt;mso-header-margin:12pt;mso-title-page:yes;mso-header:h1;mso-first-header:fh1}
       div.WordSection1{page:WordSection1}
       body{font-family:Arial,sans-serif;font-size:12pt}
       table{border-collapse:collapse;width:100%}
@@ -1842,6 +2147,9 @@
       .ma-heat-table .ma-heat-col-narrow{width:44pt}
       .ma-nowrap{white-space:nowrap}
       .ma-electric-table{table-layout:fixed}
+      .ma-electric-table thead{display:table-header-group}
+      .ma-electric-table thead tr{mso-table-header-repeat:yes}
+      .ma-electric-table tr{page-break-inside:avoid}
       .ma-electric-table .ma-el-col-no{width:28px}
       .ma-electric-table .ma-el-col-date{width:82px}
       .ma-electric-table .ma-el-col-name{width:210px}
@@ -1853,11 +2161,18 @@
       .ma-electric-table .ma-el-col-consumption{width:94px}
       .ma-electric-table th{font-size:10pt;line-height:1.08}
       .ma-electric-table .ma-el-factor-head{font-size:8.5pt;line-height:1.02}
-      .ma-electric-table th:nth-child(3),.ma-electric-table td:nth-child(3){text-align:left}
+      .ma-electric-table th:nth-child(3),.ma-electric-table td:nth-child(3){text-align:left;overflow-wrap:anywhere;word-break:break-word}
+      .ma-electric-object-row td{font-weight:bold;text-align:left!important;background:#f6f7f9}
+      .ma-electric-meter-model-long{font-size:8pt;line-height:1.05}
+      .ma-act-continuation{text-align:center;margin-bottom:6pt;font-size:10pt}
+      .ma-word-header{mso-element:header;text-align:center;font-size:10pt;line-height:1.05}
+      .ma-word-first-header{mso-element:header;text-align:center;font-size:1pt;line-height:1}
+      .ma-word-page{page-break-after:always}
+      .ma-word-page:last-child{page-break-after:auto}
       .ma-act-total-row th,.ma-act-total-row td{font-weight:bold}
       .ma-act-total{margin-top:8px;font-size:14pt;font-weight:bold}
       .ma-ecp-marker{display:inline-block;color:#fff;background:#fff;font-size:1px;line-height:1}
-    </style></head><body><div class="WordSection1">${bodyHtml}</div></body></html>`;
+    </style></head><body>${headerHtml}<div class="WordSection1">${bodyHtml}</div></body></html>`;
     const blob = new Blob(["\ufeff", html], { type: "application/msword;charset=utf-8" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
@@ -2103,6 +2418,7 @@
     container.querySelectorAll("button[data-ma-select-meter]").forEach(btn => btn.addEventListener("click", () => {
       selectMeter(btn.dataset.maSelectMeter || "");
       applyDefaultReadingDate();
+      state.historyChunksVisible = 1;
       state.inputCarryover = null;
       state.actReadingDate = "";
       render();
@@ -2113,10 +2429,11 @@
       state.inputCarryover = captureInputCarryover(mode);
       state.readingDateManual = Boolean(value);
       state.readingDate = value || defaultReadingDate();
-      await loadChildren();
+      state.actReadingDate = "";
       render();
     }));
     container.querySelectorAll("[data-ma-reading-row] input").forEach(input => input.addEventListener("input", () => {
+      state.inputDirty = true;
       const row = input.closest("[data-ma-reading-row]");
       if (row) {
         recalcReadingRow(row);
@@ -2131,9 +2448,19 @@
       }
     }));
     container.querySelectorAll("[data-ma-save-readings]").forEach(btn => btn.addEventListener("click", saveReadings));
+    container.querySelectorAll("[data-ma-more-history]").forEach(btn => btn.addEventListener("click", () => {
+      state.historyChunksVisible += 1;
+      render();
+    }));
     container.querySelectorAll("[data-ma-act-date]").forEach(row => row.addEventListener("click", () => {
-      if (row.dataset.maSelectMeter) selectMeter(row.dataset.maSelectMeter);
-      state.actReadingDate = row.dataset.maActDate || "";
+      const nextMeterId = row.dataset.maSelectMeter || "";
+      const nextDate = row.dataset.maActDate || "";
+      const meterChanged = nextMeterId && String(nextMeterId) !== String(state.selectedMeterId);
+      const currentDate = actDateForMeter(selectedMeter());
+      const selectedDate = state.actReadingDate || currentDate;
+      if (!meterChanged && nextDate === selectedDate) return;
+      if (nextMeterId) selectMeter(nextMeterId);
+      state.actReadingDate = nextDate;
       render();
     }));
     container.querySelector("[data-ma-print-act]")?.addEventListener("click", printAct);

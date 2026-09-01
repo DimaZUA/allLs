@@ -1405,6 +1405,39 @@ li.folder {
   background: #fff;
 }
 
+.ma-history-loading {
+  color: #52657a;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.ma-history-loading::before {
+  content: "";
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  margin-right: 6px;
+  border: 2px solid #bfd0e4;
+  border-top-color: #24588d;
+  border-radius: 50%;
+  vertical-align: -2px;
+  animation: ma-history-spin 0.8s linear infinite;
+}
+
+.ma-history-loading.is-loaded::before {
+  display: none;
+}
+
+.ma-history-more-row td {
+  padding: 10px;
+  text-align: center;
+  background: #f8fafc;
+}
+
+@keyframes ma-history-spin {
+  to { transform: rotate(360deg); }
+}
+
 .ma-history-row {
   cursor: pointer;
 }
@@ -1460,6 +1493,12 @@ li.folder {
 
 .ma-desktop-act .gr-sheet-wrap .ma-act-sheet {
   margin: 0;
+}
+
+.ma-act-pages {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
 }
 
 .ma-act-heat-sheet,
@@ -1612,6 +1651,8 @@ li.folder {
 .ma-electric-table th:nth-child(3),
 .ma-electric-table td:nth-child(3) {
   text-align: left;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .ma-electric-table .ma-el-col-no { width: 28px; }
@@ -1633,6 +1674,23 @@ li.folder {
 .ma-electric-table .ma-el-factor-head {
   font-size: 11px;
   line-height: 1.02;
+}
+
+.ma-electric-object-row td {
+  background: #f6f7f9;
+  font-weight: 700;
+  text-align: left !important;
+}
+
+.ma-electric-meter-model-long {
+  font-size: 8pt;
+  line-height: 1.05;
+}
+
+.ma-act-continuation {
+  margin-bottom: 8px;
+  text-align: center;
+  font-size: 14px;
 }
 
 .ma-act-total-row th,
