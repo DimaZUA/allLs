@@ -117,6 +117,25 @@
     return new Date(year, month - 1, 1, 0, 0, 0, 0);
   }
 
+  function monthNameUa(month, monthCase, options) {
+    if (window.GrCommon && typeof GrCommon.monthNameUa === "function") return GrCommon.monthNameUa(month, monthCase, options);
+    const idx = Math.max(1, Math.min(12, Number(month) || 1)) - 1;
+    const names = {
+      gen: MONTHS_UA_GEN,
+      full: MONTHS_UA_FULL,
+      nom: MONTHS_UA_FULL,
+      short: MONTHS_UA_SHORT,
+      upper: MONTHS_UA_UPPER,
+      locUpper: [
+        "СІЧНІ", "ЛЮТОМУ", "БЕРЕЗНІ", "КВІТНІ", "ТРАВНІ", "ЧЕРВНІ",
+        "ЛИПНІ", "СЕРПНІ", "ВЕРЕСНІ", "ЖОВТНІ", "ЛИСТОПАДІ", "ГРУДНІ"
+      ]
+    };
+    let value = (names[monthCase] || names.full)[idx] || "";
+    if (options && options.upper) value = value.toUpperCase();
+    return value;
+  }
+
   function monthEnd(year, month) {
     return new Date(year, month, 0, 12);
   }
@@ -1594,10 +1613,10 @@
     if (!spendingRows.length) return "";
     const desc = describePeriod(fromYm, toYm);
     const title = desc.kind === "month"
-      ? `ВИТРАТИ БУДИНКУ ЗА ${MONTHS_UA_UPPER[fromYm.month - 1]} ${fromYm.year} р.`
+      ? `ВИТРАТИ БУДИНКУ В ${monthNameUa(fromYm.month, "locUpper")} ${fromYm.year} р.`
       : `ВИТРАТИ БУДИНКУ ЗА ${desc.header}`;
     const totalLabel = desc.kind === "month"
-      ? `РАЗОМ ВИТРАТИ ЗА ${MONTHS_UA_UPPER[fromYm.month - 1]} ${fromYm.year} р.:`
+      ? `РАЗОМ ВИТРАТИ В ${monthNameUa(fromYm.month, "locUpper")} ${fromYm.year} р.:`
       : `РАЗОМ ВИТРАТИ ЗА ${desc.header}:`;
     const cols = opts.columns === 2 ? 2 : 1;
     const renderLine = (r) =>

@@ -1355,11 +1355,11 @@ compute(replacements) {
       const newTariff = parseFloat(replacements["тариф"]);
       const oldTariff = parseFloat(replacements["тариф старый"]);
 
-      if (isNaN(newTariff) || isNaN(oldTariff)) {
+      if (isNaN(newTariff) || isNaN(oldTariff) || oldTariff === 0) {
         return "";
       }
       const diff = newTariff - oldTariff;
-      return (diff/oldTariff).toFixedWithComma()*100;
+      return ((diff / oldTariff) * 100).toFixedWithComma();
 }
 },
 
@@ -1370,7 +1370,7 @@ compute(replacements) {
       const newTariff = parseFloat(replacements["тариф"]);
       const oldTariff = parseFloat(replacements["тариф старый"]);
 
-      if (isNaN(newTariff) || isNaN(oldTariff)) {
+      if (isNaN(newTariff) || isNaN(oldTariff) || oldTariff === 0) {
         return "";
       }
 

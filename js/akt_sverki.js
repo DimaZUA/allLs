@@ -279,6 +279,14 @@ function pad(n) {
     return n.toString().padStart(2, "0");
 }
 
+function monthShortUa(month) {
+    if (window.GrCommon && typeof GrCommon.monthNameUa === "function") {
+        return GrCommon.monthNameUa(month, "short");
+    }
+    const names = ["січ", "лют", "бер", "квіт", "трав", "черв", "лип", "серп", "вер", "жовт", "лист", "груд"];
+    return names[Math.max(1, Math.min(12, Number(month) || 1)) - 1] || "";
+}
+
 function toDMY(d) {
     return pad(d.getDate()) + "." + pad(d.getMonth() + 1) + "." + d.getFullYear();
 }
@@ -830,7 +838,7 @@ function renderReconciliationTable(rows, totals, account, who, dateTo = null) {
 
         html += `
             <tr>
-                <td>${MONTH_NAMES_UA_SHORT[r.month - 1]} ${r.year}</td>
+                <td>${monthShortUa(r.month)} ${r.year}</td>
                 <td class="poster-cell">${renderPoster(r.accrued, r.accruedDetails, true)}</td>
                 <td class="poster-cell">${renderPoster(-r.paid, r.paidDetails, true)}</td>
                 <td>${r.saldo.toFixedWithComma(2)} ₴</td>

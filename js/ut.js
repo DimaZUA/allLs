@@ -330,7 +330,7 @@ function isCursorOverSidebar(event, sidebar) {
 Number.prototype.toFixedWithComma = function () {
   var decimals =
     arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : 2;
-  return new Intl.NumberFormat("ru-RU", {
+  return new Intl.NumberFormat("uk-UA", {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals
   }).format(this);

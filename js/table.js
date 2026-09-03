@@ -1570,9 +1570,11 @@ function generateLsCell(accountId) {
 
 
 
-// === форматирование чисел ===
-Number.prototype.toFixedWithComma = function() {
-  return this.toLocaleString('uk-UA',{minimumFractionDigits:2,maximumFractionDigits:2});
+// Форматирование чисел задаётся в ut.js; здесь оставлен только резервный вариант для автономного подключения.
+if (typeof Number.prototype.toFixedWithComma !== "function") {
+  Number.prototype.toFixedWithComma = function(decimals = 2) {
+    return this.toLocaleString("uk-UA", { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+  };
 }
 
 

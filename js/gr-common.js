@@ -6,14 +6,23 @@
     "січня", "лютого", "березня", "квітня", "травня", "червня",
     "липня", "серпня", "вересня", "жовтня", "листопада", "грудня"
   ];
+  const MONTHS_UA_UPPER = [
+    "СІЧЕНЬ", "ЛЮТИЙ", "БЕРЕЗЕНЬ", "КВІТЕНЬ", "ТРАВЕНЬ", "ЧЕРВЕНЬ",
+    "ЛИПЕНЬ", "СЕРПЕНЬ", "ВЕРЕСЕНЬ", "ЖОВТЕНЬ", "ЛИСТОПАД", "ГРУДЕНЬ"
+  ];
   const MONTHS_UA_FULL = [
     "січень", "лютий", "березень", "квітень", "травень", "червень",
     "липень", "серпень", "вересень", "жовтень", "листопад", "грудень"
+  ];
+  const MONTHS_UA_SHORT = [
+    "січ", "лют", "бер", "квіт", "трав", "черв",
+    "лип", "серп", "вер", "жовт", "лист", "груд"
   ];
   const MONTHS_UA_LOC = [
     "січні", "лютому", "березні", "квітні", "травні", "червні",
     "липні", "серпні", "вересні", "жовтні", "листопаді", "грудні"
   ];
+  const MONTHS_UA_LOC_UPPER = MONTHS_UA_LOC.map(name => name.toUpperCase());
 
   const imageDataUrlCache = new Map();
 
@@ -29,10 +38,59 @@
     return String(n).padStart(2, "0");
   }
 
+  function numberValue(value, fallback = 0) {
+    const n = typeof value === "number" ? value : Number(String(value ?? "").replace(/[\s\u00a0\u202f]/g, "").replace(",", "."));
+    return Number.isFinite(n) ? n : fallback;
+  }
+
+  function roundMoney(value) {
+    const n = numberValue(value, 0);
+    return Math.round((n + Number.EPSILON) * 100) / 100;
+  }
+
+  function formatMoney(value, decimals = 2, options) {
+    const opts = options || {};
+    const n = numberValue(value, NaN);
+    if (!Number.isFinite(n)) return opts.fallback == null ? String(value ?? "") : opts.fallback;
+    return n.toLocaleString(opts.locale || "uk-UA", { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+  }
+
+  function monthNameUa(month, monthCase = "full", options) {
+    const idx = Math.max(1, Math.min(12, Number(month) || 1)) - 1;
+    const names = {
+      gen: MONTHS_UA_GEN,
+      full: MONTHS_UA_FULL,
+      nom: MONTHS_UA_FULL,
+      loc: MONTHS_UA_LOC,
+      short: MONTHS_UA_SHORT,
+      upper: MONTHS_UA_UPPER,
+      locUpper: MONTHS_UA_LOC_UPPER
+    };
+    let value = (names[monthCase] || names.full)[idx] || "";
+    if (options && options.upper) value = value.toUpperCase();
+    if (options && options.capital) value = capitalizeFirst(value);
+    return value;
+  }
+
+  function formatDateUa(value, format = "dd.mm.yyyy") {
+    const d = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(d.getTime())) return "";
+    const day = d.getDate();
+    const month = d.getMonth() + 1;
+    const year = d.getFullYear();
+    return String(format)
+      .replace(/yyyy/g, String(year))
+      .replace(/yy/g, pad2(year % 100))
+      .replace(/mmmm/g, monthNameUa(month, "gen"))
+      .replace(/MMMM/g, monthNameUa(month, "full"))
+      .replace(/mm/g, pad2(month))
+      .replace(/m/g, String(month))
+      .replace(/dd/g, pad2(day))
+      .replace(/d/g, String(day));
+  }
+
   function moneyText(value) {
-    const n = typeof value === "number" ? value : Number(String(value ?? "").replace(/\s/g, "").replace(",", "."));
-    if (!Number.isFinite(n)) return String(value ?? "");
-    return n.toLocaleString("uk-UA", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return formatMoney(value, 2);
   }
 
   function capitalizeFirst(text) {
@@ -1424,6 +1482,12 @@
 
   window.GrCommon = {
     escapeHtml,
+    numberValue,
+    roundMoney,
+    formatMoney,
+    moneyText,
+    monthNameUa,
+    formatDateUa,
     matchesSearch,
     buildDatePlaceholders,
     replacePlaceholders,
