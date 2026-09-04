@@ -5693,6 +5693,14 @@ bindCopyButton("copyIbanBtn", function () {
     residentPhone.split(/[;,]/).forEach(function (part) {
       const raw = String(part || "").trim();
       if (raw.length < 5) return;
+      if (raw.indexOf("*") >= 0 && /\d/.test(raw)) {
+        const masked = raw.replace(/\s+/g, " ");
+        const maskedKey = masked.toLowerCase();
+        if (seenResidentPhones.has(maskedKey)) return;
+        seenResidentPhones.add(maskedKey);
+        residentFlatCards.push(residentFlatCardHtml("Телефон", masked));
+        return;
+      }
       const normalized = normalizePhone(raw);
       if (!normalized || seenResidentPhones.has(normalized)) return;
       seenResidentPhones.add(normalized);
@@ -6102,6 +6110,7 @@ function filterList(val) {
         const fio    = fioSrc.toLowerCase();
         const note   = (data.note || "").toLowerCase();
         const tel    = data.tel || "";
+        const emailSrc = data.email || data.mail || "";
 
         // ---- НОРМАЛИЗОВАТЬ ТЕЛЕФОНЫ ----
         const telNorm = normalizePhone(tel);
@@ -6135,10 +6144,16 @@ if (!match && phoneQueries.length > 0 && telNorm) {
     }
 }
 
-// 4. Примечание
-if (!match && rawQuery && lsMatchesWildcardSearch(data.note || "", rawQuery)) {
+// 4. Email
+if (!match && rawQuery && lsMatchesWildcardSearch(emailSrc, rawQuery)) {
     match = true;
     priority = 5;
+}
+
+// 5. Примечание
+if (!match && rawQuery && lsMatchesWildcardSearch(data.note || "", rawQuery)) {
+    match = true;
+    priority = 6;
 }
 
 if (!match) return;
@@ -6191,6 +6206,8 @@ if (!match) return;
         const fioHTML  = highlightTokens(data.fio || "", query);
         const noteHTML = highlightTokens(data.note || "", query);
         const telHTML  = data.tel ? highlightPhone(data.tel, query) : "";
+        const emailValue = data.email || data.mail || "";
+        const emailHTML = emailValue ? highlightTokens(emailValue, query) : "";
 
         const div = document.createElement("div");
         div.className = "ls-item";
@@ -6199,6 +6216,7 @@ if (!match) return;
             <div><strong>Кв. ${kvHTML}</strong></div>
             <div>${fioHTML}</div>
             ${data.tel ? `<div>Тел: ${telHTML}</div>` : ""}
+            ${emailValue ? `<div>Email: ${emailHTML}</div>` : ""}
             ${data.note ? `<div class="note">${noteHTML}</div>` : ""}
             <small>Під'їзд: ${data.pod || ""} &nbsp; Поверх: ${data.et || ""}</small>
         `;
@@ -8023,5 +8041,3 @@ document.addEventListener("click", function (e) {
     // (опционально) подсветка активной кнопки
     label.classList.toggle("active", table.classList.contains("active"));
 });
-
-

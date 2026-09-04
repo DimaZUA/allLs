@@ -332,6 +332,38 @@ begin
 end;
 $$;
 
+create or replace function public.resident_mask_ls_item(p_item jsonb)
+returns jsonb
+language plpgsql
+immutable
+as $$
+declare
+  v_result jsonb := coalesce(p_item, '{}'::jsonb);
+  v_pair record;
+begin
+  if jsonb_typeof(v_result) <> 'object' then
+    return v_result;
+  end if;
+
+  for v_pair in select key, value from jsonb_each(v_result) loop
+    if jsonb_typeof(v_pair.value) <> 'string' then
+      continue;
+    end if;
+
+    if lower(v_pair.key) in ('tel', 'phone', 'telefon', 'telephone', 'mob', 'mobile', 'email', 'mail', 'e-mail') then
+      v_result := jsonb_set(
+        v_result,
+        array[v_pair.key],
+        to_jsonb(public.resident_mask_resident_contacts(v_pair.value #>> '{}')),
+        true
+      );
+    end if;
+  end loop;
+
+  return v_result;
+end;
+$$;
+
 create or replace function public.resident_get_ls(p_token text)
 returns jsonb
 language plpgsql
@@ -633,7 +665,7 @@ begin
     'b', coalesce(j_b, '{}'::jsonb),
     'what', coalesce(j_what, '{}'::jsonb),
     'kto', coalesce(j_kto, '{}'::jsonb),
-    'ls', jsonb_build_object(v_account_id, j_ls_item),
+    'ls', jsonb_build_object(v_account_id, public.resident_mask_ls_item(j_ls_item)),
     'nach', jsonb_build_object(v_account_id, coalesce(j_nach_item, '{}'::jsonb)),
     'oplat', jsonb_build_object(v_account_id, coalesce(j_oplat_item, '{}'::jsonb)),
     'nachnote', jsonb_build_object(v_account_id, coalesce(j_nachnote_item, '{}'::jsonb)),
@@ -641,7 +673,7 @@ begin
     'allnach', coalesce(j_allnach, '{}'::jsonb),
     'tarifs', coalesce(j_tarifs, '{}'::jsonb),
     'spending', coalesce(j_spending, '{}'::jsonb),
-    'contacts', public.resident_mask_resident_contacts(coalesce(j_data ->> 'contacts', '')),
+    'contacts', coalesce(j_data ->> 'contacts', ''),
     'expenses', case when v_expenses_enabled then v_expenses_start_month else 0 end,
     'HistStart', v_hist_start_month,
     'home_total_sqr', coalesce(v_home_total_sqr, 0)
