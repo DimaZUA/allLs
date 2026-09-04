@@ -3126,6 +3126,18 @@ function parseContactValue(value) {
       hasTelegram = marker.indexOf("t") >= 0;
     }
   }
+  if (payload.indexOf("*") >= 0 && /\d/.test(payload)) {
+    return {
+      type: "phone",
+      value: {
+        raw: source,
+        phone: payload.toLowerCase(),
+        displayPhone: payload,
+        hasViber: false,
+        hasTelegram: false
+      }
+    };
+  }
   const normalized = normalizePhone(payload);
   if (!normalized) {
     const shortDigits = payload.replace(/\D/g, "");
@@ -8011,4 +8023,5 @@ document.addEventListener("click", function (e) {
     // (опционально) подсветка активной кнопки
     label.classList.toggle("active", table.classList.contains("active"));
 });
+
 

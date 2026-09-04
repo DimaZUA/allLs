@@ -249,6 +249,89 @@ begin
 end;
 $$;
 
+create or replace function public.resident_mask_contact_phone_token(p_token text)
+returns text
+language plpgsql
+immutable
+as $$
+declare
+  v_text text := coalesce(p_token, '');
+  v_core text;
+  v_result text := '';
+  v_digits integer;
+  v_digit_index integer := 0;
+  v_mask_from integer;
+  v_mask_to integer;
+  v_ch text;
+  i integer;
+begin
+  v_core := regexp_replace(v_text, '[[:space:]]*(vt|tv|v|t)[[:space:]]*$', '', 'i');
+  v_digits := char_length(regexp_replace(v_core, '[^0-9]', '', 'g'));
+
+  if v_digits < 7 then
+    return v_text;
+  end if;
+
+  v_mask_from := greatest(1, v_digits - 6);
+  v_mask_to := greatest(0, v_digits - 2);
+
+  for i in 1..char_length(v_core) loop
+    v_ch := substr(v_core, i, 1);
+    if v_ch ~ '^[0-9]$' then
+      v_digit_index := v_digit_index + 1;
+      if v_digit_index between v_mask_from and v_mask_to then
+        v_result := v_result || '*';
+      else
+        v_result := v_result || v_ch;
+      end if;
+    else
+      v_result := v_result || v_ch;
+    end if;
+  end loop;
+
+  return v_result;
+end;
+$$;
+
+create or replace function public.resident_mask_resident_contacts(p_text text)
+returns text
+language plpgsql
+immutable
+as $$
+declare
+  v_result text := coalesce(p_text, '');
+  v_token text;
+  v_masked text;
+  v_at integer;
+  v_local_len integer;
+  v_match text[];
+begin
+  for v_match in
+    select regexp_matches(v_result, '([A-Za-z0-9._%+\-]{1,}@[A-Za-z0-9.\-]+\.[A-Za-z]{2,})', 'g')
+  loop
+    v_token := v_match[1];
+    v_at := position('@' in v_token);
+    v_local_len := v_at - 1;
+    if v_at > 0 and v_local_len > 2 then
+      v_masked := substr(v_token, 1, 2) || repeat('*', v_local_len - 2) || substr(v_token, v_at);
+      v_result := replace(v_result, v_token, v_masked);
+    end if;
+  end loop;
+
+  for v_match in
+    select regexp_matches(v_result, '(\+?[0-9][0-9[:space:]().-]{5,}[0-9][[:space:]]*(vt|tv|v|t)?)', 'gi')
+  loop
+    v_token := v_match[1];
+    if char_length(regexp_replace(v_token, '[^0-9]', '', 'g')) >= 7 then
+      v_masked := public.resident_mask_contact_phone_token(v_token);
+      v_result := replace(v_result, v_token, v_masked);
+    end if;
+  end loop;
+
+  return v_result;
+end;
+$$;
+
 create or replace function public.resident_get_ls(p_token text)
 returns jsonb
 language plpgsql
@@ -558,7 +641,7 @@ begin
     'allnach', coalesce(j_allnach, '{}'::jsonb),
     'tarifs', coalesce(j_tarifs, '{}'::jsonb),
     'spending', coalesce(j_spending, '{}'::jsonb),
-    'contacts', coalesce(j_data ->> 'contacts', ''),
+    'contacts', public.resident_mask_resident_contacts(coalesce(j_data ->> 'contacts', '')),
     'expenses', case when v_expenses_enabled then v_expenses_start_month else 0 end,
     'HistStart', v_hist_start_month,
     'home_total_sqr', coalesce(v_home_total_sqr, 0)
