@@ -1513,7 +1513,6 @@ function styleAccountWorksheet(ws, info) {
       cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFEAF2F8" } };
       cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true, shrinkToFit: false };
     });
-    ws.getRow(headerRow).height = 30;
   }
 
   (info.rowMeta || []).forEach(function (meta) {
@@ -1543,6 +1542,7 @@ function styleAccountWorksheet(ws, info) {
   });
 
   autoFitAccountColumns(ws, info);
+  autoFitAccountRowHeights(ws, info);
 }
 
 function accountCellDisplayLength(cell) {
@@ -1588,6 +1588,38 @@ function autoFitAccountColumns(ws, info) {
     }
     var width = Math.min(maxWidth, Math.max(minWidth, maxLens[col] + 2));
     ws.getColumn(col).width = width;
+  }
+}
+
+function estimateAccountCellLines(cell, width) {
+  if (!cell || cell.value === null || cell.value === undefined) return 1;
+  var text = cell.value instanceof Date
+    ? "00.00.0000"
+    : String(cell.text || cell.value || "");
+  var hardLines = text.split(/\r?\n/);
+  var usableWidth = Math.max(4, Number(width) || 10);
+  return hardLines.reduce(function (sum, line) {
+    var len = String(line || "").trim().length;
+    return sum + Math.max(1, Math.ceil(len / usableWidth));
+  }, 0);
+}
+
+function autoFitAccountRowHeights(ws, info) {
+  for (var rowNumber = info.tableStartRow; rowNumber <= info.tableEndRow; rowNumber++) {
+    var row = ws.getRow(rowNumber);
+    var maxLines = 1;
+    row.eachCell({ includeEmpty: false }, function (cell, colNumber) {
+      if (colNumber > info.totalCols) return;
+      if (cell.isMerged && cell.master && cell.address !== cell.master.address) return;
+      var width = ws.getColumn(colNumber).width || 10;
+      maxLines = Math.max(maxLines, estimateAccountCellLines(cell, width));
+    });
+    var firstCellText = String(row.getCell(1).text || row.getCell(1).value || "");
+    if (firstCellText.indexOf("Нараховано за рік") !== -1) {
+      maxLines = Math.max(maxLines, 2);
+    }
+    var baseHeight = rowNumber >= info.headerStartRow && rowNumber <= info.headerEndRow ? 15 : 14;
+    row.height = Math.min(72, Math.max(baseHeight, maxLines * 15));
   }
 }
 
