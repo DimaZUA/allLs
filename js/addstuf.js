@@ -4467,6 +4467,19 @@ function buildResidentDesktopYearCards(yearPayload) {
   host.appendChild(table);
   return host;
 }
+function updateAccountPrintTitle(account) {
+  const title = document.getElementById("account-print-title");
+  if (!title) return;
+  const parts = [];
+  const address = String(adr || "").trim();
+  const kv = String(account && account.kv || "").trim();
+  const fio = String(account && account.fio || "").trim();
+  if (address) parts.push(kv ? `${address} / ${kv}` : address);
+  else if (kv) parts.push(kv);
+  if (fio) parts.push(fio);
+  title.textContent = parts.join(", ");
+}
+
 function addStuffCore(accountId, isResidentMode) {
   var accountData = nach[accountId] || {}; // Данные для указанного accountId
   var paymentData = oplat[accountId] || {}; // Данные оплат для указанного accountId
@@ -4511,6 +4524,7 @@ if (payUrl && !isResidentMode) {
   var curLS = ls[accountId] || {};
   ensureCourtAccountButton(accountId, curLS, accountData, paymentData, isResidentMode);
   document.getElementById("fio").textContent = curLS.fio || "";
+  updateAccountPrintTitle(curLS);
   const lsHeadEl = document.getElementById("ls-head");
   if (lsHeadEl) {
     lsHeadEl.textContent = curLS.ls || "—";
@@ -4710,10 +4724,22 @@ if (payUrl && !isResidentMode) {
     var headerRow = document.createElement("tr");
 const servicesCount = [...services].filter(n => n !== "7").length;
 const compactResidentMonthLabel = isResidentMode && servicesCount >= 3;
+const showChargeTotalColumn = !isResidentMode && servicesCount > 1;
+
+    var getChargeOpeningSummary = function (chargesTotal) {
+      var openingBalance = Number(openingBalanceForYear) || 0;
+      var openingDateLabel = "01.01." + year + " р.";
+      return {
+        label: openingBalance < 0
+          ? "Нараховано за рік - Переплата на " + openingDateLabel
+          : "Нараховано за рік + Борг на " + openingDateLabel,
+        total: (Number(chargesTotal) || 0) + openingBalance
+      };
+    };
 
 headerRow.innerHTML = `
   <td rowspan="2" align="center" class="clickable">Місяць</td>
-  <td colspan="${servicesCount}" align="center" class="clickable">
+  <td colspan="${servicesCount + (showChargeTotalColumn ? 1 : 0)}" align="center" class="clickable">
     Нараховано за місяць
   </td>
   <td rowspan="2" align="center" class="clickable">
@@ -4745,6 +4771,13 @@ headerRow.innerHTML = `
         servicesRow.appendChild(serviceHeader);
       }
     });
+    if (showChargeTotalColumn) {
+      var chargeTotalHeader = document.createElement("td");
+      chargeTotalHeader.setAttribute("align", "CENTER");
+      chargeTotalHeader.textContent = "Разом нараховано";
+      chargeTotalHeader.classList.add("clickable");
+      servicesRow.appendChild(chargeTotalHeader);
+    }
     thead.appendChild(servicesRow); // Добавляем строку с услугами в заголовок
 
 
@@ -4753,7 +4786,7 @@ if (cumulativeBalance !== 0) {
   var balanceCell = document.createElement("td");
 
   // colspan зависит от количества колонок: 1 (месяц) + n (услуги) + 1 (оплата) + 1 (баланс)
-  var colSpan = 3 + [...services].filter(n => n !== "7").length;
+  var colSpan = 3 + [...services].filter(n => n !== "7").length + (showChargeTotalColumn ? 1 : 0);
   balanceCell.colSpan = colSpan;
   balanceCell.className = "balance-info";
 
@@ -4774,9 +4807,6 @@ if (cumulativeBalance !== 0) {
   //balanceRow.appendChild(balanceValue);
   tbody.appendChild(balanceRow);
 }
-
-
-
 
     // Переменные для итоговых сумм по году
     var totalChargesByService = {};
@@ -4856,6 +4886,11 @@ if (cumulativeBalance !== 0) {
           });
         }
       });
+      if (showChargeTotalColumn) {
+        var monthlyChargesTotalCell = document.createElement("td");
+        monthlyChargesTotalCell.textContent = monthlyChargesTotal != 0 ? monthlyChargesTotal.toFixedWithComma() : "";
+        row.appendChild(monthlyChargesTotalCell);
+      }
       // Получаем данные оплат за текущий месяц
       var totalPayments = createPaymentCell(row, monthlyPayments, accountId, year, _month);
       if (!cur) {
@@ -4934,9 +4969,15 @@ if (cumulativeBalance !== 0) {
       }).length > 1
     ) {
       // Если несколько услуг
+      var totalChargeForAllServices = Object.values(
+        totalChargesByService
+      ).reduce(function (sum, value) {
+        return sum + value;
+      }, 0);
+      var totalChargeOpeningSummary = getChargeOpeningSummary(totalChargeForAllServices);
       var totalRow = document.createElement("tr");
       totalRow.classList.add("itog");
-totalRow.innerHTML =`<td rowspan="2" align="center" class="year-total-title">Разом за ${year} рік</td>`;
+totalRow.innerHTML =`<td align="center" class="year-total-title">Разом за ${year} рік</td>`;
 
       // Итог по каждой услуге
       services.forEach(function (serviceId) {
@@ -4946,16 +4987,19 @@ totalRow.innerHTML =`<td rowspan="2" align="center" class="year-total-title">Р�
         totalCell.textContent = chargeTotal.toFixedWithComma();
         if (serviceId != 7) totalRow.appendChild(totalCell);
       });
+      if (showChargeTotalColumn) {
+        var totalAllChargesCell = document.createElement("td");
+        totalAllChargesCell.textContent = totalChargeForAllServices.toFixedWithComma();
+        totalRow.appendChild(totalAllChargesCell);
+      }
 
       // Общая сумма оплаченных денег
       var totalPaymentsCell = document.createElement("td");
-      totalPaymentsCell.rowSpan = 2;
       totalPaymentsCell.textContent = totalPaymentsForYear.toFixedWithComma();
       totalRow.appendChild(totalPaymentsCell);
 
       // Общий долг/переплата на конец года
       var finalBalanceCell = document.createElement("td");
-      finalBalanceCell.rowSpan = 2;
       if (cumulativeBalance > 0) finalBalanceCell.classList.add("red");
       else finalBalanceCell.classList.add("green");
       finalBalanceCell.textContent = cumulativeBalance.toFixedWithComma();
@@ -4965,18 +5009,15 @@ totalRow.innerHTML =`<td rowspan="2" align="center" class="year-total-title">Р�
       // Ряд с итогами по всем услугам
       var chargesSummaryRow = document.createElement("tr");
       chargesSummaryRow.classList.add("itog");
-      var totalChargeForAllServices = Object.values(
-        totalChargesByService
-      ).reduce(function (sum, value) {
-        return sum + value;
-      }, 0);
 const servicesCount = Array.from(services).filter(n => n !== "7").length;
 
 
 chargesSummaryRow.innerHTML =
-  `<td colspan="${servicesCount}" align="center">
-     Усього нараховано: ${totalChargeForAllServices.toFixedWithComma()}
-   </td>`;
+  `<td colspan="${1 + servicesCount + (showChargeTotalColumn ? 1 : 0)}" align="center">
+     ${totalChargeOpeningSummary.label}: ${totalChargeOpeningSummary.total.toFixedWithComma()}
+   </td>
+   <td>${totalPaymentsForYear.toFixedWithComma()}</td>
+   <td class="${cumulativeBalance > 0 ? "red" : "green"}">${cumulativeBalance.toFixedWithComma()}</td>`;
 
       tbody.appendChild(chargesSummaryRow);
     } else {
@@ -5018,6 +5059,19 @@ _totalRow.innerHTML =`<td align="left" class="year-total-title">Разом за 
       // Общий долг/переплата на конец года
       _totalRow.innerHTML += `<td class="${cumulativeBalance > 0 ? "red" : "green"}">${cumulativeBalance.toFixedWithComma()}</td>`;
       tbody.appendChild(_totalRow);
+
+      if (!isResidentMode) {
+        var oneServiceSummaryRow = document.createElement("tr");
+        oneServiceSummaryRow.classList.add("itog");
+        var oneServiceChargeOpeningSummary = getChargeOpeningSummary(totalChargeForOneService);
+        oneServiceSummaryRow.innerHTML =
+          `<td colspan="2" align="center">
+             ${oneServiceChargeOpeningSummary.label}: ${oneServiceChargeOpeningSummary.total.toFixedWithComma()}
+           </td>
+           <td>${totalPaymentsForOneService.toFixedWithComma()}</td>
+           <td class="${cumulativeBalance > 0 ? "red" : "green"}">${cumulativeBalance.toFixedWithComma()}</td>`;
+        tbody.appendChild(oneServiceSummaryRow);
+      }
     }
     if (lastRow) {
       lastRowExtraRows.forEach(function (noteRow) {
@@ -5827,6 +5881,7 @@ if (!isResidentMode) {
 }
 function createPaymentCell(row, monthlyPayments, accountId, paymentYear, paymentMonth) {
   var paymentCell = document.createElement("td");
+  paymentCell.classList.add("payment-cell");
   var totalPayments = monthlyPayments.reduce(function (sum, payment) {
     return sum + payment.sum;
   }, 0);
@@ -5844,7 +5899,7 @@ if (monthlyPayments.length === 0) {
       var paymentMonths = index === lastPaymentIndex ? monthlyPaymentPeriod : "";
       return (
         "<tr>" +
-        '<td class="big">' +
+        '<td class="big" data-payment-date="' + escapeHtml(payment.date || "") + '">' +
         formattedDate +
         "</td>" +
         '<td class="big">' +
@@ -6565,6 +6620,7 @@ function initLS() {
 
 </div>
     <div id="header" class="header ${isResidentMode ? "resident-header" : ""}">
+      <div id="account-print-title" class="account-print-title"></div>
       <div class="header-row">
         <div class="header-left">
 

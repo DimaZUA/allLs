@@ -1216,6 +1216,7 @@ async function exportTableToExcel(action = "download") {
         // Удаляем .descr
         tableCopy.querySelectorAll(".descr").forEach(el => el.remove());
         tableCopy.querySelectorAll(".tarif-note-line").forEach(el => el.remove());
+        prepareAccountTableForExcel(tableCopy);
 
         // Обработка заголовков
         handleHeaders(tableCopy, ws);
@@ -1278,9 +1279,20 @@ async function exportTableToExcel(action = "download") {
     }
 }
 
+function prepareAccountTableForExcel(tableCopy) {
+  if (!tableCopy || tableCopy.id !== "main" || getParam("actionCode") !== "accounts") return;
+  var paymentHeader = Array.from(tableCopy.querySelectorAll("thead td, thead th")).find(function (cell) {
+    return String(cell.innerText || "").indexOf("Оплачено в місяці") !== -1;
+  });
+  if (paymentHeader) {
+    paymentHeader.setAttribute("colspan", "2");
+  }
+}
+
 function handleRows(tableCopy, ws) {
   var tbody = tableCopy.querySelector("tbody");
   if (tbody) {
+  var keepFirstColumnAsText = tableCopy.id === "main" && getParam("actionCode") === "accounts";
   var rows = Array.from(tbody.querySelectorAll("tr")).filter(row =>
     row.dataset.hiddenByFilter !== "1" &&
     !row.classList.contains("tarif-note-row") &&
@@ -1314,22 +1326,29 @@ function handleRows(tableCopy, ws) {
             // Добавляем первую строку вложенной таблицы в текущую строку
             var firstNestedRow = nestedRows[0];
             var firstNestedCells = firstNestedRow.querySelectorAll("td");
+            rowData.push((firstNestedCells[0].dataset.paymentDate || firstNestedCells[0].innerText || "").trim());
             rowData.push(firstNestedCells[1].innerText.trim());
 
             // Запоминаем индекс столбца, куда вставили значение
-            var paySubtableColumnIndex = rowData.length - 1;
+            var paySubtableDateColumnIndex = rowData.length - 2;
+            var paySubtableSumColumnIndex = rowData.length - 1;
 
             // Обрабатываем все строки кроме первой
             nestedRows.forEach(function (nestedRow, nestedRowIndex) {
               if (nestedRowIndex > 0) {
                 var nestedCells = nestedRow.querySelectorAll("td");
                 var nextRowData = Array(rowData.length).fill(null); // Заполняем пустыми ячейками
-                nextRowData[paySubtableColumnIndex] =
+                nextRowData[paySubtableDateColumnIndex] =
+                  (nestedCells[0].dataset.paymentDate || nestedCells[0].innerText || "").trim();
+                nextRowData[paySubtableSumColumnIndex] =
                   nestedCells[1].innerText.trim();
                 nextRowDataArray.push(nextRowData);
               }
             });
           }
+        } else if (cell.classList.contains("payment-cell")) {
+          rowData.push(null);
+          rowData.push(null);
         } else {
           if (cell.closest(".paysubtable") == null) {
             rowData.push(cell.innerText.trim());
@@ -1338,16 +1357,16 @@ function handleRows(tableCopy, ws) {
       });
       if (rowData.length) {
         // Обрабатываем основную строку
-        var excelRow = rowData.map(function (cell) {
-          return parseCellValue2(cell);
+        var excelRow = rowData.map(function (cell, index) {
+          return keepFirstColumnAsText && index === 0 ? (cell == null ? null : String(cell)) : parseCellValue2(cell);
         });
         ws.addRow(excelRow);
         rowIndex++;
 
         // Обрабатываем все строки из nextRowDataArray
         nextRowDataArray.forEach(function (nextRowData) {
-          var excelNextRowData = nextRowData.map(function (cell) {
-            return parseCellValue2(cell);
+          var excelNextRowData = nextRowData.map(function (cell, index) {
+            return keepFirstColumnAsText && index === 0 ? (cell == null ? null : String(cell)) : parseCellValue2(cell);
           });
           ws.addRow(excelNextRowData);
           rowIndex++;

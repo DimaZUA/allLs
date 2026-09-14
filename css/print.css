@@ -37,7 +37,31 @@
         visibility: visible;
         top:0
     }
-    #header{border:none}
+    #header {
+        position: static !important;
+        top: auto !important;
+        border: none;
+        box-shadow: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        background: transparent !important;
+    }
+
+    #header .header-row {
+        display: none !important;
+        visibility: hidden !important;
+    }
+
+    #header .account-print-title {
+        display: block !important;
+        visibility: visible !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        line-height: 1.15 !important;
+        font-size: 14px !important;
+        font-weight: 600 !important;
+        white-space: nowrap !important;
+    }
     /* ===============================
        ЧТО СКРЫВАЕМ ПРИНУДИТЕЛЬНО
        =============================== */
@@ -92,15 +116,15 @@
         display: inline !important;
     }
 
-    /* Chrome 109 can evaluate screen-width mobile rules while building print preview.
-       Keep the resident account history in the desktop layout for print. */
-    body.resident-mode .year-table > table#main,
-    body.resident-mode .year-table > .mobile-history-cards {
-        display: none !important;
+    /* Chrome 109 may apply the 640px mobile layout in print preview.
+       Force the regular account table to print instead of mobile cards. */
+    .year-table > table#main {
+        display: table !important;
     }
 
-    body.resident-mode .year-table > .resident-desktop-history {
-        display: block !important;
+    .year-table > .mobile-history-cards {
+        display: none !important;
+        visibility: hidden !important;
     }
 
         /* убрать все тени при печати */

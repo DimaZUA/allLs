@@ -384,6 +384,10 @@ table#main td {
   transition: padding 0.18s ease, box-shadow 0.18s ease;
 }
 
+.account-print-title {
+  display: none;
+}
+
 #datetime {
   font-size: 1rem;
 }
