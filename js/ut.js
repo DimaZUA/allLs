@@ -1089,7 +1089,7 @@ if (numberPattern.test(trimmedValue) && trimmedValue !== "0" && startsWithZeroVa
   // Если это не дата и не число, возвращаем исходное значение
   return value;
 }
-function handleHeaders(tableCopy, ws) {
+function handleHeaders(tableCopy, ws, options = {}) {
   var thead = tableCopy.querySelector("thead");
   if (thead) {
     var headerRows = Array.from(thead.querySelectorAll("tr"));
@@ -1098,7 +1098,7 @@ function handleHeaders(tableCopy, ws) {
     var startRowIndex = ws.rowCount + 1;
 
     // Добавляем пустую строку перед новым заголовком, если это не первая таблица
-    if (ws.rowCount > 0) {
+    if (ws.rowCount > 0 && !options.noLeadingBlank) {
       ws.addRow([]);
       startRowIndex++;
     }
@@ -1121,7 +1121,7 @@ function handleHeaders(tableCopy, ws) {
         var rowspan = parseInt(cell.getAttribute("rowspan")) || 1;
 
         // Записываем значение в Excel
-        var cellValue = cell.innerText.trim();
+        var cellValue = cell.dataset.excelText || cell.innerText.trim();
         var excelCell = ws.getCell(
           startRowIndex + rowIndex,
           currentColIndex + 1
@@ -1129,36 +1129,24 @@ function handleHeaders(tableCopy, ws) {
         excelCell.value = cellValue;
 
         // Отмечаем занятые ячейки
-        for (var i = 0; i < colspan; i++) {
-          if (!occupiedCells[rowIndex]) {
-            occupiedCells[rowIndex] = [];
+        for (var spanRow = 0; spanRow < rowspan; spanRow++) {
+          if (!occupiedCells[rowIndex + spanRow]) {
+            occupiedCells[rowIndex + spanRow] = [];
           }
-          occupiedCells[rowIndex][currentColIndex + i] = true;
-        }
-        if (rowspan > 1) {
-          for (var _i = 1; _i < rowspan; _i++) {
-            if (!occupiedCells[rowIndex + _i]) {
-              occupiedCells[rowIndex + _i] = [];
-            }
-            occupiedCells[rowIndex + _i][currentColIndex] = true;
+          for (var spanCol = 0; spanCol < colspan; spanCol++) {
+            occupiedCells[rowIndex + spanRow][currentColIndex + spanCol] = true;
           }
         }
 
-        // Объединяем ячейки, если есть colspan и rowspan
-        if (colspan > 1) {
-          ws.mergeCells(
-            startRowIndex + rowIndex,
-            currentColIndex + 1,
-            startRowIndex + rowIndex,
-            currentColIndex + colspan
-          );
-        }
-        if (rowspan > 1) {
+        // Объединяем ячейки одним прямоугольником, если есть colspan или rowspan.
+        // ExcelJS не позволяет отдельно наложить горизонтальное и вертикальное merge
+        // на одни и те же ячейки.
+        if (colspan > 1 || rowspan > 1) {
           ws.mergeCells(
             startRowIndex + rowIndex,
             currentColIndex + 1,
             startRowIndex + rowIndex + rowspan - 1,
-            currentColIndex + 1
+            currentColIndex + colspan
           );
         }
 
@@ -1166,7 +1154,12 @@ function handleHeaders(tableCopy, ws) {
         currentColIndex++;
       });
     });
+    return {
+      startRow: startRowIndex,
+      endRow: startRowIndex + headerRows.length - 1
+    };
   }
+  return null;
 }
 async function exportTableToExcel(action = "download") {
     const mainContainer = document.getElementById("maincontainer");
@@ -1217,6 +1210,11 @@ async function exportTableToExcel(action = "download") {
         tableCopy.querySelectorAll(".descr").forEach(el => el.remove());
         tableCopy.querySelectorAll(".tarif-note-line").forEach(el => el.remove());
         prepareAccountTableForExcel(tableCopy);
+
+        if (isAccountExcelTable(tableCopy)) {
+          exportAccountTableToWorksheet(tableCopy, ws);
+          continue;
+        }
 
         // Обработка заголовков
         handleHeaders(tableCopy, ws);
@@ -1286,6 +1284,310 @@ function prepareAccountTableForExcel(tableCopy) {
   });
   if (paymentHeader) {
     paymentHeader.setAttribute("colspan", "2");
+    paymentHeader.innerHTML = "Оплачено в місяці<br>(дата, сума)";
+    paymentHeader.dataset.excelText = "Оплачено в місяці\n(дата, сума)";
+  }
+  Array.from(tableCopy.querySelectorAll("thead td, thead th")).forEach(function (cell) {
+    var text = String(cell.innerText || "").trim();
+    if (text === "Борг(+) Переплата(-) на кінець місяця") {
+      cell.innerHTML = "Борг(+)<br>Переплата(-)<br>на кінець місяця";
+      cell.dataset.excelText = "Борг(+)\nПереплата(-)\nна кінець місяця";
+    }
+    if (text === "Компенсація") {
+      cell.innerHTML = "Компен-<br>сація";
+      cell.dataset.excelText = "Компен-\nсація";
+    }
+  });
+}
+
+function isAccountExcelTable(tableCopy) {
+  return !!tableCopy && tableCopy.id === "main" && getParam("actionCode") === "accounts";
+}
+
+function getExpandedColumnCount(row) {
+  if (!row) return 0;
+  return Array.from(row.querySelectorAll("td, th")).reduce(function (sum, cell) {
+    return sum + (parseInt(cell.getAttribute("colspan"), 10) || 1);
+  }, 0);
+}
+
+function getAccountExcelColumnCount(tableCopy) {
+  var headerRow = tableCopy.querySelector("thead tr");
+  if (headerRow) return getExpandedColumnCount(headerRow);
+  return Math.max.apply(null, Array.from(tableCopy.querySelectorAll("tr")).map(getExpandedColumnCount));
+}
+
+function addAccountExcelTitle(ws, totalCols) {
+  if (ws.rowCount > 0) return;
+  var text = String(document.getElementById("account-print-title")?.textContent || "").trim();
+  if (!text) {
+    var address = String(document.getElementById("adr")?.textContent || "").replace(/\s*\/\s*$/, "").trim();
+    var kv = String(document.getElementById("number")?.value || "").trim();
+    var fio = String(document.getElementById("fio")?.textContent || "").trim();
+    text = [address && kv ? address + " / " + kv : (address || kv), fio].filter(Boolean).join(", ");
+  }
+  if (!text) return;
+  var row = ws.addRow([text]);
+  ws.mergeCells(row.number, 1, row.number, totalCols);
+  row.height = 18;
+  var cell = ws.getCell(row.number, 1);
+  cell.font = { bold: true, size: 12 };
+  cell.alignment = { horizontal: "left", vertical: "middle" };
+}
+
+function splitAccountBalanceText(text) {
+  var raw = String(text || "").replace(/\u00A0/g, " ").trim();
+  var match = raw.match(/^(.+?:)\s*([+-]?\d[\d\s.,]*)$/);
+  if (!match) return { label: raw, value: null };
+  return {
+    label: match[1].trim(),
+    value: match[2].trim()
+  };
+}
+
+function directCells(row) {
+  return Array.from(row.children).filter(function (cell) {
+    return cell && /^(TD|TH)$/i.test(cell.tagName || "");
+  });
+}
+
+function exportAccountTableToWorksheet(tableCopy, ws) {
+  var totalCols = getAccountExcelColumnCount(tableCopy);
+  if (!Number.isFinite(totalCols) || totalCols <= 0) return;
+  addAccountExcelTitle(ws, totalCols);
+
+  if (ws.rowCount > 0) ws.addRow([]);
+  var tableStartRow = ws.rowCount + 1;
+  var headerRange = handleHeaders(tableCopy, ws, { noLeadingBlank: true });
+  var headerEndRow = headerRange ? headerRange.endRow : ws.rowCount;
+  var bodyStartRow = ws.rowCount + 1;
+  var tbody = tableCopy.querySelector("tbody");
+  var rowMeta = [];
+  if (tbody) {
+    var rows = Array.from(tbody.children).filter(function (row) {
+      return row && row.tagName === "TR" &&
+        row.closest("table") === tableCopy &&
+        row.dataset.hiddenByFilter !== "1" &&
+        !row.classList.contains("tarif-note-row") &&
+        !row.querySelector(".tarif-note-line");
+    });
+
+    rows.forEach(function (row) {
+      var cells = directCells(row);
+      if (!cells.length) return;
+
+      var balanceCell = cells.find(function (cell) { return cell.classList.contains("balance-info"); });
+      if (balanceCell) {
+        var balance = splitAccountBalanceText(balanceCell.innerText);
+        var values = Array(totalCols).fill(null);
+        values[0] = balance.label;
+        values[totalCols - 1] = parseCellValue2(balance.value);
+        var excelRow = ws.addRow(values);
+        ws.mergeCells(excelRow.number, 1, excelRow.number, totalCols - 1);
+        rowMeta.push({ rowNumber: excelRow.number, kind: "opening" });
+        return;
+      }
+
+      var rowData = [];
+      var merges = [];
+      var extraPaymentRows = [];
+      cells.forEach(function (cell) {
+        var colspan = parseInt(cell.getAttribute("colspan"), 10) || 1;
+        var paysubtable = cell.querySelector(".paysubtable");
+        if (paysubtable) {
+          var nestedRows = Array.from(paysubtable.querySelectorAll("tr"));
+          var firstNestedCells = nestedRows[0] ? directCells(nestedRows[0]) : [];
+          rowData.push(firstNestedCells[0] ? (firstNestedCells[0].dataset.paymentDate || firstNestedCells[0].innerText || "").trim() : null);
+          rowData.push(firstNestedCells[1] ? firstNestedCells[1].innerText.trim() : null);
+          var dateIndex = rowData.length - 2;
+          var sumIndex = rowData.length - 1;
+          nestedRows.slice(1).forEach(function (nestedRow) {
+            var nestedCells = directCells(nestedRow);
+            var nextRowData = Array(totalCols).fill(null);
+            nextRowData[dateIndex] = nestedCells[0] ? (nestedCells[0].dataset.paymentDate || nestedCells[0].innerText || "").trim() : null;
+            nextRowData[sumIndex] = nestedCells[1] ? nestedCells[1].innerText.trim() : null;
+            extraPaymentRows.push(nextRowData);
+          });
+        } else if (cell.classList.contains("payment-cell")) {
+          rowData.push(null);
+          rowData.push(null);
+        } else {
+          var startCol = rowData.length + 1;
+          rowData.push(cell.innerText.trim());
+          for (var i = 1; i < colspan; i++) rowData.push(null);
+          if (colspan > 1) merges.push({ startCol: startCol, endCol: startCol + colspan - 1 });
+        }
+      });
+
+      if (row.classList.contains("itog") && rowData.length === totalCols - 1) {
+        rowData.splice(rowData.length - 2, 0, null);
+      }
+      while (rowData.length < totalCols) rowData.push(null);
+      rowData = rowData.slice(0, totalCols);
+
+      var excelRow = ws.addRow(rowData.map(function (value, index) {
+        return index === 0 ? (value == null ? null : String(value)) : parseCellValue2(value);
+      }));
+      merges.forEach(function (merge) {
+        if (merge.endCol <= totalCols) ws.mergeCells(excelRow.number, merge.startCol, excelRow.number, merge.endCol);
+      });
+      rowMeta.push({
+        rowNumber: excelRow.number,
+        kind: row.classList.contains("itog") ? "total" : "regular"
+      });
+      extraPaymentRows.forEach(function (nextRowData) {
+        var extraRow = ws.addRow(nextRowData.map(function (value, index) {
+          return index === 0 ? (value == null ? null : String(value)) : parseCellValue2(value);
+        }));
+        rowMeta.push({ rowNumber: extraRow.number, kind: "payment-extra" });
+      });
+    });
+  }
+  styleAccountWorksheet(ws, {
+    tableStartRow: tableStartRow,
+    headerStartRow: headerRange ? headerRange.startRow : tableStartRow,
+    headerEndRow: headerEndRow,
+    bodyStartRow: bodyStartRow,
+    tableEndRow: ws.rowCount,
+    totalCols: totalCols,
+    rowMeta: rowMeta
+  });
+  ws.pageSetup = {
+    orientation: "portrait",
+    fitToPage: true,
+    fitToWidth: 1,
+    fitToHeight: 0,
+    paperSize: 9,
+    horizontalCentered: true
+  };
+  ws.pageMargins = {
+    left: 0.25,
+    right: 0.25,
+    top: 0.35,
+    bottom: 0.35,
+    header: 0.1,
+    footer: 0.1
+  };
+}
+
+function styleAccountWorksheet(ws, info) {
+  var totalCols = info.totalCols;
+  if (!totalCols) return;
+  var paymentDateCol = totalCols - 2;
+  var paymentSumCol = totalCols - 1;
+  var debtCol = totalCols;
+  ws.getColumn(1).width = 18;
+  for (var col = 2; col <= totalCols - 3; col++) ws.getColumn(col).width = 11;
+  ws.getColumn(paymentDateCol).width = 10;
+  ws.getColumn(paymentSumCol).width = 11;
+  ws.getColumn(debtCol).width = 12;
+
+  for (var rowNumber = info.tableStartRow; rowNumber <= info.tableEndRow; rowNumber++) {
+    var row = ws.getRow(rowNumber);
+    row.eachCell({ includeEmpty: true }, function (cell, colNumber) {
+      if (colNumber > totalCols) return;
+      cell.border = {
+        top: { style: "thin", color: { argb: "FFD9D9D9" } },
+        left: { style: "thin", color: { argb: "FFD9D9D9" } },
+        bottom: { style: "thin", color: { argb: "FFD9D9D9" } },
+        right: { style: "thin", color: { argb: "FFD9D9D9" } }
+      };
+      cell.alignment = {
+        vertical: "middle",
+        horizontal: colNumber === 1 ? "left" : "right",
+        wrapText: true
+      };
+      if (typeof cell.value === "number") {
+        cell.numFmt = '#,##0.00';
+      } else if (cell.value instanceof Date) {
+        cell.numFmt = "dd.mm.yyyy";
+        cell.alignment.horizontal = "center";
+      }
+    });
+  }
+
+  for (var headerRow = info.headerStartRow; headerRow <= info.headerEndRow; headerRow++) {
+    ws.getRow(headerRow).eachCell({ includeEmpty: true }, function (cell, colNumber) {
+      if (colNumber > totalCols) return;
+      cell.font = { bold: true };
+      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFEAF2F8" } };
+      cell.alignment = { horizontal: "center", vertical: "middle", wrapText: true, shrinkToFit: false };
+    });
+    ws.getRow(headerRow).height = 30;
+  }
+
+  (info.rowMeta || []).forEach(function (meta) {
+    var row = ws.getRow(meta.rowNumber);
+    if (meta.kind === "opening" || meta.kind === "total") {
+      row.eachCell({ includeEmpty: true }, function (cell, colNumber) {
+        if (colNumber > totalCols) return;
+        cell.font = { bold: true };
+        cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: meta.kind === "opening" ? "FFFFF3CD" : "FFEDEDED" } };
+      });
+    }
+    var paymentSumCell = row.getCell(paymentSumCol);
+    if (paymentSumCell.value !== null && paymentSumCell.value !== undefined && paymentSumCell.value !== "") {
+      paymentSumCell.font = Object.assign({}, paymentSumCell.font || {}, { bold: true });
+      paymentSumCell.numFmt = '#,##0.00';
+    }
+    var debtCell = row.getCell(debtCol);
+    if (
+      debtCell.value !== null &&
+      debtCell.value !== undefined &&
+      debtCell.value !== "" &&
+      typeof debtCell.value === "number" &&
+      debtCell.value > 0
+    ) {
+      debtCell.font = Object.assign({}, debtCell.font || {}, { bold: true, size: 11 });
+    }
+  });
+
+  autoFitAccountColumns(ws, info);
+}
+
+function accountCellDisplayLength(cell) {
+  if (!cell || cell.value === null || cell.value === undefined) return 0;
+  if (cell.value instanceof Date) return 10;
+  if (typeof cell.value === "number") {
+    var abs = Math.abs(cell.value);
+    var intLen = String(Math.floor(abs)).length;
+    var groupSpaces = Math.max(0, Math.floor((intLen - 1) / 3));
+    return intLen + groupSpaces + 3 + (cell.value < 0 ? 1 : 0);
+  }
+  return String(cell.text || cell.value || "").replace(/\s+/g, " ").trim().length;
+}
+
+function autoFitAccountColumns(ws, info) {
+  var totalCols = info.totalCols;
+  var maxLens = Array(totalCols + 1).fill(0);
+  var metaByRow = {};
+  (info.rowMeta || []).forEach(function (meta) {
+    metaByRow[meta.rowNumber] = meta.kind;
+  });
+
+  for (var rowNumber = info.bodyStartRow; rowNumber <= info.tableEndRow; rowNumber++) {
+    var kind = metaByRow[rowNumber] || "";
+    var row = ws.getRow(rowNumber);
+    row.eachCell({ includeEmpty: true }, function (cell, colNumber) {
+      if (colNumber > totalCols) return;
+      if ((kind === "opening" || kind === "total") && cell.isMerged && colNumber === 1) return;
+      maxLens[colNumber] = Math.max(maxLens[colNumber], accountCellDisplayLength(cell));
+    });
+  }
+
+  for (var col = 1; col <= totalCols; col++) {
+    var minWidth = col === 1 ? 14 : 8;
+    var maxWidth = col === 1 ? 21 : 12;
+    if (col === totalCols - 2) {
+      minWidth = 10;
+      maxWidth = 11;
+    }
+    if (col === totalCols - 1 || col === totalCols) {
+      minWidth = 10;
+      maxWidth = 12;
+    }
+    var width = Math.min(maxWidth, Math.max(minWidth, maxLens[col] + 2));
+    ws.getColumn(col).width = width;
   }
 }
 
