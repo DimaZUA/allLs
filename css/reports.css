@@ -2336,6 +2336,14 @@ li.folder {
   background: #fff;
 }
 .od-editor-grid textarea { resize: vertical; }
+.od-account-field .gr-combo { width: 100%; }
+.od-account-option {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  font: 13px/1.35 Arial, sans-serif;
+}
 .od-editor-summary,
 .od-editor-body,
 .od-editor-signature { grid-column: 1 / -1; }

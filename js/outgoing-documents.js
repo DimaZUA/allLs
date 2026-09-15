@@ -562,7 +562,7 @@
         <td>${escapeHtml(doc.doc_number || "")}${draftBadge}${templateBadge}</td>
         <td>${escapeHtml(home ? home.name : doc.home_code)}</td>
         <td>${escapeHtml(doc.recipient || "")}</td>
-        <td>${escapeHtml(doc.summary || "")}</td>
+        <td>${escapeHtml(listSummaryText(doc))}</td>
         <td class="od-row-actions">
           <div class="od-action-menu">
             <button type="button" class="od-action-toggle" data-od-menu-toggle aria-label="Дії">⋮</button>
@@ -690,20 +690,58 @@
       || null;
   }
 
+  function accountRowsForHome(code) {
+    const home = homeDataForEditorAccount(code);
+    return Object.entries((home && home.ls) || {})
+      .map(([id, row]) => ({ id, row: row || {} }))
+      .sort((a, b) => (Number(a.row.kv) || 0) - (Number(b.row.kv) || 0) || String(a.row.kv || "").localeCompare(String(b.row.kv || ""), "uk"));
+  }
+
+  function accountOptionLabel(id, row) {
+    return `кв. ${row.kv || ""} - ${row.fio || row.ls || id}`;
+  }
+
+  function accountApartmentText(homeCode, accountId) {
+    if (!accountId) return "";
+    const rows = accountRowsForHome(homeCode);
+    const item = rows.find(({ id }) => String(id) === String(accountId));
+    const kv = item && item.row ? String(item.row.kv || "").trim() : "";
+    return kv ? `кв. ${kv}` : "";
+  }
+
+  function listSummaryText(doc) {
+    const base = String((doc && doc.summary) || "");
+    const apartment = accountApartmentText(doc && doc.home_code, doc && doc.account_id);
+    if (!apartment) return base;
+    return base ? `${base} ${apartment}` : apartment;
+  }
+
   function renderAccountPicker(item) {
     const codes = state.editorHomeCodes.length ? state.editorHomeCodes : [item.home_code].filter(Boolean);
     if (codes.length !== 1) return "";
     const code = codes[0];
-    const home = homeDataForEditorAccount(code);
-    const rows = Object.entries((home && home.ls) || {})
-      .map(([id, row]) => ({ id, row: row || {} }))
-      .sort((a, b) => (Number(a.row.kv) || 0) - (Number(b.row.kv) || 0) || String(a.row.kv || "").localeCompare(String(b.row.kv || ""), "uk"));
+    const rows = accountRowsForHome(code);
     if (!rows.length) return "";
     const selected = item.account_id || state.editorAccountId || "";
-    return `<label class="od-account-field">Особовий рахунок<select name="account_id">
-      <option value="">Не вибрано</option>
-      ${rows.map(({ id, row }) => `<option value="${escapeHtml(id)}" ${String(id) === String(selected) ? "selected" : ""}>кв. ${escapeHtml(row.kv || "")} - ${escapeHtml(row.fio || row.ls || id)}</option>`).join("")}
-    </select></label>`;
+    const selectedItem = rows.find(({ id }) => String(id) === String(selected));
+    const selectedLabel = selectedItem ? accountOptionLabel(selectedItem.id, selectedItem.row) : "Не вибрано";
+    const options = [{ id: "", label: "Не вибрано" }].concat(rows.map(({ id, row }) => ({
+      id,
+      label: accountOptionLabel(id, row)
+    })));
+    return `<div class="od-account-field gr-field" data-od-account-combo>
+      <label>Особовий рахунок</label>
+      <input type="hidden" name="account_id" value="${escapeHtml(selected)}">
+      <div class="gr-combo">
+        <button type="button" class="gr-combo-toggle" data-od-account-toggle>${escapeHtml(selectedLabel)}</button>
+        <div class="gr-combo-panel" data-od-account-panel hidden>
+          <input type="search" class="gr-combo-search" data-od-account-search placeholder="Пошук рахунку або квартири…" autocomplete="off">
+          <div class="gr-combo-list" data-od-account-list>
+            ${options.map(option => `<button type="button" class="gr-combo-item od-account-option" data-od-account-option="${escapeHtml(option.id)}" data-od-account-text="${escapeHtml(`${option.id} ${option.label}`)}" data-od-account-label="${escapeHtml(option.label)}">${escapeHtml(option.label)}</button>`).join("")}
+          </div>
+        </div>
+      </div>
+    </div>`;
   }
 
   function renderEditor(doc, options) {
@@ -825,6 +863,10 @@
       return;
     }
     state.docs = data || [];
+    const accountHomeCodes = Array.from(new Set(state.docs
+      .filter(doc => doc.account_id && doc.home_code)
+      .map(doc => String(doc.home_code))));
+    await Promise.all(accountHomeCodes.map(code => ensureHomeData(code)));
   }
 
   async function openOutgoingDocuments(homeCodeParam) {
@@ -1191,9 +1233,58 @@
     if (codes.length !== 1) return;
     const html = renderAccountPicker({ home_code: codes[0], account_id: "" });
     if (!html) return;
-    const homeField = grid.querySelector("#od-editor-home-picker") || grid.querySelector('[name="home_code"]')?.closest("label");
+    const homeField = grid.querySelector("#od-editor-home-picker")?.closest(".gr-field") || grid.querySelector('[name="home_code"]')?.closest("label");
     if (homeField) homeField.insertAdjacentHTML("afterend", html);
     else grid.insertAdjacentHTML("afterbegin", html);
+    bindAccountPicker(container);
+  }
+
+  function bindAccountPicker(container) {
+    const combo = container.querySelector("[data-od-account-combo]");
+    if (!combo || combo.dataset.odAccountBound === "1") return;
+    combo.dataset.odAccountBound = "1";
+    const toggle = combo.querySelector("[data-od-account-toggle]");
+    const panel = combo.querySelector("[data-od-account-panel]");
+    const search = combo.querySelector("[data-od-account-search]");
+    const hidden = combo.querySelector('input[name="account_id"]');
+    const options = Array.from(combo.querySelectorAll("[data-od-account-option]"));
+    if (!toggle || !panel || !search || !hidden) return;
+
+    function filterOptions() {
+      const q = String(search.value || "").trim().toLowerCase();
+      options.forEach(option => {
+        const text = String(option.dataset.odAccountText || option.textContent || "").toLowerCase();
+        option.hidden = !!q && !text.includes(q);
+      });
+    }
+
+    toggle.addEventListener("click", event => {
+      event.stopPropagation();
+      const opening = panel.hasAttribute("hidden");
+      if (opening) {
+        panel.removeAttribute("hidden");
+        filterOptions();
+        search.focus();
+      } else {
+        panel.setAttribute("hidden", "");
+      }
+    });
+    panel.addEventListener("click", event => event.stopPropagation());
+    search.addEventListener("input", filterOptions);
+    options.forEach(option => option.addEventListener("click", () => {
+      hidden.value = option.dataset.odAccountOption || "";
+      toggle.textContent = option.dataset.odAccountLabel || option.textContent || "Не вибрано";
+      state.editorAccountId = hidden.value;
+      panel.setAttribute("hidden", "");
+      hidden.dispatchEvent(new Event("change", { bubbles: true }));
+    }));
+    document.addEventListener("click", function closeAccountPicker(event) {
+      if (!document.body.contains(combo)) {
+        document.removeEventListener("click", closeAccountPicker);
+        return;
+      }
+      if (!event.target.closest("[data-od-account-combo]")) panel.setAttribute("hidden", "");
+    });
   }
 
   function bindEvents() {
@@ -1201,6 +1292,7 @@
     if (!container) return;
     bindHomeCombo(container);
     bindEditorHomePicker(container);
+    bindAccountPicker(container);
     const filter = container.querySelector("[data-od-filter]");
     if (filter) {
       filter.addEventListener("input", function () {
