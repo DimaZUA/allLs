@@ -563,6 +563,24 @@ li.folder {
 .gr-tone-neutral td { background: #f3f4f6; }
 .gr-tone-ok td { background: #e4f6ea; }
 .gr-group-total td { background: #f0f2f5; font-weight: 700; }
+.gr-house-subtotal-label td { background: #e8eef8; color: #1f4b7a; font-weight: 700; }
+.gr-accounts-table thead th { text-align: center; vertical-align: middle; }
+.gr-accounts-debt-table { table-layout: fixed; }
+.gr-accounts-debt-table th:nth-child(5),
+.gr-accounts-debt-table td:nth-child(5),
+.gr-accounts-debt-table th:last-child,
+.gr-accounts-debt-table td:last-child {
+  min-width: 44px;
+  max-width: 52px;
+  padding-left: 3px;
+  padding-right: 3px;
+  text-align: center;
+}
+.gr-accounts-debt-table .gr-group-total > td:first-child,
+.gr-accounts-debt-table .gr-grand-total > td:first-child,
+.gr-accounts-debt-table .gr-house-subtotal-label > td {
+  text-align: left;
+}
 .gr-grand-total td { background: #e8eef8; color: #111; font-weight: 700; }
 .gr-grand-total .gr-grand-neg,
 .gr-grand-total .gr-grand-pos { font-weight: 800; }

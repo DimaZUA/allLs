@@ -1110,9 +1110,10 @@
     const suffixMode = opts.suffixMode || "last";
     const skipOrphanSuffix = !!opts.skipOrphanSuffix;
     const tableClass = opts.tableClass || "";
+    const colgroupHtml = opts.colgroupHtml || "";
     const autoDropBlocks = opts.autoDropBlocks !== false && !opts._packingWithoutBlocks;
     const makeTable = (rowsHtml) =>
-      `<table class="gr-table ${escapeHtml(tableClass)}"><thead>${theadHtml}</thead><tbody>${rowsHtml}</tbody></table>`;
+      `<table class="gr-table ${escapeHtml(tableClass)}">${colgroupHtml}<thead>${theadHtml}</thead><tbody>${rowsHtml}</tbody></table>`;
 
     if (!rowHtmlList.length) {
       pages.push({
@@ -1279,7 +1280,7 @@
     const accounts = snap.accounts.filter(hasAccountReportActivity);
     if (!accounts.length) return "";
     const showTarget = hasTargetContributions(accounts);
-    const tableCols = showTarget ? 9 : 8;
+    const tableCols = showTarget ? 10 : 9;
     const over12Debt = accounts.filter(a => a.debitEnd > EPS && a.debtMonths > 12)
       .sort(sortByDebtDesc);
     const longDebt = accounts.filter(a => a.debitEnd > EPS && a.debtMonths > 3 && a.debtMonths <= 12)
@@ -1288,19 +1289,6 @@
       .sort(sortByDebtDesc);
     const over = accounts.filter(a => a.debitEnd < -EPS)
       .sort((a, b) => a.debitEnd - b.debitEnd);
-    const debtOver12Pct = snap.stats.apartments
-      ? ((over12Debt.length / snap.stats.apartments) * 100).toFixed(1).replace(".", ",")
-      : "0";
-    const debtOver3Pct = snap.stats.apartments
-      ? ((longDebt.length / snap.stats.apartments) * 100).toFixed(1).replace(".", ",")
-      : "0";
-    const shortDebtPct = snap.stats.apartments
-      ? ((shortDebt.length / snap.stats.apartments) * 100).toFixed(1).replace(".", ",")
-      : "0";
-    const overPct = snap.stats.apartments
-      ? ((over.length / snap.stats.apartments) * 100).toFixed(1).replace(".", ",")
-      : "0";
-
     const endLbl = endOfMonthLabel(snap.toYm.year, snap.toYm.month);
     const startLbl = startOfMonthLabel(snap.fromYm.year, snap.fromYm.month);
     const formulaStartLbl = startOfMonthLabelFull(snap.fromYm.year, snap.fromYm.month);
@@ -1316,6 +1304,7 @@
         <td>${escapeHtml(a.fio)}</td>
         <td>${a.pers || 0} / ${String(a.pl).replace(".", ",")}</td>
         ${amountCell(a.debitStart, moneySigned(a.debitStart), debtClass(a.debitStart))}
+        <td>${monthsDebtHtml(a.startDebtMonths, a.debitStart)}</td>
         ${amountCell(a.regularChargesSum)}
         ${showTarget ? amountCell(a.targetChargesSum) : ""}
         ${a.paymentsSum > EPS ? amountCell(a.paymentsSum, paid, "gr-pos") : `<td class="gr-amount-cell"><span class="gr-neg">—</span></td>`}
@@ -1324,7 +1313,12 @@
       </tr>`;
     }
 
-    function groupRows(title, items, tone, anchorId) {
+    function averageMonths(items, field) {
+      if (!items.length) return "—";
+      return formatDebtMonths(items.reduce((sum, a) => sum + (Number(a[field]) || 0), 0) / items.length);
+    }
+
+    function groupRows(title, totalLabel, items, tone, anchorId) {
       if (!items.length) return [];
       const sum = (fn) => items.reduce((s, a) => s + fn(a), 0);
       const paymentPercent = groupPaymentPercent(items);
@@ -1333,15 +1327,31 @@
       ];
       items.forEach((a, idx) => rows.push(accountRow(a, idx)));
       rows.push(`<tr class="gr-group-total">
-        <td colspan="3">Разом по групі (${items.length}):</td>
+        <td colspan="3">${escapeHtml(totalLabel)} (${items.length} кв.):</td>
         ${amountCell(sum(a => a.debitStart), moneySigned(sum(a => a.debitStart)))}
+        <td>${averageMonths(items, "startDebtMonths")}</td>
         ${amountCell(sum(a => a.regularChargesSum))}
         ${showTarget ? amountCell(sum(a => a.targetChargesSum)) : ""}
         ${amountCell(sum(a => a.paymentsSum), money(sum(a => a.paymentsSum)), "gr-pos")}
         ${amountCell(sum(a => a.debitEnd), moneySigned(sum(a => a.debitEnd)), debtClass(sum(a => a.debitEnd)))}
-        <td></td>
+        <td>${averageMonths(items, "debtMonths")}</td>
       </tr>`);
       return rows;
+    }
+
+    function combinedTotalRow(label, items) {
+      if (!items.length) return "";
+      const sum = (fn) => items.reduce((s, a) => s + fn(a), 0);
+      return `<tr class="gr-group-total gr-house-subtotal">
+        <td colspan="3">${escapeHtml(label)} (${items.length} кв.):</td>
+        ${amountCell(sum(a => a.debitStart), moneySigned(sum(a => a.debitStart)))}
+        <td>${averageMonths(items, "startDebtMonths")}</td>
+        ${amountCell(sum(a => a.regularChargesSum))}
+        ${showTarget ? amountCell(sum(a => a.targetChargesSum)) : ""}
+        ${amountCell(sum(a => a.paymentsSum), money(sum(a => a.paymentsSum)), "gr-pos")}
+        ${amountCell(sum(a => a.debitEnd), moneySigned(sum(a => a.debitEnd)), debtClass(sum(a => a.debitEnd)))}
+        <td>${averageMonths(items, "debtMonths")}</td>
+      </tr>`;
     }
 
     const sumAll = (fn) => accounts.reduce((s, a) => s + fn(a), 0);
@@ -1354,25 +1364,32 @@
       overpay: reportGroupId(snap, "accounts-debt", "overpay")
     };
     const rowHtmlList = [
-      ...groupRows("БОРГ ПОНАД 12 МІСЯЦІВ", over12Debt, "danger", groupIds.over12),
-      ...groupRows("БОРГ ПОНАД 3 МІСЯЦІ", longDebt, "warn", groupIds.long),
-      ...groupRows("СПІВВЛАСНИКИ З БОРГОМ ДО 3 МІСЯЦІВ", shortDebt, "neutral", groupIds.short),
-      ...groupRows("ПЕРЕПЛАТА", over, "ok", groupIds.overpay),
+      ...groupRows("БОРГ ПОНАД 12 МІСЯЦІВ", "Разом понад 12 місяців", over12Debt, "danger", groupIds.over12),
+      ...groupRows("БОРГ ВІД 3 ДО 12 МІСЯЦІВ", "Разом 3-12 місяців", longDebt, "warn", groupIds.long),
+      ...groupRows("СПІВВЛАСНИКИ З БОРГОМ ДО 3 МІСЯЦІВ", "Разом 0-3 місяці", shortDebt, "neutral", groupIds.short),
+      ...groupRows("ПЕРЕПЛАТА", "Разом переплат", over, "ok", groupIds.overpay),
       `<tr class="gr-grand-total">
         <td colspan="3">Всього по будинку:</td>
         ${amountCell(sumAll(a => a.debitStart), moneySigned(sumAll(a => a.debitStart)))}
+        <td>${averageMonths(accounts, "startDebtMonths")}</td>
         ${amountCell(sumAll(a => a.regularChargesSum))}
         ${showTarget ? amountCell(sumAll(a => a.targetChargesSum)) : ""}
         ${amountCell(sumAll(a => a.paymentsSum))}
         ${amountCell(sumAll(a => a.debitEnd), moneySigned(sumAll(a => a.debitEnd)))}
-        <td></td>
-      </tr>`
+        <td>${averageMonths(accounts, "debtMonths")}</td>
+      </tr>`,
+      `<tr class="gr-house-subtotal-label"><td colspan="${tableCols}">у тому числі:</td></tr>`,
+      combinedTotalRow("Борг понад 3 місяці", [...over12Debt, ...longDebt]),
+      combinedTotalRow("Борг до 3 місяців", [...shortDebt, ...over])
     ];
 
     const thead = `<tr>
-      <th>№ кв.</th><th>П.І.Б. власника</th><th>Осіб / Площа, м²</th>
-      <th>Борг на ${escapeHtml(startLbl)}</th><th>Нараховано</th>${showTarget ? "<th>Цільові внески</th>" : ""}<th>Сплачено</th>
-      <th>Борг на ${escapeHtml(endShort)}</th><th>Місяців боргу</th>
+      <th rowspan="2">№ кв.</th><th rowspan="2">П.І.Б. власника</th><th rowspan="2">Осіб / Площа, м²</th>
+      <th colspan="2">Борг на ${escapeHtml(startLbl)}</th>
+      <th rowspan="2">Нараховано</th>${showTarget ? "<th rowspan=\"2\">Цільові внески</th>" : ""}<th rowspan="2">Сплачено</th>
+      <th colspan="2">Борг на ${escapeHtml(endShort)}</th>
+    </tr><tr>
+      <th>Сума</th><th>Місяців</th><th>Сума</th><th>Місяців</th>
     </tr>`;
 
     const kpi = `
@@ -1386,36 +1403,41 @@
         <div class="gr-debt-summary-cards">
           <div class="gr-debt-summary-card gr-debt-tone-danger gr-scroll-card"${scrollCardAttrs(groupIds.over12)}>
             <div class="gr-kpi-label">Борг понад 12 міс.</div>
-            <div class="gr-kpi-value gr-neg">${over12Debt.length} <span>(${debtOver12Pct}%)</span></div>
+            <div class="gr-kpi-value gr-neg">${over12Debt.length}</div>
             <div class="gr-kpi-foot">${money(over12Debt.reduce((s, a) => s + a.debitEnd, 0))} грн</div>
             ${paymentTooltipHtml(over12Debt)}
           </div>
           <div class="gr-debt-summary-card gr-debt-tone-warn gr-scroll-card"${scrollCardAttrs(groupIds.long)}>
             <div class="gr-kpi-label">Борг 3-12 міс.</div>
-            <div class="gr-kpi-value gr-neg">${longDebt.length} <span>(${debtOver3Pct}%)</span></div>
+            <div class="gr-kpi-value gr-neg">${longDebt.length}</div>
             <div class="gr-kpi-foot">${money(longDebt.reduce((s, a) => s + a.debitEnd, 0))} грн</div>
             ${paymentTooltipHtml(longDebt)}
           </div>
           <div class="gr-debt-summary-card gr-debt-tone-neutral gr-scroll-card"${scrollCardAttrs(groupIds.short)}>
             <div class="gr-kpi-label">Борг до 3 міс.</div>
-            <div class="gr-kpi-value">${shortDebt.length} <span>(${shortDebtPct}%)</span></div>
+            <div class="gr-kpi-value">${shortDebt.length}</div>
             <div class="gr-kpi-foot">${money(shortDebt.reduce((s, a) => s + a.debitEnd, 0))} грн</div>
             ${paymentTooltipHtml(shortDebt)}
           </div>
           <div class="gr-debt-summary-card gr-debt-tone-ok gr-scroll-card"${scrollCardAttrs(groupIds.overpay)}>
             <div class="gr-kpi-label">Переплата</div>
-            <div class="gr-kpi-value gr-pos">${over.length} <span>(${overPct}%)</span></div>
+            <div class="gr-kpi-value gr-pos">${over.length}</div>
             <div class="gr-kpi-foot">${money(Math.abs(over.reduce((s, a) => s + a.debitEnd, 0)))} грн</div>
             ${paymentTooltipHtml(over)}
           </div>
         </div>
       </div>`;
 
+    const tableColgroup = showTarget
+      ? `<colgroup><col style="width:7%"><col style="width:22%"><col style="width:10%"><col style="width:10%"><col style="width:5%"><col style="width:10%"><col style="width:10%"><col style="width:10%"><col style="width:11%"><col style="width:5%"></colgroup>`
+      : `<colgroup><col style="width:7%"><col style="width:22%"><col style="width:10%"><col style="width:10%"><col style="width:5%"><col style="width:15%"><col style="width:15%"><col style="width:11%"><col style="width:5%"></colgroup>`;
+
     const subtitle = `<div class="gr-subtitle gr-subtitle-accent">відсортовано за боргом (від більшого боргу до переплати)</div>`;
     const pages = packTableRowsIntoPages(snap, "ОСОБОВІ РАХУНКИ СПІВВЛАСНИКІВ", subtitle, thead, rowHtmlList, targetNotesHtml(snap), {
       firstPrefixHtml: kpi,
       suffixMode: "last",
-      tableClass: "gr-accounts-table"
+      tableClass: "gr-accounts-table gr-accounts-debt-table",
+      colgroupHtml: tableColgroup
     });
     return pagesToSheetsHtml(pages, snap);
   }
