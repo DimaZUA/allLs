@@ -1389,7 +1389,7 @@
       <th rowspan="2">Нараховано</th>${showTarget ? "<th rowspan=\"2\">Цільові внески</th>" : ""}<th rowspan="2">Сплачено</th>
       <th colspan="2">Борг на ${escapeHtml(endShort)}</th>
     </tr><tr>
-      <th>Сума</th><th>Місяців</th><th>Сума</th><th>Місяців</th>
+      <th>Сума</th><th>міс.</th><th>Сума</th><th>міс.</th>
     </tr>`;
 
     const kpi = `
