@@ -71,6 +71,60 @@
     return abs;
   }
 
+  function formatPaymentPercent(paid, charges) {
+    const paidValue = Number(paid) || 0;
+    const chargesValue = Number(charges) || 0;
+    if (chargesValue <= EPS) return "0,0%";
+    return ((paidValue / chargesValue) * 100)
+      .toLocaleString("uk-UA", { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + "%";
+  }
+
+  function safeDomIdPart(value) {
+    return String(value ?? "")
+      .replace(/[^A-Za-z0-9_-]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      || "group";
+  }
+
+  function reportGroupId(snap, reportId, key) {
+    return `gr-${safeDomIdPart(reportId)}-${safeDomIdPart(snap && snap.homeCode)}-${safeDomIdPart(key)}`;
+  }
+
+  function accountGroupSums(items) {
+    const list = Array.isArray(items) ? items : [];
+    return {
+      regularCharges: list.reduce((s, a) => s + (Number(a.regularChargesSum) || 0), 0),
+      targetCharges: list.reduce((s, a) => s + (Number(a.targetChargesSum) || 0), 0),
+      charges: list.reduce((s, a) => s + (Number(a.chargesSum) || 0), 0),
+      paid: list.reduce((s, a) => s + (Number(a.paymentsSum) || 0), 0)
+    };
+  }
+
+  function groupPaymentPercent(items) {
+    const sums = accountGroupSums(items);
+    return formatPaymentPercent(sums.paid, sums.charges);
+  }
+
+  function paymentTooltipHtml(items) {
+    const sums = accountGroupSums(items);
+    return `<div class="gr-card-tooltip" aria-hidden="true">
+      <div><span>Нараховано</span><strong>${money(sums.regularCharges)} грн</strong></div>
+      <div><span>Цільові внески</span><strong>${money(sums.targetCharges)} грн</strong></div>
+      <div><span>Сплачено</span><strong>${money(sums.paid)} грн</strong></div>
+      <div><span>Відсоток оплати</span><strong>${formatPaymentPercent(sums.paid, sums.charges)}</strong></div>
+    </div>`;
+  }
+
+  function scrollCardAttrs(targetId) {
+    if (!targetId) return "";
+    return ` role="button" tabindex="0" data-gr-scroll-target="${escapeHtml(targetId)}"`;
+  }
+
+  function groupAnchorAttrs(anchorId) {
+    if (!anchorId) return "";
+    return ` id="${escapeHtml(anchorId)}" data-gr-group-anchor="${escapeHtml(anchorId)}"`;
+  }
+
   function excelNumberAttr(v) {
     const n = Number(v) || 0;
     return `data-gr-number="${String(n)}"`;
@@ -1270,11 +1324,12 @@
       </tr>`;
     }
 
-    function groupRows(title, items, tone) {
+    function groupRows(title, items, tone, anchorId) {
       if (!items.length) return [];
       const sum = (fn) => items.reduce((s, a) => s + fn(a), 0);
+      const paymentPercent = groupPaymentPercent(items);
       const rows = [
-        `<tr class="gr-group-head gr-tone-${tone}"><td colspan="${tableCols}">${escapeHtml(title)} (${items.length} квартир)</td></tr>`
+        `<tr class="gr-group-head gr-tone-${tone}"${groupAnchorAttrs(anchorId)}><td colspan="${tableCols}"><div class="gr-group-head-line"><span>${escapeHtml(title)} (${items.length} квартир)</span><span>Відсоток оплати: ${paymentPercent}</span></div></td></tr>`
       ];
       items.forEach((a, idx) => rows.push(accountRow(a, idx)));
       rows.push(`<tr class="gr-group-total">
@@ -1291,11 +1346,18 @@
 
     const sumAll = (fn) => accounts.reduce((s, a) => s + fn(a), 0);
     const totalDebtChange = sumAll(a => a.debtChange);
+    const totalPaymentPercent = formatPaymentPercent(sumAll(a => a.paymentsSum), sumAll(a => a.chargesSum));
+    const groupIds = {
+      over12: reportGroupId(snap, "accounts-debt", "over12"),
+      long: reportGroupId(snap, "accounts-debt", "long"),
+      short: reportGroupId(snap, "accounts-debt", "short"),
+      overpay: reportGroupId(snap, "accounts-debt", "overpay")
+    };
     const rowHtmlList = [
-      ...groupRows("БОРГ ПОНАД 12 МІСЯЦІВ", over12Debt, "danger"),
-      ...groupRows("БОРГ ПОНАД 3 МІСЯЦІ", longDebt, "warn"),
-      ...groupRows("СПІВВЛАСНИКИ З БОРГОМ ДО 3 МІСЯЦІВ", shortDebt, "neutral"),
-      ...groupRows("ПЕРЕПЛАТА", over, "ok"),
+      ...groupRows("БОРГ ПОНАД 12 МІСЯЦІВ", over12Debt, "danger", groupIds.over12),
+      ...groupRows("БОРГ ПОНАД 3 МІСЯЦІ", longDebt, "warn", groupIds.long),
+      ...groupRows("СПІВВЛАСНИКИ З БОРГОМ ДО 3 МІСЯЦІВ", shortDebt, "neutral", groupIds.short),
+      ...groupRows("ПЕРЕПЛАТА", over, "ok", groupIds.overpay),
       `<tr class="gr-grand-total">
         <td colspan="3">Всього по будинку:</td>
         ${amountCell(sumAll(a => a.debitStart), moneySigned(sumAll(a => a.debitStart)))}
@@ -1319,27 +1381,32 @@
           <div><span>Всього квартир</span><strong>${snap.stats.apartments}</strong></div>
           <div><span>Загальна площа</span><strong>${money(snap.stats.totalArea)} м²</strong></div>
           <div><span>Борг (сальдо) на ${escapeHtml(endLbl)}</span><strong class="${debtClass(snap.stats.netDebt)}">${moneySigned(snap.stats.netDebt)}</strong></div>
+          <div><span>Відсоток оплати</span><strong>${totalPaymentPercent}</strong></div>
         </div>
         <div class="gr-debt-summary-cards">
-          <div class="gr-debt-summary-card gr-debt-tone-danger">
+          <div class="gr-debt-summary-card gr-debt-tone-danger gr-scroll-card"${scrollCardAttrs(groupIds.over12)}>
             <div class="gr-kpi-label">Борг понад 12 міс.</div>
             <div class="gr-kpi-value gr-neg">${over12Debt.length} <span>(${debtOver12Pct}%)</span></div>
             <div class="gr-kpi-foot">${money(over12Debt.reduce((s, a) => s + a.debitEnd, 0))} грн</div>
+            ${paymentTooltipHtml(over12Debt)}
           </div>
-          <div class="gr-debt-summary-card gr-debt-tone-warn">
+          <div class="gr-debt-summary-card gr-debt-tone-warn gr-scroll-card"${scrollCardAttrs(groupIds.long)}>
             <div class="gr-kpi-label">Борг 3-12 міс.</div>
             <div class="gr-kpi-value gr-neg">${longDebt.length} <span>(${debtOver3Pct}%)</span></div>
             <div class="gr-kpi-foot">${money(longDebt.reduce((s, a) => s + a.debitEnd, 0))} грн</div>
+            ${paymentTooltipHtml(longDebt)}
           </div>
-          <div class="gr-debt-summary-card gr-debt-tone-neutral">
+          <div class="gr-debt-summary-card gr-debt-tone-neutral gr-scroll-card"${scrollCardAttrs(groupIds.short)}>
             <div class="gr-kpi-label">Борг до 3 міс.</div>
             <div class="gr-kpi-value">${shortDebt.length} <span>(${shortDebtPct}%)</span></div>
             <div class="gr-kpi-foot">${money(shortDebt.reduce((s, a) => s + a.debitEnd, 0))} грн</div>
+            ${paymentTooltipHtml(shortDebt)}
           </div>
-          <div class="gr-debt-summary-card gr-debt-tone-ok">
+          <div class="gr-debt-summary-card gr-debt-tone-ok gr-scroll-card"${scrollCardAttrs(groupIds.overpay)}>
             <div class="gr-kpi-label">Переплата</div>
             <div class="gr-kpi-value gr-pos">${over.length} <span>(${overPct}%)</span></div>
             <div class="gr-kpi-foot">${money(Math.abs(over.reduce((s, a) => s + a.debitEnd, 0)))} грн</div>
+            ${paymentTooltipHtml(over)}
           </div>
         </div>
       </div>`;
@@ -1402,11 +1469,12 @@
       </tr>${detailRow(a)}`;
     }
 
-    function groupRows(title, items, tone) {
+    function groupRows(title, items, tone, anchorId) {
       if (!items.length) return [];
       const sum = (fn) => items.reduce((s, a) => s + fn(a), 0);
+      const paymentPercent = groupPaymentPercent(items);
       const rows = [
-        `<tr class="gr-group-head gr-tone-${tone}"><td colspan="6">${escapeHtml(title)} (${items.length} квартир)</td></tr>`
+        `<tr class="gr-group-head gr-tone-${tone}"${groupAnchorAttrs(anchorId)}><td colspan="6"><div class="gr-group-head-line"><span>${escapeHtml(title)} (${items.length} квартир)</span><span>Відсоток оплати: ${paymentPercent}</span></div></td></tr>`
       ];
       items.forEach((a, idx) => rows.push(accountRows(a, idx)));
       rows.push(`<tr class="gr-group-total">
@@ -1420,9 +1488,13 @@
     }
 
     const endShort = endOfMonthLabelShort(snap.toYm.year, snap.toYm.month);
+    const groupIds = {
+      over12: reportGroupId(snap, "debtors-list", "over12"),
+      long: reportGroupId(snap, "debtors-list", "long")
+    };
     const rowHtmlList = [
-      ...groupRows("БОРГ ПОНАД 12 МІСЯЦІВ", over12Debt, "danger"),
-      ...groupRows("БОРГ ПОНАД 3 МІСЯЦІ", longDebt, "warn")
+      ...groupRows("БОРГ ПОНАД 12 МІСЯЦІВ", over12Debt, "danger", groupIds.over12),
+      ...groupRows("БОРГ ПОНАД 3 МІСЯЦІ", longDebt, "warn", groupIds.long)
     ];
     const thead = `<tr>
       <th>Кв.</th><th>П.І.Б. власника</th><th>Нараховано</th><th>Сплачено</th>
@@ -1468,9 +1540,11 @@
     const formulaEndLbl = endOfMonthLabel(snap.toYm.year, snap.toYm.month);
     const rowHtmlList = [];
 
-    pods.forEach(pod => {
+    pods.forEach((pod, podIndex) => {
       const items = byPod.get(pod).slice().sort((a, b) => parseKvNum(a.kv) - parseKvNum(b.kv));
-      rowHtmlList.push(`<tr class="gr-pod-head"><td colspan="${tableCols}">ПІДʼЇЗД ${escapeHtml(pod)} (${items.length} квартир)</td></tr>`);
+      const podPaymentPercent = groupPaymentPercent(items);
+      const podAnchorId = reportGroupId(snap, "accounts-pods", `pod-${podIndex + 1}-${pod}`);
+      rowHtmlList.push(`<tr class="gr-pod-head"${groupAnchorAttrs(podAnchorId)}><td colspan="${tableCols}"><div class="gr-group-head-line"><span>ПІДʼЇЗД ${escapeHtml(pod)} (${items.length} квартир)</span><span>Відсоток оплати: ${podPaymentPercent}</span></div></td></tr>`);
       items.forEach((a, idx) => {
         const paid = a.paymentsSum > EPS
           ? amountSpan(a.paymentsSum, money(a.paymentsSum), "gr-pos")
@@ -2171,6 +2245,15 @@
     if (container.dataset.grPageActionsBound === "1") return;
     container.dataset.grPageActionsBound = "1";
     container.addEventListener("click", (e) => {
+      const scrollCard = e.target.closest("[data-gr-scroll-target]");
+      if (scrollCard) {
+        const targetId = scrollCard.getAttribute("data-gr-scroll-target");
+        const target = targetId ? document.getElementById(targetId) : null;
+        if (target) {
+          target.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+        return;
+      }
       const copy = e.target.closest("[data-gr-copy-page]");
       const share = e.target.closest("[data-gr-share-page]");
       if (!copy && !share) return;
@@ -2179,6 +2262,13 @@
       if (!Number.isFinite(index)) return;
       if (copy) copyReportPageImage(index);
       else shareReportPageImage(index);
+    });
+    container.addEventListener("keydown", (e) => {
+      if (e.key !== "Enter" && e.key !== " ") return;
+      const scrollCard = e.target.closest("[data-gr-scroll-target]");
+      if (!scrollCard) return;
+      e.preventDefault();
+      scrollCard.click();
     });
   }
 
