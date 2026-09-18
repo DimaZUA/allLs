@@ -1287,7 +1287,10 @@
       .sort(sortByDebtDesc);
     const shortDebt = accounts.filter(a => a.debitEnd > EPS && a.debtMonths <= 3)
       .sort(sortByDebtDesc);
-    const over = accounts.filter(a => a.debitEnd < -EPS)
+    // Нульовий кінцевий залишок відносимо до групи переплатників,
+    // щоб усі чотири групи разом охоплювали кожен особовий рахунок
+    // і їхні підсумки збігалися з підсумком по будинку в усіх колонках.
+    const over = accounts.filter(a => a.debitEnd < -EPS || Math.abs(a.debitEnd) <= EPS)
       .sort((a, b) => a.debitEnd - b.debitEnd);
     const endLbl = endOfMonthLabel(snap.toYm.year, snap.toYm.month);
     const startLbl = startOfMonthLabel(snap.fromYm.year, snap.fromYm.month);
