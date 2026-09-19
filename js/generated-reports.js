@@ -1372,10 +1372,10 @@
       overpay: reportGroupId(snap, "accounts-debt", "overpay")
     };
     const rowHtmlList = [
-      ...groupRows("БОРГ ПОНАД 12 МІСЯЦІВ", "Разом понад 12 місяців", over12Debt, "danger", groupIds.over12),
-      ...groupRows("БОРГ ВІД 3 ДО 12 МІСЯЦІВ", "Разом 3-12 місяців", longDebt, "warn", groupIds.long),
-      ...groupRows("СПІВВЛАСНИКИ З БОРГОМ ДО 3 МІСЯЦІВ", "Разом 0-3 місяці", shortDebt, "neutral", groupIds.short),
-      ...groupRows("ПЕРЕПЛАТА", "Разом переплат", over, "ok", groupIds.overpay),
+      ...groupRows("Борг понад 12 місяців", "Разом понад 12 місяців", over12Debt, "danger", groupIds.over12),
+      ...groupRows("Борг від 3 до 12 місяців", "Разом 3-12 місяців", longDebt, "warn", groupIds.long),
+      ...groupRows("Борг до 3 місяців", "Разом 0-3 місяці", shortDebt, "neutral", groupIds.short),
+      ...groupRows("Переплата", "Разом переплат", over, "ok", groupIds.overpay),
       `<tr class="gr-grand-total">
         <td colspan="3">Всього по будинку:</td>
         ${amountCell(sumAll(a => a.debitStart), moneySigned(sumAll(a => a.debitStart)))}
