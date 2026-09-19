@@ -779,6 +779,10 @@ li.folder {
   background: #fbfcfe;
   text-align: center;
 }
+.gr-debt-summary-strip > .gr-debt-summary-metric {
+  flex-direction: column;
+  gap: 4px;
+}
 .gr-debt-summary-strip span {
   color: #555;
   font-size: 12px;
@@ -787,6 +791,13 @@ li.folder {
   font-size: 15px;
   font-variant-numeric: tabular-nums;
   padding-right: 3px;
+}
+.gr-debt-summary-strip .gr-debt-summary-payments {
+  justify-content: stretch;
+  padding: 5px 10px;
+}
+.gr-debt-summary-payments .gr-card-pay-stats {
+  width: 100%;
 }
 .gr-debt-summary-side,
 .gr-debt-summary-center,
@@ -815,6 +826,61 @@ li.folder {
   z-index: 5;
 }
 .gr-debt-summary-card { padding: 10px 8px; text-align: center; position: relative; z-index: 1; }
+.gr-debt-card-main {
+  display: grid;
+  grid-template-columns: minmax(32px, .42fr) minmax(0, 1fr);
+  gap: 7px;
+  align-items: center;
+  margin-top: 6px;
+}
+.gr-card-pay-stats {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  font-size: 12px;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+.gr-card-pay-stats > div {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 6px;
+  align-items: baseline;
+}
+.gr-card-pay-stats span {
+  color: #4b5563;
+  text-align: left;
+}
+.gr-card-pay-stats strong {
+  text-align: right;
+  white-space: nowrap;
+}
+.gr-card-pay-percent {
+  border-top: 1px solid rgba(100, 116, 139, .28);
+  margin-top: 2px;
+  padding-top: 3px;
+  font-weight: 700;
+}
+.gr-card-debt-line {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 6px;
+  align-items: baseline;
+  margin-top: 7px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(100, 116, 139, .28);
+  font-size: 12px;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+.gr-card-debt-line span {
+  color: #4b5563;
+  text-align: left;
+}
+.gr-card-debt-line strong {
+  text-align: right;
+  white-space: nowrap;
+}
 .gr-scroll-card {
   cursor: pointer;
   transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease;
@@ -873,8 +939,8 @@ li.folder {
   opacity: 1;
   transform: translate(-50%, 0);
 }
-.gr-debt-summary-card .gr-kpi-value { font-size: 24px; line-height: 1.1; }
-.gr-debt-summary-card .gr-kpi-value span { font-size: 11px; color: #333; font-weight: 500; }
+.gr-debt-summary-card .gr-kpi-value { font-size: 24px; line-height: 1.1; min-width: 0; }
+.gr-debt-summary-card .gr-kpi-value span { display: block; margin-top: 2px; font-size: 11px; color: #333; font-weight: 500; }
 .gr-kpi-foot { margin-top: 8px; font-size: 12px; font-variant-numeric: tabular-nums; }
 .gr-debt-summary-total { text-align: center; }
 .gr-debt-summary-total .gr-kpi-value { font-size: 24px; }

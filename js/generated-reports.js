@@ -115,6 +115,15 @@
     </div>`;
   }
 
+  function paymentStatsHtml(items) {
+    const sums = accountGroupSums(items);
+    return `<div class="gr-card-pay-stats">
+      <div><span>Нар.:</span><strong>${money(sums.charges)}</strong></div>
+      <div><span>Спл.:</span><strong>${money(sums.paid)}</strong></div>
+      <div class="gr-card-pay-percent"><span>Оплата:</span><strong>${formatPaymentPercent(sums.paid, sums.charges)}</strong></div>
+    </div>`;
+  }
+
   function scrollCardAttrs(targetId) {
     if (!targetId) return "";
     return ` role="button" tabindex="0" data-gr-scroll-target="${escapeHtml(targetId)}"`;
@@ -1364,7 +1373,6 @@
 
     const sumAll = (fn) => accounts.reduce((s, a) => s + fn(a), 0);
     const totalDebtChange = sumAll(a => a.debtChange);
-    const totalPaymentPercent = formatPaymentPercent(sumAll(a => a.paymentsSum), sumAll(a => a.chargesSum));
     const groupIds = {
       over12: reportGroupId(snap, "accounts-debt", "over12"),
       long: reportGroupId(snap, "accounts-debt", "long"),
@@ -1403,34 +1411,46 @@
     const kpi = `
       <div class="gr-debt-summary gr-debt-summary-compact">
         <div class="gr-debt-summary-strip">
-          <div><span>Всього квартир</span><strong>${snap.stats.apartments}</strong></div>
-          <div><span>Загальна площа</span><strong>${money(snap.stats.totalArea)} м²</strong></div>
-          <div><span>Борг (сальдо) на ${escapeHtml(endLbl)}</span><strong class="${debtClass(snap.stats.netDebt)}">${moneySigned(snap.stats.netDebt)}</strong></div>
-          <div><span>Відсоток оплати</span><strong>${totalPaymentPercent}</strong></div>
+          <div class="gr-debt-summary-metric"><span>Всього квартир</span><strong>${snap.stats.apartments}</strong></div>
+          <div class="gr-debt-summary-metric"><span>Загальна площа</span><strong>${money(snap.stats.totalArea)} м²</strong></div>
+          <div class="gr-debt-summary-metric"><span>Борг (сальдо) на ${escapeHtml(endLbl)}</span><strong class="${debtClass(snap.stats.netDebt)}">${moneySigned(snap.stats.netDebt)}</strong></div>
+          <div class="gr-debt-summary-payments">${paymentStatsHtml(accounts)}</div>
         </div>
         <div class="gr-debt-summary-cards">
           <div class="gr-debt-summary-card gr-debt-tone-danger gr-scroll-card"${scrollCardAttrs(groupIds.over12)}>
             <div class="gr-kpi-label">Борг понад 12 міс.</div>
-            <div class="gr-kpi-value gr-neg">${over12Debt.length}</div>
-            <div class="gr-kpi-foot">${money(over12Debt.reduce((s, a) => s + a.debitEnd, 0))} грн</div>
+            <div class="gr-debt-card-main">
+              <div class="gr-kpi-value gr-neg">${over12Debt.length}<span>кв.</span></div>
+              ${paymentStatsHtml(over12Debt)}
+            </div>
+            <div class="gr-card-debt-line"><span>Борг:</span><strong>${money(over12Debt.reduce((s, a) => s + a.debitEnd, 0))}</strong></div>
             ${paymentTooltipHtml(over12Debt)}
           </div>
           <div class="gr-debt-summary-card gr-debt-tone-warn gr-scroll-card"${scrollCardAttrs(groupIds.long)}>
             <div class="gr-kpi-label">Борг 3-12 міс.</div>
-            <div class="gr-kpi-value gr-neg">${longDebt.length}</div>
-            <div class="gr-kpi-foot">${money(longDebt.reduce((s, a) => s + a.debitEnd, 0))} грн</div>
+            <div class="gr-debt-card-main">
+              <div class="gr-kpi-value gr-neg">${longDebt.length}<span>кв.</span></div>
+              ${paymentStatsHtml(longDebt)}
+            </div>
+            <div class="gr-card-debt-line"><span>Борг:</span><strong>${money(longDebt.reduce((s, a) => s + a.debitEnd, 0))}</strong></div>
             ${paymentTooltipHtml(longDebt)}
           </div>
           <div class="gr-debt-summary-card gr-debt-tone-neutral gr-scroll-card"${scrollCardAttrs(groupIds.short)}>
             <div class="gr-kpi-label">Борг до 3 міс.</div>
-            <div class="gr-kpi-value">${shortDebt.length}</div>
-            <div class="gr-kpi-foot">${money(shortDebt.reduce((s, a) => s + a.debitEnd, 0))} грн</div>
+            <div class="gr-debt-card-main">
+              <div class="gr-kpi-value">${shortDebt.length}<span>кв.</span></div>
+              ${paymentStatsHtml(shortDebt)}
+            </div>
+            <div class="gr-card-debt-line"><span>Борг:</span><strong>${money(shortDebt.reduce((s, a) => s + a.debitEnd, 0))}</strong></div>
             ${paymentTooltipHtml(shortDebt)}
           </div>
           <div class="gr-debt-summary-card gr-debt-tone-ok gr-scroll-card"${scrollCardAttrs(groupIds.overpay)}>
             <div class="gr-kpi-label">Переплата</div>
-            <div class="gr-kpi-value gr-pos">${over.length}</div>
-            <div class="gr-kpi-foot">${money(Math.abs(over.reduce((s, a) => s + a.debitEnd, 0)))} грн</div>
+            <div class="gr-debt-card-main">
+              <div class="gr-kpi-value gr-pos">${over.length}<span>кв.</span></div>
+              ${paymentStatsHtml(over)}
+            </div>
+            <div class="gr-card-debt-line"><span>Переплата:</span><strong>${money(Math.abs(over.reduce((s, a) => s + a.debitEnd, 0)))}</strong></div>
             ${paymentTooltipHtml(over)}
           </div>
         </div>
