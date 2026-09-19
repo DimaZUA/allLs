@@ -1286,16 +1286,16 @@
     if (!accounts.length) return "";
     const showTarget = hasTargetContributions(accounts);
     const tableCols = showTarget ? 10 : 9;
-    const over12Debt = accounts.filter(a => a.debitEnd > EPS && a.startDebtMonths > 12)
+    const over12Debt = accounts.filter(a => a.debitStart > EPS && a.startDebtMonths > 12)
       .sort(sortByDebtDesc);
-    const longDebt = accounts.filter(a => a.debitEnd > EPS && a.startDebtMonths > 3 && a.startDebtMonths <= 12)
+    const longDebt = accounts.filter(a => a.debitStart > EPS && a.startDebtMonths > 3 && a.startDebtMonths <= 12)
       .sort(sortByDebtDesc);
-    const shortDebt = accounts.filter(a => a.debitEnd > EPS && a.startDebtMonths <= 3)
+    const shortDebt = accounts.filter(a => a.debitStart > EPS && a.startDebtMonths <= 3)
       .sort(sortByDebtDesc);
-    // Нульовий кінцевий залишок відносимо до групи переплатників,
+    // Нульовий початковий залишок відносимо до групи переплатників,
     // щоб усі чотири групи разом охоплювали кожен особовий рахунок
     // і їхні підсумки збігалися з підсумком по будинку в усіх колонках.
-    const over = accounts.filter(isOverpayReportAccount)
+    const over = accounts.filter(a => a.debitStart <= EPS)
       .sort((a, b) => a.debitEnd - b.debitEnd);
     const endLbl = endOfMonthLabel(snap.toYm.year, snap.toYm.month);
     const startLbl = startOfMonthLabel(snap.fromYm.year, snap.fromYm.month);
