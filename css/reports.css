@@ -563,6 +563,10 @@ li.folder {
 .gr-tone-neutral td { background: #f3f4f6; }
 .gr-tone-ok td { background: #e4f6ea; }
 .gr-group-total td { background: #f0f2f5; font-weight: 700; }
+.gr-group-total.gr-tone-danger td { background: #fde7e4; }
+.gr-group-total.gr-tone-warn td { background: #fff0d6; }
+.gr-group-total.gr-tone-neutral td { background: #f3f4f6; }
+.gr-group-total.gr-tone-ok td { background: #e4f6ea; }
 .gr-table .gr-group-total td {
   box-shadow: inset 0 -1px 0 #ccc;
 }

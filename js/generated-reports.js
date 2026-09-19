@@ -1334,7 +1334,7 @@
         `<tr class="gr-group-head gr-tone-${tone}"${groupAnchorAttrs(anchorId)}><td colspan="${tableCols}"><div class="gr-group-head-line"><span>${escapeHtml(title)} (${items.length} квартир)</span><span>Відсоток оплати: ${paymentPercent}</span></div></td></tr>`
       ];
       items.forEach((a, idx) => rows.push(accountRow(a, idx)));
-      rows.push(`<tr class="gr-group-total">
+      rows.push(`<tr class="gr-group-total gr-tone-${tone}">
         <td colspan="3">${escapeHtml(totalLabel)} (${items.length} кв.):</td>
         ${amountCell(sum(a => a.debitStart), moneySigned(sum(a => a.debitStart)))}
         <td>${averageMonths(items, "startDebtMonths")}</td>
@@ -1347,10 +1347,10 @@
       return rows;
     }
 
-    function combinedTotalRow(label, items) {
+    function combinedTotalRow(label, items, tone) {
       if (!items.length) return "";
       const sum = (fn) => items.reduce((s, a) => s + fn(a), 0);
-      return `<tr class="gr-group-total gr-house-subtotal">
+      return `<tr class="gr-group-total gr-house-subtotal gr-tone-${tone}">
         <td colspan="3">${escapeHtml(label)} (${items.length} кв.):</td>
         ${amountCell(sum(a => a.debitStart), moneySigned(sum(a => a.debitStart)))}
         <td>${averageMonths(items, "startDebtMonths")}</td>
@@ -1387,8 +1387,8 @@
         <td>${averageMonths(accounts, "debtMonths")}</td>
       </tr>`,
       `<tr class="gr-house-subtotal-label"><td colspan="${tableCols}">у тому числі:</td></tr>`,
-      combinedTotalRow("Борг понад 3 місяці", [...over12Debt, ...longDebt]),
-      combinedTotalRow("Борг до 3 місяців", [...shortDebt, ...over])
+      combinedTotalRow("Борг понад 3 місяці", [...over12Debt, ...longDebt], "warn"),
+      combinedTotalRow("Борг до 3 місяців", [...shortDebt, ...over], "neutral")
     ];
 
     const thead = `<tr>
