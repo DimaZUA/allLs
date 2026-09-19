@@ -1262,6 +1262,11 @@
       Math.abs(a.paymentsSum) > EPS;
   }
 
+  function isOverpayReportAccount(a) {
+    return a.debitEnd < -EPS ||
+      (Math.abs(a.debitEnd) <= EPS && hasAccountReportActivity(a));
+  }
+
   function hasTargetContributions(accounts) {
     return (accounts || []).some(a => Math.abs(a.targetChargesSum || 0) > EPS);
   }
@@ -1290,7 +1295,7 @@
     // Нульовий кінцевий залишок відносимо до групи переплатників,
     // щоб усі чотири групи разом охоплювали кожен особовий рахунок
     // і їхні підсумки збігалися з підсумком по будинку в усіх колонках.
-    const over = accounts.filter(a => a.debitEnd < -EPS || Math.abs(a.debitEnd) <= EPS)
+    const over = accounts.filter(isOverpayReportAccount)
       .sort((a, b) => a.debitEnd - b.debitEnd);
     const endLbl = endOfMonthLabel(snap.toYm.year, snap.toYm.month);
     const startLbl = startOfMonthLabel(snap.fromYm.year, snap.fromYm.month);
@@ -1484,14 +1489,15 @@
     }
 
     function accountRows(a, idx) {
-      return `<tr class="${idx % 2 ? "gr-zebra" : ""}">
+      const details = detailRow(a);
+      return `<tr class="gr-debtor-row${details ? " gr-has-detail" : ""}${idx % 2 ? " gr-zebra" : ""}">
         <td>${apartmentHtml(a.kv, a.accountId, snap.homeCode)}</td>
         <td>${escapeHtml(a.fio)}</td>
         ${amountCell(a.chargesSum)}
         ${a.paymentsSum > EPS ? amountCell(a.paymentsSum, money(a.paymentsSum), "gr-pos") : `<td class="gr-amount-cell">—</td>`}
         ${amountCell(a.debitEnd, moneySigned(a.debitEnd), `gr-debtors-debt ${debtClass(a.debitEnd)}`)}
         <td>${monthsDebtHtml(a.debtMonths, a.debitEnd)}</td>
-      </tr>${detailRow(a)}`;
+      </tr>${details}`;
     }
 
     function groupRows(title, items, tone, anchorId) {
@@ -1630,7 +1636,7 @@
 
   function renderAccountsOverpayReport(snap) {
     const items = snap.accounts
-      .filter(a => a.debitEnd <= EPS && (a.debitEnd < -EPS || hasAccountReportActivity(a)))
+      .filter(isOverpayReportAccount)
       .sort((a, b) => {
         const ka = parseKvNum(a.kv);
         const kb = parseKvNum(b.kv);
