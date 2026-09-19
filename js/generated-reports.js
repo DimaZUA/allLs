@@ -1286,11 +1286,11 @@
     if (!accounts.length) return "";
     const showTarget = hasTargetContributions(accounts);
     const tableCols = showTarget ? 10 : 9;
-    const over12Debt = accounts.filter(a => a.debitEnd > EPS && a.debtMonths > 12)
+    const over12Debt = accounts.filter(a => a.debitEnd > EPS && a.startDebtMonths > 12)
       .sort(sortByDebtDesc);
-    const longDebt = accounts.filter(a => a.debitEnd > EPS && a.debtMonths > 3 && a.debtMonths <= 12)
+    const longDebt = accounts.filter(a => a.debitEnd > EPS && a.startDebtMonths > 3 && a.startDebtMonths <= 12)
       .sort(sortByDebtDesc);
-    const shortDebt = accounts.filter(a => a.debitEnd > EPS && a.debtMonths <= 3)
+    const shortDebt = accounts.filter(a => a.debitEnd > EPS && a.startDebtMonths <= 3)
       .sort(sortByDebtDesc);
     // Нульовий кінцевий залишок відносимо до групи переплатників,
     // щоб усі чотири групи разом охоплювали кожен особовий рахунок
