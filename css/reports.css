@@ -935,7 +935,8 @@ li.folder {
 .gr-card-tooltip span { color: #4b5563; }
 .gr-card-tooltip strong { font-variant-numeric: tabular-nums; }
 .gr-scroll-card:hover .gr-card-tooltip,
-.gr-scroll-card:focus-visible .gr-card-tooltip {
+.gr-scroll-card:focus-visible .gr-card-tooltip,
+.gr-has-tooltip:hover .gr-card-tooltip {
   opacity: 1;
   transform: translate(-50%, 0);
 }

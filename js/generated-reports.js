@@ -107,11 +107,10 @@
 
   function paymentTooltipHtml(items) {
     const sums = accountGroupSums(items);
+    if (!sums.targetCharges) return '';
     return `<div class="gr-card-tooltip" aria-hidden="true">
       <div><span>Нараховано</span><strong>${money(sums.regularCharges)} грн</strong></div>
       <div><span>Цільові внески</span><strong>${money(sums.targetCharges)} грн</strong></div>
-      <div><span>Сплачено</span><strong>${money(sums.paid)} грн</strong></div>
-      <div><span>Відсоток оплати</span><strong>${formatPaymentPercent(sums.paid, sums.charges)}</strong></div>
     </div>`;
   }
 
@@ -1417,7 +1416,7 @@
           <div class="gr-debt-summary-payments">${paymentStatsHtml(accounts)}</div>
         </div>
         <div class="gr-debt-summary-cards">
-          <div class="gr-debt-summary-card gr-debt-tone-danger gr-scroll-card"${scrollCardAttrs(groupIds.over12)}>
+          <div class="gr-debt-summary-card gr-debt-tone-danger gr-has-tooltip">
             <div class="gr-kpi-label">Борг понад 12 міс.</div>
             <div class="gr-debt-card-main">
               <div class="gr-kpi-value gr-neg">${over12Debt.length}<span>кв.</span></div>
@@ -1426,7 +1425,7 @@
             <div class="gr-card-debt-line"><span>Борг:</span><strong>${money(over12Debt.reduce((s, a) => s + a.debitEnd, 0))}</strong></div>
             ${paymentTooltipHtml(over12Debt)}
           </div>
-          <div class="gr-debt-summary-card gr-debt-tone-warn gr-scroll-card"${scrollCardAttrs(groupIds.long)}>
+          <div class="gr-debt-summary-card gr-debt-tone-warn gr-has-tooltip">
             <div class="gr-kpi-label">Борг 3-12 міс.</div>
             <div class="gr-debt-card-main">
               <div class="gr-kpi-value gr-neg">${longDebt.length}<span>кв.</span></div>
@@ -1435,7 +1434,7 @@
             <div class="gr-card-debt-line"><span>Борг:</span><strong>${money(longDebt.reduce((s, a) => s + a.debitEnd, 0))}</strong></div>
             ${paymentTooltipHtml(longDebt)}
           </div>
-          <div class="gr-debt-summary-card gr-debt-tone-neutral gr-scroll-card"${scrollCardAttrs(groupIds.short)}>
+          <div class="gr-debt-summary-card gr-debt-tone-neutral gr-has-tooltip">
             <div class="gr-kpi-label">Борг до 3 міс.</div>
             <div class="gr-debt-card-main">
               <div class="gr-kpi-value">${shortDebt.length}<span>кв.</span></div>
@@ -1444,7 +1443,7 @@
             <div class="gr-card-debt-line"><span>Борг:</span><strong>${money(shortDebt.reduce((s, a) => s + a.debitEnd, 0))}</strong></div>
             ${paymentTooltipHtml(shortDebt)}
           </div>
-          <div class="gr-debt-summary-card gr-debt-tone-ok gr-scroll-card"${scrollCardAttrs(groupIds.overpay)}>
+          <div class="gr-debt-summary-card gr-debt-tone-ok gr-has-tooltip">
             <div class="gr-kpi-label">Переплата</div>
             <div class="gr-debt-card-main">
               <div class="gr-kpi-value gr-pos">${over.length}<span>кв.</span></div>
