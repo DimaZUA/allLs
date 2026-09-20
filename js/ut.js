@@ -1210,6 +1210,7 @@ async function exportTableToExcel(action = "download") {
         tableCopy.querySelectorAll(".descr").forEach(el => el.remove());
         tableCopy.querySelectorAll(".tarif-note-line").forEach(el => el.remove());
         prepareAccountTableForExcel(tableCopy);
+        prepareAnalizTableForExcel(tableCopy);
 
         if (isAccountExcelTable(tableCopy)) {
           exportAccountTableToWorksheet(tableCopy, ws);
@@ -1297,6 +1298,41 @@ function prepareAccountTableForExcel(tableCopy) {
       cell.innerHTML = "Компен-<br>сація";
       cell.dataset.excelText = "Компен-\nсація";
     }
+  });
+}
+
+function prepareAnalizTableForExcel(tableCopy) {
+  if (!tableCopy || !tableCopy.classList || !tableCopy.classList.contains("analiz-table")) return;
+
+  tableCopy.querySelectorAll("thead th").forEach(function (cell) {
+    var threshold = cell.querySelector(".analiz-debt-threshold");
+    if (threshold) {
+      cell.dataset.excelText = "Борг понад " + String(threshold.value || "").trim() + " місяців";
+      return;
+    }
+    var text = String(cell.innerText || cell.textContent || "").replace(/\s+/g, " ").trim();
+    if (/^станом на \d{2}\.\d{4}$/i.test(text)) {
+      cell.dataset.excelText = text;
+    }
+  });
+
+  tableCopy.querySelectorAll("tbody tr").forEach(function (row) {
+    var cells = Array.from(row.querySelectorAll("td"));
+    cells.forEach(function (cell, index) {
+      var rawText = String(cell.innerText || cell.textContent || "").replace(/\u00A0/g, " ").trim();
+      if (index === 0 && /^\d{2}\.\d{4}$/.test(rawText)) {
+        cell.dataset.excelText = rawText;
+      }
+      var dual = cell.querySelector(".summary-dual");
+      if (dual) {
+        var sumText = String(dual.querySelector("span")?.textContent || "").replace(/\u00A0/g, " ").trim();
+        var avgText = String(dual.querySelector("strong")?.textContent || "").replace(/\u00A0/g, " ").trim();
+        cell.dataset.excelText = [sumText, avgText].filter(Boolean).join("\n");
+      }
+      if (tableCopy.classList.contains("trajectory-table") && (index === 3 || index === 4)) {
+        cell.dataset.excelText = rawText;
+      }
+    });
   });
 }
 
@@ -1685,24 +1721,40 @@ function handleRows(tableCopy, ws) {
           rowData.push(null);
         } else {
           if (cell.closest(".paysubtable") == null) {
-            rowData.push(cell.innerText.trim());
+            if (cell.dataset.excelText) {
+              rowData.push({ value: cell.dataset.excelText, asText: true });
+            } else {
+              rowData.push(cell.innerText.trim());
+            }
           }
         }
       });
       if (rowData.length) {
         // Обрабатываем основную строку
         var excelRow = rowData.map(function (cell, index) {
+          if (cell && typeof cell === "object" && cell.asText) return String(cell.value || "");
           return keepFirstColumnAsText && index === 0 ? (cell == null ? null : String(cell)) : parseCellValue2(cell);
         });
-        ws.addRow(excelRow);
+        var addedRow = ws.addRow(excelRow);
+        rowData.forEach(function (cell, index) {
+          if (cell && typeof cell === "object" && cell.asText && String(cell.value || "").indexOf("\n") !== -1) {
+            addedRow.getCell(index + 1).alignment = { wrapText: true, vertical: "middle" };
+          }
+        });
         rowIndex++;
 
         // Обрабатываем все строки из nextRowDataArray
         nextRowDataArray.forEach(function (nextRowData) {
           var excelNextRowData = nextRowData.map(function (cell, index) {
+            if (cell && typeof cell === "object" && cell.asText) return String(cell.value || "");
             return keepFirstColumnAsText && index === 0 ? (cell == null ? null : String(cell)) : parseCellValue2(cell);
           });
-          ws.addRow(excelNextRowData);
+          var addedNextRow = ws.addRow(excelNextRowData);
+          nextRowData.forEach(function (cell, index) {
+            if (cell && typeof cell === "object" && cell.asText && String(cell.value || "").indexOf("\n") !== -1) {
+              addedNextRow.getCell(index + 1).alignment = { wrapText: true, vertical: "middle" };
+            }
+          });
           rowIndex++;
         });
       }

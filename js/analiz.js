@@ -213,6 +213,7 @@ function renderAnalizTable(data, monthsList, initialDebtThreshold) {
       th.className = gr.class;
       th.colSpan = vis.length;
       if (gr.debtor) {
+        th.dataset.excelText = `Борг понад ${debtThreshold} місяців`;
         const label = document.createElement("span");
         label.textContent = "Борг понад ";
         const select = document.createElement("select");
@@ -452,8 +453,8 @@ function renderMigrationTable(splitIndex, resultData, fullMonths, debtThreshold)
         <th style="width:50px" data-sort="kv">Кв</th>
         <th style="width:200px" data-sort="fio">ПІБ</th>
         <th style="width:140px" data-sort="status">Статус</th>
-        <th data-sort="ageWas">станом на ${dateWas}</th>
-        <th data-sort="ageNow">станом на ${dateNow}</th>
+        <th data-sort="ageWas" data-excel-text="станом на ${dateWas}">станом на ${dateWas}</th>
+        <th data-sort="ageNow" data-excel-text="станом на ${dateNow}">станом на ${dateNow}</th>
         <th style="width:80px" data-sort="diff">Зміна (міс)</th>
       </tr>
     </thead>
