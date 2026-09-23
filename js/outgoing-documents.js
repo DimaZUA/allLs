@@ -407,7 +407,8 @@
   function blockUnits(block) {
     const text = (block.runs || []).map(run => run.text || "").join("");
     if (!text.trim()) return 1;
-    return Math.max(1, Math.ceil(text.length / 92));
+    // Keep a safety margin for proportional font wrapping and paragraph spacing.
+    return Math.max(1, Math.ceil(text.length / 80));
   }
 
   function splitDocumentItems(bodyBlocks, signatureBlocks) {
@@ -421,14 +422,15 @@
     const pages = [];
     let page = [];
     let used = 0;
-    let limit = 37;
+    // The first page also contains the letterhead and recipient block.
+    let limit = 35;
     items.forEach(item => {
       const units = blockUnits(item.block);
       if (page.length && used + units > limit) {
         pages.push(page);
         page = [];
         used = 0;
-        limit = 54;
+        limit = 52;
       }
       page.push(item);
       used += units;
@@ -502,7 +504,7 @@
     const ctx = { orgName, address, orgFontSize, bankLines, recipientText };
     const pages = splitDocumentItems(bodyBlocks, signatureBlocks);
     return `
-      <div class="od-page-actions no-print">
+      <div class="od-document-actions no-print">
         <button type="button" class="gr-page-action" data-od-edit="${escapeHtml(doc.id)}" title="Редагувати">✎</button>
         <button type="button" class="gr-page-action" data-od-download="${escapeHtml(doc.id)}" title="Скачати Word">Word</button>
       </div>

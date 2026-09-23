@@ -2575,8 +2575,8 @@ li.folder {
   flex: 0 0 auto;
 }
 .od-output { position: relative; }
-.od-page-actions { position: absolute; left: calc(50% + 105mm + 10px); top: 8px; display: flex; flex-direction: column; gap: 8px; z-index: 2; }
-.od-page-actions .gr-page-action { font-size: 11px; font-weight: 700; color: #1f4b7a; }
+.od-document-actions { position: absolute; left: calc(50% + 105mm + 10px); top: 100px; display: flex; flex-direction: column; gap: 8px; z-index: 2; }
+.od-document-actions .gr-page-action { font-size: 11px; font-weight: 700; color: #1f4b7a; }
 .od-sheet { overflow: hidden; }
 .od-sheet-inner { padding: 7mm 10mm 18mm; font-family: "Times New Roman", Times, serif; font-size: 12pt; line-height: 1.25; }
 .od-sheet-continued .od-sheet-inner { padding-top: 12mm; }
@@ -2593,10 +2593,10 @@ li.folder {
 .od-recipient { width: auto; margin: 0; font-family: Arial, sans-serif; font-size: 10pt; line-height: 1.35; }
 .od-doc-title { display: none; }
 .od-doc-body { font-size: 12pt; }
-.od-doc-paragraph { margin: 0 0 2.5mm; min-height: 1em; text-indent: 10mm; }
+.od-doc-paragraph { margin: 0 0 2.5mm; min-height: 1em; text-indent: 10mm; overflow-wrap: anywhere; }
 .od-empty-paragraph { text-indent: 0; }
 .od-signature { margin-top: 6mm; font-size: 12pt; }
-.od-signature-paragraph { margin: 0 0 1.5mm; min-height: 1em; text-indent: 0; }
+.od-signature-paragraph { margin: 0 0 1.5mm; min-height: 1em; text-indent: 0; overflow-wrap: anywhere; }
 .od-align-left { text-align: left; }
 .od-align-center { text-align: center; }
 .od-align-right { text-align: right; }
@@ -2610,7 +2610,7 @@ li.folder {
 
 @media print {
   .od-preview-tools,
-  .od-page-actions { display: none !important; }
+  .od-document-actions { display: none !important; }
   .od-preview-app { padding: 0; }
 }
 
@@ -3442,7 +3442,7 @@ li.folder {
   body:has(#preview .od-preview-app) .sidebar,
   body:has(#preview .od-preview-app) .topbar,
   body:has(#preview .od-preview-app) .od-preview-tools,
-  body:has(#preview .od-preview-app) .od-page-actions,
+  body:has(#preview .od-preview-app) .od-document-actions,
   body:has(#preview .mp-preview-app) .sidebar,
   body:has(#preview .mp-preview-app) .topbar,
   body:has(#preview .ma-app) .sidebar,
