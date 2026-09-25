@@ -379,9 +379,9 @@
     const len = String(name || "").length;
     const max = Number(maxSize) || 20;
     if (max >= 36) {
-      if (len <= 10) return 36;
-      if (len <= 14) return 32;
-      if (len <= 18) return 24;
+      if (len <= 10) return 34;
+      if (len <= 14) return 29;
+      if (len <= 18) return 23;
       if (len <= 24) return 18;
       if (len <= 30) return 16;
       if (len <= 38) return 14;
