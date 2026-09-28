@@ -1854,7 +1854,7 @@
       .sort((a, b) => parseKvNum(a.kv) - parseKvNum(b.kv))
       .map(a => ({ kv: a.kv, accountId: a.accountId, homeCode: snap.homeCode, amount: a.debitEnd }));
     const ratio = snap.avgSpend > EPS ? posterDebt / snap.avgSpend : 0;
-    const ratioText = ratio > 0
+    const ratioText = ratio > 3
       ? `це майже <strong><u>${ratio.toFixed(1).replace(".", ",")}</u></strong> місяці поточних витрат будинку!`
       : "";
     const spend = mergeSpending(snap.spendingByMonth);
@@ -1898,7 +1898,7 @@
         return `
         <div class="gr-poster-caption">ЗАБОРГОВАНІСТЬ СПІВВЛАСНИКІВ ПІДʼЇЗДУ</div>
         <div class="gr-poster-amount">${money(podDebt)} <span>грн</span></div>
-        <div class="gr-poster-ratio">${ratio > 0 ? `це майже <strong><u>${ratio.toFixed(1).replace(".", ",")}</u></strong> місяці поточних витрат будинку` : ""}</div>
+        <div class="gr-poster-ratio">${ratio > 3 ? `це майже <strong><u>${ratio.toFixed(1).replace(".", ",")}</u></strong> місяці поточних витрат будинку` : ""}</div>
         <div class="gr-black-bar">КВАРТИРИ ПІДʼЇЗДУ ІЗ ЗАБОРГОВАНІСТЮ ПОНАД 6 МІСЯЦІВ</div>
         ${podDebtGridHtml(longDebt, 5)}
         <div class="gr-building-debt">Загальна заборгованість будинку: <strong>${money(buildingPosterDebt)} грн</strong></div>
