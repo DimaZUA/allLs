@@ -82,31 +82,20 @@ body {
   transition: color 0.3s ease;
 }
 
-/* === Заливка величиной (вкладки «Борг» и «Платіж») ===
+/* === Полоса величиной (вкладки «Борг» и «Платіж») ===
    Плитки одинаковой ширины, значение показывается полосой в нижней части,
-   под суммой. Дорожка рисуется только там, где заливка применяется. */
-.floor-item.has-fill::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 15px;
-  background-color: #e6e6e6;
-  z-index: 0;
-  pointer-events: none;
-}
-
+   под суммой. Вся полоса — один элемент с резкими переходами градиента:
+   закрашенная часть цвета своей полосы, незакрашенная — цвета предыдущей.
+   Поэтому класс has-fill и отдельная дорожка не нужны. */
 .tile-fill {
   position: absolute;
   bottom: 0;
   left: 0;
+  width: 100%;
   height: 15px;
-  width: 0;
   z-index: 1;
   pointer-events: none;
-  border-right: 2px solid transparent;
-  transition: width 0.5s ease, background-color 0.3s ease;
+  transition: background-image 0.4s ease;
 }
 
 /* === Значение внутри квартиры === */
@@ -197,6 +186,8 @@ body {
   color: #333;
 }
 
+/* Цвет свотча ставится из js (DOLG_BAR_COLORS), чтобы легенда и полосы
+   на плитках не могли разойтись. */
 .dolg-legend-swatch {
   display: inline-block;
   width: 13px;
@@ -205,13 +196,6 @@ body {
   border-radius: 2px;
   vertical-align: -2px;
 }
-
-/* Свотчи заливаются, а не красятся текстом */
-.dolg-legend-swatch.green  { background-color: #006400; }
-.dolg-legend-swatch.black  { background-color: #000000; }
-.dolg-legend-swatch.orange { background-color: #ea580c; }
-.dolg-legend-swatch.yellow { background-color: #b45309; }
-.dolg-legend-swatch.red    { background-color: #8B0000; }
 
 /* === Кнопки выбора === */
 #root button {

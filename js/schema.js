@@ -116,7 +116,8 @@ function createDolgLegend() {
   parts.forEach(([band, label], idx) => {
     if (idx) div.appendChild(document.createTextNode(" · "));
     const swatch = document.createElement("span");
-    swatch.classList.add("dolg-legend-swatch", band);
+    swatch.classList.add("dolg-legend-swatch");
+    swatch.style.backgroundColor = LEGEND_COLORS[band];   // цвет берётся из палитры полос
     div.appendChild(swatch);
     div.appendChild(document.createTextNode(` ${label}`));
   });
@@ -126,57 +127,106 @@ function createDolgLegend() {
 
 // ===================== ЗАЛИВКА ПЛИТКИ =====================
 // На вкладках «Борг» и «Платіж» все плитки одного размера, а величина
-// показывается заливкой слева направо. На «Площа» и «Нараховано»
+// показывается полосой в нижней части, под суммой. На «Площа» и «Нараховано»
 // сохраняется прежнее изменение ширины.
 const FILL_DISPLAYS = ["dolg", "opl"];
-const FILL_NEUTRAL = "#2563eb";
-const DOLG_BAND_FILL = {
-  green:  "rgba(0, 100, 0, 0.25)",
-  black:  "rgba(60, 60, 60, 0.18)",
-  orange: "rgba(234, 88, 12, 0.28)",
-  yellow: "rgba(180, 83, 9, 0.26)",
-  red:    "rgba(139, 0, 0, 0.26)",
+const FILL_TRACK = "#e6e6e6";           // незакрытая часть полосы
+
+// Палитра заливки намеренно полупрозрачная: сумма в плитке важнее шкалы,
+// поэтому заливка не должна перекрикивать число. Чем тяжелее полоса, тем
+// плотнее заливка: переплаты и мелкие долги — еле заметные, тяжёлые — явные.
+const DOLG_BAR_COLORS = {
+  black:  "rgba(156, 163, 175, 0.50)",  // до 3 мес.  — полупрозрачный серый
+  orange: "rgba(253, 186, 116, 0.75)",  // 3–6 мес.
+  yellow: "rgba(220, 198, 26, 0.50)",   // 6–12 мес.
+  red:    "rgba(252, 165, 165, 1)",     // больше 12 мес. — плотная
 };
-const FILL_NEUTRAL_BG = "rgba(37, 99, 235, 0.26)";
+const FILL_NEUTRAL = "rgba(147, 197, 253, 0.75)";   // платёж
 
-// Возвращает функцию «значение -> процент заливки» или null, если заливка
-// для этой вкладки не применяется. Шкала считается по всему дому,
-// поэтому плитки на разных этажах сопоставимы между собой.
-function buildFillScale(lsList, display, avgValues) {
-  if (!FILL_DISPLAYS.includes(display)) return null;
+// Толщина насыщенной линии по краю заливки. Из-за полупрозрачности
+// сама граница заливки с дорожкой читается слабо, поэтому точное значение
+// показывает эта линия, а не размытая заливка.
+const FILL_EDGE_PCT = 2;
 
-  if (display === "dolg") {
-    const vals = lsList.map(i => +i.dolg || 0);
-    const min = Math.min(...vals);
-    const max = Math.max(...vals);
-    if (!(max > min)) return () => 0;
-    return v => Math.max(0, Math.min(((v - min) / (max - min)) * 100, 100));
-  }
+// Цвета легенды: заливка полупрозрачна, зелёный остаётся насыщенным —
+// у переплатчиков полосы нет, только цвет текста.
+const LEGEND_COLORS = {
+  green:  DOLG_BAND_COLORS.green,
+  black:  DOLG_BAR_COLORS.black,
+  orange: DOLG_BAR_COLORS.orange,
+  yellow: DOLG_BAR_COLORS.yellow,
+  red:    DOLG_BAR_COLORS.red,
+};
 
+// Заливка не рисуется у переплатчиков и у тех, кто должен меньше 1,5 месяцев:
+// для них полоса была бы визуальным шумом, а не показателем.
+const DOLG_FILL_MIN_MONTHS = 1.5;
+
+// Потолок шкалы — 95-й перцентиль, чтобы единичный выброс не задавал шкалу.
+// Всё выше обрезается в 100%. Линейная шкала не годится: один долг в десятки
+// тысяч делает мелкие полоски неразличимыми от пустых, поэтому корень.
+const DOLG_FILL_PCTL = 0.95;
+
+// Шкала заполнения по сумме долга
+function buildDolgFillScale(lsList) {
+  const debts = lsList.map(i => +i.dolg || 0).filter(v => v > 0).sort((a, b) => a - b);
+  if (!debts.length) return () => 0;
+
+  const pctl = debts[Math.min(debts.length - 1, Math.floor(debts.length * DOLG_FILL_PCTL))];
+  const top = pctl > 0 ? pctl : debts[debts.length - 1];
+  const root = Math.sqrt(top);
+  if (!(root > 0)) return () => 0;
+
+  return v => {
+    const x = +v || 0;
+    if (x <= 0) return 0;                 // нет долга или переплата
+    return Math.min((Math.sqrt(x) / root) * 100, 100);
+  };
+}
+
+// Шкала платежа: линейная от среднего платежа по дому
+function buildOplScale(lsList, display, avgValues) {
   const avg = avgValues[display];
   if (!(avg > 0)) return () => 0;
   return v => Math.max(0, Math.min((v / avg) * 100, 100));
 }
 
-// Заливка слоем под текстом + тонкая граница по краю заполнения
-function applyTileFill(el, percent, color, bg) {
-  if (!el) return;
-  const p = Math.round(Math.max(0, Math.min(100, +percent || 0)) * 100) / 100;
-  el.style.width = p + "%";
-  el.style.backgroundColor = bg;
-  el.style.borderRightColor = color;
+function clampPct(v) {
+  return Math.round(Math.max(0, Math.min(100, +v || 0)) * 100) / 100;
 }
 
-// Добавить/обновить слой заливки внутри плитки
-function setTileFill(div, scale, value, color, bg) {
+// Двухцветная полоса с резкой границей на позиции head
+function fillGradient(color, head) {
+  const p = clampPct(head);
+  return `linear-gradient(90deg, ${color} 0%, ${color} ${p}%, ${FILL_TRACK} ${p}%, ${FILL_TRACK} 100%)`;
+}
+
+// Полоса должника: длина — по сумме долга, цвет — зона по месяцам.
+// Заливка полупрозрачная и потому блёклая; точное значение показывает
+// насыщенная линия по её краю. Так в полосе видно и «сколько должен»,
+// и «как давно не платит», но заливка не спорит с числом.
+// Возвращает null, когда полоса не рисуется вовсе.
+function dolgFillGradient(dolg, months, scale) {
+  if ((+months || 0) < DOLG_FILL_MIN_MONTHS) return null;
+  const band = getDolgBandClass(months);
+  const wash = DOLG_BAR_COLORS[band] || DOLG_BAR_COLORS.black;
+  const edge = DOLG_BAND_COLORS[band];                 // насыщенный цвет той же полосы
+  const p = clampPct(scale ? scale(dolg) : 0);
+  const p2 = Math.min(100, p + FILL_EDGE_PCT);
+  return `linear-gradient(90deg, ${wash} 0%, ${wash} ${p}%, ` +
+         `${edge} ${p}%, ${edge} ${p2}%, ${FILL_TRACK} ${p2}%, ${FILL_TRACK} 100%)`;
+}
+
+// Добавить/обновить слой заливки внутри плитки.
+// background = null -> полосы нет вовсе (ни заливки, ни дорожки).
+function setTileFill(div, background) {
   let fill = div.querySelector(".tile-fill");
   if (!fill) {
     fill = document.createElement("div");
     fill.classList.add("tile-fill");
     div.insertBefore(fill, div.firstChild);
   }
-  div.classList.add("has-fill");
-  applyTileFill(fill, scale ? scale(+value || 0) : 0, color, bg);
+  fill.style.backgroundImage = background || "none";
 }
 
 // ===================== 2. ПОДГОТОВКА ДАННЫХ =====================
@@ -512,8 +562,10 @@ function createItemsForFloor(lsList, pod, et, container, opts) {
   let lastTappedId = 0;
 
   if (!isFloorTotal) {
-    // Шкала заливки общая для всего дома — считаем один раз на этаж
-    const fillScale = buildFillScale(lsList, display, avgValues);
+    // Данные для полосы общие для всего дома — считаем один раз на этаж
+    const fillCtx = { scale: display === "dolg"
+      ? buildDolgFillScale(lsList)
+      : buildOplScale(lsList, display, avgValues) };
 
     items.sort((a, b) => parseKvNum(a.kv) - parseKvNum(b.kv));
 
@@ -542,13 +594,9 @@ function createItemsForFloor(lsList, pod, et, container, opts) {
       div.style.height = "40px";
 
       if (usesFill) {
-        setTileFill(
-          div,
-          fillScale,
-          item[display],
-          display === "dolg" ? DOLG_BAND_COLORS[getDolgBandClass(item.dolgMonths)] : FILL_NEUTRAL,
-          display === "dolg" ? DOLG_BAND_FILL[getDolgBandClass(item.dolgMonths)] : FILL_NEUTRAL_BG
-        );
+        setTileFill(div, display === "dolg"
+          ? dolgFillGradient(item.dolg, item.dolgMonths, fillCtx.scale)
+          : ((+item.opl || 0) > 0 ? fillGradient(FILL_NEUTRAL, fillCtx.scale(+item.opl || 0)) : null));
       }
 
       const kvSpan = document.createElement("span");
@@ -648,29 +696,24 @@ function updateDisplay(newDisplay, state) {
   const minWidth = 30;
   const maxWidth = 120;
 
-  const fillScale = buildFillScale(lsList, newDisplay, avgValues);
+  const fillCtx = { scale: newDisplay === "dolg"
+    ? buildDolgFillScale(lsList)
+    : buildOplScale(lsList, newDisplay, avgValues) };
   const usesFill = FILL_DISPLAYS.includes(newDisplay);
 
   document.querySelectorAll(".floor-item").forEach(div => {
     const obj = lsList.find(x => x.id === div.dataset.id);
     if(!obj) return;
 
-    // --- Размер плитки и заливка ---
+    // --- Размер плитки и полоса ---
     if(usesFill) {
       div.style.width = baseWidth + "px";
-      const band = getDolgBandClass(obj.dolgMonths);
-      setTileFill(
-        div,
-        fillScale,
-        obj[newDisplay],
-        newDisplay === "dolg" ? DOLG_BAND_COLORS[band] : FILL_NEUTRAL,
-        newDisplay === "dolg" ? DOLG_BAND_FILL[band] : FILL_NEUTRAL_BG
-      );
+      setTileFill(div, newDisplay === "dolg"
+        ? dolgFillGradient(obj.dolg, obj.dolgMonths, fillCtx.scale)
+        : ((+obj[newDisplay] || 0) > 0 ? fillGradient(FILL_NEUTRAL, fillCtx.scale(+obj[newDisplay] || 0)) : null));
     } else {
-      // Уходим с вкладки с заливкой — слой и дорожка могли остаться от прошлой вкладки
-      const staleFill = div.querySelector(".tile-fill");
-      if (staleFill) staleFill.remove();
-      div.classList.remove("has-fill");
+      // Уходим с вкладки с полосой — слой мог остаться от прошлой вкладки
+      setTileFill(div, null);
 
       const avg = avgValues[newDisplay] || avgArea;
       const value = parseFloat(obj[newDisplay]) || 0;
