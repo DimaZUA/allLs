@@ -185,13 +185,20 @@ function parseKvNum(kv) {
   return m ? parseInt(m[1]) : 0;
 }
 
+// Кв. 0 — технический счёт, куда падают платежи с неопознанной квартирой.
+// Такой счёт не является помещением: он не попадает в схему, в площадь,
+// в число лицевых и в количество помещений. Учитывается только в общей
+// сумме долга и в оплатах за текущий месяц.
+function isTechAccount(kv) {
+  return String(kv).replace(/[^0-9]/g, "") === "0";
+}
+
 function prepareLsData(ls, nach, oplat) {
-  // Сначала создаём список квартир с базовыми данными
-  const list = Object.entries(ls)
+  const all = Object.entries(ls)
     .map(([key, item]) => ({ ...item, id: key }))
     .filter(item => item.et && item.pod);
 
-  list.forEach(item => {
+  all.forEach(item => {
     const id = item.id;
     const currentNach = getTotalForCurrentMonth(nach, id);
     const currentOpl = getTotalForCurrentMonthOplat(oplat, id);
@@ -201,7 +208,12 @@ function prepareLsData(ls, nach, oplat) {
     item.opl = currentOpl;
     item.dolg = totalNach - totalOpl;
     item.dolgMonths = calcDolgMonths(item);
+    item.isTech = isTechAccount(item.kv);
   });
+
+  // Технические счета держим отдельно — вернутся только в двух итогах по дому
+  const list = all.filter(item => !item.isTech);
+  const techItems = all.filter(item => item.isTech);
 
   // --- Разделение первого этажа на цокольный + первый, если нужно ---
   const pods = [...new Set(list.map(i => i.pod))]; // все подъезды
@@ -243,7 +255,7 @@ function prepareLsData(ls, nach, oplat) {
     });
   });
 
-  return list;
+  return { list, techItems };
 }
 
 
@@ -418,11 +430,18 @@ const totalHouseDiv = document.createElement("div");
 totalHouseDiv.classList.add("total-house");
 
 const keys = ["pl","ls","pers","kv","dolg","opl","nach"];
+// Технический счёт (кв. 0) возвращается в общую сумму долга и в оплаты
+// месяца, но не в площадь, лицевые счета, проживающих, помещения и начисления.
+const TECH_TOTAL_KEYS = ["dolg", "opl"];
 keys.forEach(k => {
   const div = document.createElement("div");
   const spanLabel = document.createElement("span");
   spanLabel.textContent = state.itogKeysName[k] + ": ";
   div.appendChild(spanLabel);
+
+  const src = TECH_TOTAL_KEYS.includes(k)
+    ? state.lsList.concat(state.techItems)
+    : state.lsList;
 
   let val;
   if(k === "ls") {
@@ -435,7 +454,7 @@ keys.forEach(k => {
     });
     val = seen.size;
   } else {
-    val = state.lsList.reduce((s, i) => s + (+i[k] || 0), 0);
+    val = src.reduce((s, i) => s + (+i[k] || 0), 0);
   }
 
   const spanVal = document.createElement("span");
@@ -447,7 +466,7 @@ keys.forEach(k => {
 
   // Добавляем счетчик только для оплаты
   if (k === "opl") {
-    const payCount = state.lsList.filter(i => (+i.opl || 0) > 0).length;
+    const payCount = src.filter(i => (+i.opl || 0) > 0).length;
     spanVal.textContent = `${formattedVal} (Платежів: ${payCount})`;
   } else {
     spanVal.textContent = formattedVal;
@@ -754,11 +773,11 @@ function initSchema() {
   const numericDisplays = ["opl","nach","dolg","pl"];
   let display = "pl";
 
-  const lsList = prepareLsData(ls,nach,oplat);
+  const { list: lsList, techItems } = prepareLsData(ls,nach,oplat);
   const { avgArea, avgValues } = calculateAverages(lsList, numericDisplays);
   const entrances = [...new Set(lsList.map(it=>+it.pod))].sort((a,b)=>a-b);
 
-  const state = { display, displayKeys, displayKeysName, numericDisplays, lsList, avgArea, avgValues, entrances, itogKeysName };
+  const state = { display, displayKeys, displayKeysName, numericDisplays, lsList, techItems, avgArea, avgValues, entrances, itogKeysName };
   renderSchema(state);
 }
 
