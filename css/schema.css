@@ -56,6 +56,7 @@ body {
 
 /* === Квартира (ячейка) === */
 .floor-item {
+  position: relative;   /* база для абсолютно спозиционированной заливки */
   min-width: 30px;
   height: 40px;
   display: flex;
@@ -79,6 +80,33 @@ body {
   z-index: 1;
   opacity: 0.3;  /* прозрачность как раньше */
   transition: color 0.3s ease;
+}
+
+/* === Заливка величиной (вкладки «Борг» и «Платіж») ===
+   Плитки одинаковой ширины, значение показывается полосой в нижней части,
+   под суммой. Дорожка рисуется только там, где заливка применяется. */
+.floor-item.has-fill::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 15px;
+  background-color: #e6e6e6;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.tile-fill {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 15px;
+  width: 0;
+  z-index: 1;
+  pointer-events: none;
+  border-right: 2px solid transparent;
+  transition: width 0.5s ease, background-color 0.3s ease;
 }
 
 /* === Значение внутри квартиры === */
@@ -137,6 +165,53 @@ body {
   max-width: 300px;
   white-space: pre-line;
 }
+
+/* === Цвет долга для номеров квартир (водяной знак) ===
+   Полосы задаются количеством месяцев в js/schema.js:
+   зелёный — переплата, чёрный — до 3 мес., оранжевый — 3–6,
+   жёлтый — 6–12, красный — больше 12.
+   Селекторы с #root, чтобы не задевать другие страницы. */
+#root .green  { color: #006400; }
+#root .black  { color: #000000; }
+#root .orange { color: #ea580c; }
+#root .yellow { color: #b45309; }
+#root .red    { color: #8B0000; }
+
+/* Светлые полосы на полупрозрачном фоне иначе почти не читаются */
+#root .kv-background.orange { opacity: 0.5; }
+#root .kv-background.yellow { opacity: 0.5; }
+#root .kv-background.black  { opacity: 0.3; }
+
+/* === Легенда шкалы долга (одна строка внизу, только на вкладке «Борг») === */
+.dolg-legend {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 14px 0 4px;
+  padding: 6px 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background-color: #fff;
+  font-size: 13px;
+  color: #333;
+}
+
+.dolg-legend-swatch {
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  border: 1px solid #999;
+  border-radius: 2px;
+  vertical-align: -2px;
+}
+
+/* Свотчи заливаются, а не красятся текстом */
+.dolg-legend-swatch.green  { background-color: #006400; }
+.dolg-legend-swatch.black  { background-color: #000000; }
+.dolg-legend-swatch.orange { background-color: #ea580c; }
+.dolg-legend-swatch.yellow { background-color: #b45309; }
+.dolg-legend-swatch.red    { background-color: #8B0000; }
 
 /* === Кнопки выбора === */
 #root button {

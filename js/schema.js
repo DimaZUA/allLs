@@ -41,6 +41,144 @@ function getTotalForAllTimeOplat(oplatData, lsId) {
   return total;
 }
 
+// ===================== ШКАЛА ЦВЕТОВ ПО ДОЛГУ =====================
+// Полосы задаются количеством месяцев задолженности (calculateDebtMonthsFromCache
+// из table.js: >0 — долг, <0 — переплата, 0 — долга нет).
+const DOLG_BAND_COLORS = {
+  green:  "#006400",  // переплата
+  black:  "#000000",  // до 3 месяцев
+  orange: "#ea580c",  // 3–6 месяцев
+  yellow: "#b45309",  // 6–12 месяцев
+  red:    "#8B0000",  // больше 12 месяцев
+};
+const DOLG_BAND_ORANGE = 3;
+const DOLG_BAND_YELLOW = 6;
+const DOLG_BAND_RED = 12;
+const DOLG_BAND_CLASSES = Object.keys(DOLG_BAND_COLORS);
+
+// Опорная дата та же, что и в getTotalForCurrentMonth: текущим считается месяц,
+// от которого прошло больше 5 дней.
+function getDebtAnchorDate() {
+  const d = new Date();
+  d.setDate(d.getDate() - 5);
+  return d;
+}
+
+// Количество месяцев долга по лицевому счету. Если table.js не подключен —
+// остаемся на грубом признаке «долг/переплата».
+function calcDolgMonths(item) {
+  const dolg = +item.dolg || 0;
+  if (typeof calculateDebtMonthsFromCache !== "function") {
+    return dolg > 0 ? 1 : dolg < 0 ? -1 : 0;
+  }
+  return +calculateDebtMonthsFromCache(item.id, dolg, getDebtAnchorDate()) || 0;
+}
+
+// Полоса шкалы по числу месяцев
+function getDolgBandClass(months) {
+  const m = +months || 0;
+  if (m < 0) return "green";                        // переплата
+  if (m > DOLG_BAND_RED) return "red";              // больше 12 месяцев
+  if (m > DOLG_BAND_YELLOW) return "yellow";        // 6–12 месяцев
+  if (m > DOLG_BAND_ORANGE) return "orange";        // 3–6 месяцев
+  return "black";                                   // до 3 месяцев
+}
+
+// Полоса шкалы по среднему числу месяцев долга (этаж / стояк / подъезд / дом)
+function getAvgDolgBandClass(items) {
+  const list = (items || []).filter(i => i && i.dolgMonths !== undefined);
+  if (!list.length) return "black";
+  const avg = list.reduce((s, i) => s + (+i.dolgMonths || 0), 0) / list.length;
+  return getDolgBandClass(avg);
+}
+
+// Сброс + установка класса полосы (для фонов, красятся через CSS)
+function setDolgBandClass(el, bandClass) {
+  if (!el) return;
+  el.classList.remove(...DOLG_BAND_CLASSES);
+  el.classList.add(bandClass);
+}
+
+// Легенда шкалы — одна строка внизу схемы.
+// Подписи берутся из тех же констант, что и раскраска, чтобы не расходились.
+function createDolgLegend() {
+  const parts = [
+    ["green",  "переплата"],
+    ["black",  "до 3 мес."],
+    ["orange", `${DOLG_BAND_ORANGE}–${DOLG_BAND_YELLOW} мес.`],
+    ["yellow", `${DOLG_BAND_YELLOW}–${DOLG_BAND_RED} мес.`],
+    ["red",    `> ${DOLG_BAND_RED} мес.`],
+  ];
+
+  const div = document.createElement("div");
+  div.classList.add("dolg-legend");
+
+  parts.forEach(([band, label], idx) => {
+    if (idx) div.appendChild(document.createTextNode(" · "));
+    const swatch = document.createElement("span");
+    swatch.classList.add("dolg-legend-swatch", band);
+    div.appendChild(swatch);
+    div.appendChild(document.createTextNode(` ${label}`));
+  });
+
+  return div;
+}
+
+// ===================== ЗАЛИВКА ПЛИТКИ =====================
+// На вкладках «Борг» и «Платіж» все плитки одного размера, а величина
+// показывается заливкой слева направо. На «Площа» и «Нараховано»
+// сохраняется прежнее изменение ширины.
+const FILL_DISPLAYS = ["dolg", "opl"];
+const FILL_NEUTRAL = "#2563eb";
+const DOLG_BAND_FILL = {
+  green:  "rgba(0, 100, 0, 0.25)",
+  black:  "rgba(60, 60, 60, 0.18)",
+  orange: "rgba(234, 88, 12, 0.28)",
+  yellow: "rgba(180, 83, 9, 0.26)",
+  red:    "rgba(139, 0, 0, 0.26)",
+};
+const FILL_NEUTRAL_BG = "rgba(37, 99, 235, 0.26)";
+
+// Возвращает функцию «значение -> процент заливки» или null, если заливка
+// для этой вкладки не применяется. Шкала считается по всему дому,
+// поэтому плитки на разных этажах сопоставимы между собой.
+function buildFillScale(lsList, display, avgValues) {
+  if (!FILL_DISPLAYS.includes(display)) return null;
+
+  if (display === "dolg") {
+    const vals = lsList.map(i => +i.dolg || 0);
+    const min = Math.min(...vals);
+    const max = Math.max(...vals);
+    if (!(max > min)) return () => 0;
+    return v => Math.max(0, Math.min(((v - min) / (max - min)) * 100, 100));
+  }
+
+  const avg = avgValues[display];
+  if (!(avg > 0)) return () => 0;
+  return v => Math.max(0, Math.min((v / avg) * 100, 100));
+}
+
+// Заливка слоем под текстом + тонкая граница по краю заполнения
+function applyTileFill(el, percent, color, bg) {
+  if (!el) return;
+  const p = Math.round(Math.max(0, Math.min(100, +percent || 0)) * 100) / 100;
+  el.style.width = p + "%";
+  el.style.backgroundColor = bg;
+  el.style.borderRightColor = color;
+}
+
+// Добавить/обновить слой заливки внутри плитки
+function setTileFill(div, scale, value, color, bg) {
+  let fill = div.querySelector(".tile-fill");
+  if (!fill) {
+    fill = document.createElement("div");
+    fill.classList.add("tile-fill");
+    div.insertBefore(fill, div.firstChild);
+  }
+  div.classList.add("has-fill");
+  applyTileFill(fill, scale ? scale(+value || 0) : 0, color, bg);
+}
+
 // ===================== 2. ПОДГОТОВКА ДАННЫХ =====================
 function parseKvNum(kv) {
   const m = String(kv).match(/^(\d+)/);
@@ -62,6 +200,7 @@ function prepareLsData(ls, nach, oplat) {
     item.nach = currentNach;
     item.opl = currentOpl;
     item.dolg = totalNach - totalOpl;
+    item.dolgMonths = calcDolgMonths(item);
   });
 
   // --- Разделение первого этажа на цокольный + первый, если нужно ---
@@ -201,6 +340,9 @@ function createFloorsForPod(lsList, pod, podDiv, opts) {
     const span = document.createElement("span");
     span.classList.add("value-span");
     span.textContent = ["ls","kv"].includes(display) ? total : total.toFixed(2);
+    if (display === "dolg") {
+      span.style.color = DOLG_BAND_COLORS[getAvgDolgBandClass(stItems)];
+    }
     div.appendChild(span);
     standsContainer.appendChild(div);
 
@@ -223,6 +365,9 @@ function createFloorsForPod(lsList, pod, podDiv, opts) {
   const spanTotal = document.createElement("span");
   spanTotal.classList.add("value-span");
   spanTotal.textContent = ["ls","kv"].includes(display) ? totalPod : totalPod.toFixed(2);
+  if (display === "dolg") {
+    spanTotal.style.color = DOLG_BAND_COLORS[getAvgDolgBandClass(podItems)];
+  }
   divTotal.appendChild(spanTotal);
   standsContainer.appendChild(divTotal);
 
@@ -310,7 +455,7 @@ keys.forEach(k => {
 
   // окраска долгов
   if(k === "dolg") {
-    spanVal.style.color = val < 0 ? "green" : val > state.avgValues["dolg"] ? "red" : "black";
+    spanVal.style.color = DOLG_BAND_COLORS[getAvgDolgBandClass(state.lsList)];
   }
 
   div.appendChild(spanVal);
@@ -318,6 +463,12 @@ keys.forEach(k => {
 });
 
 root.appendChild(totalHouseDiv);
+
+// Легенда шкалы нужна только на вкладке «Борг»
+const dolgLegend = createDolgLegend();
+dolgLegend.style.display = display === "dolg" ? "" : "none";
+root.appendChild(dolgLegend);
+state.legend = dolgLegend;
 
 
   const main = document.getElementById("maincontainer");
@@ -342,6 +493,9 @@ function createItemsForFloor(lsList, pod, et, container, opts) {
   let lastTappedId = 0;
 
   if (!isFloorTotal) {
+    // Шкала заливки общая для всего дома — считаем один раз на этаж
+    const fillScale = buildFillScale(lsList, display, avgValues);
+
     items.sort((a, b) => parseKvNum(a.kv) - parseKvNum(b.kv));
 
     items.forEach(item => {
@@ -352,33 +506,36 @@ function createItemsForFloor(lsList, pod, et, container, opts) {
       div.dataset.id = item.id;
 
 
-      // --- Ширина, номера квартир, значения, подсказки --- //
-      let width;
-      if (display === "dolg") {
-        const dolgs = items.map(i => i.dolg || 0);
-        const minDolg = Math.min(...dolgs);
-        const maxDolg = Math.max(...dolgs);
-        const val = item.dolg || 0;
-        const norm = (val - minDolg) / (maxDolg - minDolg || 1);
-        width = minWidth + norm * (maxWidth - minWidth);
+      // --- Размер, номера квартир, значения, подсказки --- //
+      // На «Борге» и «Платіжі» плитки одинаковые, величина — заливка.
+      // На «Площа» и «Нараховано» размер плитки пропорционален значению.
+      const usesFill = FILL_DISPLAYS.includes(display);
+      if (usesFill) {
+        div.style.width = baseWidth + "px";
       } else {
         const avg = avgValues[display] || avgArea;
         const value = parseFloat(item[display]) || 0;
-        width = numericDisplays.includes(display)
+        div.style.width = (numericDisplays.includes(display)
           ? Math.max(minWidth, Math.min((baseWidth * value) / avg, maxWidth))
-          : baseWidth;
+          : baseWidth) + "px";
       }
-      div.style.width = width + "px";
       div.style.transition = "width 0.5s ease, opacity 0.5s ease";
       div.style.height = "40px";
+
+      if (usesFill) {
+        setTileFill(
+          div,
+          fillScale,
+          item[display],
+          display === "dolg" ? DOLG_BAND_COLORS[getDolgBandClass(item.dolgMonths)] : FILL_NEUTRAL,
+          display === "dolg" ? DOLG_BAND_FILL[getDolgBandClass(item.dolgMonths)] : FILL_NEUTRAL_BG
+        );
+      }
 
       const kvSpan = document.createElement("span");
       kvSpan.classList.add("kv-background");
       kvSpan.textContent = item.kv;
-      kvSpan.classList.remove("green","red","black");
-      if(item.dolg < 0) kvSpan.classList.add("green");
-      else if(item.dolg > avgValues["dolg"]) kvSpan.classList.add("red");
-      else kvSpan.classList.add("black");
+      setDolgBandClass(kvSpan, getDolgBandClass(item.dolgMonths));
       div.appendChild(kvSpan);
 
       const valSpan = document.createElement("span");
@@ -389,8 +546,8 @@ function createItemsForFloor(lsList, pod, et, container, opts) {
       if(numericDisplays.includes(display) && +val === 0) val = "-";
       valSpan.textContent = val;
       valSpan.style.color = display === "dolg"
-        ? (item.dolg < 0 ? "green" : item.dolg > avgValues["dolg"] ? "red" : "black")
-        : "black";
+        ? DOLG_BAND_COLORS[getDolgBandClass(item.dolgMonths)]
+        : "#000000";
       div.appendChild(valSpan);
 
       const infoParts = [];
@@ -430,9 +587,7 @@ function createItemsForFloor(lsList, pod, et, container, opts) {
     span.classList.add("value-span");
     span.textContent = ["ls","kv"].includes(display) ? totalItem[display] : totalItem[display].toFixed(2);
     if(display === "dolg") {
-      const count = countUniqueKv(items) || 1;
-      const avgDolg = totalItem.dolg / count;
-      span.style.color = avgDolg < 0 ? "green" : avgDolg > avgValues["dolg"] ? "red" : "black";
+      span.style.color = DOLG_BAND_COLORS[getAvgDolgBandClass(items)];
     }
     div.appendChild(span);
     container.appendChild(div);
@@ -474,27 +629,36 @@ function updateDisplay(newDisplay, state) {
   const minWidth = 30;
   const maxWidth = 120;
 
+  const fillScale = buildFillScale(lsList, newDisplay, avgValues);
+  const usesFill = FILL_DISPLAYS.includes(newDisplay);
+
   document.querySelectorAll(".floor-item").forEach(div => {
     const obj = lsList.find(x => x.id === div.dataset.id);
     if(!obj) return;
 
-    // --- Ширина ---
-    let width;
-    if(newDisplay === "dolg") {
-      const dolgs = lsList.map(i => i.dolg || 0);
-      const minDolg = Math.min(...dolgs);
-      const maxDolg = Math.max(...dolgs);
-      const val = obj.dolg || 0;
-      const norm = (val - minDolg) / (maxDolg - minDolg || 1);
-      width = minWidth + norm * (maxWidth - minWidth);
+    // --- Размер плитки и заливка ---
+    if(usesFill) {
+      div.style.width = baseWidth + "px";
+      const band = getDolgBandClass(obj.dolgMonths);
+      setTileFill(
+        div,
+        fillScale,
+        obj[newDisplay],
+        newDisplay === "dolg" ? DOLG_BAND_COLORS[band] : FILL_NEUTRAL,
+        newDisplay === "dolg" ? DOLG_BAND_FILL[band] : FILL_NEUTRAL_BG
+      );
     } else {
+      // Уходим с вкладки с заливкой — слой и дорожка могли остаться от прошлой вкладки
+      const staleFill = div.querySelector(".tile-fill");
+      if (staleFill) staleFill.remove();
+      div.classList.remove("has-fill");
+
       const avg = avgValues[newDisplay] || avgArea;
       const value = parseFloat(obj[newDisplay]) || 0;
-      width = numericDisplays.includes(newDisplay)
+      div.style.width = (numericDisplays.includes(newDisplay)
         ? Math.max(minWidth, Math.min((baseWidth * value)/avg, maxWidth))
-        : baseWidth;
+        : baseWidth) + "px";
     }
-    div.style.width = width + "px";
 
     // --- Значение ---
     const span = div.querySelector(".value-span");
@@ -504,19 +668,16 @@ function updateDisplay(newDisplay, state) {
     if(numericDisplays.includes(newDisplay) && +val === 0) val = "-";
     span.textContent = val;
 
-    // --- Окраска долгов ---
-    if(newDisplay === "dolg") {
-      if(obj.dolg < 0) span.style.color = "green";
-      else if(obj.dolg > avgValues["dolg"]) span.style.color = "red";
-      else span.style.color = "black";
-    } else span.style.color = "black";
-
-    // --- Цвет номера квартиры ---
+    // --- Окраска долгов и номера квартиры ---
     const kvSpan = div.querySelector(".kv-background");
-    kvSpan.classList.remove("green","red","black");
-    if(obj.dolg < 0) kvSpan.classList.add("green");
-    else if(obj.dolg > avgValues["dolg"]) kvSpan.classList.add("red");
-    else kvSpan.classList.add("black");
+    if(newDisplay === "dolg") {
+      const band = getDolgBandClass(obj.dolgMonths);
+      span.style.color = DOLG_BAND_COLORS[band];
+      setDolgBandClass(kvSpan, band);
+    } else {
+      span.style.color = "#000000";
+      setDolgBandClass(kvSpan, "black");
+    }
   });
 
   // --- Обновление итогов по этажам/стоякам/подъезду (остается как раньше) ---
@@ -547,11 +708,8 @@ function updateDisplay(newDisplay, state) {
     span.textContent = ["ls","kv","pers"].includes(newDisplay) ? total : total.toFixed(2);
 
     if(newDisplay === "dolg") {
-      let count = items.length;
-      if(id.startsWith("total-") || id.startsWith("stand-")) count = countUniqueKv(items) || 1;
-      const avgDolg = total / count;
-      span.style.color = avgDolg < 0 ? "green" : avgDolg > avgValues["dolg"] ? "red" : "black";
-    } else span.style.color = "black";
+      span.style.color = DOLG_BAND_COLORS[getAvgDolgBandClass(items)];
+    } else span.style.color = "#000000";
 
     div.style.opacity = 0;
     requestAnimationFrame(() => { div.style.opacity = 1; });
@@ -564,6 +722,9 @@ function updateDisplay(newDisplay, state) {
     btn.classList.toggle("bg-blue-500", active);
     btn.classList.toggle("text-white", active);
   });
+
+  // --- Легенда только на вкладке «Борг» ---
+  if (state.legend) state.legend.style.display = newDisplay === "dolg" ? "" : "none";
 }
 
 
