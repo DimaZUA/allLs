@@ -433,7 +433,7 @@
     document.body.classList.add("authenticated", "app");
     document.body.classList.remove("files-mode");
 
-    setElementDisplay(".sidebar", "block");
+    setElementDisplay(".sidebar", "flex");
     setElementDisplay(".content", "block");
     setElementDisplay("#hamburger", "flex");
 

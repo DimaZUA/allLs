@@ -88,6 +88,11 @@ body.sidebar-open.files-mode .topbar-back {
   overflow: hidden;
   box-sizing: border-box;
 
+  /* Колонка: фильтр домов сверху не прокручивается, ниже — прокручиваемый
+     список. Режим файлов абсолютный и в поток не входит. */
+  display: flex;
+  flex-direction: column;
+
   transform: translateX(-100%);
   transition: transform 0.25s ease;
 
@@ -101,20 +106,56 @@ body.sidebar-open .sidebar {
 /* =====================================================
    SIDEBAR CONTENT MODES (MENU / FILES)
 ===================================================== */
+
+/* Фильтр домов раньше был первым элементом .sidebar-menu и поэтому уезжал
+   вверх вместе со списком домов. Теперь он отдельным блоком .sidebar-search
+   вне прокрутки, а прокручивается только .sidebar-menu.
+   Общими оставлены только свойства анимации перехода между режимами. */
+.sidebar-search,
 .sidebar-menu,
 .sidebar-files {
-  position: absolute;
-  inset: 0;
-
-  height: 100%;
-  overflow-y: auto;
-
   transform-origin: 50% 50%;
   transition:
     transform 0.24s ease,
     opacity   0.12s linear;
 
   will-change: transform, opacity;
+}
+
+/* Прокручиваемый список домов. В потоке сайдбара: фильтр сверху, он не
+   прокручивается, а этот блок занимает остаток высоты. */
+.sidebar-menu {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* Режим файлов перекрывает меню целиком и остаётся абсолютным: в потоке он
+   занял бы место и отжал меню высотой.
+   Селектор по id, а не класс: reports.css задаёт #filebar { position: relative },
+   и по специфичности id перебивал бы .sidebar-files. Тогда панель файлов
+   вставала в поток сайдбара третьим элементом колонки, занимала низ панели
+   и была пустой — колесо над этим местом уходило в страницу, а список домов
+   оказывался сжат. */
+#filebar.sidebar-files {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+}
+
+.sidebar-search {
+  position: relative;
+  flex: 0 0 auto;
+  background: #333;
+}
+
+/* В режиме файлов фильтр скрывается вместе с меню, иначе он остался бы
+   висеть поверх панели файлов. */
+body.files-mode .sidebar-search {
+  transform: scaleX(0.02);
+  opacity: 0;
+  pointer-events: none;
 }
 
 /* ===== MENU (default) ===== */
