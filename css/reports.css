@@ -2578,7 +2578,7 @@ li.folder {
 .od-document-actions { position: absolute; left: calc(50% + 105mm + 10px); top: 100px; display: flex; flex-direction: column; gap: 8px; z-index: 2; }
 .od-document-actions .gr-page-action { font-size: 11px; font-weight: 700; color: #1f4b7a; }
 .od-sheet { overflow: hidden; }
-.od-sheet-inner { padding: 7mm 10mm 18mm; font-family: "Times New Roman", Times, serif; font-size: 12pt; line-height: 1.25; }
+.od-sheet-inner { display: block; padding: 7mm 10mm 18mm; font-family: "Times New Roman", Times, serif; font-size: 12pt; line-height: 1.15; }
 .od-sheet-continued .od-sheet-inner { padding-top: 12mm; }
 .od-letter-head { display: grid; grid-template-columns: minmax(0, 1fr) 64mm; gap: 10mm; align-items: center; margin-bottom: 2.5mm; font-family: Arial, sans-serif; font-size: 9.5pt; }
 .od-letter-brand { display: flex; align-items: center; gap: 5mm; min-width: 0; }

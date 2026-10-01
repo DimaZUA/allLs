@@ -404,39 +404,96 @@
     }).join("");
   }
 
-  function blockUnits(block) {
-    const text = (block.runs || []).map(run => run.text || "").join("");
-    if (!text.trim()) return 1;
-    // Keep a safety margin for proportional font wrapping and paragraph spacing.
-    return Math.max(1, Math.ceil(text.length / 80));
+  function sliceDocumentBlock(block, start, end) {
+    let offset = 0;
+    const runs = [];
+    (block.runs || []).forEach(run => {
+      const text = String(run.text || "");
+      const part = text.slice(Math.max(0, start - offset), Math.max(0, end - offset));
+      if (part) runs.push(Object.assign({}, run, { text: part }));
+      offset += text.length;
+    });
+    return Object.assign({}, block, { runs });
   }
 
-  function splitDocumentItems(bodyBlocks, signatureBlocks) {
-    const items = (bodyBlocks || []).map(block => ({ type: "body", block }));
-    if ((signatureBlocks || []).length) {
-      items.push({ type: "signature-spacer", block: { align: "left", runs: [{ text: "" }] } });
-      items.push({ type: "signature-spacer", block: { align: "left", runs: [{ text: "" }] } });
-      items.push({ type: "signature-spacer", block: { align: "left", runs: [{ text: "" }] } });
-      signatureBlocks.forEach(block => items.push({ type: "signature", block }));
-    }
+  async function splitDocumentItems(bodyBlocks, signatureBlocks, doc, ctx) {
+    const host = document.createElement("div");
+    host.className = "gr-pdf-capture-host";
+    host.setAttribute("aria-hidden", "true");
+    document.body.appendChild(host);
     const pages = [];
     let page = [];
-    let used = 0;
-    // The first page also contains the letterhead and recipient block.
-    let limit = 35;
-    items.forEach(item => {
-      const units = blockUnits(item.block);
-      if (page.length && used + units > limit) {
-        pages.push(page);
-        page = [];
-        used = 0;
-        limit = 52;
+    function fits(items) {
+      host.innerHTML = renderDocumentSheet(doc, ctx, items, { continued: pages.length > 0 });
+      const sheet = host.querySelector(".od-sheet");
+      const inner = host.querySelector(".od-sheet-inner");
+      // Measure natural content height, including padding and paragraph margins.
+      inner.style.height = "auto";
+      return inner.getBoundingClientRect().height <= sheet.clientHeight - 1;
+    }
+    function finishPage() {
+      pages.push(page);
+      page = [];
+    }
+    function appendItem(item) {
+      let pending = item;
+      while (pending) {
+        if (fits(page.concat(pending))) {
+          page.push(pending);
+          return;
+        }
+        if (page.length) {
+          finishPage();
+          continue;
+        }
+        // An unusually long paragraph must be split, preserving run formatting.
+        const text = (pending.block.runs || []).map(run => run.text || "").join("");
+        let low = 1;
+        let high = text.length - 1;
+        let cut = 0;
+        while (low <= high) {
+          const mid = Math.floor((low + high) / 2);
+          const part = Object.assign({}, pending, { block: sliceDocumentBlock(pending.block, 0, mid) });
+          if (fits([part])) { cut = mid; low = mid + 1; }
+          else high = mid - 1;
+        }
+        if (!cut) throw new Error("Абзац не вміщується на сторінку. Зменшіть розмір шрифту.");
+        const boundary = text.slice(0, cut + 1).search(/\s+\S*$/);
+        if (boundary > 0) cut = boundary;
+        page.push(Object.assign({}, pending, { block: sliceDocumentBlock(pending.block, 0, cut) }));
+        finishPage();
+        pending = Object.assign({}, pending, { block: sliceDocumentBlock(pending.block, cut, text.length) });
       }
-      page.push(item);
-      used += units;
-    });
-    if (page.length) pages.push(page);
-    return pages.length ? pages : [[]];
+    }
+    try {
+      // Load the letterhead before measuring; wait for web fonts if present.
+      host.innerHTML = renderDocumentSheet(doc, ctx, [], {});
+      await Promise.all(Array.from(host.querySelectorAll("img")).map(img =>
+        img.complete ? Promise.resolve() : new Promise(resolve => {
+          img.addEventListener("load", resolve, { once: true });
+          img.addEventListener("error", resolve, { once: true });
+        })
+      ));
+      if (document.fonts && document.fonts.ready) await document.fonts.ready;
+      (bodyBlocks || []).forEach(block => appendItem({ type: "body", block }));
+      if ((signatureBlocks || []).length) {
+        const signature = signatureBlocks.map(block => ({ type: "signature", block }));
+        const spacers = Array.from({ length: 3 }, () => ({
+          type: "signature-spacer", block: { align: "left", runs: [{ text: "" }] }
+        }));
+        if (fits(page.concat(spacers, signature))) page.push(...spacers, ...signature);
+        else {
+          // Keep the signature together; omit leading blank lines on a new page.
+          if (page.length) finishPage();
+          if (fits(signature)) page.push(...signature);
+          else signature.forEach(appendItem);
+        }
+      }
+      if (page.length) pages.push(page);
+      return pages.length ? pages : [[]];
+    } finally {
+      host.remove();
+    }
   }
 
   function renderDocumentItems(items) {
@@ -475,7 +532,7 @@
           </div>
     `;
     return `
-      <section class="gr-sheet od-sheet ${opts.continued ? "od-sheet-continued" : ""}">
+      <section class="gr-sheet od-sheet ${opts.continued ? "od-sheet-continued" : ""}" data-od-okpo="${escapeHtml(ctx.okpo || "")}">
         <div class="gr-sheet-inner od-sheet-inner">
           ${header}
           ${renderDocumentItems(items)}
@@ -501,8 +558,8 @@
       replacements.mfo ? `МФО: ${replacements.mfo}` : "",
       replacements.okpo ? `Код ЄДРПОУ: ${replacements.okpo}` : ""
     ].filter(Boolean);
-    const ctx = { orgName, address, orgFontSize, bankLines, recipientText };
-    const pages = splitDocumentItems(bodyBlocks, signatureBlocks);
+    const ctx = { orgName, address, orgFontSize, bankLines, recipientText, okpo: replacements.okpo };
+    const pages = await splitDocumentItems(bodyBlocks, signatureBlocks, doc, ctx);
     return `
       <div class="od-document-actions no-print">
         <button type="button" class="gr-page-action" data-od-edit="${escapeHtml(doc.id)}" title="Редагувати">✎</button>
@@ -1135,12 +1192,48 @@
     else window.print();
   }
 
+  function signaturePdfMarkers(sheet, _index, pageSize) {
+    const okpo = String(sheet.dataset.odOkpo || "").trim();
+    if (!okpo) return [];
+    const sheetRect = sheet.getBoundingClientRect();
+    if (!sheetRect.width || !sheetRect.height) return [];
+    for (const paragraph of sheet.querySelectorAll(".od-signature-paragraph")) {
+      const match = /_{3,}/.exec(paragraph.textContent || "");
+      if (!match) continue;
+      const walker = document.createTreeWalker(paragraph, NodeFilter.SHOW_TEXT);
+      const range = document.createRange();
+      let offset = 0;
+      let started = false;
+      let node;
+      while ((node = walker.nextNode())) {
+        const end = offset + node.textContent.length;
+        if (!started && match.index < end) {
+          range.setStart(node, match.index - offset);
+          started = true;
+        }
+        if (started && match.index + match[0].length <= end) {
+          range.setEnd(node, match.index + match[0].length - offset);
+          const rect = range.getClientRects()[0];
+          if (!rect || !rect.width || !rect.height) return [];
+          const x = ((rect.left - sheetRect.left) / sheetRect.width) * pageSize.width;
+          const y = ((rect.bottom - sheetRect.top) / sheetRect.height) * pageSize.height;
+          if (x < 0 || y < 0 || x >= pageSize.width || y >= pageSize.height) return [];
+          return [{ text: `ECP ${okpo}`, x: Math.min(x + 15, pageSize.width - 10), y, size: 1, color: [255, 255, 255] }];
+        }
+        offset = end;
+      }
+    }
+    return [];
+  }
+
   async function downloadPreviewPdf() {
     const sheets = previewSheets();
     if (!sheets.length) return;
     const doc = state.currentDoc || {};
     const name = `${filePart(doc.doc_number || doc.summary || "document")}.pdf`;
-    if (window.GrCommon) await GrCommon.downloadPdfFromSheets(sheets, name);
+    if (window.GrCommon) await GrCommon.downloadPdfFromSheets(sheets, name, null, {
+      captureTextMarkers: signaturePdfMarkers
+    });
   }
 
   function updateNumberOnHomeChange(select) {

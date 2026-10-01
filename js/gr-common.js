@@ -1127,6 +1127,7 @@
     document.body.appendChild(host);
     await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
     try {
+      if (options && typeof options.onCapture === "function") options.onCapture(clone);
       return await html2canvas(clone, {
         scale: 2, useCORS: true, allowTaint: false, backgroundColor: "#ffffff", imageTimeout: 15000, logging: false
       });
@@ -1135,13 +1136,13 @@
     }
   }
 
-  async function captureSheetDataUrl(sheetEl, type, quality) {
-    let canvas = await captureSheetCanvas(sheetEl);
+  async function captureSheetDataUrl(sheetEl, type, quality, options) {
+    let canvas = await captureSheetCanvas(sheetEl, options);
     try {
       return canvas.toDataURL(type, quality);
     } catch (err) {
       if (!(err && err.name === "SecurityError")) throw err;
-      canvas = await captureSheetCanvas(sheetEl, { dropImages: true });
+      canvas = await captureSheetCanvas(sheetEl, Object.assign({}, options, { dropImages: true }));
       return canvas.toDataURL(type, quality);
     }
   }
@@ -1219,12 +1220,19 @@
       if (onProgress) onProgress(i, sheets.length);
       const landscape = sheets[i].classList.contains("gr-sheet-landscape");
       if (i > 0) pdf.addPage("a4", landscape ? "l" : "p");
-      const img = await captureSheetDataUrl(sheets[i], "image/jpeg", 0.95);
       const pageSize = landscape ? { width: 297, height: 210 } : { width: 210, height: 297 };
+      let capturedMarkers;
+      const img = await captureSheetDataUrl(sheets[i], "image/jpeg", 0.95, {
+        onCapture: clone => {
+          if (typeof (options && options.captureTextMarkers) === "function") {
+            capturedMarkers = options.captureTextMarkers(clone, i, pageSize);
+          }
+        }
+      });
       const markers = typeof (options && options.textMarkers) === "function"
         ? options.textMarkers(sheets[i], i, pageSize)
         : (options && options.textMarkers);
-      addPdfTextMarkers(pdf, markers, pageSize);
+      addPdfTextMarkers(pdf, capturedMarkers === undefined ? markers : capturedMarkers, pageSize);
       pdf.addImage(img, "JPEG", 0, 0, pageSize.width, pageSize.height);
     }
     pdf.save(fileName || "document.pdf");
