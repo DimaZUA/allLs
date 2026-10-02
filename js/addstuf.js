@@ -4481,6 +4481,7 @@ function updateAccountPrintTitle(account) {
 }
 
 function addStuffCore(accountId, isResidentMode) {
+  if (!ls || !ls[accountId]) return;
   var accountData = nach[accountId] || {}; // Данные для указанного accountId
   var paymentData = oplat[accountId] || {}; // Данные оплат для указанного accountId
 
@@ -6605,6 +6606,16 @@ window.addEventListener("popstate", () => {
 
 function initLS() {
   const isResidentMode = document.body.classList.contains("resident-mode");
+  const accountKeys = Object.keys(ls || {}).filter(key => {
+    const account = ls[key];
+    return account && typeof account === "object" &&
+      (String(account.kv == null ? "" : account.kv).trim() || String(account.ls == null ? "" : account.ls).trim());
+  });
+  if (!accountKeys.length) {
+    document.getElementById("maincontainer").innerHTML =
+      '<div class="gr-app"><p>У цьому будинку ще не заведено особові рахунки.</p></div>';
+    return;
+  }
 
   document.getElementById("maincontainer").innerHTML = `
 <div id="ls-picker" class="ls-picker hidden">
@@ -6685,7 +6696,7 @@ function initLS() {
   const list  = document.getElementById("number-list");
 
   if (isResidentMode) {
-    const allKeys = Object.keys(ls || {});
+    const allKeys = accountKeys;
     const fallbackId = allKeys[0] || null;
     const kvParam = getParam("kv");
     let ind = null;
@@ -6722,7 +6733,7 @@ function initLS() {
   // ================================
   list.innerHTML = "";
 
-  Object.values(ls).forEach(data => {
+  accountKeys.map(key => ls[key]).forEach(data => {
     const opt = document.createElement("option");
     opt.value = data.kv;       // подставляется в input
     opt.label = data.fio || ""; // подсказка
@@ -6793,13 +6804,13 @@ function initLS() {
   let ind = getParam("kv");
 
   if (!ind) {
-    ind = Object.keys(ls)[1];
+    ind = accountKeys[1] || accountKeys[0];
   } else {
-    ind = Object.keys(ls).find(key =>
+    ind = accountKeys.find(key =>
       ls[key].kv === ind || ls[key].ls === ind
     );
     if (ind === undefined) {
-      ind = Object.keys(ls)[1];
+      ind = accountKeys[1] || accountKeys[0];
     }
   }
 

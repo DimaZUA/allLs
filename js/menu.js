@@ -342,6 +342,7 @@ async function handleMenuClick(homeCode, actionCode, actionLink, { fromHistory =
   }
 
   handleMenuClick.isLoading = true;
+  try {
 
   // --- ДАННЫЕ ДОМА ---
   window.homeData = window.homeData || {};
@@ -441,8 +442,12 @@ async function handleMenuClick(homeCode, actionCode, actionLink, { fromHistory =
   // --- ДЕЙСТВИЕ ---
   runActionForHome(homeCode, actionCode);
 
-  // --- СНИМАЕМ блокировку ---
-  handleMenuClick.isLoading = false;
+  } catch (err) {
+    console.error("Помилка відкриття розділу будинку:", err);
+    showMessage("Не вдалося відкрити розділ. Можна обрати інший будинок або пункт меню.", "err", 7000);
+  } finally {
+    handleMenuClick.isLoading = false;
+  }
 }
 
 // ================================
