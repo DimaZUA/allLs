@@ -1,4 +1,4 @@
-﻿// ===================== 1. ВСПОМОГАТЕЛЬНЫЕ РАСЧЁТЫ =====================
+// ===================== 1. ВСПОМОГАТЕЛЬНЫЕ РАСЧЁТЫ =====================
 function getTotalForCurrentMonth(nachData, lsId) {
   const d = new Date();
   d.setDate(d.getDate() - 5);
@@ -825,7 +825,7 @@ function initSchema() {
 }
 
 function addFloorItemHandlers() {
-  const isTouch = isMobile();
+  const isTouch = "ontouchstart" in window || navigator.maxTouchPoints > 0;
 
   document.querySelectorAll(".floor-item").forEach(floorItem => {
     const lsId = floorItem.dataset.id;
