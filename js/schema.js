@@ -825,42 +825,60 @@ function initSchema() {
 }
 
 function addFloorItemHandlers() {
-  const isTouch = "ontouchstart" in window || navigator.maxTouchPoints > 0;
+  let lastTappedItem = null;
+  const root = document.getElementById("root");
+  root.addEventListener("pointerdown", e => {
+    if (lastTappedItem && !lastTappedItem.contains(e.target)) lastTappedItem = null;
+  }, true);
 
   document.querySelectorAll(".floor-item").forEach(floorItem => {
     const lsId = floorItem.dataset.id;
-
-    // пропускаем итоги, стояки и служебные элементы
     if (!lsId || !/^\d+$/.test(lsId)) return;
 
-    const go = () => goToAccount(lsId);
-
-    // ================= DESKTOP =================
-    if (!isTouch) {
-      // клик — сразу переход
-      floorItem.addEventListener("click", go);
-      return;
-    }
-
-    // ================= MOBILE =================
-    // добавляем ТОЛЬКО long-press
     let pressTimer = null;
-
-    const onTouchStart = () => {
-      pressTimer = setTimeout(() => {
-        go();
-      }, 900); // долгий тап
-    };
-
+    let startX = 0;
+    let startY = 0;
+    let cancelled = false;
+    let navigated = false;
     const cancel = () => {
       clearTimeout(pressTimer);
       pressTimer = null;
+      cancelled = true;
     };
 
-    floorItem.addEventListener("touchstart", onTouchStart, { passive: true });
-    floorItem.addEventListener("touchend", cancel, { passive: true });
-    floorItem.addEventListener("touchmove", cancel, { passive: true });
-    floorItem.addEventListener("touchcancel", cancel, { passive: true });
+    floorItem.addEventListener("pointerdown", e => {
+      if (!e.isPrimary || e.button !== 0) return;
+      startX = e.clientX;
+      startY = e.clientY;
+      cancelled = false;
+      navigated = false;
+      if (e.pointerType === "mouse") return;
+      pressTimer = setTimeout(() => {
+        navigated = true;
+        lastTappedItem = null;
+        goToAccount(lsId);
+      }, 900);
+    });
+    floorItem.addEventListener("pointermove", e => {
+      if (Math.abs(e.clientX - startX) > 10 || Math.abs(e.clientY - startY) > 10) cancel();
+    });
+    floorItem.addEventListener("pointercancel", cancel);
+    floorItem.addEventListener("pointerleave", cancel);
+    floorItem.addEventListener("pointerup", e => {
+      clearTimeout(pressTimer);
+      pressTimer = null;
+      if (!e.isPrimary || e.button !== 0 || cancelled || navigated) return;
+      if (e.pointerType === "mouse" || lastTappedItem === floorItem) {
+        lastTappedItem = null;
+        goToAccount(lsId);
+      } else {
+        lastTappedItem = floorItem;
+        const tooltip = floorItem.querySelector(".descr");
+        if (tooltip) {
+          tooltip.style.display = "block";
+          safePositionTooltip(e, tooltip);
+        }
+      }
+    });
   });
 }
-
