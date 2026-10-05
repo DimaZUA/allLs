@@ -1,4 +1,4 @@
-﻿/* =====================================================
+/* =====================================================
    BASE
 ===================================================== */
 body {
@@ -496,4 +496,10 @@ body.sidebar-scroll-lock {
 .menu-item.home-offline > span {
   pointer-events: none;
   cursor: not-allowed !important;
+}
+
+.files-back-mobile { display: none; }
+@media (max-width: 640px) {
+  .files-back-full { display: none; }
+  .files-back-mobile { display: inline; }
 }

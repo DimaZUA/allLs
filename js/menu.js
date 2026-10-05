@@ -1,4 +1,4 @@
-﻿// ================================
+// ================================
 // НАСТРОЙКИ РЕЖИМОВ ЭКРАНА
 // ================================
 const SCREEN = {
@@ -112,6 +112,9 @@ function toggleSubMenu(homeItem, homeCode) {
   homeItem.classList.add("active");
   const actionList = homeItem.querySelector("ul");
   if (actionList) actionList.style.display = "block";
+
+  // На мобильном и планшете выбор дома только раскрывает его пункты.
+  if (sidebarState.mode !== 'desktop') return;
 
   // Находим действие, которое нужно активировать
   let actionItem = Array.from(actionList.querySelectorAll("li")).find(item => {

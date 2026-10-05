@@ -1,4 +1,4 @@
-﻿//var host='https://dimazua.github.io/allLs/data/';
+//var host='https://dimazua.github.io/allLs/data/';
 function waitHtml2Canvas() {
     return new Promise(resolve => {
         if (typeof html2canvas === "function") {
@@ -77,15 +77,14 @@ function buildButtonsHtml(canvasOK) {
     let thirdButton = "";
 
     if (canvasOK) {
+        thirdButton =
+            '  <button onclick="captureAndCopy()" class="xls-button" title="Скриншот">\n' +
+            '    <img src="img/screenshot.png" class="xls-icon">\n' +
+            '  </button>\n';
         if (mobile && CAN_SHARE_IMAGE) {
-            thirdButton =
+            thirdButton +=
                 '  <button onclick="captureAndShare()" class="xls-button" title="Поделиться">\n' +
                 '    <img src="img/share.png" class="xls-icon">\n' +
-                '  </button>\n';
-        } else {
-            thirdButton =
-                '  <button onclick="captureAndCopy()" class="xls-button" title="Скриншот">\n' +
-                '    <img src="img/screenshot.png" class="xls-icon">\n' +
                 '  </button>\n';
         }
     }
@@ -2168,6 +2167,63 @@ function buildColGroup(widths) {
 
 
 function renderTableToCanvas() {
+  if (getParam("actionCode") !== "accounts") return renderVisibleTableToCanvas();
+
+  const container = document.getElementById("maincontainer");
+  const year = Array.from(container.querySelectorAll(".year-table")).find(el => {
+    for (let node = el; node; node = node.parentElement) {
+      const style = window.getComputedStyle(node);
+      if (style.display === "none" || style.visibility === "hidden" || style.opacity === "0") return false;
+    }
+    return true;
+  });
+  const target = year && (year.querySelector(".resident-desktop-history") || year.querySelector("table#main"));
+  if (!target) return renderVisibleTableToCanvas();
+
+  const address = document.getElementById("adr")?.innerText || "";
+  const apartment = document.getElementById("number")?.value.trim() || "";
+  const fio = document.getElementById("fio")?.innerText || "";
+
+  return html2canvas(target, {
+    scale: 2,
+    backgroundColor: "#fff",
+    useCORS: true,
+    windowWidth: 1280,
+    windowHeight: 900,
+    scrollX: 0,
+    scrollY: 0,
+    onclone: (doc, clonedTarget) => {
+      // Все изменения выполняются только в копии страницы для снимка.
+      const host = doc.createElement("div");
+      host.className = "box year-table";
+      host.style.cssText = "display:block !important;visibility:visible !important;opacity:1 !important;position:absolute;left:0;top:0;width:1000px;height:auto;overflow:visible;background:#fff;padding:0;margin:0;";
+      doc.body.appendChild(host);
+      host.appendChild(clonedTarget);
+      clonedTarget.style.setProperty("display", clonedTarget.tagName === "TABLE" ? "table" : "block", "important");
+      clonedTarget.style.setProperty("width", "1000px", "important");
+      clonedTarget.style.setProperty("max-width", "none", "important");
+      clonedTarget.style.setProperty("margin", "0", "important");
+      clonedTarget.style.setProperty("visibility", "visible", "important");
+      clonedTarget.style.setProperty("opacity", "1", "important");
+      clonedTarget.querySelectorAll(".rhd-line-detail").forEach(el => { el.hidden = true; });
+      clonedTarget.querySelectorAll(".rhd-detail-toggle").forEach(el => el.setAttribute("aria-expanded", "false"));
+
+      const title = doc.createElement(clonedTarget.tagName === "TABLE" ? "caption" : "div");
+      title.style.cssText = "caption-side:top;text-align:center;font-size:18px;font-weight:600;padding:8px 0 10px;line-height:1.3;";
+      title.textContent = address + " " + apartment + ", " + fio;
+      clonedTarget.insertBefore(title, clonedTarget.firstChild);
+      if (clonedTarget.tagName === "TABLE") {
+        clonedTarget.style.borderCollapse = "collapse";
+        clonedTarget.querySelectorAll("td").forEach(td => {
+          td.style.border = "2px solid black";
+          td.style.padding = "4px";
+        });
+      }
+    }
+  });
+}
+
+function renderVisibleTableToCanvas() {
   return new Promise((resolve, reject) => {
     var mainContainer = document.getElementById("maincontainer");
 
@@ -2305,36 +2361,51 @@ function applyBorders(table) {
 }
 
 }
+function canvasPngBlob(canvas) {
+  return new Promise((resolve, reject) => {
+    if (!canvas.width || !canvas.height) {
+      reject(new Error("Не вдалося створити зображення таблиці: порожній знімок"));
+      return;
+    }
+    canvas.toBlob(blob => {
+      if (!blob || !blob.size) reject(new Error("Не вдалося створити PNG таблиці"));
+      else resolve(blob);
+    }, "image/png");
+  });
+}
+
 function captureAndCopy() {
-  renderTableToCanvas()
-    .then(canvas => {
-      var supportsClipboard =
-        navigator.clipboard &&
-        window.ClipboardItem &&
-        canvas.toBlob;
-
-      if (!supportsClipboard) {
-        fallbackDownload(canvas);
-        showMessage("Буфер обмена недоступен, файл сохранён", "warn");
-        return;
-      }
-
-      canvas.toBlob(blob => {
-        navigator.clipboard.write([
-          new ClipboardItem({ "image/png": blob })
-        ]).then(() => {
-          showMessage("Скриншот таблицы скопирован в буфер обмена");
-        }).catch(err => {
-          console.error(err);
-          fallbackDownload(canvas);
-          showMessage("Не удалось скопировать, файл сохранён", "warn");
-        });
-      });
-    })
-    .catch(err => {
+  const canvasPromise = renderTableToCanvas();
+  const blobPromise = canvasPromise.then(canvasPngBlob);
+  if (!navigator.clipboard || !window.ClipboardItem) {
+    blobPromise.then(() => canvasPromise).then(canvas => {
+      fallbackDownload(canvas);
+      showMessage("Буфер обмена недоступен, файл сохранён", "warn");
+    }).catch(err => showMessage(String(err), "warn"));
+    return;
+  }
+  // Запрашиваем запись сразу в обработчике клика, пока действует разрешение касания.
+  try {
+    navigator.clipboard.write([
+      new ClipboardItem({ "image/png": blobPromise })
+    ]).then(() => {
+      showMessage("Скриншот таблицы скопирован в буфер обмена");
+    }).catch(async err => {
       console.warn(err);
-      showMessage(err, "warn");
+      try {
+        await blobPromise;
+        fallbackDownload(await canvasPromise);
+        showMessage("Не удалось скопировать, файл сохранён", "warn");
+      } catch (renderError) {
+        showMessage(String(renderError), "warn");
+      }
     });
+  } catch (err) {
+    blobPromise.then(() => canvasPromise).then(canvas => {
+      fallbackDownload(canvas);
+      showMessage("Не удалось скопировать, файл сохранён", "warn");
+    }).catch(renderError => showMessage(String(renderError), "warn"));
+  }
 }
 function captureAndShare() {
   if (!isMobile() || !navigator.share || !navigator.canShare) {
@@ -2343,12 +2414,12 @@ function captureAndShare() {
   }
 
   renderTableToCanvas()
-    .then(canvas => {
-      canvas.toBlob(async blob => {
+    .then(canvasPngBlob)
+    .then(async blob => {
         var file = new File([blob], "table.png", { type: "image/png" });
 
         if (!navigator.canShare({ files: [file] })) {
-          fallbackDownload(canvas);
+          fallbackDownload(await renderTableToCanvas());
           return;
         }
 
@@ -2361,7 +2432,6 @@ function captureAndShare() {
         } catch (e) {
           console.warn("Share cancelled", e);
         }
-      });
     })
     .catch(err => {
       console.warn(err);
