@@ -357,6 +357,8 @@ li.folder {
 .gr-combo-list { display: flex; flex-direction: column; gap: 2px; margin-top: 6px; }
 .gr-combo-item { display: flex; gap: 8px; align-items: flex-start; padding: 6px 4px; border-radius: 6px; cursor: pointer; font-size: 13px; }
 .gr-combo-item:hover { background: #f1f4f8; }
+/* Атрибут hidden перебивался display:flex выше — без этого поиск не фильтровал список */
+.gr-combo-item[hidden] { display: none; }
 
 .gr-output { display: flex; flex-direction: column; gap: 18px; align-items: center; }
 .gr-sheet-wrap { position: relative; display: flex; align-items: flex-start; gap: 10px; }
