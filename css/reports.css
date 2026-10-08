@@ -2535,7 +2535,7 @@ li.folder {
 .od-editor-actions .gr-btn { display: inline-flex; align-items: center; gap: 7px; }
 .od-editor-actions .gr-btn i,
 .od-editor-actions .gr-btn svg { width: 16px; height: 16px; flex: 0 0 auto; }
-.od-editor-grid { display: grid; grid-template-columns: 220px 150px 130px 1fr; gap: 10px; }
+.od-editor-grid { display: grid; grid-template-columns: 220px 150px 130px 130px 1fr; gap: 10px; }
 .od-editor-grid label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: #555; }
 .od-editor-grid input,
 .od-editor-grid select,

@@ -848,8 +848,8 @@
               ${renderAccountPicker(item)}
               <label>Дата<input type="date" name="doc_date" value="${escapeHtml(shortDate(item.doc_date))}"></label>
               <label>Номер<input name="doc_number" value="${escapeHtml(item.doc_number || "")}"></label>
-              <label class="od-template-field"><span>Шаблон</span><input type="checkbox" name="is_template" ${item.is_template ? "checked" : ""}></label>
               <label class="gr-ph-field">Кому<button type="button" class="gr-ph-btn" data-gr-ph-picker title="Вставити placeholder">⋯</button><textarea name="recipient" rows="3">${escapeHtml(item.recipient || "")}</textarea></label>
+              ${canUseTemplates() ?  '<label class="od-template-field"><span>Шаблон</span><input type="checkbox" name="is_template" ${item.is_template ? "checked" : ""}></label>' :''}
               <label class="od-editor-summary">Короткий опис<input name="summary" value="${escapeHtml(item.summary || "")}"></label>
               <label class="od-editor-body gr-ph-field">Текст<button type="button" class="gr-ph-btn" data-gr-ph-picker title="Вставити placeholder">⋯</button><textarea name="body" rows="22">${escapeHtml(item.body || "")}</textarea></label>
               <label class="od-editor-signature gr-ph-field">Підпис<button type="button" class="gr-ph-btn" data-gr-ph-picker title="Вставити placeholder">⋯</button><textarea name="signature_text" rows="4">${escapeHtml(getDocSignature(item))}</textarea></label>
