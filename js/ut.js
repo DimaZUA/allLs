@@ -2205,6 +2205,13 @@ function renderTableToCanvas() {
       clonedTarget.style.setProperty("margin", "0", "important");
       clonedTarget.style.setProperty("visibility", "visible", "important");
       clonedTarget.style.setProperty("opacity", "1", "important");
+      // Закреплённая шапка при снимке перекрывает первые строки таблицы.
+      clonedTarget.querySelectorAll("thead, thead *").forEach(el => {
+        el.style.setProperty("position", "static", "important");
+        el.style.setProperty("top", "auto", "important");
+        el.style.setProperty("bottom", "auto", "important");
+        el.style.setProperty("z-index", "auto", "important");
+      });
       clonedTarget.querySelectorAll(".rhd-line-detail").forEach(el => { el.hidden = true; });
       clonedTarget.querySelectorAll(".rhd-detail-toggle").forEach(el => el.setAttribute("aria-expanded", "false"));
 
