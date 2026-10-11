@@ -1819,6 +1819,15 @@ body.resident-mode .resident-desktop-history-table .rhd-paid-line span {
   white-space: nowrap;
 }
 
+body.resident-mode .resident-desktop-history-table .rhd-paid-period {
+  margin-top: 2px;
+  justify-self: end;
+  text-align: right;
+  font-size: 1.08rem;
+  font-weight: 700;
+  color: #111827;
+}
+
 body.resident-mode .resident-desktop-history-table .rhd-paid-line strong {
   font-size: 1.08rem;
   color: #111827;

@@ -4389,7 +4389,7 @@ function buildResidentDesktopYearCards(yearPayload) {
             ? String(p._period || "")
             : getMonthsForPaymentRange(month.accountId, Number(p && p.sum) || 0, p && p.date);
           const period = periodRaw && periodRaw !== "..." ? escapeHtml(periodRaw) : "";
-          return `<div class="rhd-paid-line"><span>${date}${period ? ` ${period} р.` : ""}</span><strong>${value}</strong></div>`;
+          return `<div class="rhd-paid-line"><span>${date}</span><strong>${value}</strong>${period ? `<div class="rhd-paid-period">${period} р.</div>` : ""}</div>`;
         }).join("")
       : `<div class="rhd-empty">—</div>`;
 
