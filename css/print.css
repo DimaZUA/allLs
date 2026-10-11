@@ -37,6 +37,22 @@
         visibility: visible;
         top:0
     }
+    @page ordinary-account {
+        margin: 0.1cm;
+        margin-left: 1.5cm;
+    }
+    body:not(.resident-mode) {
+        page: ordinary-account;
+        margin-left: 0 !important;
+        padding-left: 0 !important;
+    }
+    body:not(.resident-mode) .ordinary-month-screen {
+        display: none !important;
+    }
+    body:not(.resident-mode) .ordinary-month-print {
+        display: inline !important;
+        white-space: nowrap;
+    }
     #header {
         position: static !important;
         top: auto !important;

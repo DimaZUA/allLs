@@ -4223,22 +4223,62 @@ function getMonthsForPaymentRange(accountId, paymentSum, paymentDate) {
   }
 
   remainingSum += Number(paymentSum) || 0;
-  var lastPaid = null;
-  for (var yi = 0; yi < years.length; yi++) {
-    var yy = years[yi];
-    var months = Object.keys(nach[accountId][yy]).sort(function (a,b) { return a-b; });
-    for (var mi = 0; mi < months.length; mi++) {
-      var mm = months[mi];
-      var monthCharge = Object.values(nach[accountId][yy][mm]).reduce(function (sum,value) { return sum+(Number(value)||0); },0);
-      remainingSum -= monthCharge;
-      if (remainingSum < -0.009) return lastPaid || "";
-      if (monthCharge > 0) {
-        var names = ["січень","лютий","березень","квітень","травень","червень","липень","серпень","вересень","жовтень","листопад","грудень"];
-        lastPaid = "по " + names[Number(mm)-1] + " " + yy;
-      }
+  return getExtrapolatedPaidThrough(accountId, remainingSum);
+}
+
+function getExtrapolatedPaidThrough(accountId, paidSum) {
+  var data = nach[accountId] || {};
+  var months = [];
+  var money = function (value) { return Math.round((Number(value) || 0) * 100); };
+  Object.keys(data).forEach(function (year) {
+    Object.keys(data[year] || {}).forEach(function (month) {
+      var items = data[year][month] || {};
+      var total = 0, regular = 0;
+      Object.keys(items).forEach(function (service) {
+        var amount = money(items[service]);
+        total += amount;
+        // 10: target repair contributions; 13: recalculations.
+        if (Number(service) !== 10 && Number(service) !== 13) regular += amount;
+      });
+      months.push({code: Number(year) * 12 + Number(month), total: total, regular: regular});
+    });
+  });
+  months.sort(function (a, b) { return a.code - b.code; });
+  if (!months.length) return "";
+  var positive = months.filter(function (row) { return row.regular > 0; });
+  var remaining = money(paidSum);
+  var format = function (code) {
+    var year = Math.floor((code - 1) / 12), month = code - year * 12;
+    var names = ["січень","лютий","березень","квітень","травень","червень","липень","серпень","вересень","жовтень","листопад","грудень"];
+    return "по " + names[month - 1] + " " + year;
+  };
+  var first = positive[0];
+  var openingEnd = first ? first.code - 1 : null;
+  var rate = first ? first.regular : 0;
+  var opening = first ? months.filter(function (row) { return row.code <= openingEnd; }).reduce(function (sum, row) { return sum + row.total; }, 0) : 0;
+  if (opening > 0 && rate > 0) {
+    // Infer an oldest partial month plus full months, without constructing fake accruals.
+    var count = Math.ceil(opening / rate);
+    var oldest = openingEnd - count + 1;
+    var partial = opening - (count - 1) * rate;
+    if (remaining < opening) {
+      return format(remaining < partial ? oldest - 1 : oldest + Math.floor((remaining - partial) / rate));
     }
+    remaining -= opening;
+    months = months.filter(function (row) { return row.code > openingEnd; });
   }
-  return lastPaid || "";
+  var lastPaid = opening > 0 && rate > 0 ? openingEnd : null;
+  for (var i = 0; i < months.length; i++) {
+    remaining -= months[i].total;
+    if (remaining < 0) return lastPaid === null ? format(months[i].code - 1) : format(lastPaid);
+    if (months[i].total > 0) lastPaid = months[i].code;
+  }
+  var lastRegular = positive.length ? positive[positive.length - 1] : null;
+  if (lastRegular && remaining >= 0) {
+    var lastKnown = Math.max(lastRegular.code, months.length ? months[months.length - 1].code : (openingEnd || lastRegular.code));
+    return format(lastKnown + Math.floor(remaining / lastRegular.regular));
+  }
+  return lastPaid === null ? "" : format(lastPaid);
 }
 
 function getMonthsForIndividualPayments(accountId, payments, year, month) {
@@ -4725,6 +4765,7 @@ if (payUrl && !isResidentMode) {
     var headerRow = document.createElement("tr");
 const servicesCount = [...services].filter(n => n !== "7").length;
 const compactResidentMonthLabel = isResidentMode && servicesCount >= 3;
+const compactOrdinaryPrintMonthLabel = !isResidentMode && servicesCount >= 4;
 const showChargeTotalColumn = !isResidentMode && servicesCount > 1;
 
     var getChargeOpeningSummary = function (chargesTotal) {
@@ -4839,6 +4880,10 @@ if (cumulativeBalance !== 0) {
         ? getResidentMonthShortLabel(_month, year)
         : fullMonthTitleText;
       row.innerHTML = `<td align="LEFT">${monthTitleText}${isResidentMode && cur ? '<div class="resident-current-month-note">попередньо</div>' : ""}</td>`;
+      if (compactOrdinaryPrintMonthLabel) {
+        row.cells[0].innerHTML = `<span class="ordinary-month-screen">${fullMonthTitleText}</span><span class="ordinary-month-print" style="display:none">${spendingMonthShortLabel(_month)} ${year}</span>`;
+        row.cells[0].dataset.excelText = fullMonthTitleText;
+      }
       var rowCharges = {};
       var monthChargesForMobile = [];
       var monthlyChargesTotal = 0;
@@ -4979,6 +5024,10 @@ if (cumulativeBalance !== 0) {
       var totalRow = document.createElement("tr");
       totalRow.classList.add("itog");
 totalRow.innerHTML =`<td align="center" class="year-total-title">Разом за ${year} рік</td>`;
+      if (compactOrdinaryPrintMonthLabel) {
+        totalRow.cells[0].innerHTML = `<span class="ordinary-month-screen">Разом за ${year} рік</span><span class="ordinary-month-print" style="display:none">за ${year} р</span>`;
+        totalRow.cells[0].dataset.excelText = `Разом за ${year} рік`;
+      }
 
       // Итог по каждой услуге
       services.forEach(function (serviceId) {
