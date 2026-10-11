@@ -225,10 +225,32 @@
 
     /* ❗ НИКАКИХ * ДЛЯ print-act-sign */
 
-.box table#main tbody .paysubtable td:nth-child(1),
+.box table#main > tbody > tr > td,
+.box table#main tbody .paysubtable td {
+  font-size: 14px !important;
+}
+
+.box table#main tbody .paysubtable td {
+  vertical-align: middle !important;
+  font-weight: normal !important;
+  width: auto !important;
+  line-height: 1.2;
+}
+
+.box table#main tbody .paysubtable {
+  table-layout: auto !important;
+}
+
+.box table#main tbody .paysubtable td:nth-child(2) {
+  font-weight: normal;
+  padding-left: 4px !important;
+  padding-right: 6px !important;
+  white-space: nowrap;
+}
+
 .box table#main tbody .paysubtable td:nth-child(3) {
-  vertical-align: bottom;
-  font-size: 8px;
+  white-space: nowrap !important;
+  text-align: left;
 }
 
 

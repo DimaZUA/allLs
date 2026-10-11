@@ -4136,7 +4136,9 @@ function buildMobileYearCards(yearPayload) {
       ? month.payments.map(function (p) {
           const sum = (Number(p && p.sum) || 0).toFixedWithComma();
           const date = formatMobilePaymentDate(p && p.date);
-          return `<div class="mobile-month-line mobile-payment-line"><span>${date || "Оплата"}</span><strong>${sum} грн</strong></div>`;
+          const paidThrough = String(p && p._period || "").trim();
+          const periodText = paidThrough ? " " + escapeHtml(paidThrough) + " р." : "";
+          return `<div class="mobile-month-line mobile-payment-line"><span>${date || "Оплата"}${periodText}</span><strong>${sum} грн</strong></div>`;
         }).join("")
       : "";
     const paymentsColHtml = hasPayments
@@ -4220,33 +4222,31 @@ function getMonthsForPaymentRange(accountId, paymentSum, paymentDate) {
     }
   }
 
-  var start = null;
-  var end = null;
+  remainingSum += Number(paymentSum) || 0;
+  var lastPaid = null;
   for (var yi = 0; yi < years.length; yi++) {
     var yy = years[yi];
-    var shortYear = String(yy).slice(-2);
-    var months = [];
-    for (var monthKey in nach[accountId][yy]) {
-      if (Object.prototype.hasOwnProperty.call(nach[accountId][yy], monthKey)) months.push(monthKey);
-    }
-    months.sort(function (a, b) { return a - b; });
-
+    var months = Object.keys(nach[accountId][yy]).sort(function (a,b) { return a-b; });
     for (var mi = 0; mi < months.length; mi++) {
       var mm = months[mi];
-      var charges = Object.values(nach[accountId][yy][mm]);
-      var monthCharge = 0;
-      for (var ci = 0; ci < charges.length; ci++) monthCharge += Number(charges[ci]) || 0;
+      var monthCharge = Object.values(nach[accountId][yy][mm]).reduce(function (sum,value) { return sum+(Number(value)||0); },0);
       remainingSum -= monthCharge;
-      if (remainingSum < -0.01 && !start) start = String(mm).padStart(2, "0") + "." + shortYear;
-      if (monthCharge > 0 && remainingSum + (Number(paymentSum) || 0) < 0.01) {
-        end = String(mm).padStart(2, "0") + "." + shortYear;
-        return start === end ? start : start + "-" + end;
+      if (remainingSum < -0.009) return lastPaid || "";
+      if (monthCharge > 0) {
+        var names = ["січень","лютий","березень","квітень","травень","червень","липень","серпень","вересень","жовтень","листопад","грудень"];
+        lastPaid = "по " + names[Number(mm)-1] + " " + yy;
       }
     }
   }
+  return lastPaid || "";
+}
 
-  end = "...";
-  return start === end ? start : start + "-" + end;
+function getMonthsForIndividualPayments(accountId, payments, year, month) {
+  var cumulative = 0;
+  return payments.map(function(payment) {
+    cumulative += Number(payment.sum) || 0;
+    return getMonthsForPaymentRange(accountId,cumulative,"01."+String(month).padStart(2,"0")+"."+year);
+  });
 }
 
 function getMonthsForMonthlyPayments(accountId, monthlyPayments, paymentYear, paymentMonth) {
@@ -4389,7 +4389,7 @@ function buildResidentDesktopYearCards(yearPayload) {
             ? String(p._period || "")
             : getMonthsForPaymentRange(month.accountId, Number(p && p.sum) || 0, p && p.date);
           const period = periodRaw && periodRaw !== "..." ? escapeHtml(periodRaw) : "";
-          return `<div class="rhd-paid-line"><span>${date}${period ? ` \u0437\u0430 ${period}` : ""}</span><strong>${value}</strong></div>`;
+          return `<div class="rhd-paid-line"><span>${date}${period ? ` ${period} р.` : ""}</span><strong>${value}</strong></div>`;
         }).join("")
       : `<div class="rhd-empty">—</div>`;
 
@@ -4931,11 +4931,11 @@ if (cumulativeBalance !== 0) {
         isCurrent: !!cur,
         charges: monthChargesForMobile,
         payments: (function () {
-          var monthPaymentPeriod = getMonthsForMonthlyPayments(accountId, monthlyPayments, year, _month);
+          var paymentPeriods = getMonthsForIndividualPayments(accountId, monthlyPayments, year, _month);
           var lastPaymentIndex = monthlyPayments.length - 1;
           return monthlyPayments.map(function (p, index) {
             return Object.assign({}, p, {
-              _period: index === lastPaymentIndex ? monthPaymentPeriod : ""
+              _period: paymentPeriods[index]
             });
           });
         })(),
@@ -5891,19 +5891,19 @@ if (monthlyPayments.length === 0) {
   // Если оплат нет — вставляем непустое содержимое, чтобы Excel не смещал колонки
   paymentCell.innerHTML = "&nbsp;";
 } else {
-  var monthlyPaymentPeriod = getMonthsForMonthlyPayments(accountId, monthlyPayments, paymentYear, paymentMonth);
+  var paymentPeriods = getMonthsForIndividualPayments(accountId, monthlyPayments, paymentYear, paymentMonth);
   var lastPaymentIndex = monthlyPayments.length - 1;
   var tableRows = monthlyPayments
     .map(function (payment, index) {
       var formattedDate = payment.date.split(".")[0]; // Преобразуем дату в формат D
       var formattedSum = payment.sum.toFixed(2).replace(".", ","); // Преобразуем сумму в формат 0.00
-      var paymentMonths = index === lastPaymentIndex ? monthlyPaymentPeriod : "";
+      var paymentMonths = paymentPeriods[index];
       return (
         "<tr>" +
         '<td class="big" data-payment-date="' + escapeHtml(payment.date || "") + '">' +
         formattedDate +
         "</td>" +
-        '<td class="big">' +
+        '<td class="payment-amount">' +
         formattedSum +
         "</td>" +
         "<td>" +
