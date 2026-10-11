@@ -1805,8 +1805,9 @@ body.resident-mode .resident-desktop-history-table .rhd-paid {
 
 body.resident-mode .resident-desktop-history-table .rhd-paid-line {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 1px;
+  grid-template-columns: auto 1fr;
+  align-items: baseline;
+  gap: 1px 6px;
 }
 
 body.resident-mode .resident-desktop-history-table .rhd-paid-line + .rhd-paid-line {
@@ -1821,9 +1822,10 @@ body.resident-mode .resident-desktop-history-table .rhd-paid-line span {
 
 body.resident-mode .resident-desktop-history-table .rhd-paid-period {
   margin-top: 2px;
+  grid-column: 1 / -1;
   justify-self: end;
   text-align: right;
-  font-size: 1.08rem;
+  font-size: 0.9rem;
   font-weight: 700;
   color: #111827;
 }
