@@ -4223,12 +4223,14 @@ function getMonthsForPaymentRange(accountId, paymentSum, paymentDate) {
   }
 
   remainingSum += Number(paymentSum) || 0;
-  return getExtrapolatedPaidThrough(accountId, remainingSum);
+  return getExtrapolatedPaidThrough(accountId, remainingSum, year * 12 + month);
 }
 
-function getExtrapolatedPaidThrough(accountId, paidSum) {
+function getExtrapolatedPaidThrough(accountId, paidSum, asOfMonth) {
   var data = nach[accountId] || {};
   var months = [];
+  var correctionCredit = 0;
+  if (!Number.isFinite(asOfMonth)) asOfMonth = Infinity;
   var money = function (value) { return Math.round((Number(value) || 0) * 100); };
   Object.keys(data).forEach(function (year) {
     Object.keys(data[year] || {}).forEach(function (month) {
@@ -4236,6 +4238,12 @@ function getExtrapolatedPaidThrough(accountId, paidSum) {
       var total = 0, regular = 0;
       Object.keys(items).forEach(function (service) {
         var amount = money(items[service]);
+        if (Number(service) === 13) {
+          // Группа 13: ручные корректировки уже с обратным знаком.
+          // Уменьшение долга применяем до определения месяца по FIFO.
+          if (Number(year) * 12 + Number(month) > asOfMonth) return;
+          if (amount < 0) { correctionCredit -= amount; return; }
+        }
         total += amount;
         // 10: target repair contributions; 13: recalculations.
         if (Number(service) !== 10 && Number(service) !== 13) regular += amount;
@@ -4246,10 +4254,10 @@ function getExtrapolatedPaidThrough(accountId, paidSum) {
   months.sort(function (a, b) { return a.code - b.code; });
   if (!months.length) return "";
   var positive = months.filter(function (row) { return row.regular > 0; });
-  var remaining = money(paidSum);
-  var format = function (code) {
-    // «За» показывает следующий месяц после последнего полностью оплаченного.
-    code += 1;
+  var remaining = money(paidSum) + correctionCredit;
+  var format = function (code, hasPartialPayment) {
+    // Следующий месяц показываем только при фактической частичной оплате.
+    if (hasPartialPayment) code += 1;
     var year = Math.floor((code - 1) / 12), month = code - year * 12;
     var names = ["січень","лютий","березень","квітень","травень","червень","липень","серпень","вересень","жовтень","листопад","грудень"];
     return "за " + names[month - 1] + " " + year;
@@ -4264,7 +4272,7 @@ function getExtrapolatedPaidThrough(accountId, paidSum) {
     var oldest = openingEnd - count + 1;
     var partial = opening - (count - 1) * rate;
     if (remaining < opening) {
-      return format(remaining < partial ? oldest - 1 : oldest + Math.floor((remaining - partial) / rate));
+      return format(remaining < partial ? oldest - 1 : oldest + Math.floor((remaining - partial) / rate), remaining < partial ? remaining > 0 : (remaining - partial) % rate > 0);
     }
     remaining -= opening;
     months = months.filter(function (row) { return row.code > openingEnd; });
@@ -4272,13 +4280,13 @@ function getExtrapolatedPaidThrough(accountId, paidSum) {
   var lastPaid = opening > 0 && rate > 0 ? openingEnd : null;
   for (var i = 0; i < months.length; i++) {
     remaining -= months[i].total;
-    if (remaining < 0) return lastPaid === null ? format(months[i].code - 1) : format(lastPaid);
+    if (remaining < 0) return format(lastPaid === null ? months[i].code - 1 : lastPaid, remaining + months[i].total > 0);
     if (months[i].total > 0) lastPaid = months[i].code;
   }
   var lastRegular = positive.length ? positive[positive.length - 1] : null;
   if (lastRegular && remaining >= 0) {
     var lastKnown = Math.max(lastRegular.code, months.length ? months[months.length - 1].code : (openingEnd || lastRegular.code));
-    return format(lastKnown + Math.floor(remaining / lastRegular.regular));
+    return format(lastKnown + Math.floor(remaining / lastRegular.regular), remaining % lastRegular.regular > 0);
   }
   return lastPaid === null ? "" : format(lastPaid);
 }
