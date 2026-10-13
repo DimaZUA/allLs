@@ -4248,9 +4248,11 @@ function getExtrapolatedPaidThrough(accountId, paidSum) {
   var positive = months.filter(function (row) { return row.regular > 0; });
   var remaining = money(paidSum);
   var format = function (code) {
+    // «За» показывает следующий месяц после последнего полностью оплаченного.
+    code += 1;
     var year = Math.floor((code - 1) / 12), month = code - year * 12;
     var names = ["січень","лютий","березень","квітень","травень","червень","липень","серпень","вересень","жовтень","листопад","грудень"];
-    return "по " + names[month - 1] + " " + year;
+    return "за " + names[month - 1] + " " + year;
   };
   var first = positive[0];
   var openingEnd = first ? first.code - 1 : null;
