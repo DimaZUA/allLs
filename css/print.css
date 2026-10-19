@@ -269,5 +269,10 @@
   text-align: left;
 }
 
+.box table#main tbody .paysubtable td.payment-day {
+  font-size: 10px !important;
+  white-space: nowrap !important;
+}
+
 
 }

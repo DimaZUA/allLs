@@ -5959,14 +5959,14 @@ if (monthlyPayments.length === 0) {
       var paymentMonths = paymentPeriods[index];
       return (
         "<tr>" +
-        '<td class="big" data-payment-date="' + escapeHtml(payment.date || "") + '">' +
-        formattedDate +
+        '<td class="payment-day" data-payment-date="' + escapeHtml(payment.date || "") + '">' +
+        formattedDate + '-го' +
         "</td>" +
         '<td class="payment-amount">' +
-        formattedSum +
+        '· ' + formattedSum +
         "</td>" +
         "<td>" +
-        paymentMonths +
+        (paymentMonths ? '· ' + paymentMonths : '') +
         "</td>" +
         "</tr>"
       );

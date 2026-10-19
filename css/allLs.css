@@ -23,6 +23,13 @@ body {
   font-size: 1.2rem;
 }
 
+.box table#main tbody .paysubtable td.payment-day {
+  font-size: 0.85rem;
+  font-weight: normal;
+  vertical-align: baseline;
+  white-space: nowrap;
+}
+
 tr.grey {
   color: #aaa; /* ���������������� */
 }
