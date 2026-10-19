@@ -5960,10 +5960,11 @@ if (monthlyPayments.length === 0) {
       return (
         "<tr>" +
         '<td class="payment-day" data-payment-date="' + escapeHtml(payment.date || "") + '">' +
-        formattedDate + '-го' +
+        '<span class="payment-day-short">' + formattedDate + '-го</span>' +
+        '<span class="payment-date-full">сплачено ' + escapeHtml(payment.date || "") + '</span>' +
         "</td>" +
         '<td class="payment-amount">' +
-        '· ' + formattedSum +
+        '<span class="payment-amount-separator">· </span>' + formattedSum +
         "</td>" +
         "<td>" +
         (paymentMonths ? '· ' + paymentMonths : '') +

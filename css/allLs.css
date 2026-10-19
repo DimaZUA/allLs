@@ -5195,3 +5195,34 @@ body.resident-mode .resident-flat-grid > div strong {
     line-height: 1.35;
   }
 }
+
+/* Full payment date above the amount in the ordinary desktop view. */
+.payment-date-full {
+  display: none;
+}
+
+@media screen and (min-width: 641px) {
+  body:not(.resident-mode) .box table#main tbody .paysubtable tr {
+    display: grid;
+    grid-template-columns: max-content auto;
+  }
+
+  body:not(.resident-mode) .box table#main tbody .paysubtable td.payment-day {
+    grid-column: 1 / -1;
+    text-align: left;
+  }
+
+  body:not(.resident-mode) .payment-day-short,
+  body:not(.resident-mode) .payment-amount-separator {
+    display: none;
+  }
+
+  body:not(.resident-mode) .payment-date-full {
+    display: inline;
+  }
+
+  body:not(.resident-mode) .box table#main tbody .paysubtable td.payment-amount {
+    padding-left: 0;
+    white-space: nowrap;
+  }
+}
