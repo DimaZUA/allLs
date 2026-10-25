@@ -3484,3 +3484,23 @@ li.folder {
 }
 
 .gr-services-table .gr-apt-no { white-space: nowrap; }
+
+.gr-wide-apartments .gr-pay-line, .gr-wide-apartments .gr-pay-total { grid-template-columns: 85px minmax(0, 1fr) 5em; }
+
+/* Wide apartment identifiers need wider poster cards, including during print. */
+.gr-sheet .gr-debt-grid.gr-debt-grid-wide { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+.gr-debt-grid-wide .gr-debt-pill { grid-template-columns: 85px minmax(0, 1fr); }
+.gr-debt-grid-wide .gr-debt-kv { box-sizing: border-box; min-width: 0; white-space: nowrap; }
+
+/* Reserve room for the full date and amount beside wide apartment numbers. */
+#gr-measure-host .gr-pay-grid.gr-pay-grid-wide,
+.gr-pdf-capture-host .gr-pay-grid.gr-pay-grid-wide,
+.gr-sheet .gr-pay-grid.gr-pay-grid-wide {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+}
+.gr-wide-apartments .gr-pay-line,
+.gr-wide-apartments .gr-pay-total {
+  grid-template-columns: 85px max-content minmax(max-content, 1fr);
+  column-gap: 12px;
+}
+.gr-wide-apartments .gr-pay-date { white-space: nowrap; }

@@ -450,8 +450,10 @@
 
   function debtGridHtml(debtors, cols) {
     if (!debtors.length) return `<div class="gr-muted">Немає квартир із боргом понад 6 місяців.</div>`;
+    const wideApartments = debtors.some(d => String(d.homeCode) === "36988222");
+    if (wideApartments) cols = Math.min(cols, 3);
     const columns = splitIntoColumns(debtors, cols).filter(col => col.length);
-    return `<div class="gr-debt-grid">${columns.map(col => {
+    return `<div class="gr-debt-grid${wideApartments ? " gr-debt-grid-wide" : ""}">${columns.map(col => {
       const rows = col.map(d =>
         `<div class="gr-debt-pill"><span class="gr-debt-kv">${apartmentHtml(d.kv, d.accountId, d.homeCode)}</span><span class="gr-debt-amt" ${excelNumberAttr(d.amount)}>${money(d.amount)}</span></div>`
       ).join("");
@@ -471,8 +473,10 @@
 
   function podDebtGridHtml(debtors, cols) {
     if (!debtors.length) return `<div class="gr-muted">Немає квартир із боргом понад 6 місяців.</div>`;
+    const wideApartments = debtors.some(d => String(d.homeCode) === "36988222");
+    if (wideApartments) cols = Math.min(cols, 3);
     const columns = splitIntoColumns(debtors, cols).filter(col => col.length);
-    return `<div class="gr-debt-grid">${columns.map(col => {
+    return `<div class="gr-debt-grid${wideApartments ? " gr-debt-grid-wide" : ""}">${columns.map(col => {
       const rows = col.map(d =>
         `<div class="gr-debt-pill"><span class="gr-debt-kv">${apartmentHtml(d.kv, d.accountId, d.homeCode)}</span><span class="gr-debt-amt" ${excelNumberAttr(d.amount)}>${money(d.amount)}</span></div>`
       ).join("");
@@ -674,10 +678,14 @@
     return `<td class="gr-paid-period${recent ? " gr-paid-period-recent" : ""}">${escapeHtml(period)}</td>`;
   }
 
-  function accountsColgroup(showTarget, debt = false, lastPayment = false) {
+  function apartmentColumnWidth(homeCode) {
+    return String(homeCode) === "36988222" ? 85 : 48;
+  }
+
+  function accountsColgroup(showTarget, debt = false, lastPayment = false, homeCode = "") {
     const fixed = width => `<col style="width:${width}px">`;
     const amount = '<col>';
-    return '<colgroup>' + fixed(48) + fixed(160) + fixed(56) + amount +
+    return '<colgroup>' + fixed(apartmentColumnWidth(homeCode)) + fixed(160) + fixed(56) + amount +
       (debt ? fixed(46) : '') + amount + (showTarget ? amount : '') + amount +
       (lastPayment ? fixed(44) : '') + amount + fixed(46) + '</colgroup>';
   }
@@ -932,7 +940,7 @@
     const total = g.payments.length > 1
       ? `<div class="gr-pay-total"><span></span><span class="gr-pay-date">Разом</span>${amountSpan(g.total, money(g.total), "gr-pay-sum")}</div>`
       : "";
-    return `<div class="gr-pay-block">${head}${lines}${total}</div>`;
+    return `<div class="gr-pay-block${String(g.homeCode) === "36988222" ? " gr-wide-apartments" : ""}">${head}${lines}${total}</div>`;
   }
 
   function estimatePaymentGroupWeight(g) {
@@ -943,12 +951,13 @@
   }
 
   function payGridHtml(groups) {
-    const cols = splitIntoWeightedColumns(groups, 3, estimatePaymentGroupWeight);
+    const cols = splitIntoWeightedColumns(groups, groups.some(g => String(g.homeCode) === "36988222") ? 2 : 3, estimatePaymentGroupWeight);
     return payGridColumnsHtml(cols);
   }
 
   function payGridColumnsHtml(cols) {
-    return `<div class="gr-pay-grid">${cols.map(col =>
+    const wide = cols.some(col => col.some(g => String(g.homeCode) === "36988222"));
+    return `<div class="gr-pay-grid${wide ? " gr-pay-grid-wide" : ""}">${cols.map(col =>
       `<div class="gr-pay-col">${col.map(paymentBlockHtml).join("")}</div>`
     ).join("")}</div>`;
   }
@@ -1109,7 +1118,7 @@
         const isFirst = pageNo === 0;
         const top = renderPageChrome(snap, title, subtitle, !isFirst);
         const prefix = isFirst ? paymentsSummaryHtml(snap, { hideDetails }) : "";
-        const cols = [[], [], []];
+        const cols = Array.from({ length: String(snap.homeCode) === "36988222" ? 2 : 3 }, () => []);
         let colIndex = 0;
         let added = 0;
 
@@ -1132,7 +1141,7 @@
         }
 
         if (!added && isFirst) {
-          const firstOnly = [[groups[offset]], [], []];
+          const firstOnly = cols.map((col, index) => index === 0 ? [groups[offset]] : []);
           if (prefix && measureSheetOverflow(top, prefix).ok && !measureSheetOverflow(top, prefix + payGridColumnsHtml(firstOnly)).ok) {
             pages.push({ top, body: prefix });
             pageNo += 1;
@@ -1508,7 +1517,7 @@
         </div>
       </div>`;
 
-    const tableColgroup = accountsColgroup(showTarget, true, true);
+    const tableColgroup = accountsColgroup(showTarget, true, true, snap.homeCode);
 
     const subtitle = `<div class="gr-subtitle gr-subtitle-accent">відсортовано за боргом (від більшого боргу до переплати)</div>`;
     const pages = packTableRowsIntoPages(snap, "ОСОБОВІ РАХУНКИ СПІВВЛАСНИКІВ", subtitle, thead, rowHtmlList, targetNotesHtml(snap), {
@@ -1615,7 +1624,7 @@
       firstPrefixHtml: summaryHtml,
       suffixMode: "last",
       tableClass: "gr-debtors-table",
-      colgroupHtml: '<colgroup><col style="width:48px"><col style="width:34%"><col><col><col style="width:44px"><col><col style="width:46px"></colgroup>'
+      colgroupHtml: '<colgroup><col style="width:' + apartmentColumnWidth(snap.homeCode) + 'px"><col style="width:34%"><col><col><col style="width:44px"><col><col style="width:46px"></colgroup>'
     });
     return pagesToSheetsHtml(pages, snap);
   }
@@ -1704,7 +1713,7 @@
       packTableRowsIntoPages(snap, "РЕЄСТР ОСОБОВИХ РАХУНКІВ", subtitle, thead, rowHtmlList, after, {
         skipOrphanSuffix: true,
         tableClass: "gr-accounts-table",
-        colgroupHtml: accountsColgroup(showTarget, false, true)
+        colgroupHtml: accountsColgroup(showTarget, false, true, snap.homeCode)
       }),
       snap
     );
@@ -1753,7 +1762,7 @@
     return pagesToSheetsHtml(packTableRowsIntoPages(snap, "ОСОБОВІ РАХУНКИ ЗА ВИДАМИ ПОСЛУГ", "", head, rows, "", {
       tableClass: "gr-accounts-table gr-services-table",
       sheetClass: landscape ? "gr-sheet-landscape" : "",
-      colgroupHtml: '<colgroup><col style="width:120px"><col style="width:112px"><col style="width:56px">' + '<col>'.repeat(cols - 3) + '</colgroup>'
+      colgroupHtml: '<colgroup><col style="width:' + apartmentColumnWidth(snap.homeCode) + 'px"><col style="width:112px"><col style="width:56px">' + '<col>'.repeat(cols - 3) + '</colgroup>'
     }), snap);
   }
 
@@ -1834,7 +1843,7 @@
         firstPrefixHtml: kpi,
         suffixMode: "last",
         tableClass: "gr-accounts-table",
-        colgroupHtml: accountsColgroup(showTarget)
+        colgroupHtml: accountsColgroup(showTarget, false, false, snap.homeCode)
       }),
       snap
     );
