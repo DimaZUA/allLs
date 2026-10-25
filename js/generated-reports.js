@@ -662,8 +662,7 @@
     const payments = collectPayments({ [accountId]: (home.oplat || {})[accountId] || {} }, home.ls || {}, new Date(1900, 0, 1), end);
     if (!payments.some(p => p.sum > EPS)) return "";
     const last = payments.filter(p => p.sum > EPS).pop();
-    const parts = last.date.split(".").map(Number);
-    const asOfMonth = parts[2] * 12 + parts[1];
+    const asOfMonth = end.getFullYear() * 12 + end.getMonth() + 1;
     const lastDate = last.date.split(".").reverse().join("-");
     const paid = payments.filter(p => p.date.split(".").reverse().join("-") <= lastDate)
       .reduce((sum, p) => sum + p.sum, 0);

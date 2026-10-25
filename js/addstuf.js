@@ -4223,13 +4223,16 @@ function getMonthsForPaymentRange(accountId, paymentSum, paymentDate) {
   }
 
   remainingSum += Number(paymentSum) || 0;
-  return getExtrapolatedPaidThrough(accountId, remainingSum, year * 12 + month);
+  // Paid-through is projected against the loaded charge history, including later
+  // recalculations, rather than frozen at the historical payment month.
+  return getExtrapolatedPaidThrough(accountId, remainingSum, Infinity);
 }
 
 function getExtrapolatedPaidThrough(accountId, paidSum, asOfMonth, nachSource, compact) {
   var data = (nachSource || nach)[accountId] || {};
   var months = [];
   var correctionCredit = 0;
+  // asOfMonth limits recalculations (report end), not the payment date.
   if (!Number.isFinite(asOfMonth)) asOfMonth = Infinity;
   var money = function (value) { return Math.round((Number(value) || 0) * 100); };
   Object.keys(data).forEach(function (year) {
