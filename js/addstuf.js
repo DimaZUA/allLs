@@ -4226,8 +4226,8 @@ function getMonthsForPaymentRange(accountId, paymentSum, paymentDate) {
   return getExtrapolatedPaidThrough(accountId, remainingSum, year * 12 + month);
 }
 
-function getExtrapolatedPaidThrough(accountId, paidSum, asOfMonth) {
-  var data = nach[accountId] || {};
+function getExtrapolatedPaidThrough(accountId, paidSum, asOfMonth, nachSource, compact) {
+  var data = (nachSource || nach)[accountId] || {};
   var months = [];
   var correctionCredit = 0;
   if (!Number.isFinite(asOfMonth)) asOfMonth = Infinity;
@@ -4259,6 +4259,7 @@ function getExtrapolatedPaidThrough(accountId, paidSum, asOfMonth) {
     // Следующий месяц показываем только при фактической частичной оплате.
     if (hasPartialPayment) code += 1;
     var year = Math.floor((code - 1) / 12), month = code - year * 12;
+    if (compact) return String(month).padStart(2, "0") + "." + String(year).slice(-2);
     var names = ["січень","лютий","березень","квітень","травень","червень","липень","серпень","вересень","жовтень","листопад","грудень"];
     return "за " + names[month - 1] + " " + year;
   };

@@ -7,6 +7,7 @@
   const REPORT_TYPES = [
     { id: "payments", title: "Реєстр платежів співвласників", fileRu: "Реестр_платежів", tabular: true },
     { id: "accountsPods", title: "Особові рахунки (по підʼїздах)", fileRu: "ОР по підїздаї", tabular: true },
+    { id: "accountsServices", title: "Особові рахунки (за видами послуг)", fileRu: "ОР за видами послуг", tabular: true },
     { id: "accountsDebt", title: "Особові рахунки (за боргом)", fileRu: "ОР по боргу", tabular: true },
     { id: "debtorsList", title: "Список боржників", fileRu: "Список боржників", tabular: true },
     { id: "accountsOverpay", title: "Особові рахунки з переплатою", fileRu: "ОР з переплатою", tabular: true },
@@ -652,6 +653,48 @@
     return notes;
   }
 
+  // Use the same FIFO allocation as the individual account payment history.
+  function lastPaymentPeriod(home, accountId, end) {
+    const payments = collectPayments({ [accountId]: (home.oplat || {})[accountId] || {} }, home.ls || {}, new Date(1900, 0, 1), end);
+    if (!payments.some(p => p.sum > EPS)) return "";
+    const last = payments.filter(p => p.sum > EPS).pop();
+    const parts = last.date.split(".").map(Number);
+    const asOfMonth = parts[2] * 12 + parts[1];
+    const lastDate = last.date.split(".").reverse().join("-");
+    const paid = payments.filter(p => p.date.split(".").reverse().join("-") <= lastDate)
+      .reduce((sum, p) => sum + p.sum, 0);
+    return getExtrapolatedPaidThrough(accountId, paid, asOfMonth, home.nach, true);
+  }
+
+  function paymentPeriodCell(a, snap) {
+    const period = a.lastPaymentPeriod || "--.--";
+    const match = /^(\d{2})\.(\d{2})$/.exec(period);
+    const recent = match && (2000 + Number(match[2])) * 12 + Number(match[1]) >=
+      snap.toYm.year * 12 + snap.toYm.month - 1;
+    return `<td class="gr-paid-period${recent ? " gr-paid-period-recent" : ""}">${escapeHtml(period)}</td>`;
+  }
+
+  function accountsColgroup(showTarget, debt = false, lastPayment = false) {
+    const fixed = width => `<col style="width:${width}px">`;
+    const amount = '<col>';
+    return '<colgroup>' + fixed(48) + fixed(160) + fixed(56) + amount +
+      (debt ? fixed(46) : '') + amount + (showTarget ? amount : '') + amount +
+      (lastPayment ? fixed(44) : '') + amount + fixed(46) + '</colgroup>';
+  }
+
+  function accountServiceCharges(source, accountId, start, end) {
+    const totals = {};
+    const data = (source || {})[accountId] || {};
+    for (const year of Object.keys(data)) for (const month of Object.keys(data[year])) {
+      const date = new Date(year, month - 1, 1, 12);
+      if (date < start || date > end) continue;
+      for (const [service, value] of Object.entries(data[year][month] || {})) {
+        totals[service] = (totals[service] || 0) + (Number(value) || 0);
+      }
+    }
+    return totals;
+  }
+
   function buildHomeSnapshot(home, homeMeta, fromYm, toYm) {
     const start = monthStart(fromYm.year, fromYm.month);
     const end = monthEnd(toYm.year, toYm.month);
@@ -662,6 +705,8 @@
       oplat: home.oplat
     }).map(a => ({
       ...a,
+      lastPaymentPeriod: lastPaymentPeriod(home, a.accountId, end),
+      serviceCharges: accountServiceCharges(home.nach, a.accountId, start, end),
       targetChargesSum: sumAccountTargetCharges(home.nach, a.accountId, start, end),
       regularChargesSum: a.chargesSum - sumAccountTargetCharges(home.nach, a.accountId, start, end),
       tel: (home.ls && home.ls[a.accountId] && home.ls[a.accountId].tel) || "",
@@ -697,6 +742,7 @@
       start,
       end,
       accounts,
+      services: home.us || {},
       payments,
       paymentGroups: groupPaymentsByApartment(payments),
       spendingByMonth,
@@ -957,9 +1003,9 @@
     return host;
   }
 
-  function measureSheetOverflow(topHtml, bodyHtml) {
+  function measureSheetOverflow(topHtml, bodyHtml, className = "") {
     const host = createMeasureHost();
-    host.innerHTML = wrapSheet(topHtml, bodyHtml, renderFooter(1, 1), "");
+    host.innerHTML = wrapSheet(topHtml, bodyHtml, renderFooter(1, 1), className);
     const body = host.querySelector(".gr-sheet-body");
     const ok = body ? body.scrollHeight <= body.clientHeight + 2 : true;
     host.innerHTML = "";
@@ -1112,6 +1158,7 @@
   function packTableRowsIntoPages(snap, title, subtitleHtml, theadHtml, rowHtmlList, afterFirstHtml, options) {
     const opts = options || {};
     const pages = [];
+    const sheetClass = opts.sheetClass || "";
     let offset = 0;
     let pageNo = 0;
     const firstPrefixHtml = opts.firstPrefixHtml || "";
@@ -1125,6 +1172,7 @@
 
     if (!rowHtmlList.length) {
       pages.push({
+        className: sheetClass,
         top: renderPageChrome(snap, title, subtitleHtml, false),
         body: firstPrefixHtml + makeTable("") + (afterFirstHtml || "")
       });
@@ -1142,7 +1190,7 @@
       while (low <= high) {
         const mid = Math.floor((low + high) / 2);
         const rowsHtml = rowHtmlList.slice(offset, offset + mid).join("");
-        if (measureSheetOverflow(top, prefix + makeTable(rowsHtml) + suffix).ok) {
+        if (measureSheetOverflow(top, prefix + makeTable(rowsHtml) + suffix, sheetClass).ok) {
           best = mid;
           low = mid + 1;
         } else {
@@ -1158,11 +1206,11 @@
         best -= 1;
       }
       let rowsHtml = rowHtmlList.slice(offset, offset + best).join("");
-      if (!measureSheetOverflow(top, prefix + makeTable(rowsHtml) + suffix).ok && best > 1) {
+      if (!measureSheetOverflow(top, prefix + makeTable(rowsHtml) + suffix, sheetClass).ok && best > 1) {
         best -= 1;
         rowsHtml = rowHtmlList.slice(offset, offset + best).join("");
       }
-      pages.push({ top, body: prefix + makeTable(rowsHtml) + suffix });
+      pages.push({ className: sheetClass, top, body: prefix + makeTable(rowsHtml) + suffix });
       offset += best;
       pageNo += 1;
       if (pageNo > 300) break;
@@ -1170,11 +1218,12 @@
 
     if (afterFirstHtml && suffixMode !== "first") {
       const last = pages[pages.length - 1];
-      if (last && measureSheetOverflow(last.top, last.body + afterFirstHtml).ok) {
+      if (last && measureSheetOverflow(last.top, last.body + afterFirstHtml, sheetClass).ok) {
         last.body += afterFirstHtml;
       } else if (!skipOrphanSuffix && !autoDropBlocks) {
         pages.push({
-          top: renderPageChrome(snap, title, subtitleHtml, true),
+          className: sheetClass,
+        top: renderPageChrome(snap, title, subtitleHtml, true),
           body: afterFirstHtml
         });
       }
@@ -1293,7 +1342,7 @@
     const accounts = snap.accounts.filter(hasAccountReportActivity);
     if (!accounts.length) return "";
     const showTarget = hasTargetContributions(accounts);
-    const tableCols = showTarget ? 10 : 9;
+    const tableCols = showTarget ? 11 : 10;
     const over12Debt = accounts.filter(a => a.debitStart > EPS && a.startDebtMonths > 12)
       .sort(sortByDebtDesc);
     const longDebt = accounts.filter(a => a.debitStart > EPS && a.startDebtMonths > 3 && a.startDebtMonths <= 12)
@@ -1320,12 +1369,13 @@
         <td>${escapeHtml(a.fio)}</td>
         <td>${a.pers || 0} / ${String(a.pl).replace(".", ",")}</td>
         ${amountCell(a.debitStart, moneySigned(a.debitStart), debtClass(a.debitStart))}
-        <td>${monthsDebtHtml(a.startDebtMonths, a.debitStart)}</td>
+        <td class="gr-debt-months">${monthsDebtHtml(a.startDebtMonths, a.debitStart)}</td>
         ${amountCell(a.regularChargesSum)}
         ${showTarget ? amountCell(a.targetChargesSum) : ""}
         ${a.paymentsSum > EPS ? amountCell(a.paymentsSum, paid, "gr-pos") : `<td class="gr-amount-cell"><span class="gr-neg">—</span></td>`}
+        ${paymentPeriodCell(a, snap)}
         ${amountCell(a.debitEnd, moneySigned(a.debitEnd), debtClass(a.debitEnd))}
-        <td>${monthsDebtHtml(a.debtMonths, a.debitEnd)}</td>
+        <td class="gr-debt-months">${monthsDebtHtml(a.debtMonths, a.debitEnd)}</td>
       </tr>`;
     }
 
@@ -1345,12 +1395,13 @@
       rows.push(`<tr class="gr-group-total gr-tone-${tone}">
         <td colspan="3">${escapeHtml(totalLabel)} (${items.length} кв.):</td>
         ${amountCell(sum(a => a.debitStart), moneySigned(sum(a => a.debitStart)))}
-        <td>${averageMonths(items, "startDebtMonths")}</td>
+        <td class="gr-debt-months">${averageMonths(items, "startDebtMonths")}</td>
         ${amountCell(sum(a => a.regularChargesSum))}
         ${showTarget ? amountCell(sum(a => a.targetChargesSum)) : ""}
         ${amountCell(sum(a => a.paymentsSum), money(sum(a => a.paymentsSum)), "gr-pos")}
+        <td></td>
         ${amountCell(sum(a => a.debitEnd), moneySigned(sum(a => a.debitEnd)), debtClass(sum(a => a.debitEnd)))}
-        <td>${averageMonths(items, "debtMonths")}</td>
+        <td class="gr-debt-months">${averageMonths(items, "debtMonths")}</td>
       </tr>`);
       return rows;
     }
@@ -1361,12 +1412,13 @@
       return `<tr class="gr-group-total gr-house-subtotal gr-tone-${tone}">
         <td colspan="3">${escapeHtml(label)} (${items.length} кв.):</td>
         ${amountCell(sum(a => a.debitStart), moneySigned(sum(a => a.debitStart)))}
-        <td>${averageMonths(items, "startDebtMonths")}</td>
+        <td class="gr-debt-months">${averageMonths(items, "startDebtMonths")}</td>
         ${amountCell(sum(a => a.regularChargesSum))}
         ${showTarget ? amountCell(sum(a => a.targetChargesSum)) : ""}
         ${amountCell(sum(a => a.paymentsSum), money(sum(a => a.paymentsSum)), "gr-pos")}
+        <td></td>
         ${amountCell(sum(a => a.debitEnd), moneySigned(sum(a => a.debitEnd)), debtClass(sum(a => a.debitEnd)))}
-        <td>${averageMonths(items, "debtMonths")}</td>
+        <td class="gr-debt-months">${averageMonths(items, "debtMonths")}</td>
       </tr>`;
     }
 
@@ -1386,12 +1438,13 @@
       `<tr class="gr-grand-total">
         <td colspan="3">Всього по будинку:</td>
         ${amountCell(sumAll(a => a.debitStart), moneySigned(sumAll(a => a.debitStart)))}
-        <td>${averageMonths(accounts, "startDebtMonths")}</td>
+        <td class="gr-debt-months">${averageMonths(accounts, "startDebtMonths")}</td>
         ${amountCell(sumAll(a => a.regularChargesSum))}
         ${showTarget ? amountCell(sumAll(a => a.targetChargesSum)) : ""}
         ${amountCell(sumAll(a => a.paymentsSum))}
+        <td></td>
         ${amountCell(sumAll(a => a.debitEnd), moneySigned(sumAll(a => a.debitEnd)))}
-        <td>${averageMonths(accounts, "debtMonths")}</td>
+        <td class="gr-debt-months">${averageMonths(accounts, "debtMonths")}</td>
       </tr>`,
       `<tr class="gr-house-subtotal-label"><td colspan="${tableCols}">у тому числі:</td></tr>`,
       combinedTotalRow("Борг понад 3 місяці", [...over12Debt, ...longDebt], "warn"),
@@ -1402,7 +1455,7 @@
       <th rowspan="2">№ кв.</th><th rowspan="2">П.І.Б. власника</th><th rowspan="2">Осіб / Площа, м²</th>
       <th colspan="2">Борг на ${escapeHtml(startLbl)}</th>
       <th rowspan="2">Нараховано</th>${showTarget ? "<th rowspan=\"2\">Цільові внески</th>" : ""}<th rowspan="2">Сплачено</th>
-      <th colspan="2">Борг на ${escapeHtml(endShort)}</th>
+      <th rowspan="2">Спла-чено за</th><th colspan="2">Борг на ${escapeHtml(endShort)}</th>
     </tr><tr>
       <th>Сума</th><th>міс.</th><th>Сума</th><th>міс.</th>
     </tr>`;
@@ -1455,9 +1508,7 @@
         </div>
       </div>`;
 
-    const tableColgroup = showTarget
-      ? `<colgroup><col style="width:7%"><col style="width:22%"><col style="width:10%"><col style="width:10%"><col style="width:5%"><col style="width:10%"><col style="width:10%"><col style="width:10%"><col style="width:11%"><col style="width:5%"></colgroup>`
-      : `<colgroup><col style="width:7%"><col style="width:22%"><col style="width:10%"><col style="width:10%"><col style="width:5%"><col style="width:15%"><col style="width:15%"><col style="width:11%"><col style="width:5%"></colgroup>`;
+    const tableColgroup = accountsColgroup(showTarget, true, true);
 
     const subtitle = `<div class="gr-subtitle gr-subtitle-accent">відсортовано за боргом (від більшого боргу до переплати)</div>`;
     const pages = packTableRowsIntoPages(snap, "ОСОБОВІ РАХУНКИ СПІВВЛАСНИКІВ", subtitle, thead, rowHtmlList, targetNotesHtml(snap), {
@@ -1504,7 +1555,7 @@
       const metaHtml = parts ? `<div class="gr-debtor-meta">${parts}</div>` : "";
       const noteHtml = note ? `<div class="gr-debtor-note">${escapeHtml(note)}</div>` : "";
       if (!metaHtml && !noteHtml) return "";
-      return `<tr class="gr-debtor-detail"><td colspan="6"><div class="gr-debtor-extra">${noteHtml}${metaHtml}</div></td></tr>`;
+      return `<tr class="gr-debtor-detail"><td colspan="7"><div class="gr-debtor-extra">${noteHtml}${metaHtml}</div></td></tr>`;
     }
 
     function accountRows(a, idx) {
@@ -1514,6 +1565,7 @@
         <td>${escapeHtml(a.fio)}</td>
         ${amountCell(a.chargesSum)}
         ${a.paymentsSum > EPS ? amountCell(a.paymentsSum, money(a.paymentsSum), "gr-pos") : `<td class="gr-amount-cell">—</td>`}
+        ${paymentPeriodCell(a, snap)}
         ${amountCell(a.debitEnd, moneySigned(a.debitEnd), `gr-debtors-debt ${debtClass(a.debitEnd)}`)}
         <td>${monthsDebtHtml(a.debtMonths, a.debitEnd)}</td>
       </tr>${details}`;
@@ -1524,13 +1576,14 @@
       const sum = (fn) => items.reduce((s, a) => s + fn(a), 0);
       const paymentPercent = groupPaymentPercent(items);
       const rows = [
-        `<tr class="gr-group-head gr-tone-${tone}"${groupAnchorAttrs(anchorId)}><td colspan="6"><div class="gr-group-head-line"><span>${escapeHtml(title)} (${items.length} квартир)</span><span>Відсоток оплати: ${paymentPercent}</span></div></td></tr>`
+        `<tr class="gr-group-head gr-tone-${tone}"${groupAnchorAttrs(anchorId)}><td colspan="7"><div class="gr-group-head-line"><span>${escapeHtml(title)} (${items.length} квартир)</span><span>Відсоток оплати: ${paymentPercent}</span></div></td></tr>`
       ];
       items.forEach((a, idx) => rows.push(accountRows(a, idx)));
       rows.push(`<tr class="gr-group-total">
         <td colspan="2">Разом по групі:</td>
         ${amountCell(sum(a => a.chargesSum))}
         ${amountCell(sum(a => a.paymentsSum), money(sum(a => a.paymentsSum)), "gr-pos")}
+        <td></td>
         ${amountCell(sum(a => a.debitEnd), moneySigned(sum(a => a.debitEnd)), `gr-debtors-debt ${debtClass(sum(a => a.debitEnd))}`)}
         <td></td>
       </tr>`);
@@ -1548,7 +1601,7 @@
     ];
     const thead = `<tr>
       <th>Кв.</th><th>П.І.Б. власника</th><th>Нараховано</th><th>Сплачено</th>
-      <th>Борг на ${escapeHtml(endShort)}</th><th>Місяців</th>
+      <th>Спла-чено за</th><th>Борг на ${escapeHtml(endShort)}</th><th>Місяців</th>
     </tr>`;
     const subtitle = `<div class="gr-subtitle gr-subtitle-accent">рахунки з боргом понад 3 місяці</div>`;
     const summaryHtml = `<div class="gr-kpi-row gr-kpi-row-5 gr-debtors-kpi">
@@ -1561,7 +1614,8 @@
     const pages = packTableRowsIntoPages(snap, "СПИСОК БОРЖНИКІВ", subtitle, thead, rowHtmlList, "", {
       firstPrefixHtml: summaryHtml,
       suffixMode: "last",
-      tableClass: "gr-debtors-table"
+      tableClass: "gr-debtors-table",
+      colgroupHtml: '<colgroup><col style="width:48px"><col style="width:34%"><col><col><col style="width:44px"><col><col style="width:46px"></colgroup>'
     });
     return pagesToSheetsHtml(pages, snap);
   }
@@ -1571,7 +1625,7 @@
     const activeAccounts = snap.accounts.filter(hasAccountReportActivity);
     if (!activeAccounts.length) return "";
     const showTarget = hasTargetContributions(activeAccounts);
-    const tableCols = showTarget ? 9 : 8;
+    const tableCols = showTarget ? 10 : 9;
     activeAccounts.forEach(a => {
       const pod = a.pod == null || a.pod === "" ? "—" : String(a.pod);
       if (!byPod.has(pod)) byPod.set(pod, []);
@@ -1607,6 +1661,7 @@
           ${amountCell(a.regularChargesSum)}
           ${showTarget ? amountCell(a.targetChargesSum) : ""}
           ${a.paymentsSum > EPS ? amountCell(a.paymentsSum, paid, "gr-pos") : `<td class="gr-amount-cell"><span class="gr-neg">—</span></td>`}
+          ${paymentPeriodCell(a, snap)}
           ${amountCell(a.debitEnd, moneySigned(a.debitEnd), debtClass(a.debitEnd))}
           <td>${monthsDebtHtml(a.debtMonths, a.debitEnd)}</td>
         </tr>`);
@@ -1619,6 +1674,7 @@
         ${amountCell(sum(a => a.regularChargesSum))}
         ${showTarget ? amountCell(sum(a => a.targetChargesSum)) : ""}
         ${amountCell(sum(a => a.paymentsSum), money(sum(a => a.paymentsSum)), "gr-pos")}
+        <td></td>
         ${amountCell(sum(a => a.debitEnd), moneySigned(sum(a => a.debitEnd)))}
         <td></td>
       </tr>`);
@@ -1627,7 +1683,7 @@
     const thead = `<tr>
       <th>№ кв.</th><th>П.І.Б. власника</th><th>Осіб / Площа м²</th>
       <th>Було на ${escapeHtml(startLbl)}</th><th>Нараховано</th>${showTarget ? "<th>Цільові внески</th>" : ""}<th>Сплачено</th>
-      <th>Стало на ${escapeHtml(endShort)}</th><th>Місяців боргу</th>
+      <th>Спла-чено за</th><th>Стало на ${escapeHtml(endShort)}</th><th>Міся-ців боргу</th>
     </tr>`;
 
     const after = `
@@ -1647,10 +1703,58 @@
     return pagesToSheetsHtml(
       packTableRowsIntoPages(snap, "РЕЄСТР ОСОБОВИХ РАХУНКІВ", subtitle, thead, rowHtmlList, after, {
         skipOrphanSuffix: true,
-        tableClass: "gr-accounts-table"
+        tableClass: "gr-accounts-table",
+        colgroupHtml: accountsColgroup(showTarget, false, true)
       }),
       snap
     );
+  }
+
+  function renderAccountsServicesReport(snap) {
+    const shortName = fio => {
+      const parts = String(fio || "").trim().split(/\s+/).filter(Boolean);
+      return parts.map((part, index) => index ? part.replace(/[\p{L}]+\.?/gu, name => Array.from(name)[0] + ".") : part).join(" ");
+    };
+    const accounts = snap.accounts.filter(hasAccountReportActivity);
+    if (!accounts.length) return "";
+    const services = [...new Set(accounts.flatMap(a => Object.keys(a.serviceCharges || {})))]
+      .filter(id => accounts.some(a => Math.abs((a.serviceCharges || {})[id] || 0) > EPS))
+      .sort((a, b) => Number(a) - Number(b));
+    const showTotal = services.length > 1;
+    const cols = 6 + services.length + Number(showTotal);
+    const landscape = services.length >= 4;
+    const byPod = new Map();
+    accounts.forEach(a => {
+      const pod = String(a.pod == null || a.pod === "" ? "—" : a.pod);
+      if (!byPod.has(pod)) byPod.set(pod, []);
+      byPod.get(pod).push(a);
+    });
+    const monetaryCell = (value, html) => amountCell(value,
+      Math.abs(Number(value) || 0) < EPS ? "—" : html);
+    const amounts = items => {
+      const sum = fn => items.reduce((total, a) => total + fn(a), 0);
+      return monetaryCell(sum(a => a.debitStart), moneySigned(sum(a => a.debitStart))) +
+        services.map(id => monetaryCell(sum(a => (a.serviceCharges || {})[id] || 0))).join("") +
+        (showTotal ? monetaryCell(sum(a => a.chargesSum)) : "") +
+        monetaryCell(sum(a => a.paymentsSum)) + monetaryCell(sum(a => a.debitEnd), moneySigned(sum(a => a.debitEnd)));
+    };
+    const rows = [];
+    [...byPod.keys()].sort((a,b) => a.localeCompare(b, "uk", {numeric:true})).forEach(pod => {
+      const items = byPod.get(pod).sort((a,b) => String(a.kv).localeCompare(String(b.kv), "uk", {numeric:true}));
+      rows.push(`<tr class="gr-pod-head"><td colspan="${cols}">ПІДʼЇЗД ${escapeHtml(pod)} (${items.length} квартир)</td></tr>`);
+      items.forEach(a => rows.push(`<tr><td>${apartmentHtml(a.kv, a.accountId, snap.homeCode)}</td><td>${escapeHtml(shortName(a.fio))}</td>${amountCell(a.pl)}${amounts([a])}</tr>`));
+      rows.push(`<tr class="gr-group-total"><td colspan="2">Разом по підʼїзду ${escapeHtml(pod)}:</td>${amountCell(items.reduce((sum,a) => sum + a.pl, 0))}${amounts(items)}</tr>`);
+    });
+    rows.push(`<tr class="gr-grand-total"><td colspan="2">Всього по будинку:</td>${amountCell(accounts.reduce((sum,a) => sum + a.pl, 0))}${amounts(accounts)}</tr>`);
+    const head = `<tr><th>№ кв.</th><th>П.І.Б. власника</th><th>Площа, м²</th><th>Борг на ${escapeHtml(startOfMonthLabel(snap.fromYm.year,snap.fromYm.month))}</th>` +
+      services.map(id => `<th>${escapeHtml(snap.services[id] || "Послуга " + id)}</th>`).join("") +
+      (showTotal ? '<th>Всього нараховано</th>' : '') +
+      `<th>Сплачено</th><th>Борг на ${escapeHtml(endOfMonthLabelShort(snap.toYm.year,snap.toYm.month))}</th></tr>`;
+    return pagesToSheetsHtml(packTableRowsIntoPages(snap, "ОСОБОВІ РАХУНКИ ЗА ВИДАМИ ПОСЛУГ", "", head, rows, "", {
+      tableClass: "gr-accounts-table gr-services-table",
+      sheetClass: landscape ? "gr-sheet-landscape" : "",
+      colgroupHtml: '<colgroup><col style="width:120px"><col style="width:112px"><col style="width:56px">' + '<col>'.repeat(cols - 3) + '</colgroup>'
+    }), snap);
   }
 
   function renderAccountsOverpayReport(snap) {
@@ -1662,6 +1766,7 @@
         if (ka !== kb) return ka - kb;
         return String(a.kv).localeCompare(String(b.kv), "uk");
     });
+    const showTarget = hasTargetContributions(items);
     const startLbl = startOfMonthLabel(snap.fromYm.year, snap.fromYm.month);
     const formulaStartLbl = startOfMonthLabelFull(snap.fromYm.year, snap.fromYm.month);
     const formulaEndLbl = endOfMonthLabel(snap.toYm.year, snap.toYm.month);
@@ -1680,7 +1785,8 @@
         <td>${escapeHtml(a.fio)}</td>
         <td>${a.pers || 0} / ${String(a.pl).replace(".", ",")}</td>
         ${amountCell(a.debitStart, moneySigned(a.debitStart), debtClass(a.debitStart))}
-        ${amountCell(a.chargesSum)}
+        ${amountCell(a.regularChargesSum)}
+        ${showTarget ? amountCell(a.targetChargesSum) : ""}
         ${a.paymentsSum > EPS ? amountCell(a.paymentsSum, paid, "gr-pos") : `<td class="gr-amount-cell"><span class="gr-muted">—</span></td>`}
         ${amountCell(a.debitEnd, moneySigned(a.debitEnd), debtClass(a.debitEnd))}
         <td>${monthsDebtHtml(a.debtMonths, a.debitEnd)}</td>
@@ -1692,7 +1798,8 @@
       rowHtmlList.push(`<tr class="gr-grand-total">
         <td colspan="3">Всього:</td>
         ${amountCell(sum(a => a.debitStart), moneySigned(sum(a => a.debitStart)))}
-        ${amountCell(sum(a => a.chargesSum))}
+        ${amountCell(sum(a => a.regularChargesSum))}
+        ${showTarget ? amountCell(sum(a => a.targetChargesSum)) : ""}
         ${amountCell(sum(a => a.paymentsSum))}
         ${amountCell(sum(a => a.debitEnd), moneySigned(sum(a => a.debitEnd)))}
         <td></td>
@@ -1701,8 +1808,8 @@
 
     const thead = `<tr>
       <th>№ кв.</th><th>П.І.Б. власника</th><th>Осіб / Площа м²</th>
-      <th>Було на ${escapeHtml(startLbl)}</th><th>Нараховано</th><th>Сплачено</th>
-      <th>Стало на ${escapeHtml(endShort)}</th><th>Місяців боргу</th>
+      <th>Було на ${escapeHtml(startLbl)}</th><th>Нараховано</th>${showTarget ? "<th>Цільові внески</th>" : ""}<th>Сплачено</th>
+      <th>Стало на ${escapeHtml(endShort)}</th><th>Міся-ців боргу</th>
     </tr>`;
 
     const kpi = `
@@ -1726,7 +1833,8 @@
       packTableRowsIntoPages(snap, "ОСОБОВІ РАХУНКИ З ПЕРЕПЛАТОЮ", subtitle, thead, rowHtmlList, after, {
         firstPrefixHtml: kpi,
         suffixMode: "last",
-        tableClass: "gr-accounts-table"
+        tableClass: "gr-accounts-table",
+        colgroupHtml: accountsColgroup(showTarget)
       }),
       snap
     );
@@ -1912,6 +2020,7 @@
       case "payments": return renderPaymentsReport(snap);
       case "accountsDebt": return renderAccountsDebtReport(snap);
       case "debtorsList": return renderDebtorsListReport(snap);
+      case "accountsServices": return renderAccountsServicesReport(snap);
       case "accountsPods": return renderAccountsPodsReport(snap);
       case "accountsOverpay": return renderAccountsOverpayReport(snap);
       case "debtsPoster": return renderDebtsPoster(snap);
@@ -2421,13 +2530,15 @@
     }
     setProgress(0, pages.length, "PDF…");
     const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+    const orientationFor = page => page.classList.contains("gr-sheet-landscape") ? "landscape" : "portrait";
+    const pdf = new jsPDF({ orientation: orientationFor(pages[0]), unit: "mm", format: "a4" });
 
     for (let i = 0; i < pages.length; i++) {
       setProgress(i, pages.length, `PDF ${i + 1}/${pages.length}`);
       const img = await captureSheetDataUrl(pages[i], "image/jpeg", 0.95);
-      if (i > 0) pdf.addPage();
-      pdf.addImage(img, "JPEG", 0, 0, A4_WIDTH_MM, A4_HEIGHT_MM);
+      const landscape = orientationFor(pages[i]) === "landscape";
+      if (i > 0) pdf.addPage("a4", orientationFor(pages[i]));
+      pdf.addImage(img, "JPEG", 0, 0, landscape ? A4_HEIGHT_MM : A4_WIDTH_MM, landscape ? A4_WIDTH_MM : A4_HEIGHT_MM);
       setProgress(i + 1, pages.length, `PDF ${i + 1}/${pages.length}`);
       await new Promise(r => setTimeout(r, 0));
     }

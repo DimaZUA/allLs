@@ -750,13 +750,13 @@ sortedArray.forEach(id => servicesWithCharges.add(id));
   table.appendChild(tbody);
 
   // Заголовок
-  let headerRow = '<tr><th onclick="sortTable(this)">Квартира</th><th onclick="sortTable(this)">П.І. по Б.</th><th onclick="sortTable(this)">Площа</th><th onclick="sortTable(this)">Мешк</th><th onclick="sortTable(this)">Борг початковий</th><th onclick="sortTable(this)">Місяців боргу на початок</th>';
+  let headerRow = '<tr><th onclick="sortTable(this)">Квартира</th><th onclick="sortTable(this)">П.І. по Б.</th><th onclick="sortTable(this)">Площа</th><th onclick="sortTable(this)">Мешк</th><th onclick="sortTable(this)">Борг початковий</th><th onclick="sortTable(this)">Міся-ців боргу на початок</th>';
 
   if (displayMode === "summarized") {
     for (const serviceId of servicesWithCharges) {
       headerRow += `<th onclick="sortTable(this)">${us[serviceId]}</th>`;
     }
-    headerRow += `<th onclick="sortTable(this)">Оплати</th><th id="recent-payments-header" onclick="sortTable(this)" onwheel="return handleRecentPaymentsWheel(event)"><span class="recent-payments-screen">Оплати за ост. <input id="recent-payments-inline" type="number" min="1" step="1" value="${recentPaymentsMonths}" style="width:3.5em" onclick="event.stopPropagation()" onmousedown="event.stopPropagation()" onwheel="return handleRecentPaymentsWheel(event)" onchange="return handleRecentPaymentsChange(event)" onblur="return handleRecentPaymentsChange(event)" onkeydown="return handleRecentPaymentsKeydown(event)"> міс.</span><span class="recent-payments-print" style="display:none">Оплати за ост. ${recentPaymentsMonths} міс.</span></th><th onclick="sortTable(this)">Борг кінцевий</th><th onclick="sortTable(this)">Місяців боргу</th></tr>`;
+    headerRow += `<th onclick="sortTable(this)">Оплати</th><th id="recent-payments-header" onclick="sortTable(this)" onwheel="return handleRecentPaymentsWheel(event)"><span class="recent-payments-screen">Оплати за ост. <input id="recent-payments-inline" type="number" min="1" step="1" value="${recentPaymentsMonths}" style="width:3.5em" onclick="event.stopPropagation()" onmousedown="event.stopPropagation()" onwheel="return handleRecentPaymentsWheel(event)" onchange="return handleRecentPaymentsChange(event)" onblur="return handleRecentPaymentsChange(event)" onkeydown="return handleRecentPaymentsKeydown(event)"> міс.</span><span class="recent-payments-print" style="display:none">Оплати за ост. ${recentPaymentsMonths} міс.</span></th><th onclick="sortTable(this)">Борг кінцевий</th><th onclick="sortTable(this)">Міся-ців боргу</th></tr>`;
   } else {
     let currentDate = new Date(start);
     while (currentDate <= end) {
@@ -770,7 +770,7 @@ sortedArray.forEach(id => servicesWithCharges.add(id));
       }
       currentDate.setMonth(currentDate.getMonth() + 1);
     }
-    headerRow += '<th onclick="sortTable(this)">Борг кінцевий</th><th onclick="sortTable(this)">Місяців боргу</th></tr>';
+    headerRow += '<th onclick="sortTable(this)">Борг кінцевий</th><th onclick="sortTable(this)">Міся-ців боргу</th></tr>';
   }
   thead.innerHTML = headerRow;
 

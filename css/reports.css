@@ -586,17 +586,9 @@ li.folder {
 }
 .gr-house-subtotal-label td {  color: #1f4b7a; font-weight: 700; }
 .gr-accounts-table thead th { text-align: center; vertical-align: middle; }
-.gr-accounts-debt-table { table-layout: fixed; }
-.gr-accounts-debt-table th:nth-child(5),
-.gr-accounts-debt-table td:nth-child(5),
-.gr-accounts-debt-table th:last-child,
-.gr-accounts-debt-table td:last-child {
-  min-width: 44px;
-  max-width: 52px;
-  padding-left: 3px;
-  padding-right: 3px;
-  text-align: center;
-}
+.gr-accounts-table { table-layout: fixed; }
+.gr-accounts-table .gr-paid-period { text-align: center; white-space: nowrap; }
+.gr-accounts-table th, .gr-accounts-table td { overflow-wrap: break-word; }
 .gr-accounts-debt-table .gr-group-total > td:first-child,
 .gr-accounts-debt-table .gr-grand-total > td:first-child,
 .gr-accounts-debt-table .gr-house-subtotal-label > td {
@@ -606,8 +598,7 @@ li.folder {
 .gr-grand-total .gr-grand-neg,
 .gr-grand-total .gr-grand-pos { font-weight: 800; }
 .gr-pod-head td { background: #e8eef8; color: #1f4b7a; font-weight: 700; }
-.gr-accounts-table th:nth-child(2),
-.gr-accounts-table td:nth-child(2) { width: 24%; }
+
 .gr-debtors-table th:nth-child(2),
 .gr-debtors-table td:nth-child(2) { width: 34%; }
 .gr-target-notes {
@@ -3472,3 +3463,24 @@ li.folder {
     visibility: visible !important;
   }
 }
+
+/* Keep report columns identical in preview, PDF and print. */
+.gr-sheet .gr-table.gr-accounts-table { table-layout: fixed !important; }
+
+.gr-sheet .gr-accounts-table .gr-paid-period { padding-left: 2px !important; padding-right: 2px !important; }
+
+.gr-accounts-table tbody td:last-child { white-space: nowrap; }
+
+.gr-sheet .gr-table .gr-paid-period { text-align: center; white-space: nowrap; padding-left: 2px !important; padding-right: 2px !important; }
+.gr-sheet .gr-table .gr-paid-period-recent { color: #888; }
+.gr-sheet .gr-table.gr-debtors-table { table-layout: fixed !important; }
+
+.gr-sheet .gr-accounts-table .gr-debt-months { white-space: nowrap; padding-left: 2px !important; padding-right: 2px !important; text-align: center; }
+
+.gr-sheet .gr-services-table tbody td:last-child { white-space: nowrap; }
+@media print {
+  @page gr-services-landscape { size: A4 landscape; margin: 0; }
+  .gr-sheet.gr-sheet-landscape { page: gr-services-landscape; }
+}
+
+.gr-services-table .gr-apt-no { white-space: nowrap; }
