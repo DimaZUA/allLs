@@ -140,3 +140,17 @@ input[type=range] { width: 100%; cursor: pointer; }
   25% { transform: translateX(-2px); }
   75% { transform: translateX(2px); }
 }
+
+/* Analysis columns depend on numbers, not on long service names. */
+.analiz-main-table { table-layout: fixed; }
+.analiz-main-table th { white-space: normal; overflow-wrap: anywhere; padding: 3px 6px; }
+.analiz-main-table td { padding-left: 6px; padding-right: 6px; }
+.analiz-main-table .summary-row td:first-child { white-space: normal; overflow-wrap: break-word; font-size: 14px; }
+
+/* Service breakdown is secondary to charged totals, payments and payment rate. */
+.analiz-main-table th.analiz-charge-detail { background: #eef0f3; color: #626b77; font-size: 14px; font-weight: 400; }
+.analiz-main-table td.analiz-charge-detail { background: #f7f8fa; color: #68717d; font-size: 14px; }
+.analiz-main-table .summary-row td.analiz-charge-detail { background: #edf0f3; }
+.analiz-main-table .analiz-charge-detail .summary-dual strong { font-size: 14px; font-weight: 500; color: #68717d; }
+.analiz-main-table td.analiz-primary { font-weight: 600; }
+.analiz-main-table .analiz-charge-boundary { border-left: 3px solid #8895a6; }

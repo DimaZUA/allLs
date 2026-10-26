@@ -184,16 +184,25 @@ function renderAnalizTable(data, monthsList, initialDebtThreshold) {
   let dragState = null;
   const wrapper = document.createElement("div");
   const table = document.createElement("table");
-  table.className = "analiz-table";
+  table.className = "analiz-table analiz-main-table";
+  const colgroup = document.createElement("colgroup");
   const thead = document.createElement("thead");
   const tbody = document.createElement("tbody");
 
   const normalizeSplits = splits => [...new Set(splits.map(v => Math.round(Number(v) || 0)).filter(v => v >= 1 && v <= data.length))].sort((a, b) => a - b);
+  const emphasisClass = col => {
+    if (serviceColumns.has(col)) return " analiz-charge-detail";
+    if (["totalCharged", "totalPaid", "percentPaid", "debtorCharged", "debtorPaid", "debtorPercent"].includes(col)) {
+      const base = col.startsWith("total") || col === "percentPaid" ? "totalCharged" : "debtorCharged";
+      return " analiz-primary" + (col === base && expandedCharges[base] ? " analiz-charge-boundary" : "");
+    }
+    return "";
+  };
   const columnClass = (col, summaryCell) => {
     const prefix = summaryCell ? "summary" : "td";
-    if (col.startsWith("total")) return `${prefix}-total`;
+    if (col.startsWith("total")) return `${prefix}-total${emphasisClass(col)}`;
     if (col.startsWith("overpay")) return `${prefix}-overpay`;
-    if (col.startsWith("debtor")) return `${prefix}-debtor`;
+    if (col.startsWith("debtor")) return `${prefix}-debtor${emphasisClass(col)}`;
     return "";
   };
   const sumField = (arr, field) => arr.reduce((a, r) => a + (Number(r[field]) || 0), 0);
@@ -239,6 +248,20 @@ function renderAnalizTable(data, monthsList, initialDebtThreshold) {
   };
 
   function buildHeader() {
+    colgroup.innerHTML = "";
+    let tableWidth = 0;
+    orderedCols.forEach(key => {
+      const type = COLS[key].type;
+      const values = data.map(row => Number(row[key]) || 0);
+      const maxLength = Math.max(0, ...values.map(value => fmt(type, value).length),
+        fmt(type, values.reduce((sum, value) => sum + Math.abs(value), 0)).length);
+      const width = key === "month" ? 100 : type === "percent" || type === "int" ? 82 : Math.max(96, maxLength * 10 + 16);
+      const col = document.createElement("col");
+      col.style.width = `${width}px`;
+      colgroup.appendChild(col);
+      tableWidth += width;
+    });
+    table.style.width = `${tableWidth}px`;
     thead.innerHTML = "";
     const tr1 = document.createElement("tr");
     const thMonth = document.createElement("th");
@@ -282,15 +305,18 @@ function renderAnalizTable(data, monthsList, initialDebtThreshold) {
     COL_GROUPS.forEach(gr => gr.cols.forEach(col => {
       if (!COLS[col].visible) return;
       const th = document.createElement("th");
-      th.className = gr.class;
+      th.className = gr.class + emphasisClass(col);
       th.textContent = COLS[col].title;
-      if (Object.prototype.hasOwnProperty.call(expandedCharges, col)) {
+      const chargeToggle = serviceColumns.has(col)
+        ? (col.startsWith("debtor") ? "debtorCharged" : "totalCharged")
+        : (Object.prototype.hasOwnProperty.call(expandedCharges, col) ? col : null);
+      if (chargeToggle) {
         th.style.cursor = "pointer";
         th.tabIndex = 0;
         th.setAttribute("role", "button");
-        th.setAttribute("aria-expanded", String(expandedCharges[col]));
-        th.title = expandedCharges[col] ? "Згорнути нарахування за послугами" : "Розгорнути нарахування за послугами";
-        const toggle = () => { expandedCharges[col] = !expandedCharges[col]; redraw(); };
+        th.setAttribute("aria-expanded", String(expandedCharges[chargeToggle]));
+        th.title = expandedCharges[chargeToggle] ? "Згорнути нарахування за послугами" : "Розгорнути нарахування за послугами";
+        const toggle = () => { expandedCharges[chargeToggle] = !expandedCharges[chargeToggle]; redraw(); };
         th.onclick = toggle;
         th.onkeydown = event => {
           if (event.key === "Enter" || event.key === " ") { event.preventDefault(); toggle(); }
@@ -343,6 +369,7 @@ function renderAnalizTable(data, monthsList, initialDebtThreshold) {
     rowCmp.appendChild(tdLabel);
     compareCols.forEach(col => {
       const td = document.createElement("td");
+      td.className = emphasisClass(col).trim();
       td.style.height = "60px";
       td.style.verticalAlign = "bottom";
       const v1 = comparableSummaryValue(topS, col);
@@ -461,7 +488,7 @@ function renderAnalizTable(data, monthsList, initialDebtThreshold) {
     initPosters();
   }
 
-  table.append(thead, tbody);
+  table.append(colgroup, thead, tbody);
   wrapper.appendChild(table);
   redraw();
 
