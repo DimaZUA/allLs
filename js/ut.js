@@ -1318,6 +1318,11 @@ function prepareAnalizTableForExcel(tableCopy) {
   tableCopy.querySelectorAll("tbody tr").forEach(function (row) {
     var cells = Array.from(row.querySelectorAll("td"));
     cells.forEach(function (cell, index) {
+      if (cell.dataset.analizChargeZero === "1") {
+        cell.textContent = "0";
+        delete cell.dataset.excelText;
+        return;
+      }
       var rawText = String(cell.innerText || cell.textContent || "").replace(/\u00A0/g, " ").trim();
       if (index === 0 && /^\d{2}\.\d{4}$/.test(rawText)) {
         cell.dataset.excelText = rawText;

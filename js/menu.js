@@ -66,7 +66,7 @@ function actionsForHome(homeCode) {
   return actions.filter(action => action.actionCode !== "meters" || meterHomeCodes.has(String(homeCode)));
 }
 
-var homes, ls, nach, files, adr, dt, org, b, what, kto, oplat, plat, us, nachnote, allnach, tarifs, spending;
+var homes, ls, nach, files, adr, dt, org, b, what, kto, oplat, plat, us, usKr, nachnote, allnach, tarifs, spending;
 
 // ================================
 // АКТИВАЦИЯ ИЗ URL
@@ -152,6 +152,7 @@ function tryParse(value, fallback) {
 function parseHomeRow(row) {
   return {
     us: tryParse(row.us, {}),
+    usKr: tryParse(row.usKr, {}),
     b: tryParse(row.b, {}),
     org: row.org ?? "",
     adr: row.adr ?? "",
@@ -177,7 +178,7 @@ function isHomeDataFresh(home) {
 async function fetchHomeData(homeCode) {
   const { data, error } = await client
     .from("homes")
-    .select("us, b, org, adr, dt, what, kto, nach, oplat, ls, plat, files, nachnote, allnach, tarifs, spending")
+    .select("us, usKr, b, org, adr, dt, what, kto, nach, oplat, ls, plat, files, nachnote, allnach, tarifs, spending")
     .eq("code", homeCode)
     .single();
 
@@ -208,6 +209,7 @@ function applyHomeDataToGlobals(homeCode, home) {
   oplat = home.oplat;
   plat = home.plat;
   us = home.us;
+  usKr = home.usKr || {};
 }
 
 function runActionForHome(homeCode, actionCode) {

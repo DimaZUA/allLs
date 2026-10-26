@@ -85,6 +85,7 @@
     }
 
     window.us = payload.us || {};
+    window.usKr = payload.usKr || {};
     window.b = payload.b || {};
     window.org = payload.org || "";
     window.adr = payload.adr || "";
@@ -102,6 +103,7 @@
     window.files = { files: [] };
 
     us = window.us;
+    usKr = window.usKr;
     b = window.b;
     org = window.org;
     adr = window.adr;

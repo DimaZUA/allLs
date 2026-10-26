@@ -1,5 +1,6 @@
 const ANALIZ_DEBT_THRESHOLDS = [0, 3, 6, 12, 24];
 const ANALIZ_DEFAULT_DEBT_THRESHOLD = 3;
+const ANALIZ_EXPANDED_CHARGES = { totalCharged: false, debtorCharged: false };
 
 function generateAnaliz(start, end) {
   const months = [];
@@ -18,6 +19,7 @@ function generateAnaliz(start, end) {
     const row = {
       month: `${String(month).padStart(2, "0")}.${year}`,
       totalCharged: 0,
+      chargedByService: {},
       totalPaid: 0,
       overpayCharged: 0,
       overpayPaid: 0,
@@ -34,7 +36,9 @@ function generateAnaliz(start, end) {
       const debitStart = typeof calculateInitialDebit === "function"
         ? calculateInitialDebit(accountId, monthDate)
         : calculateAnalizInitialDebit(accountId, monthDate);
-      const chargesThisMonth = Object.values(accountNach?.[year]?.[month] || {}).reduce((s, v) => s + (Number(v) || 0), 0);
+      const chargedByService = Object.fromEntries(Object.entries(accountNach?.[year]?.[month] || {}).map(([id, value]) => [id, Number(value) || 0]));
+      Object.entries(chargedByService).forEach(([id, value]) => { row.chargedByService[id] = (row.chargedByService[id] || 0) + value; });
+      const chargesThisMonth = Object.values(chargedByService).reduce((s, v) => s + (Number(v) || 0), 0);
       const paymentsThisMonth = (accountOplat?.[year]?.[month] || []).reduce((s, p) => s + (Number(p.sum) || 0), 0);
       const debitEnd = debitStart + chargesThisMonth - paymentsThisMonth;
       const startDebtMonths = calculateDebtMonthsFromCache(accountId, debitStart, startDebtAnchor);
@@ -50,6 +54,7 @@ function generateAnaliz(start, end) {
         endAge: debtMonths,
         endDebt: debitEnd,
         charged: chargesThisMonth,
+        chargedByService,
         paid: paymentsThisMonth
       };
 
@@ -93,6 +98,7 @@ function calculateAnalizInitialDebit(accountId, monthDate) {
 function applyAnalizDebtThreshold(data, debtThreshold) {
   data.forEach(row => {
     row.debtorCharged = 0;
+    row.debtorChargedByService = {};
     row.debtorPaid = 0;
     row.debtorCount = 0;
     row.debtors = new Set();
@@ -100,6 +106,9 @@ function applyAnalizDebtThreshold(data, debtThreshold) {
       const item = row.details[accountId];
       if (item.debt > 0.005 && item.age > debtThreshold) {
         row.debtorCharged += item.charged;
+        Object.entries(item.chargedByService || {}).forEach(([id, value]) => {
+          row.debtorChargedByService[id] = (row.debtorChargedByService[id] || 0) + value;
+        });
         row.debtorPaid += item.paid;
         row.debtorCount++;
         row.debtors.add(accountId);
@@ -130,11 +139,38 @@ function renderAnalizTable(data, monthsList, initialDebtThreshold) {
     { title: "Переплатники", class: "th-overpay", cols: ["overpayPaid", "overpayDebtEnd", "overpayPercent"] },
     { title: "Борг понад", class: "th-debtor", cols: ["debtorCharged", "debtorPaid", "debtorPercent", "debtorCount", "debtorPercentCount"], debtor: true }
   ];
-  const orderedCols = [
-    "month", "totalCharged", "totalPaid", "percentPaid", "overpayPaid", "overpayDebtEnd", "overpayPercent",
-    "debtorCharged", "debtorPaid", "debtorPercent", "debtorCount", "debtorPercentCount"
-  ].filter(c => COLS[c].visible);
+  const expandedCharges = ANALIZ_EXPANDED_CHARGES;
+  let orderedCols = [];
+  const serviceColumns = new Set();
   const doubleSummaryCols = new Set(["totalCharged", "totalPaid", "overpayDebtEnd", "debtorCharged", "debtorPaid"]);
+  function refreshColumns() {
+    serviceColumns.forEach(key => { delete COLS[key]; doubleSummaryCols.delete(key); });
+    serviceColumns.clear();
+    COL_GROUPS.forEach(group => {
+      const base = group.debtor ? "debtorCharged" : "totalCharged";
+      group.cols = group.cols.filter(key => !key.includes("Service:"));
+      if (!group.cols.includes(base)) return;
+      COLS[base].title = expandedCharges[base] ? "Всього нараховано" : "Нараховано";
+      if (!expandedCharges[base]) return;
+      const ids = new Set();
+      data.forEach(row => Object.entries(row.details).forEach(([accountId, item]) => {
+        if (group.debtor && !row.debtors.has(accountId)) return;
+        Object.entries(item.chargedByService || {}).forEach(([id, value]) => {
+          if (Math.abs(value) > 0.005) ids.add(id);
+        });
+      }));
+      const keys = [...ids].sort((a,b) => Number(a) - Number(b)).map(id => {
+        const key = (group.debtor ? "debtor" : "total") + "Service:" + id;
+        COLS[key] = { title: (typeof usKr !== "undefined" && usKr[id]) || (typeof us !== "undefined" && us[id]) || `Послуга ${id}`, type: "number", isValue: true, visible: true };
+        serviceColumns.add(key);
+        doubleSummaryCols.add(key);
+        data.forEach(row => { row[key] = (group.debtor ? row.debtorChargedByService : row.chargedByService)?.[id] || 0; });
+        return key;
+      });
+      group.cols.splice(group.cols.indexOf(base), 0, ...keys);
+    });
+    orderedCols = ["month", ...COL_GROUPS.flatMap(group => group.cols)].filter(key => COLS[key].visible);
+  }
   const fmt = (type, val) => {
     const n = Number(val) || 0;
     if (type === "number" || type === "int") return Math.round(n).toLocaleString("uk-UA");
@@ -169,6 +205,7 @@ function renderAnalizTable(data, monthsList, initialDebtThreshold) {
     const totalCount = sumField(arr, "totalCount");
     const debtorCount = sumField(arr, "debtorCount");
     return {
+      ...Object.fromEntries([...serviceColumns].map(key => [key, sumField(arr, key)])),
       rowCount: arr.length,
       totalCharged,
       totalPaid: sumField(arr, "totalPaid"),
@@ -190,11 +227,13 @@ function renderAnalizTable(data, monthsList, initialDebtThreshold) {
     if (type === "number" || type === "int") return S.rowCount ? (Number(S[col]) || 0) / S.rowCount : 0;
     return Number(S[col]) || 0;
   };
+  const isChargeColumn = col => col === "totalCharged" || col === "debtorCharged" || serviceColumns.has(col);
+  const displayValue = (col, value) => isChargeColumn(col) && Math.abs(Number(value) || 0) < 0.005 ? "—" : fmt(COLS[col].type, value);
   const summaryValueHtml = (col, S) => {
     const type = COLS[col].type;
     const sumValue = Number(S[col]) || 0;
     const avgValue = S.rowCount ? sumValue / S.rowCount : 0;
-    if (doubleSummaryCols.has(col)) return `<div class="summary-dual"><span>${fmt(type, sumValue)}</span><strong>${fmt(type, avgValue)}</strong></div>`;
+    if (doubleSummaryCols.has(col)) return `<div class="summary-dual"><span>${displayValue(col, sumValue)}</span><strong>${displayValue(col, avgValue)}</strong></div>`;
     const value = (type === "number" || type === "int") ? avgValue : sumValue;
     return fmt(type, value);
   };
@@ -245,6 +284,18 @@ function renderAnalizTable(data, monthsList, initialDebtThreshold) {
       const th = document.createElement("th");
       th.className = gr.class;
       th.textContent = COLS[col].title;
+      if (Object.prototype.hasOwnProperty.call(expandedCharges, col)) {
+        th.style.cursor = "pointer";
+        th.tabIndex = 0;
+        th.setAttribute("role", "button");
+        th.setAttribute("aria-expanded", String(expandedCharges[col]));
+        th.title = expandedCharges[col] ? "Згорнути нарахування за послугами" : "Розгорнути нарахування за послугами";
+        const toggle = () => { expandedCharges[col] = !expandedCharges[col]; redraw(); };
+        th.onclick = toggle;
+        th.onkeydown = event => {
+          if (event.key === "Enter" || event.key === " ") { event.preventDefault(); toggle(); }
+        };
+      }
       tr2.appendChild(th);
     }));
     thead.append(tr1, tr2);
@@ -261,6 +312,7 @@ function renderAnalizTable(data, monthsList, initialDebtThreshold) {
       const td = document.createElement("td");
       td.className = columnClass(col, true);
       td.innerHTML = summaryValueHtml(col, S);
+      if (isChargeColumn(col) && Math.abs(Number(S[col]) || 0) < 0.005) td.dataset.analizChargeZero = "1";
       tr.appendChild(td);
     });
     tr.onmousedown = e => {
@@ -311,6 +363,8 @@ function renderAnalizTable(data, monthsList, initialDebtThreshold) {
   }
 
   function redraw() {
+    refreshColumns();
+    buildHeader();
     splitIndexes = normalizeSplits(splitIndexes);
     activeSplit = Math.min(Math.max(activeSplit, 1), data.length);
     tbody.innerHTML = "";
@@ -323,7 +377,8 @@ function renderAnalizTable(data, monthsList, initialDebtThreshold) {
       orderedCols.forEach(col => {
         const td = document.createElement("td");
         td.className = columnClass(col, false);
-        td.textContent = fmt(COLS[col].type, r[col]);
+        td.textContent = displayValue(col, r[col]);
+        if (isChargeColumn(col) && Math.abs(Number(r[col]) || 0) < 0.005) td.dataset.analizChargeZero = "1";
         tr.appendChild(td);
       });
       tbody.appendChild(tr);
@@ -406,7 +461,6 @@ function renderAnalizTable(data, monthsList, initialDebtThreshold) {
     initPosters();
   }
 
-  buildHeader();
   table.append(thead, tbody);
   wrapper.appendChild(table);
   redraw();
