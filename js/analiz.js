@@ -676,7 +676,7 @@ function renderMigrationTable(splitIndex, resultData, fullMonths, debtThreshold,
       ${detailed ? `<td style="text-align:right">${money(value("debtNow"))}</td>` : ""}
     </tr>`;
   }).join("");
-  table.appendChild(footer);
+  if (!detailed) table.appendChild(footer);
   const draw = () => {
     const sorted = [...summary].sort((a, b) => {
       const vA = a[migrationSort.col], vB = b[migrationSort.col];
