@@ -654,6 +654,24 @@ function renderMigrationTable(splitIndex, resultData, fullMonths, debtThreshold,
       diff: dataNow.age - dataWas.age
     });
   });
+  const footer = document.createElement("tfoot");
+  const totals = Object.fromEntries(["ageWas", "debtWas", "charged", "paid", "ageNow", "debtNow", "diff"]
+    .map(key => [key, summary.reduce((sum, item) => sum + item[key], 0)]));
+  const money = value => Math.round(value).toLocaleString("uk-UA");
+  footer.innerHTML = [["Разом", 1], ["В середньому", summary.length || 1]].map(([title, divisor]) => {
+    const value = key => totals[key] / divisor;
+    const age = (ageKey, debtKey) => `${value(ageKey).toFixed(1)}${detailed ? "" : ` <small style="color:gray;">(${money(value(debtKey))})</small>`}`;
+    const delta = value("diff");
+    return `<tr class="summary-row">
+      <td colspan="${detailed ? 2 : 3}">${title}</td>
+      <td style="text-align:right">${age("ageWas", "debtWas")}</td>
+      ${detailed ? `<td style="text-align:right">${money(value("charged"))}</td><td style="text-align:right">${money(value("paid"))}</td>` : ""}
+      <td style="text-align:right">${age("ageNow", "debtNow")}</td>
+      <td style="text-align:right" class="${delta > 0 ? "red" : "green"}">${delta > 0 ? "+" : ""}${delta.toFixed(1)}</td>
+      ${detailed ? `<td style="text-align:right">${money(value("debtNow"))}</td>` : ""}
+    </tr>`;
+  }).join("");
+  table.appendChild(footer);
   const draw = () => {
     const sorted = [...summary].sort((a, b) => {
       const vA = a[migrationSort.col], vB = b[migrationSort.col];
