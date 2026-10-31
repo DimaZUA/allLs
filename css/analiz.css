@@ -154,3 +154,19 @@ input[type=range] { width: 100%; cursor: pointer; }
 .analiz-main-table .analiz-charge-detail .summary-dual strong { font-size: 14px; font-weight: 500; color: #68717d; }
 .analiz-main-table td.analiz-primary { font-weight: 600; }
 .analiz-main-table .analiz-charge-boundary { border-left: 3px solid #8895a6; }
+.trajectory-table tbody tr.analiz-debt-decreased > td {
+  background-color: #e2f2e2;
+}
+
+.trajectory-table tbody tr.analiz-debt-increased > td {
+  background-color: #fbe3e3;
+}
+
+.trajectory-table tbody tr.analiz-debt-decreased:hover > td {
+  background-color: #cce8cc;
+}
+
+.trajectory-table tbody tr.analiz-debt-increased:hover > td {
+  background-color: #f5cccc;
+}
+

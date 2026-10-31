@@ -694,7 +694,7 @@ function renderMigrationTable(splitIndex, resultData, fullMonths, debtThreshold,
       return 0;
     });
     tbody.innerHTML = sorted.map(item => `
-      <tr data-account-id="${item.accountId}">
+      <tr data-account-id="${item.accountId}" class="${detailed && item.diff !== 0 ? (item.diff > 0 ? 'analiz-debt-increased' : 'analiz-debt-decreased') : ''}">
         <td style="text-align:center">${item.kv}</td>
         <td>${item.fio}</td>
         ${detailed ? '' : `<td><span class="badge ${item.badgeClass}">${item.status}</span></td>`}
