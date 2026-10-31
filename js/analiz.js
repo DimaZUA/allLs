@@ -555,6 +555,13 @@ function renderAnalizTable(data, monthsList, initialDebtThreshold) {
     };
     label.append(viewLabel, viewSelect);
     wrapper._debtInfo.appendChild(label);
+    table._analizExportTables = () => [
+      { name: "Аналіз", table },
+      ...[["details", "Нарахування та оплати"], ["status", "Статуси боржників"]].map(([view, name]) => ({
+        name,
+        table: renderMigrationTable(0, data.slice(period.start, period.end), monthsList.slice(period.start, period.end), debtThreshold, view).querySelector("table")
+      }))
+    ];
     wrapper._debtInfo.appendChild(renderMigrationTable(0, data.slice(period.start, period.end), monthsList.slice(period.start, period.end), debtThreshold, migrationView));
     initPosters();
   }
@@ -606,6 +613,7 @@ function renderMigrationTable(splitIndex, resultData, fullMonths, debtThreshold,
   container.innerHTML = `<h3 style="margin-top:25px; text-align:center;">Результати роботи з боржниками</h3>`;
   const table = document.createElement("table");
   table.className = "analiz-table trajectory-table";
+  table.dataset.migrationView = view;
   table.innerHTML = `
     <thead>
       <tr>

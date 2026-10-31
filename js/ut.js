@@ -1192,10 +1192,14 @@ async function exportTableToExcel(action = "download") {
     }
 
     const wb = new ExcelJS.Workbook();
-    const ws = wb.addWorksheet("Sheet1");
+    const analizMain = tables.find(table => typeof table._analizExportTables === "function");
+    const exportSheets = action === "download" && analizMain ? analizMain._analizExportTables() : null;
+    const ws = exportSheets ? null : wb.addWorksheet("Sheet1");
 
     // Обрабатываем таблицы
-    for (const table of tables) {
+    for (const entry of exportSheets || tables.map(table => ({ table }))) {
+        const table = entry.table;
+        const sheet = exportSheets ? wb.addWorksheet(entry.name) : ws;
         // Копия таблицы
         const tableCopy = table.cloneNode(true);
         tableCopy.querySelectorAll("tr[data-hidden-by-filter='1']").forEach(tr => tr.remove());
@@ -1211,16 +1215,30 @@ async function exportTableToExcel(action = "download") {
         prepareAccountTableForExcel(tableCopy);
         prepareAnalizTableForExcel(tableCopy);
 
+        // Include lower-table totals and preserve their column positions.
+        if (tableCopy.classList.contains("trajectory-table")) {
+          tableCopy.querySelectorAll("tfoot tr").forEach(row => {
+            Array.from(row.cells).forEach(cell => {
+              const span = cell.colSpan;
+              cell.colSpan = 1;
+              for (let i = 1; i < span; i++) {
+                cell.after(document.createElement("td"));
+              }
+            });
+            tableCopy.querySelector("tbody").appendChild(row);
+          });
+        }
+
         if (isAccountExcelTable(tableCopy)) {
-          exportAccountTableToWorksheet(tableCopy, ws);
+          exportAccountTableToWorksheet(tableCopy, sheet);
           continue;
         }
 
         // Обработка заголовков
-        handleHeaders(tableCopy, ws);
+        handleHeaders(tableCopy, sheet);
 
         // Обработка данных
-        handleRows(tableCopy, ws);
+        handleRows(tableCopy, sheet);
     }
 
     // === Скачивание файла ===
@@ -1333,7 +1351,7 @@ function prepareAnalizTableForExcel(tableCopy) {
         var avgText = String(dual.querySelector("strong")?.textContent || "").replace(/\u00A0/g, " ").trim();
         cell.dataset.excelText = [sumText, avgText].filter(Boolean).join("\n");
       }
-      if (tableCopy.classList.contains("trajectory-table") && (index === 3 || index === 4)) {
+      if (tableCopy.classList.contains("trajectory-table") && tableCopy.dataset.migrationView !== "details" && (index === 3 || index === 4)) {
         cell.dataset.excelText = rawText;
       }
     });
