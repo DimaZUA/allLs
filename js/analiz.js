@@ -179,8 +179,10 @@ function renderAnalizTable(data, monthsList, initialDebtThreshold) {
   };
 
   let debtThreshold = Number(initialDebtThreshold) || ANALIZ_DEFAULT_DEBT_THRESHOLD;
-  let splitIndexes = data.length > 1 ? [data.findIndex(r => r.month.startsWith("12.")) + 1 || Math.round(data.length / 2)] : [data.length];
-  let activeSplit = splitIndexes[0] || data.length;
+  let splitIndexes = data.flatMap((row, index) => row.month.startsWith("12.") ? [index + 1] : []);
+  let activeSplit = 0;
+  let selectedPeriod = "last";
+  let migrationView = "status";
   let dragState = null;
   const wrapper = document.createElement("div");
   const table = document.createElement("table");
@@ -393,7 +395,7 @@ function renderAnalizTable(data, monthsList, initialDebtThreshold) {
     refreshColumns();
     buildHeader();
     splitIndexes = normalizeSplits(splitIndexes);
-    activeSplit = Math.min(Math.max(activeSplit, 1), data.length);
+    activeSplit = splitIndexes.filter(index => index < data.length).pop() || 0;
     tbody.innerHTML = "";
     const splitSet = new Set(splitIndexes);
     let segmentStart = 0;
@@ -448,13 +450,27 @@ function renderAnalizTable(data, monthsList, initialDebtThreshold) {
   }
 
   function updateDebtInfo(splitIndex) {
+    const boundaries = [0, ...splitIndexes.filter(index => index < data.length), data.length];
+    const periods = boundaries.slice(1).map((end, index) => ({ start: boundaries[index], end }));
+    if (!data.length) return;
+    const periodIndex = selectedPeriod === "all" ? -1
+      : selectedPeriod === "last" ? periods.length - 1
+      : Math.min(Number(selectedPeriod), periods.length - 1);
+    const period = periodIndex < 0 ? { start: 0, end: data.length } : periods[periodIndex];
+    splitIndex = period.start;
     if (!wrapper._debtInfo) {
       wrapper._debtInfo = document.createElement("div");
       wrapper.appendChild(wrapper._debtInfo);
     }
     wrapper._debtInfo.innerHTML = "";
-    const wasD = data[splitIndex - 1]?.debtors || new Set();
-    const nowD = data[data.length - 1]?.debtors || new Set();
+    const debtorsAtEnd = row => new Set(Object.entries(row?.details || {})
+      .filter(([, item]) => item.endDebt > 0.005 && item.endAge > debtThreshold)
+      .map(([accountId]) => accountId));
+    const wasD = splitIndex > 0 ? debtorsAtEnd(data[splitIndex - 1]) : new Set(
+      Object.entries(data[0]?.details || {})
+        .filter(([, item]) => item.debt > 0.005 && item.age > debtThreshold)
+        .map(([accountId]) => accountId));
+    const nowD = debtorsAtEnd(data[period.end - 1]);
     const still = [...wasD].filter(x => nowD.has(x));
     const paidOff = [...wasD].filter(x => !nowD.has(x));
     const added = [...nowD].filter(x => !wasD.has(x));
@@ -474,7 +490,7 @@ function renderAnalizTable(data, monthsList, initialDebtThreshold) {
     addPoster("Залишились боржникми", still, "#444");
 
     const topS = summary(data.slice(0, splitIndex));
-    const bottomS = summary(data.slice(splitIndex));
+    const bottomS = summary(data.slice(splitIndex, period.end));
     const avgChBot = bottomS.rowCount ? bottomS.totalCharged / bottomS.rowCount : 0;
     const dPay = (bottomS.percentPaid - topS.percentPaid) * avgChBot / 100;
     const dDebt = (bottomS.debtorPercent - topS.debtorPercent) * avgChBot / 100;
@@ -484,7 +500,57 @@ function renderAnalizTable(data, monthsList, initialDebtThreshold) {
       ${dPay >= 0 ? "Зростання" : "Зменшення"} платежів: <span class="${dPay >= 0 ? "green" : "red"}">${Math.abs(dPay).toFixed(0)} грн</span><br>
       ${dDebt >= 0 ? "Зростання" : "Зменшення"} погашення боргів: <span class="${dDebt >= 0 ? "green" : "red"}">${Math.abs(dDebt).toFixed(0)} грн</span>`;
     wrapper._debtInfo.appendChild(textBlock);
-    wrapper._debtInfo.appendChild(renderMigrationTable(splitIndex, data, monthsList, debtThreshold));
+    const label = document.createElement("label");
+    label.style.cssText = "display:block; margin:20px 0 12px; text-align:center;";
+    const hasPeriodChoice = periods.length > 1;
+    label.textContent = hasPeriodChoice ? "Період: " : "";
+    const select = document.createElement("select");
+    select.className = "analiz-migration-period";
+    const periodLabel = ({ start, end }) => {
+      const first = data[start].month;
+      const last = data[end - 1].month;
+      const year = first.slice(3);
+      return first === `01.${year}` && last === `12.${year}`
+        ? `${year} рік` : `${first}–${last}`;
+    };
+    periods.forEach((item, index) => {
+      const option = document.createElement("option");
+      option.value = String(index);
+      option.textContent = periodLabel(item);
+      option.selected = index === periodIndex;
+      select.appendChild(option);
+    });
+    const allOption = document.createElement("option");
+    allOption.value = "all";
+    allOption.textContent = `Весь інтервал: ${data[0].month}–${data[data.length - 1].month}`;
+    allOption.selected = periodIndex < 0;
+    select.appendChild(allOption);
+    select.onchange = () => {
+      selectedPeriod = select.value === "all" ? "all"
+        : Number(select.value) === periods.length - 1 ? "last" : select.value;
+      updateDebtInfo(activeSplit);
+    };
+    if (hasPeriodChoice) label.appendChild(select);
+    const viewLabel = document.createElement("span");
+    viewLabel.textContent = " Тип таблиці: ";
+    viewLabel.style.marginLeft = hasPeriodChoice ? "16px" : "0";
+    const viewSelect = document.createElement("select");
+    viewSelect.setAttribute("aria-label", "Тип таблиці");
+    [["status", "Статуси боржників"], ["details", "Нарахування та оплати"]].forEach(([value, title]) => {
+      const option = document.createElement("option");
+      option.value = value;
+      option.textContent = title;
+      option.selected = migrationView === value;
+      viewSelect.appendChild(option);
+    });
+    viewSelect.onchange = () => {
+      migrationView = viewSelect.value;
+      migrationSort = { col: "diff", desc: true };
+      updateDebtInfo(activeSplit);
+    };
+    label.append(viewLabel, viewSelect);
+    wrapper._debtInfo.appendChild(label);
+    wrapper._debtInfo.appendChild(renderMigrationTable(0, data.slice(period.start, period.end), monthsList.slice(period.start, period.end), debtThreshold, migrationView));
     initPosters();
   }
 
@@ -521,9 +587,16 @@ function renderAnalizTable(data, monthsList, initialDebtThreshold) {
 
 let migrationSort = { col: "diff", desc: true };
 
-function renderMigrationTable(splitIndex, resultData, fullMonths, debtThreshold) {
+function renderMigrationTable(splitIndex, resultData, fullMonths, debtThreshold, view = "status") {
+  const detailed = view === "details";
   const container = document.createElement("div");
-  const dateWas = resultData[splitIndex - 1]?.month || "початок";
+  const wasMonth = resultData[splitIndex - 1]?.month;
+  let dateWas = resultData[0]?.month || "початок";
+  if (wasMonth) {
+    const [month, year] = wasMonth.split(".").map(Number);
+    const nextMonth = new Date(year, month, 1);
+    dateWas = `${String(nextMonth.getMonth() + 1).padStart(2, "0")}.${nextMonth.getFullYear()}`;
+  }
   const dateNow = resultData[resultData.length - 1]?.month || "кінець";
   container.innerHTML = `<h3 style="margin-top:25px; text-align:center;">Результати роботи з боржниками</h3>`;
   const table = document.createElement("table");
@@ -533,18 +606,25 @@ function renderMigrationTable(splitIndex, resultData, fullMonths, debtThreshold)
       <tr>
         <th style="width:50px" data-sort="kv">Кв</th>
         <th style="width:200px" data-sort="fio">ПІБ</th>
-        <th style="width:140px" data-sort="status">Статус</th>
-        <th data-sort="ageWas" data-excel-text="станом на ${dateWas}">станом на ${dateWas}</th>
-        <th data-sort="ageNow" data-excel-text="станом на ${dateNow}">станом на ${dateNow}</th>
+        ${detailed ? "" : '<th style="width:140px" data-sort="status">Статус</th>'}
+        <th data-sort="ageWas" data-excel-text="${detailed ? 'Місяців боргу ' : ''}на початок ${dateWas}">${detailed ? 'Місяців боргу<br>' : ''}на початок ${dateWas}</th>
+        ${detailed ? '<th data-sort="charged">Нараховано</th><th data-sort="paid">Сплачено</th>' : ''}
+        <th data-sort="ageNow" data-excel-text="${detailed ? 'Місяців боргу ' : ''}на кінець ${dateNow}">${detailed ? 'Місяців боргу<br>' : ''}на кінець ${dateNow}</th>
         <th style="width:80px" data-sort="diff">Зміна (міс)</th>
+        ${detailed ? '<th data-sort="debtNow">Сума боргу на кінець періоду</th>' : ''}
       </tr>
     </thead>
     <tbody></tbody>`;
   const tbody = table.querySelector("tbody");
   const summary = [];
   Object.keys(ls).forEach(accId => {
-    const dataWas = resultData[splitIndex - 1]?.details[accId] || { age: 0, debt: 0 };
-    const dataNow = resultData[resultData.length - 1]?.details[accId] || { age: 0, debt: 0 };
+    // The split month's closing balance is the next month's opening balance.
+    const wasDetails = (splitIndex > 0 ? resultData[splitIndex - 1] : resultData[0])?.details[accId];
+    const nowDetails = resultData[resultData.length - 1]?.details[accId];
+    const dataWas = splitIndex > 0
+      ? { age: wasDetails?.endAge || 0, debt: wasDetails?.endDebt || 0 }
+      : { age: wasDetails?.age || 0, debt: wasDetails?.debt || 0 };
+    const dataNow = { age: nowDetails?.endAge || 0, debt: nowDetails?.endDebt || 0 };
     const isWas = dataWas.debt > 0.005 && dataWas.age > debtThreshold;
     const isNow = dataNow.debt > 0.005 && dataNow.age > debtThreshold;
     if (!isWas && !isNow) return;
@@ -569,6 +649,8 @@ function renderMigrationTable(splitIndex, resultData, fullMonths, debtThreshold)
       debtWas: dataWas.debt,
       ageNow: dataNow.age,
       debtNow: dataNow.debt,
+      charged: resultData.slice(splitIndex).reduce((sum, row) => sum + (row.details[accId]?.charged || 0), 0),
+      paid: resultData.slice(splitIndex).reduce((sum, row) => sum + (row.details[accId]?.paid || 0), 0),
       diff: dataNow.age - dataWas.age
     });
   });
@@ -584,10 +666,12 @@ function renderMigrationTable(splitIndex, resultData, fullMonths, debtThreshold)
       <tr data-account-id="${item.accountId}">
         <td style="text-align:center">${item.kv}</td>
         <td>${item.fio}</td>
-        <td><span class="badge ${item.badgeClass}">${item.status}</span></td>
-        <td style="text-align:right">${item.ageWas.toFixed(1)} <small style="color:gray;">(${Math.round(item.debtWas)})</small></td>
-        <td style="text-align:right">${item.ageNow.toFixed(1)} <small style="color:gray;">(${Math.round(item.debtNow)})</small></td>
+        ${detailed ? '' : `<td><span class="badge ${item.badgeClass}">${item.status}</span></td>`}
+        <td style="text-align:right">${item.ageWas.toFixed(1)}${detailed ? '' : ` <small style="color:gray;">(${Math.round(item.debtWas)})</small>`}</td>
+        ${detailed ? `<td style="text-align:right">${Math.round(item.charged).toLocaleString('uk-UA')}</td><td style="text-align:right">${Math.round(item.paid).toLocaleString('uk-UA')}</td>` : ''}
+        <td style="text-align:right">${item.ageNow.toFixed(1)}${detailed ? '' : ` <small style="color:gray;">(${Math.round(item.debtNow)})</small>`}</td>
         <td style="text-align:right" class="${item.diff > 0 ? "red" : "green"}">${item.diff > 0 ? "+" : ""}${item.diff.toFixed(1)}</td>
+        ${detailed ? `<td style="text-align:right">${Math.round(item.debtNow).toLocaleString('uk-UA')}</td>` : ''}
       </tr>`).join("");
   };
   table.querySelector("thead").onclick = e => {
