@@ -1200,6 +1200,10 @@ async function exportTableToExcel(action = "download") {
     for (const entry of exportSheets || tables.map(table => ({ table }))) {
         const table = entry.table;
         const sheet = exportSheets ? wb.addWorksheet(entry.name) : ws;
+        if (exportSheets && table.dataset.migrationView === "details" && table._migrationExportData) {
+          exportAnalizDetailsToWorksheet(table, sheet);
+          continue;
+        }
         // Копия таблицы
         const tableCopy = table.cloneNode(true);
         tableCopy.querySelectorAll("tr[data-hidden-by-filter='1']").forEach(tr => tr.remove());
@@ -1307,6 +1311,68 @@ async function exportTableToExcel(action = "download") {
             showMessage("Не удалось скопировать данные в буфер обмена.","err");
         }
     }
+}
+
+function exportAnalizDetailsToWorksheet(table, sheet) {
+  const { rows, debtThreshold } = table._migrationExportData;
+  const headers = Array.from(table.querySelectorAll("thead th"), cell =>
+    cell.dataset.excelText || cell.textContent.trim());
+  const sorted = [...rows].sort((a, b) => {
+    const x = a[migrationSort.col], y = b[migrationSort.col];
+    const order = typeof x === "string" ? x.localeCompare(y) : x - y;
+    return migrationSort.desc ? -order : order;
+  });
+  const isDebtorAtStart = item => item.debtWas > 0.005 && item.ageWas > debtThreshold;
+  const isDebtorAtEnd = item => item.debtNow > 0.005 && item.ageNow > debtThreshold;
+  const groups = [
+    { title: "Нарахування та оплати", items: sorted },
+    { title: "ЗМЕНШИЛИ БОРГ", color: "FFE2F0D9", items: sorted.filter(item => item.diff < 0) },
+    { title: "ПЕРЕЙШЛИ У СТАН БОРЖНИКІВ", color: "FFFCE4EC", items: sorted.filter(item => !isDebtorAtStart(item) && isDebtorAtEnd(item)) },
+    { title: "ПРОДОВЖУЮТЬ ЗБІЛЬШУВАТИ БОРГИ", color: "FFDDEBF7", items: sorted.filter(item => isDebtorAtStart(item) && item.diff > 0) }
+  ];
+  const fillRow = (row, color) => {
+    if (!color) return;
+    for (let column = 1; column <= 8; column++) {
+      row.getCell(column).fill = { type: "pattern", pattern: "solid", fgColor: { argb: color } };
+    }
+  };
+  const formatNumbers = row => {
+    [3, 6, 7].forEach(column => { row.getCell(column).numFmt = "0.0"; });
+    [4, 5, 8].forEach(column => { row.getCell(column).numFmt = "#,##0.00"; });
+  };
+  groups.forEach(({ title, items, color: groupColor }, index) => {
+    if (index) { sheet.addRow([]); sheet.addRow([]); }
+    const titleRow = sheet.addRow([title]);
+    sheet.mergeCells(titleRow.number, 1, titleRow.number, 8);
+    titleRow.font = { bold: true, size: 12 };
+    fillRow(titleRow, groupColor);
+    const header = sheet.addRow(headers);
+    header.font = { bold: true };
+    header.height = 45;
+    header.eachCell(cell => {
+      cell.alignment = { wrapText: true, vertical: "middle", horizontal: "center" };
+      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: groupColor || "FFE7E6E6" } };
+    });
+    items.forEach(item => {
+      const row = sheet.addRow([item.kv, item.fio, item.ageWas, item.charged, item.paid, item.ageNow, item.diff, item.debtNow]);
+      formatNumbers(row);
+      fillRow(row, groupColor || groups.slice(1).find(group => group.items.includes(item))?.color);
+    });
+    if (!index) return;
+    const sum = key => items.reduce((total, item) => total + item[key], 0);
+    const total = sheet.addRow(["Разом", `Квартир: ${items.length}`, sum("ageWas"), sum("charged"), sum("paid"), sum("ageNow"), sum("diff"), sum("debtNow")]);
+    total.font = { bold: true };
+    fillRow(total, groupColor);
+    formatNumbers(total);
+    const payment = sheet.addRow(["Оплата, %", null, null, null, sum("charged") ? sum("paid") / sum("charged") : null]);
+    payment.getCell(5).numFmt = "0.0%";
+    fillRow(payment, groupColor);
+    const average = sheet.addRow(["Середній борг на квартиру", null, null, null, null, null, null, items.length ? sum("debtNow") / items.length : null]);
+    sheet.mergeCells(average.number, 1, average.number, 7);
+    average.getCell(8).numFmt = "#,##0.00";
+    fillRow(average, groupColor);
+  });
+  [8, 42, 20, 16, 16, 20, 16, 22].forEach((width, index) => { sheet.getColumn(index + 1).width = width; });
 }
 
 function prepareAccountTableForExcel(tableCopy) {

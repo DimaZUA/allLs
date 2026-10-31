@@ -667,6 +667,7 @@ function renderMigrationTable(splitIndex, resultData, fullMonths, debtThreshold,
       diff: dataNow.age - dataWas.age
     });
   });
+  table._migrationExportData = { rows: summary, debtThreshold };
   const footer = document.createElement("tfoot");
   const totals = Object.fromEntries(["ageWas", "debtWas", "charged", "paid", "ageNow", "debtNow", "diff"]
     .map(key => [key, summary.reduce((sum, item) => sum + item[key], 0)]));
