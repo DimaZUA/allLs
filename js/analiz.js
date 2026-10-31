@@ -182,7 +182,7 @@ function renderAnalizTable(data, monthsList, initialDebtThreshold) {
   let splitIndexes = data.flatMap((row, index) => row.month.startsWith("12.") ? [index + 1] : []);
   let activeSplit = 0;
   let selectedPeriod = "last";
-  let migrationView = "status";
+  let migrationView = "details";
   let dragState = null;
   const wrapper = document.createElement("div");
   const table = document.createElement("table");
@@ -242,6 +242,11 @@ function renderAnalizTable(data, monthsList, initialDebtThreshold) {
   const displayValue = (col, value) => isChargeColumn(col) && Math.abs(Number(value) || 0) < 0.005 ? "—" : fmt(COLS[col].type, value);
   const summaryValueHtml = (col, S) => {
     const type = COLS[col].type;
+    if (col === "percentPaid" || col === "debtorPercent") {
+      const charged = col === "percentPaid" ? S.totalCharged : S.debtorCharged;
+      const paid = col === "percentPaid" ? S.totalPaid : S.debtorPaid;
+      return charged ? fmt(type, paid / charged * 100) : "—";
+    }
     const sumValue = Number(S[col]) || 0;
     const avgValue = S.rowCount ? sumValue / S.rowCount : 0;
     if (doubleSummaryCols.has(col)) return `<div class="summary-dual"><span>${displayValue(col, sumValue)}</span><strong>${displayValue(col, avgValue)}</strong></div>`;
