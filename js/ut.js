@@ -1238,7 +1238,21 @@ async function exportTableToExcel(action = "download") {
         handleHeaders(tableCopy, sheet);
 
         // Обработка данных
+        const dataStartRow = sheet.rowCount + 1;
         handleRows(tableCopy, sheet);
+        if (tableCopy.classList.contains("trajectory-table") && tableCopy.dataset.migrationView === "details") {
+          Array.from(tableCopy.querySelectorAll("tbody tr")).forEach((row, index) => {
+            const color = row.classList.contains("analiz-debt-decreased") ? "FFE2F2E2"
+              : row.classList.contains("analiz-debt-increased") ? "FFFBE3E3" : null;
+            if (!color) return;
+            const excelRow = sheet.getRow(dataStartRow + index);
+            for (let column = 1; column <= row.cells.length; column++) {
+              excelRow.getCell(column).fill = {
+                type: "pattern", pattern: "solid", fgColor: { argb: color }
+              };
+            }
+          });
+        }
     }
 
     // === Скачивание файла ===
