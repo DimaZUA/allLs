@@ -4908,6 +4908,14 @@ if (cumulativeBalance !== 0) {
         monthlyChargesTotal += charge;
       });
 
+      const meterReadings = nachnote?.[accountId]?.[year]?.[_month]?.meterReadings;
+      const meterNotes = rowCharges[20] && Array.isArray(meterReadings)
+        ? meterReadings.map(function ([reading, usage]) {
+          return `Показання: ${Number(reading).toLocaleString("uk-UA")} · Споживання: ${Number(usage).toLocaleString("uk-UA")} кВт·год`;
+        })
+        : [];
+      if (isResidentMode) monthTarifNotes.push(...meterNotes);
+
       // Добавляем начисления по каждой услуге в строку
       services.forEach(function (serviceId) {
         var charge = rowCharges[serviceId];
@@ -4921,6 +4929,15 @@ if (cumulativeBalance !== 0) {
           var s7Name = us[7] || "\u0412\u0438\u0432\u0456\u0437 \u0422\u041f\u0412";
           cell.innerHTML = `${charge.toFixedWithComma()}<div class="descr">${s1Name}:${rowCharges[1].toFixedWithComma()} \u0433\u0440\u043d.<br>${s7Name}:${rowCharges[7].toFixedWithComma()} \u0433\u0440\u043d.</div>`;
           mobileDetail = `${s1Name}: ${(Number(rowCharges[1]) || 0).toFixedWithComma()} \u0433\u0440\u043d.\n${s7Name}: ${(Number(rowCharges[7]) || 0).toFixedWithComma()} \u0433\u0440\u043d.`;
+        }
+        if (!isResidentMode && serviceId == 20 && meterNotes.length) {
+          cell.className = "poster";
+          const tooltip = document.createElement("div");
+          tooltip.className = "descr";
+          tooltip.style.whiteSpace = "pre-line";
+          tooltip.textContent = meterNotes.join("\n");
+          cell.appendChild(tooltip);
+          mobileDetail = tooltip.textContent;
         }
         if (serviceId == 13){
         const val = nachnote?.[accountId]?.[year]?.[_month]?.[13];
