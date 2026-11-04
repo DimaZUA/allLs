@@ -256,7 +256,7 @@ function processFiles(files) {
         fileKeys = extractPlaceholdersFromTextContent(content);
       } else if (extension === "xlsx") {
         fileKeys = await extractPlaceholdersFromXlsx(content);
-      } else if (extension === "docx") {
+      } else if (extension === "docx"||extension === "docm") {
         fileKeys = extractPlaceholdersFromDocx(content);
       }
 
@@ -366,7 +366,7 @@ function processFiles(files) {
          ===================================================== */
 
       try {
-        if (extension === "docx") {
+        if (extension === "docx"||extension === "docm") {
           processWordFile(content, newFileName, replacements);
         } else if (extension === "xlsx") {
           await processExcelFile(content, newFileName, replacements);
