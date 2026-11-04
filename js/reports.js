@@ -10,6 +10,7 @@ const GENERATED_MONTHLY_REPORTS = [
     { fileName: "ОР за боргом.pdf", typeId: "accountsDebt" },
     { fileName: "Оплата співвласників.pdf", typeId: "payments" },
     { fileName: "ОР по квартирам.pdf", typeId: "accountsPods" },
+    { fileName: "ОР всі послуги", typeId: "accountsServices" },
     { fileName: "ОР борг 3 місяці+.pdf", typeId: "debtorsList" },
     { fileName: "ОР передоплата.pdf", typeId: "accountsOverpay" },
     { fileName: "Витарти будинку.pdf", typeId: "debtsPoster" },

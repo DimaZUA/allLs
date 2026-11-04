@@ -898,24 +898,90 @@
     ].join("|");
   }
 
+  function styleExcelReportRow(row, columnCount, kind) {
+    const styles = {
+      header: ["244461", "FFFFFF", true],
+      group: ["E8EFF6", "244461", true],
+      subtotal: ["EEF3F8", "20364B", true],
+      total: ["D7E6F3", "17334D", true],
+      stripe: ["F7F9FC", "253648", false]
+    };
+    const style = styles[kind];
+    if (!style) return;
+    const [fill, ink, bold] = style;
+    for (let column = 1; column <= columnCount; column++) {
+      const cell = row.getCell(column);
+      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF" + fill } };
+      cell.font = { bold, color: { argb: "FF" + ink } };
+      cell.alignment = kind === "header"
+        ? { horizontal: "center", vertical: "middle", wrapText: true }
+        : { ...cell.alignment, vertical: "middle" };
+      if (kind === "subtotal" || kind === "total") {
+        cell.border = { top: { style: kind === "total" ? "medium" : "thin", color: { argb: "FFA4B8CA" } } };
+      }
+    }
+    if (kind === "header") row.height = 32;
+  }
+
+  function appendExcelReportHeading(ws, page, columnCount, headerRows) {
+    const labels = [
+      [page.querySelector(".gr-report-org")?.textContent.trim(), 16, "17334D", true],
+      [excelReportTitleFromPage(page), 13, "244461", true],
+      [page.querySelector(".gr-report-period > span:last-child")?.textContent.trim(), 11, "52677A", false]
+    ];
+    labels.forEach(([label, size, ink, bold]) => {
+      if (!label) return;
+      const row = ws.addRow([label]);
+      ws.mergeCells(row.number, 1, row.number, columnCount);
+      const cell = row.getCell(1);
+      cell.font = { size, bold, color: { argb: "FF" + ink } };
+      cell.alignment = { vertical: "middle", wrapText: true };
+      row.height = size >= 13 ? 30 : 20;
+    });
+    ws.addRow([""]).height = 8;
+    ws.views = [{ state: "frozen", ySplit: ws.lastRow.number + headerRows }];
+  }
+
   function appendTableToWorksheet(ws, table, skipHeader) {
-    const rows = [...table.querySelectorAll("tr")].filter(tr => !skipHeader || !tr.closest("thead"));
-    rows.forEach(tr => {
-      const domCells = [...tr.children];
-      const row = ws.addRow(domCells.map(excelCellValueFromElement));
-      domCells.forEach((td, idx) => {
-        const cell = row.getCell(idx + 1);
+    const occupiedUntil = [];
+    const merges = [];
+    const styledRows = [];
+    const columnCount = [...table.rows[0].cells].reduce((sum, cell) => sum + cell.colSpan, 0);
+    [...table.rows].filter(tr => !skipHeader || tr.parentElement.tagName !== "THEAD").forEach((tr, index) => {
+      const row = ws.addRow([]);
+      const kind = tr.parentElement.tagName === "THEAD" ? "header"
+        : tr.matches(".gr-grand-total") ? "total"
+        : tr.matches(".gr-group-total") ? "subtotal"
+        : tr.matches(".gr-group-head, .gr-pod-head, .gr-house-subtotal-label") ? "group"
+        : index % 2 === 0 ? "stripe" : "";
+      styledRows.push([row, kind]);
+      let column = 1;
+      for (const td of tr.cells) {
+        while (occupiedUntil[column] > index) column++;
+        const cell = row.getCell(column);
+        cell.value = excelCellValueFromElement(td);
         if (td.hasAttribute("data-gr-number") || td.querySelector("[data-gr-number]")) {
           cell.numFmt = "#,##0.00";
           cell.alignment = { horizontal: "right" };
         }
-      });
+        const colSpan = td.colSpan || 1;
+        const rowSpan = td.rowSpan || 1;
+        if (colSpan > 1 || rowSpan > 1) {
+          merges.push([row.number, column, row.number + rowSpan - 1, column + colSpan - 1]);
+          if (rowSpan > 1) {
+            for (let c = column; c < column + colSpan; c++) occupiedUntil[c] = index + rowSpan;
+          }
+        }
+        column += colSpan;
+      }
     });
+    merges.forEach(range => ws.mergeCells(...range));
+    styledRows.forEach(([row, kind]) => styleExcelReportRow(row, columnCount, kind));
   }
 
   function appendPaymentBlocksToWorksheet(ws, page, includeHeader) {
     const blocks = [...page.querySelectorAll(".gr-pay-block")];
-    if (includeHeader) ws.addRow(["Кв.", "П.І.Б.", "Дата", "Сума"]);
+    if (includeHeader) styleExcelReportRow(ws.addRow(["Кв.", "П.І.Б.", "Дата", "Сума"]), 4, "header");
     blocks.forEach(block => {
       const head = block.querySelector(".gr-pay-apt");
       const fio = head?.querySelector(".gr-pay-fio")?.textContent || "";
@@ -927,6 +993,7 @@
         const row = ws.addRow([kv, fio, date, excelCellValueFromElement(sumEl)]);
         row.getCell(4).numFmt = "#,##0.00";
         row.getCell(4).alignment = { horizontal: "right" };
+        if (row.number % 2 === 0) styleExcelReportRow(row, 4, "stripe");
       });
     });
   }
@@ -2572,8 +2639,11 @@
       const key = excelReportKey(page);
       let item = sheetsByReport.get(key);
       if (!item) {
+        const ws = wb.addWorksheet(uniqueExcelSheetName(excelReportBaseName(page), usedNames));
+        const columnCount = table ? [...table.rows[0].cells].reduce((sum, cell) => sum + cell.colSpan, 0) : 4;
+        appendExcelReportHeading(ws, page, columnCount, table ? table.tHead.rows.length : 1);
         item = {
-          ws: wb.addWorksheet(uniqueExcelSheetName(excelReportBaseName(page), usedNames)),
+          ws,
           hasRows: false
         };
         sheetsByReport.set(key, item);
@@ -2590,6 +2660,7 @@
       ws.columns.forEach(col => {
         let max = 10;
         col.eachCell({ includeEmpty: true }, cell => {
+          if (cell.isMerged) return;
           max = Math.max(max, String(cell.value || "").length + 2);
         });
         col.width = Math.min(40, max);

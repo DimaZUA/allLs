@@ -4911,7 +4911,7 @@ if (cumulativeBalance !== 0) {
       const meterReadings = nachnote?.[accountId]?.[year]?.[_month]?.meterReadings;
       const meterNotes = rowCharges[20] && Array.isArray(meterReadings)
         ? meterReadings.map(function ([reading, usage]) {
-          return `Показання: ${Number(reading).toLocaleString("uk-UA")} · Споживання: ${Number(usage).toLocaleString("uk-UA")} кВт·год`;
+          return `Покази лічильника: ${Number(reading).toLocaleString("uk-UA")} · Споживання: ${Number(usage).toLocaleString("uk-UA")} кВт·год`;
         })
         : [];
       if (isResidentMode) monthTarifNotes.push(...meterNotes);
