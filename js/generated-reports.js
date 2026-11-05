@@ -1256,7 +1256,7 @@
 
     while (offset < rowHtmlList.length) {
       const isFirst = pageNo === 0;
-      const top = renderPageChrome(snap, title, subtitleHtml, !isFirst);
+      const top = renderPageChrome(snap, title, subtitleHtml, !isFirst && !opts.repeatFullHeader);
       const prefix = isFirst ? firstPrefixHtml : "";
       const suffix = suffixMode === "first" && isFirst ? (afterFirstHtml || "") : "";
       let low = 1;
@@ -2700,6 +2700,184 @@
     main.innerHTML = `<div id="preview"></div>`;
     return document.getElementById("preview");
   }
+
+  function accountHistoryPdfTable(source) {
+    const table = source.cloneNode(true);
+    const paymentCells = [...table.querySelectorAll(".payment-cell")].map(cell => ({
+      cell,
+      payments: [...cell.querySelectorAll(".paysubtable tbody > tr")].map(row => ({
+        date: row.querySelector("[data-payment-date]")?.getAttribute("data-payment-date") ||
+          row.querySelector(".payment-date-full")?.textContent.replace(/^сплачено\s*/i, "").trim() || "",
+        amount: row.querySelector(".payment-amount")?.textContent.replace(/^[·\s]+/, "").trim() || "",
+        period: row.getAttribute("data-payment-period-range") ||
+          row.cells[2]?.textContent.replace(/^[·\s]+/, "").trim() || ""
+      }))
+    }));
+    const monthNames = "січень|лютий|березень|квітень|травень|червень|липень|серпень|вересень|жовтень|листопад|грудень";
+    const monthLabel = new RegExp("^(?:" + monthNames + ")\\s+\\d{4}", "i");
+    [...table.tBodies].forEach(body => [...body.rows].forEach(row => {
+      if (!monthLabel.test(row.cells[0]?.textContent.trim() || "")) return;
+      const empty = [...row.cells].slice(1).every(cell => {
+        const values = cell.classList.contains("payment-cell")
+          ? [...cell.querySelectorAll(".payment-amount")].map(el => el.textContent.replace(/^[·\s]+/, ""))
+          : [(() => {
+              const amount = cell.cloneNode(true);
+              amount.querySelectorAll(".descr, .no-print").forEach(el => el.remove());
+              return amount.textContent;
+            })()];
+        return values.every(value => {
+          const text = value.replace(/[\s\u00a0\u202f]/g, "").replace(/,/g, ".").replace(/[−–]/g, "-");
+          return !text || /^[-—]+$/.test(text) || (Number.isFinite(Number(text)) && Number(text) === 0);
+        });
+      });
+      if (empty) row.remove();
+    }));
+    table.querySelectorAll("button, input, script, .no-print").forEach(el => el.remove());
+    table.querySelectorAll("*").forEach(el => {
+      const tone = el.classList.contains("red") ? "gr-neg" : el.classList.contains("green") ? "gr-pos" : "";
+      for (const attr of [...el.attributes]) {
+        if (!["colspan", "rowspan"].includes(attr.name)) el.removeAttribute(attr.name);
+      }
+      if (tone) el.className = tone;
+    });
+    paymentCells.forEach(({ cell, payments }) => {
+      cell.classList.add("gr-history-payments");
+      cell.innerHTML = payments.map(payment =>
+        '<div class="gr-history-payment"><div class="gr-history-payment-line"><span>' +
+        escapeHtml(payment.date) + '</span><strong>' + escapeHtml(payment.amount) + "</strong></div>" +
+        (payment.period ? '<div class="gr-history-payment-period">' + escapeHtml(payment.period) + "</div>" : "") +
+        "</div>"
+      ).join("");
+    });
+    const rows = [...table.tBodies].flatMap(body => [...body.rows]);
+    rows.forEach((row, index) => {
+      const label = row.cells[0]?.textContent.trim() || "";
+      if (/^Разом за/.test(label)) row.classList.add("gr-grand-total");
+      else if (index === rows.length - 1 && /^Нараховано за рік/.test(label)) row.classList.add("gr-group-total");
+      else if (row.cells.length === 1) row.classList.add("gr-history-note");
+    });
+    return table;
+  }
+
+  window.exportDisplayedAccountPdf = async function exportDisplayedAccountPdf(button) {
+    const blocks = [...document.querySelectorAll("#din .year-table.active")]
+      .map(block => ({ year: Number(String(block.dataset.id || "").replace("block-", "")), table: block.querySelector("table") }))
+      .filter(item => Number.isFinite(item.year) && item.table);
+    if (!blocks.length) {
+      showMessage("Відкрийте хоча б один рік для формування PDF.", "warn", 4000);
+      return;
+    }
+    if (typeof html2canvas !== "function" || !window.jspdf?.jsPDF) {
+      showMessage("Бібліотеки PDF не завантажені", "err", 5000);
+      return;
+    }
+    const oldLabel = button?.textContent;
+    const oldCompact = grState.compact;
+    let host;
+    try {
+      if (button) { button.disabled = true; button.textContent = "PDF…"; }
+      grState.compact = false;
+      if (document.fonts?.ready) await document.fonts.ready;
+      const code = activeReportHomeCode();
+      const meta = availableHomes().find(home => String(home.code) === String(code)) || {};
+      const home = window.homeData?.[code] || {};
+      const apartment = document.getElementById("number")?.value.trim() || "";
+      const fio = document.getElementById("fio")?.textContent.trim() || "";
+      const address = typeof adr !== "undefined" ? String(adr || "") : "";
+      const snap = {
+        homeName: home.org || (typeof org !== "undefined" ? org : "") || meta.name || code,
+        homeCode: code,
+        address: meta.adr || meta.address || home.adr || address,
+        edrpou: home.code || meta.okpo || meta.code || code
+      };
+      const yearTables = blocks.map(block => {
+        const table = accountHistoryPdfTable(block.table);
+        return { ...block, table, columns: [...table.tHead.rows[0].cells].reduce((sum, cell) => sum + (cell.colSpan || 1), 0) };
+      });
+      const landscape = yearTables.some(item => item.columns > 7);
+      const sheetClass = "gr-history-sheet" + (landscape ? " gr-sheet-landscape" : "");
+      const yearNumbers = blocks.map(block => block.year);
+      const periodSnap = { ...snap, fromYm: { year: Math.min(...yearNumbers), month: 1 }, toYm: { year: Math.max(...yearNumbers), month: 12 } };
+      const accountLabel = "<strong>" + escapeHtml(address + " / " + apartment) +
+        "</strong> · " + escapeHtml(fio);
+      const top = renderPageChrome(periodSnap, "ОСОБОВИЙ РАХУНОК", "", false);
+      const allPages = [];
+      let body = "";
+      const finishPage = () => {
+        if (body) allPages.push({ top, body, className: sheetClass });
+        body = "";
+      };
+      for (const block of yearTables) {
+        const flexible = Math.max(1, block.columns - 3);
+        const colgroup = '<colgroup><col style="width:13%">' +
+          ('<col style="width:' + (45 / flexible) + '%">').repeat(flexible) +
+          '<col style="width:28%"><col style="width:14%"></colgroup>';
+        const section = rows => '<div class="gr-history-section-heading"><div class="gr-history-account">' +
+          (block === yearTables[0] && allPages.length === 0 ? accountLabel : "") +
+          '</div><div class="gr-history-year">' + block.year + ' рік</div></div>' +
+          '<table class="gr-table gr-history-table">' + colgroup + '<thead>' + block.table.tHead.innerHTML +
+          '</thead><tbody>' + rows.join("") + '</tbody></table>';
+        const domRows = [...block.table.tBodies].flatMap(part => [...part.rows]);
+        const rows = domRows.map(row => row.outerHTML);
+        const yearSection = section(rows);
+        if (body && !measureSheetOverflow(top, body + yearSection, sheetClass).ok) finishPage();
+        if (!measureSheetOverflow(top, yearSection, sheetClass).ok) {
+          const months = [];
+          let pending = [];
+          domRows.forEach(row => {
+            const label = row.cells[0]?.textContent.trim().toLowerCase() || "";
+            const isMonth = MONTHS_UA_FULL.some(month => label.startsWith(month + " "));
+            if (isMonth) {
+              months.push([...pending, row.outerHTML]);
+              pending = [];
+            } else pending.push(row.outerHTML);
+          });
+          // Notes precede their month; closing totals stay with the last month.
+          if (!months.length) months.push(pending);
+          else months[months.length - 1].push(...pending);
+          let segment = [];
+          for (const month of months) {
+            if (!measureSheetOverflow(top, section(month), sheetClass).ok) {
+              throw new Error("Дані одного місяця за " + block.year + " рік не вміщуються на аркуш. Неможливо зберегти місяць та його підсумки разом.");
+            }
+            if (segment.length && !measureSheetOverflow(top, section([...segment, ...month]), sheetClass).ok) {
+              body = section(segment);
+              finishPage();
+              segment = [];
+            }
+            segment.push(...month);
+          }
+          body = section(segment);
+          continue;
+        }
+        body += yearSection;
+      }
+      finishPage();
+      host = document.createElement("div");
+      host.className = "gr-pdf-capture-host";
+      host.setAttribute("aria-hidden", "true");
+      host.innerHTML = pagesToSheetsHtml(allPages);
+      document.body.appendChild(host);
+      const sheets = [...host.querySelectorAll(".gr-sheet")];
+      const orientation = sheet => sheet.classList.contains("gr-sheet-landscape") ? "landscape" : "portrait";
+      const pdf = new window.jspdf.jsPDF({ orientation: orientation(sheets[0]), unit: "mm", format: "a4" });
+      for (let i = 0; i < sheets.length; i++) {
+        if (button) button.textContent = "PDF " + (i + 1) + "/" + sheets.length;
+        const image = await captureSheetDataUrl(sheets[i], "image/jpeg", 0.95);
+        const wide = orientation(sheets[i]) === "landscape";
+        if (i) pdf.addPage("a4", orientation(sheets[i]));
+        pdf.addImage(image, "JPEG", 0, 0, wide ? 297 : 210, wide ? 210 : 297);
+      }
+      pdf.save(("ОР_" + apartment + "_" + blocks.map(block => block.year).join("_")).replace(/[\\/:*?"<>|]/g, "_") + ".pdf");
+    } catch (error) {
+      console.error(error);
+      showMessage("Не вдалося створити PDF: " + (error.message || error), "err", 6000);
+    } finally {
+      host?.remove();
+      grState.compact = oldCompact;
+      if (button) { button.disabled = false; button.textContent = oldLabel; }
+    }
+  };
 
   window.renderGeneratedReportOnly = async function renderGeneratedReportOnly(options) {
     document.body.classList.add("files-mode");

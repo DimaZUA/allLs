@@ -26,6 +26,8 @@ async function initButtons() {
 
     // 3. формируем переменную buttons
     buttons = buildButtonsHtml(canvasOK);
+    const accountTools = document.getElementById("account-export-tools");
+    if (accountTools) accountTools.innerHTML = buttons;
 }
 
 function testCanvasReady() {
@@ -107,7 +109,7 @@ function buildButtonsHtml(canvasOK) {
 
 
 
-var buttons='';
+var buttons = buildButtonsHtml(false);
 initButtons();
 
 host = "data/";

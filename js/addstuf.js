@@ -4303,6 +4303,21 @@ function getMonthsForIndividualPayments(accountId, payments, year, month) {
   });
 }
 
+function formatPaymentCoverageRange(from, to) {
+  const names = ["січень","лютий","березень","квітень","травень","червень","липень","серпень","вересень","жовтень","листопад","грудень"];
+  const short = ["січ","лют","бер","квіт","трав","черв","лип","серп","вер","жовт","лист","груд"];
+  const parse = value => {
+    const match = /^за\s+(\S+)\s+(\d{4})/.exec(String(value || ""));
+    const month = match ? names.indexOf(match[1]) : -1;
+    return month < 0 ? null : { month, year: Number(match[2]) };
+  };
+  const first = parse(from), last = parse(to);
+  if (!first || !last) return to || "";
+  if (first.year === last.year && first.month === last.month) return "за " + short[last.month] + " " + last.year;
+  if (first.year === last.year) return "за " + short[first.month] + "–" + short[last.month] + " " + last.year;
+  return "за " + short[first.month] + " " + first.year + "–" + short[last.month] + " " + last.year;
+}
+
 function getMonthsForMonthlyPayments(accountId, monthlyPayments, paymentYear, paymentMonth) {
   if (!Array.isArray(monthlyPayments) || !monthlyPayments.length) return "";
 
@@ -5972,14 +5987,23 @@ if (monthlyPayments.length === 0) {
   paymentCell.innerHTML = "&nbsp;";
 } else {
   var paymentPeriods = getMonthsForIndividualPayments(accountId, monthlyPayments, paymentYear, paymentMonth);
+  var coveredPaymentSum = 0;
   var lastPaymentIndex = monthlyPayments.length - 1;
   var tableRows = monthlyPayments
     .map(function (payment, index) {
       var formattedDate = payment.date.split(".")[0]; // Преобразуем дату в формат D
       var formattedSum = payment.sum.toFixed(2).replace(".", ","); // Преобразуем сумму в формат 0.00
       var paymentMonths = paymentPeriods[index];
+      // One kopeck after the previous cumulative payment identifies the first
+      // month touched by this payment, including partial-month coverage.
+      var firstPaymentMonth = Number(payment.sum) > 0
+        ? getMonthsForPaymentRange(accountId, coveredPaymentSum + 0.01,
+            "01." + String(paymentMonth).padStart(2, "0") + "." + paymentYear)
+        : paymentMonths;
+      coveredPaymentSum += Number(payment.sum) || 0;
+      var paymentRange = formatPaymentCoverageRange(firstPaymentMonth, paymentMonths);
       return (
-        "<tr>" +
+        '<tr data-payment-period-range="' + escapeHtml(paymentRange) + '">' +
         '<td class="payment-day" data-payment-date="' + escapeHtml(payment.date || "") + '">' +
         '<span class="payment-day-short">' + formattedDate + '-го</span>' +
         '<span class="payment-date-full">сплачено ' + escapeHtml(payment.date || "") + '</span>' +
@@ -6751,7 +6775,7 @@ function initLS() {
 
         <div class="header-right">
           <div class="buttons-container">
-            ${isResidentMode ? "" : buttons}
+            ${isResidentMode ? "" : '<div id="account-export-tools" style="display:contents">' + buttons + '</div><button type="button" class="xls-button" title="PDF відкритих років" onclick="exportDisplayedAccountPdf(this)">PDF</button>'}
           </div>
         </div>
       </div>

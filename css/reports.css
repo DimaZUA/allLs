@@ -3485,6 +3485,21 @@ li.folder {
 
 .gr-services-table .gr-apt-no { white-space: nowrap; }
 
+.gr-history-account { padding: 4px 0 8px; font-size: 13px; line-height: 1.5; }
+.gr-history-table { table-layout: fixed; }
+.gr-history-table thead td { background: #e8eef6; color: #183d61; font-weight: 700; text-align: center; }
+.gr-history-table th, .gr-history-table td { font-size: 11px; line-height: 1.35; overflow-wrap: break-word; }
+.gr-history-table tbody tr:nth-child(even):not(.gr-grand-total):not(.gr-group-total) { background: #f7f9fc; }
+.gr-history-table tbody td:not(:first-child):not([colspan]) { text-align: right; }
+.gr-history-table p { margin: 1px 0; }
+.gr-history-table .gr-history-note td { background: #edf3fa; color: #435e7a; font-size: 10px; }
+.gr-history-table tbody td.gr-history-payments { text-align: left; }
+.gr-history-payment + .gr-history-payment { margin-top: 5px; padding-top: 5px; border-top: 1px solid #dce3eb; }
+.gr-history-payment-line { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+.gr-history-payment-line > * { white-space: nowrap; }
+.gr-history-payment-line strong { font-variant-numeric: tabular-nums; color: #183d61; }
+.gr-history-payment-period { margin-top: 1px; color: #6b7888; font-size: 10px; text-align: right; }
+
 .gr-wide-apartments .gr-pay-line, .gr-wide-apartments .gr-pay-total { grid-template-columns: 85px minmax(0, 1fr) 5em; }
 
 /* Wide apartment identifiers need wider poster cards, including during print. */
@@ -3504,3 +3519,22 @@ li.folder {
   column-gap: 12px;
 }
 .gr-wide-apartments .gr-pay-date { white-space: nowrap; }
+
+/* Compact multi-year account statement: share one page until it is full. */
+.gr-history-sheet { font-family: Arial, sans-serif; }
+.gr-history-sheet .gr-report-head { padding-bottom: 3px; margin-bottom: 3px; gap: 10px; }
+.gr-history-sheet .gr-report-logo { width: 52px; height: 58px; object-fit: contain; }
+.gr-history-sheet .gr-report-org { font-size: 18px; }
+.gr-history-sheet .gr-title { font-size: 18px; }
+.gr-history-sheet .gr-report-period { font-size: 13px; }
+.gr-history-sheet .gr-report-details { font-size: 9px; line-height: 1.15; }
+.gr-history-sheet .gr-history-account { font-size: 11px; line-height: 1.2; padding: 2px 0 4px; }
+.gr-history-year { font-weight: 700; color: #183d61; text-align: right; font-size: 11px; padding-top: 6px; }
+.gr-history-sheet .gr-history-table { margin-top: 2px; }
+.gr-history-sheet .gr-history-table td, .gr-history-sheet .gr-history-table th { font-size: 10px; padding: 2px 4px; line-height: 1.15; }
+.gr-history-sheet .gr-history-payment-period { font-size: 9px; margin-top: 0; }
+.gr-history-sheet .gr-history-payment + .gr-history-payment { padding-top: 2px; margin-top: 2px; }
+.gr-history-sheet .gr-history-note td { font-size: 9px; }
+.gr-history-section-heading { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 4px 0 1px; }
+.gr-history-sheet .gr-history-section-heading .gr-history-account { padding: 0; flex: 1; min-width: 0; }
+.gr-history-section-heading .gr-history-year { padding: 0; flex-shrink: 0; white-space: nowrap; }
