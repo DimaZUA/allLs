@@ -1198,20 +1198,21 @@ function formatListExcelWorksheet(sheet, table, headers, dataStartRow) {
       const isHeader = rowNumber <= headers.endRow;
       const sourceRow = dataRows[rowNumber - dataStartRow];
       const isTotal = sourceRow?.classList.contains("itog");
+      const isSubtotal = sourceRow?.classList.contains("list-group-total");
       const isGroup = sourceRow?.classList.contains("list-group-row");
       const fill = isHeader ? (detail ? "E8EDF3" : "244461")
-        : isTotal || isGroup ? "DCE8F3" : detail ? "F3F5F8" : (rowNumber - dataStartRow) % 2 ? "F7FAFC" : "FFFFFF";
-      cell.font = { name: "Arial", size: detail ? 10 : 11, bold: isHeader || isTotal || isGroup || total,
+        : isTotal || isGroup ? "DCE8F3" : isSubtotal ? "EEF3F8" : detail ? "F3F5F8" : (rowNumber - dataStartRow) % 2 ? "F7FAFC" : "FFFFFF";
+      cell.font = { name: "Arial", size: detail ? 10 : 11, bold: isHeader || isTotal || isSubtotal || isGroup || total,
         color: { argb: isHeader ? (detail ? "FF627286" : "FFFFFFFF") : detail ? "FF627286" : "FF20364B" } };
       cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF" + fill } };
       cell.alignment = { vertical: "middle", horizontal: isHeader ? "center" : typeof cell.value === "number" ? "right" : "left", wrapText: true };
       cell.border = { bottom: { style: "hair", color: { argb: "FFD8E0E8" } },
-        ...(isTotal ? { top: { style: "thin", color: { argb: "FF8CA4BC" } } } : {}) };
+        ...(isTotal || isSubtotal ? { top: { style: "thin", color: { argb: "FF8CA4BC" } } } : {}) };
       if (!isHeader && !isGroup && (typeof cell.value === "number" || cell.value === null)) cell.numFmt = header.dataset.columnKey === "base-0" || header.dataset.columnKey === "base-3" ? "0" : header.dataset.columnKey === "base-5" || header.dataset.columnKey === "debtMonths" ? "0.0" : moneyFormat;
     }
   });
   for (let row = headers.startRow; row <= headers.endRow; row++) sheet.getRow(row).height = 42;
-  dataRows.forEach((row, index) => { sheet.getRow(dataStartRow + index).height = row.classList.contains("itog") ? 26 : 22; });
+  dataRows.forEach((row, index) => { sheet.getRow(dataStartRow + index).height = row.classList.contains("itog") || row.classList.contains("list-group-total") ? 26 : 22; });
   sheet.views = [{ state: "frozen", xSplit: 2, ySplit: headers.endRow, showGridLines: false }];
   const lastDataIndex = dataRows.findIndex(row => row.classList.contains("itog"));
   const lastDataRow = lastDataIndex < 0 ? sheet.rowCount : dataStartRow + lastDataIndex - 1;

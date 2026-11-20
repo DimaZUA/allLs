@@ -312,7 +312,7 @@ function sortTable(header) {
   // Находим строку итогов
   const itogRow = rows.find(r => r.classList.contains("itog"));
   // Фильтруем строки для сортировки
-  const sortableRows = rows.filter(r => !r.classList.contains("itog") && !r.classList.contains("list-group-row"));
+  const sortableRows = rows.filter(r => !r.classList.contains("itog") && !r.classList.contains("list-group-row") && !r.classList.contains("list-group-total"));
 
   // Сортировка строк
   sortableRows.sort((rowA, rowB) => {
@@ -713,7 +713,7 @@ function appendixDebtThreshold() {
 function arrangeAppendixGroups(table) {
   if (table.dataset.listAppendix !== "1") return;
   const body = table.tBodies[0];
-  body.querySelectorAll(".list-group-row").forEach(row => row.remove());
+  body.querySelectorAll(".list-group-row, .list-group-total").forEach(row => row.remove());
   const rows = [...body.rows].filter(row => row.dataset.debtGroup !== undefined && !row.classList.contains("header-row-clone"));
   const footer = body.querySelector("tr.itog:not(.header-row-clone)");
   const threshold = Number(table.dataset.debtThreshold);
@@ -730,6 +730,31 @@ function arrangeAppendixGroups(table) {
     if (!visible) { heading.style.display = "none"; heading.dataset.hiddenByFilter = "1"; }
     body.insertBefore(heading, footer);
     items.forEach(row => body.insertBefore(row, footer));
+    const visibleItems = items.filter(row => row.dataset.hiddenByFilter !== "1");
+    const subtotal = document.createElement("tr");
+    subtotal.className = "list-group-total";
+    const headers = [...table.tHead.rows[0].cells];
+    headers.forEach((header, index) => {
+      const td = document.createElement("td");
+      if (index === 0) td.textContent = String(visibleItems.length);
+      else if (index === 1) td.textContent = "Разом по групі";
+      else {
+        let value = visibleItems.reduce((sum, row) => {
+          const cell = row.cells[index];
+          if (cell.dataset.listNumber !== undefined) return sum + (Number(cell.dataset.listNumber) || 0);
+          const amount = cell.cloneNode(true);
+          amount.querySelectorAll(".descr").forEach(el => el.remove());
+          return sum + (Number(amount.textContent.replace(/[\s\u00a0\u202f]/g, "").replace(",", ".")) || 0);
+        }, 0);
+        const average = header.dataset.columnKey === "base-5" || header.dataset.columnKey === "debtMonths";
+        if (average && visibleItems.length) value /= visibleItems.length;
+        td.dataset.listNumber = String(value);
+        td.textContent = average ? (visibleItems.length ? value.toFixed(1) : "–") : Math.abs(value) > 0.005 ? value.toFixedWithComma() : "–";
+      }
+      subtotal.appendChild(td);
+    });
+    if (!visibleItems.length) { subtotal.style.display = "none"; subtotal.dataset.hiddenByFilter = "1"; }
+    body.insertBefore(subtotal, footer);
   }
 }
 
@@ -837,7 +862,7 @@ sortedArray.forEach(id => servicesWithCharges.add(id));
     if (!byServices && paymentsExpanded) periodMonths.forEach(item => periodColumns.push({ key: "paid-" + item.key, title: `Сплачено ${String(item.month).padStart(2,"0")}.${item.year}`, kind: "monthPayment", monthKey: item.key, group: "payments", detail: true }));
     periodColumns.push({ key: "totalPaid", title: "Всього сплачено", kind: "paymentsTotal", group: !byServices ? "payments" : null });
   }
-  if (byServices) periodColumns.push({ key: "recentPaid", title: "", kind: "recent" });
+  if (displayMode === "summarized") periodColumns.push({ key: "recentPaid", title: "", kind: "recent" });
   thead.innerHTML = headerRow + '</tr>';
   const heading = thead.rows[0];
   [...heading.cells].forEach((cell, index) => { cell.dataset.columnKey = "base-" + (appendix ? [0, 1, 4, 5][index] : index); });
@@ -1049,6 +1074,7 @@ const totalPers = Object.values(ls)
   });
   footerRow.innerHTML += `<td>${totalEndDebt.toFixedWithComma()}</td><td>${rowCount ? (totalDebtMonths / rowCount).toFixed(1) : "–"}</td>`;
 
+  if (appendix) footerRow.cells[1].textContent = "Всього по будинку";
   tbody.appendChild(footerRow);
 
   // Клонируем заголовок
@@ -1085,7 +1111,8 @@ const rows = Array.from(table.tBodies[0].children).filter(row =>
   !row.classList.contains("header-row-clone") &&
   !row.classList.contains("filter-row") &&
   !row.classList.contains("footer-header-clone") &&
-  !row.classList.contains("list-group-row")
+  !row.classList.contains("list-group-row") &&
+  !row.classList.contains("list-group-total")
 );
   const filterInputs = Array.from(
     table.querySelectorAll("thead .filter-row input")
@@ -1171,14 +1198,15 @@ const visibleRows = [...table.tBodies[0].rows]
     !tr.classList.contains("itog") &&
     !tr.classList.contains("header-row-clone") &&
     !tr.classList.contains("footer-header-clone") &&
-    !tr.classList.contains("list-group-row")
+    !tr.classList.contains("list-group-row") &&
+    !tr.classList.contains("list-group-total")
   );
 
   const colCount = footer.cells.length;
   const totals = Array(colCount).fill(0);
 
   footer.cells[0].textContent = String(visibleRows.length);
-  footer.cells[1].textContent = "Разом";
+  footer.cells[1].textContent = table.dataset.listAppendix === "1" ? "Всього по будинку" : "Разом";
 
   if (!visibleRows.length) {
     for (let colIndex = 2; colIndex < colCount; colIndex++) {
