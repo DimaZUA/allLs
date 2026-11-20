@@ -919,12 +919,12 @@
     const factorByUnit = {
       "gcal": 1,
       "гкал": 1,
-      "gj": 1000000 / 4186800,
-      "гдж": 1000000 / 4186800,
-      "mj": 1000 / 4186800,
-      "мдж": 1000 / 4186800,
-      "kj": 1 / 4186800,
-      "кдж": 1 / 4186800,
+      "gj": 1000000 / 4190000,
+      "гдж": 1000000 / 4190000,
+      "mj": 1000 / 4190000,
+      "мдж": 1000 / 4190000,
+      "kj": 1 / 4190000,
+      "кдж": 1 / 4190000,
       "mcal": 0.001,
       "мкал": 0.001,
       "kcal": 0.000001,
@@ -1290,9 +1290,9 @@
     const code = chartNormalizedCode(channel);
     const unit = normalizedUnitText(chartChannelUnit(channel));
     if (code === "energy") {
-      if (unit.includes("гдж") || unit.includes("gj")) return { unit: "Gcal", factor: 1 / 4.1868 };
-      if (unit.includes("мдж") || unit.includes("mj")) return { unit: "Gcal", factor: 1 / 4186.8 };
-      if (unit.includes("кдж") || unit.includes("kj")) return { unit: "Gcal", factor: 1 / 4186800 };
+      if (unit.includes("гдж") || unit.includes("gj")) return { unit: "Gcal", factor: 1 / 4.19 };
+      if (unit.includes("мдж") || unit.includes("mj")) return { unit: "Gcal", factor: 1 / 4190 };
+      if (unit.includes("кдж") || unit.includes("kj")) return { unit: "Gcal", factor: 1 / 4190000 };
       if (unit.includes("мкал") || unit.includes("mcal")) return { unit: "Gcal", factor: 0.001 };
       if (unit.includes("ккал") || unit.includes("kcal")) return { unit: "Gcal", factor: 0.000001 };
       return { unit: "Gcal", factor: 1 };
