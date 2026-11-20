@@ -918,7 +918,7 @@ function generateFileName(home, actionCode) {
   // Добавляем код действия в имя файла
   var actionSuffix = "";
   if (actionCode === "list") {
-    actionSuffix = "_ЛС";
+    actionSuffix = document.getElementById("display-mode")?.value === "analiz-appendix" ? "_Анализ (Додаток)" : "_ЛС";
   } else if (actionCode === "payments") {
     actionSuffix = "_оплаты";
   } else if (actionCode === "bank") {
@@ -1162,6 +1162,64 @@ function handleHeaders(tableCopy, ws, options = {}) {
   }
   return null;
 }
+function addListExcelHeading(sheet, table) {
+  const count = table.tHead.rows[0].cells.length;
+  const selectedMode = document.getElementById("display-mode")?.selectedOptions[0]?.textContent || "Особові рахунки";
+  const homeCode = getParam("homeCode");
+  const home = typeof homes !== "undefined" ? homes.find(item => String(item.code) === String(homeCode)) : null;
+  const organization = (typeof org !== "undefined" && org) || home?.name || document.getElementById("org")?.textContent || "";
+  const from = document.getElementById("start-date")?.value;
+  const to = document.getElementById("end-date")?.value;
+  const month = value => value ? value.split("-").reverse().join(".") : "";
+  const period = from === to ? month(from) : month(from) + " — " + month(to);
+  for (const [text, size, bold] of [[organization, 16, true], ["Особові рахунки · " + selectedMode, 13, true], [period, 11, false]]) {
+    if (!text) continue;
+    const row = sheet.addRow([text]);
+    sheet.mergeCells(row.number, 1, row.number, count);
+    row.getCell(1).font = { name: "Arial", size, bold, color: { argb: "FF244461" } };
+    row.getCell(1).alignment = { vertical: "middle", wrapText: true };
+    row.height = size >= 13 ? 28 : 20;
+  }
+  sheet.addRow([]).height = 8;
+}
+
+function formatListExcelWorksheet(sheet, table, headers, dataStartRow) {
+  const headingCells = [...table.tHead.rows[0].cells];
+  const columnCount = headingCells.length;
+  const dataRows = [...table.tBodies[0].rows];
+  const moneyFormat = '#,##0.00;[Red]-#,##0.00;"—"';
+  headingCells.forEach((header, index) => {
+    const column = index + 1;
+    const detail = header.classList.contains("list-detail-column");
+    const total = header.classList.contains("list-total-column");
+    sheet.getColumn(column).width = index === 1 ? 32 : index === 0 ? 12 : detail ? 14 : index === 3 ? 9 : 16;
+    for (let rowNumber = headers.startRow; rowNumber <= sheet.rowCount; rowNumber++) {
+      const cell = sheet.getCell(rowNumber, column);
+      const isHeader = rowNumber <= headers.endRow;
+      const sourceRow = dataRows[rowNumber - dataStartRow];
+      const isTotal = sourceRow?.classList.contains("itog");
+      const isGroup = sourceRow?.classList.contains("list-group-row");
+      const fill = isHeader ? (detail ? "E8EDF3" : "244461")
+        : isTotal || isGroup ? "DCE8F3" : detail ? "F3F5F8" : (rowNumber - dataStartRow) % 2 ? "F7FAFC" : "FFFFFF";
+      cell.font = { name: "Arial", size: detail ? 10 : 11, bold: isHeader || isTotal || isGroup || total,
+        color: { argb: isHeader ? (detail ? "FF627286" : "FFFFFFFF") : detail ? "FF627286" : "FF20364B" } };
+      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF" + fill } };
+      cell.alignment = { vertical: "middle", horizontal: isHeader ? "center" : typeof cell.value === "number" ? "right" : "left", wrapText: true };
+      cell.border = { bottom: { style: "hair", color: { argb: "FFD8E0E8" } },
+        ...(isTotal ? { top: { style: "thin", color: { argb: "FF8CA4BC" } } } : {}) };
+      if (!isHeader && !isGroup && (typeof cell.value === "number" || cell.value === null)) cell.numFmt = header.dataset.columnKey === "base-0" || header.dataset.columnKey === "base-3" ? "0" : header.dataset.columnKey === "base-5" || header.dataset.columnKey === "debtMonths" ? "0.0" : moneyFormat;
+    }
+  });
+  for (let row = headers.startRow; row <= headers.endRow; row++) sheet.getRow(row).height = 42;
+  dataRows.forEach((row, index) => { sheet.getRow(dataStartRow + index).height = row.classList.contains("itog") ? 26 : 22; });
+  sheet.views = [{ state: "frozen", xSplit: 2, ySplit: headers.endRow, showGridLines: false }];
+  const lastDataIndex = dataRows.findIndex(row => row.classList.contains("itog"));
+  const lastDataRow = lastDataIndex < 0 ? sheet.rowCount : dataStartRow + lastDataIndex - 1;
+  if (lastDataRow >= dataStartRow) sheet.autoFilter = { from: { row: headers.endRow, column: 1 }, to: { row: lastDataRow, column: columnCount } };
+  sheet.pageSetup = { paperSize: 9, orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0,
+    printTitlesRow: headers.startRow + ":" + headers.endRow, printArea: "A1:" + sheet.getColumn(columnCount).letter + sheet.rowCount };
+}
+
 async function exportTableToExcel(action = "download") {
     const mainContainer = document.getElementById("maincontainer");
 
@@ -1196,7 +1254,9 @@ async function exportTableToExcel(action = "download") {
     const wb = new ExcelJS.Workbook();
     const analizMain = tables.find(table => typeof table._analizExportTables === "function");
     const exportSheets = action === "download" && analizMain ? analizMain._analizExportTables() : null;
-    const ws = exportSheets ? null : wb.addWorksheet("Sheet1");
+    const appendixExport = document.getElementById("display-mode")?.value === "analiz-appendix" &&
+      tables.some(table => table.classList.contains("main"));
+    const ws = exportSheets ? null : wb.addWorksheet(appendixExport ? "Анализ (Додаток)" : "Sheet1");
 
     // Обрабатываем таблицы
     for (const entry of exportSheets || tables.map(table => ({ table }))) {
@@ -1241,11 +1301,18 @@ async function exportTableToExcel(action = "download") {
         }
 
         // Обработка заголовков
-        handleHeaders(tableCopy, sheet);
+        if (tableCopy.classList.contains("main")) tableCopy.querySelectorAll("thead .filter-row").forEach(row => row.remove());
+        const formatList = action === "download" && tableCopy.classList.contains("main");
+        if (formatList) {
+          tableCopy.querySelectorAll(".header-row-clone, .footer-header-clone").forEach(row => row.remove());
+          addListExcelHeading(sheet, tableCopy);
+        }
+        const headers = handleHeaders(tableCopy, sheet, { noLeadingBlank: formatList });
 
         // Обработка данных
         const dataStartRow = sheet.rowCount + 1;
         handleRows(tableCopy, sheet);
+        if (formatList) formatListExcelWorksheet(sheet, tableCopy, headers, dataStartRow);
         if (tableCopy.classList.contains("trajectory-table") && tableCopy.dataset.migrationView === "details") {
           Array.from(tableCopy.querySelectorAll("tbody tr")).forEach((row, index) => {
             const color = row.classList.contains("analiz-debt-decreased") ? "FFE2F2E2"
@@ -1772,6 +1839,11 @@ function handleRows(tableCopy, ws) {
     ]; // Набор цветов
     var rowIndex = 0;
     rows.forEach(function (row) {
+      if (row.classList.contains("list-group-row")) {
+        var groupRow = ws.addRow([row.textContent.trim()]);
+        ws.mergeCells(groupRow.number, 1, groupRow.number, tableCopy.tHead.rows[0].cells.length);
+        return;
+      }
       var rowData = []; // Данные текущей строки
       var nextRowDataArray = []; // Данные всех следующих строк .paysubtable
 
@@ -1811,7 +1883,9 @@ function handleRows(tableCopy, ws) {
           rowData.push(null);
         } else {
           if (cell.closest(".paysubtable") == null) {
-            if (cell.dataset.excelText) {
+            if (cell.dataset.listNumber !== undefined) {
+              rowData.push({ value: Number(cell.dataset.listNumber), asNumber: true });
+            } else if (cell.dataset.excelText) {
               rowData.push({ value: cell.dataset.excelText, asText: true });
             } else {
               rowData.push(cell.innerText.trim());
@@ -1822,6 +1896,7 @@ function handleRows(tableCopy, ws) {
       if (rowData.length) {
         // Обрабатываем основную строку
         var excelRow = rowData.map(function (cell, index) {
+          if (cell && typeof cell === "object" && cell.asNumber) return cell.value;
           if (cell && typeof cell === "object" && cell.asText) return String(cell.value || "");
           return keepFirstColumnAsText && index === 0 ? (cell == null ? null : String(cell)) : parseCellValue2(cell);
         });

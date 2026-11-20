@@ -5226,3 +5226,11 @@ body.resident-mode .resident-flat-grid > div strong {
     white-space: nowrap;
   }
 }
+
+/* Collapsible charge/payment breakdown in the account list. */
+.main th.list-detail-column { font-size: .85em; color: #607080; background: #edf1f5; cursor: pointer; }
+.main td.list-detail-column { font-size: .9em; color: #607080; background: #f7f9fb; }
+.main th.list-total-column { cursor: pointer; border-left: 2px solid #9aabba; }
+.main td.list-total-column { font-weight: 600; border-left: 2px solid #9aabba; }
+
+.main .list-group-row td { text-align: left; background: #dfe9f4; color: #244461; font-weight: 700; padding: 6px 10px; }

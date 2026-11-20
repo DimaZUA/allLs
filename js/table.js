@@ -312,7 +312,7 @@ function sortTable(header) {
   // Находим строку итогов
   const itogRow = rows.find(r => r.classList.contains("itog"));
   // Фильтруем строки для сортировки
-  const sortableRows = rows.filter(r => !r.classList.contains("itog"));
+  const sortableRows = rows.filter(r => !r.classList.contains("itog") && !r.classList.contains("list-group-row"));
 
   // Сортировка строк
   sortableRows.sort((rowA, rowB) => {
@@ -355,6 +355,7 @@ function sortTable(header) {
 
   // Возвращаем оригинальную строку итогов в самый низ
   if (itogRow) tbody.appendChild(itogRow);
+  arrangeAppendixGroups(table);
 
   // Клонируем верхний заголовок внизу (нижний заголовок)
   const theadRow = table.querySelector("thead tr");
@@ -690,6 +691,48 @@ function collectAccountsPeriodData(start, end, dataSources) {
   return rows;
 }
 
+function listTableDetailsExpanded(mode, group) {
+  try { return getParam("list_" + mode + "_" + group + "Expanded") === "1"; }
+  catch (_) { return false; }
+}
+
+function toggleListTableDetails(group) {
+  const mode = document.getElementById("display-mode").value;
+  try {
+    setParam("list_" + mode + "_" + group + "Expanded", listTableDetailsExpanded(mode, group) ? "0" : "1");
+  } catch (error) { console.warn("Не вдалося зберегти стан таблиці", error); }
+  generateTable();
+}
+
+function appendixDebtThreshold() {
+  const value = getParam("appendixDebtThreshold");
+  const threshold = value === null ? 3 : Number(value);
+  return [0, 3, 6, 12, 24].includes(threshold) ? threshold : 3;
+}
+
+function arrangeAppendixGroups(table) {
+  if (table.dataset.listAppendix !== "1") return;
+  const body = table.tBodies[0];
+  body.querySelectorAll(".list-group-row").forEach(row => row.remove());
+  const rows = [...body.rows].filter(row => row.dataset.debtGroup !== undefined && !row.classList.contains("header-row-clone"));
+  const footer = body.querySelector("tr.itog:not(.header-row-clone)");
+  const threshold = Number(table.dataset.debtThreshold);
+  for (const group of ["0", "1"]) {
+    const items = rows.filter(row => row.dataset.debtGroup === group);
+    if (!items.length) continue;
+    const visible = items.filter(row => row.dataset.hiddenByFilter !== "1").length;
+    const heading = document.createElement("tr");
+    heading.className = "list-group-row";
+    const cell = document.createElement("td");
+    cell.colSpan = table.tHead.rows[0].cells.length;
+    cell.textContent = (group === "1" ? `Борг понад ${threshold} місяців` : `Борг до ${threshold} місяців включно / без боргу та переплата`) + ` (${visible} рах.)`;
+    heading.appendChild(cell);
+    if (!visible) { heading.style.display = "none"; heading.dataset.hiddenByFilter = "1"; }
+    body.insertBefore(heading, footer);
+    items.forEach(row => body.insertBefore(row, footer));
+  }
+}
+
 function generateTable() {
   const isTouch=isMobile();
   const tableContainer = document.getElementById("table-container");
@@ -702,8 +745,19 @@ function generateTable() {
   end.setHours(23, 59, 59, 999);
 
   const displayMode = document.getElementById("display-mode").value;
+  const appendix = displayMode === "analiz-appendix";
+  const byServices = displayMode === "summarized" || appendix;
+  const debtThreshold = appendix ? appendixDebtThreshold() : 3;
   const recentPaymentsMonths = getRecentPaymentsMonths();
   const recentPaymentsStart = new Date(end.getFullYear(), end.getMonth() - recentPaymentsMonths + 1, 1, 12);
+  const previousFilters = new Map();
+  const previousTable = tableContainer.querySelector("table.main");
+  if (previousTable) {
+    const inputs = previousTable.querySelectorAll("thead .filter-row input");
+    [...previousTable.tHead.rows[0].cells].forEach((cell, index) => {
+      if (inputs[index]?.value) previousFilters.set(cell.dataset.columnKey || String(index), inputs[index].value);
+    });
+  }
   tableContainer.innerHTML = "";
   //const filterValue = document.getElementById("record-filter").value;
   setParam("displayMode", displayMode);
@@ -730,7 +784,9 @@ function generateTable() {
       for (const month in nach[accountId][year]) {
         const date = new Date(year, month - 1, 1, 12);
         if (date >= start && date <= end) {
-          Object.keys(nach[accountId][year][month]).forEach(sid => servicesWithCharges.add(sid));
+          Object.entries(nach[accountId][year][month]).forEach(([sid, value]) => {
+            if (Math.abs(Number(value) || 0) > 0.005) servicesWithCharges.add(sid);
+          });
         }
       }
     }
@@ -744,6 +800,7 @@ sortedArray.forEach(id => servicesWithCharges.add(id));
 
   const table = document.createElement("table");
   table.classList.add("main");
+  if (appendix) { table.dataset.listAppendix = "1"; table.dataset.debtThreshold = String(debtThreshold); }
   const thead = document.createElement("thead");
   const tbody = document.createElement("tbody");
   table.appendChild(thead);
@@ -752,27 +809,83 @@ sortedArray.forEach(id => servicesWithCharges.add(id));
   // Заголовок
   let headerRow = '<tr><th onclick="sortTable(this)">Квартира</th><th onclick="sortTable(this)">П.І. по Б.</th><th onclick="sortTable(this)">Площа</th><th onclick="sortTable(this)">Мешк</th><th onclick="sortTable(this)">Борг початковий</th><th onclick="sortTable(this)">Міся-ців боргу на початок</th>';
 
-  if (displayMode === "summarized") {
-    for (const serviceId of servicesWithCharges) {
-      headerRow += `<th onclick="sortTable(this)">${us[serviceId]}</th>`;
-    }
-    headerRow += `<th onclick="sortTable(this)">Оплати</th><th id="recent-payments-header" onclick="sortTable(this)" onwheel="return handleRecentPaymentsWheel(event)"><span class="recent-payments-screen">Оплати за ост. <input id="recent-payments-inline" type="number" min="1" step="1" value="${recentPaymentsMonths}" style="width:3.5em" onclick="event.stopPropagation()" onmousedown="event.stopPropagation()" onwheel="return handleRecentPaymentsWheel(event)" onchange="return handleRecentPaymentsChange(event)" onblur="return handleRecentPaymentsChange(event)" onkeydown="return handleRecentPaymentsKeydown(event)"> міс.</span><span class="recent-payments-print" style="display:none">Оплати за ост. ${recentPaymentsMonths} міс.</span></th><th onclick="sortTable(this)">Борг кінцевий</th><th onclick="sortTable(this)">Міся-ців боргу</th></tr>`;
-  } else {
-    let currentDate = new Date(start);
-    while (currentDate <= end) {
-      const m = currentDate.getMonth() + 1;
-      const y = currentDate.getFullYear();
-      if (displayMode === "detailed" || displayMode === "charges-only" || displayMode.startsWith("service-")) {
-        headerRow += `<th onclick="sortTable(this)">Нараховано ${m}-${y}</th>`;
-      }
-      if (displayMode === "detailed" || displayMode === "payments-only") {
-        headerRow += `<th onclick="sortTable(this)">Сплачено ${m}-${y}</th>`;
-      }
-      currentDate.setMonth(currentDate.getMonth() + 1);
-    }
-    headerRow += '<th onclick="sortTable(this)">Борг кінцевий</th><th onclick="sortTable(this)">Міся-ців боргу</th></tr>';
+  if (appendix) headerRow = '<tr><th onclick="sortTable(this)">Квартира</th><th onclick="sortTable(this)">П.І. по Б.</th><th onclick="sortTable(this)">Борг початковий</th><th onclick="sortTable(this)">Міся-ців боргу на початок</th>';
+  const periodMonths = [];
+  for (let date = new Date(start.getFullYear(), start.getMonth(), 1, 12); date <= end; date.setMonth(date.getMonth() + 1)) {
+    periodMonths.push({ year: date.getFullYear(), month: date.getMonth() + 1, key: `${date.getFullYear()}-${date.getMonth() + 1}` });
   }
-  thead.innerHTML = headerRow;
+  const chargesExpanded = !appendix && listTableDetailsExpanded(displayMode, "charges");
+  const paymentsExpanded = listTableDetailsExpanded(displayMode, "payments");
+  const hasCharges = displayMode !== "payments-only";
+  const hasPayments = byServices || displayMode === "detailed" || displayMode === "payments-only";
+  const periodColumns = [];
+  if (hasCharges) {
+    if (chargesExpanded) {
+      if (displayMode === "summarized") {
+        for (const serviceId of servicesWithCharges) {
+          periodColumns.push({ key: "service-" + serviceId, title: (typeof usKr !== "undefined" && usKr[serviceId]) || us[serviceId] || `Послуга ${serviceId}`, kind: "service", serviceId, group: "charges", detail: true });
+        }
+      } else periodMonths.forEach(item => periodColumns.push({ key: "charged-" + item.key, title: `Нараховано ${String(item.month).padStart(2,"0")}.${item.year}`, kind: "monthCharge", monthKey: item.key, group: "charges", detail: true }));
+    }
+    periodColumns.push({ key: "totalCharged", title: "Всього нараховано", kind: "chargesTotal", group: appendix ? null : "charges" });
+    if (appendix) periodColumns.push(
+      { key: "annual3", title: "3% річних", kind: "service", serviceId: 17 },
+      { key: "compensation", title: "Компенсація", kind: "service", serviceId: 12 }
+    );
+  }
+  if (hasPayments) {
+    if (!byServices && paymentsExpanded) periodMonths.forEach(item => periodColumns.push({ key: "paid-" + item.key, title: `Сплачено ${String(item.month).padStart(2,"0")}.${item.year}`, kind: "monthPayment", monthKey: item.key, group: "payments", detail: true }));
+    periodColumns.push({ key: "totalPaid", title: "Всього сплачено", kind: "paymentsTotal", group: !byServices ? "payments" : null });
+  }
+  if (byServices) periodColumns.push({ key: "recentPaid", title: "", kind: "recent" });
+  thead.innerHTML = headerRow + '</tr>';
+  const heading = thead.rows[0];
+  [...heading.cells].forEach((cell, index) => { cell.dataset.columnKey = "base-" + (appendix ? [0, 1, 4, 5][index] : index); });
+  if (appendix) {
+    const th = heading.cells[3];
+    const select = document.createElement("select");
+    select.className = "analiz-debt-threshold";
+    select.setAttribute("aria-label", "Поріг місяців боргу");
+    for (const value of [0, 3, 6, 12, 24]) {
+      const option = document.createElement("option");
+      option.value = String(value); option.textContent = String(value); option.selected = value === debtThreshold;
+      select.appendChild(option);
+    }
+    select.setAttribute("onclick", "event.stopPropagation()");
+    select.setAttribute("onmousedown", "event.stopPropagation()");
+    select.setAttribute("onchange", "setParam('appendixDebtThreshold',this.value);generateTable()");
+    th.append(document.createElement("br"), "Поріг: ", select, " міс.");
+    th.dataset.excelText = "Місяців боргу на початок · поріг " + debtThreshold + " міс.";
+  }
+  periodColumns.forEach(column => {
+    const th = document.createElement("th");
+    th.dataset.columnKey = column.key;
+    th.textContent = column.title;
+    if (column.group) {
+      const expanded = column.group === "charges" ? chargesExpanded : paymentsExpanded;
+      th.className = column.detail ? "list-detail-column" : "list-total-column";
+      th.setAttribute("onclick", `toggleListTableDetails('${column.group}')`);
+      th.setAttribute("onkeydown", "if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click();}");
+      th.tabIndex = 0;
+      th.setAttribute("role", "button");
+      th.setAttribute("aria-expanded", String(expanded));
+      th.title = expanded ? "Згорнути подробиці" : "Показати подробиці";
+    } else th.setAttribute("onclick", "sortTable(this)");
+    if (column.kind === "recent") {
+      th.id = "recent-payments-header";
+      th.setAttribute("onwheel", "return handleRecentPaymentsWheel(event)");
+      th.innerHTML = `<span class="recent-payments-screen">Оплати за ост. <input id="recent-payments-inline" type="number" min="1" step="1" value="${recentPaymentsMonths}" style="width:3.5em" onclick="event.stopPropagation()" onmousedown="event.stopPropagation()" onwheel="return handleRecentPaymentsWheel(event)" onchange="return handleRecentPaymentsChange(event)" onblur="return handleRecentPaymentsChange(event)" onkeydown="return handleRecentPaymentsKeydown(event)"> міс.</span><span class="recent-payments-print" style="display:none">Оплати за ост. ${recentPaymentsMonths} міс.</span>`;
+    }
+    heading.appendChild(th);
+  });
+  for (const [key, title] of [["endDebt", "Борг кінцевий"], ["debtMonths", "Міся-ців боргу"]]) {
+    const th = document.createElement("th");
+    th.dataset.columnKey = key;
+    th.textContent = title;
+    th.setAttribute("onclick", "sortTable(this)");
+    heading.appendChild(th);
+  }
+  const columnTotals = periodColumns.map(() => 0);
 
   // ===== Добавляем строку фильтров =====
   const headerCells = thead.querySelectorAll("th");
@@ -786,6 +899,7 @@ sortedArray.forEach(id => servicesWithCharges.add(id));
     input.placeholder = "Фільтр…";
     input.style.width = "95%";
     input.style.boxSizing = "border-box";
+    input.value = previousFilters.get(th.dataset.columnKey || String(colIndex)) || "";
     input.addEventListener("input", applyColumnFilter);
     td.appendChild(input);
     filterRow.appendChild(td);
@@ -795,44 +909,24 @@ sortedArray.forEach(id => servicesWithCharges.add(id));
   // Данные
   let totalStartDebt = 0,
       totalEndDebt = 0,
-      totalCharges = {},
-      totalPayments = {},
-      totalRecentPayments = 0,
       totalStartDebtMonths = 0,
       totalDebtMonths = 0,
       rowCount = 0;
 
-  for (const accountId in nach) {
+  // Match analiz.js: payment-only accounts also belong to the appendix.
+  for (const accountId of (appendix ? Object.keys(ls) : Object.keys(nach))) {
     const monthData = [];
-    let totalChargesSum = 0;
-    let totalPaymentsSum = 0;
     let totalChargesSumFull = 0;
     let totalPaymentsSumFull = 0;
 
-    for (const year in nach[accountId]) {
-      for (const month in nach[accountId][year]) {
-        const date = new Date(year, month - 1, 1, 12);
-        if (date < start || date > end) continue;
-
-        const chargesByService = { ...nach[accountId][year][month] };
-        const chargesSum = Object.values(chargesByService).reduce((s, v) => s + v, 0);
-
-        const paymentsArr = oplat[accountId]?.[year]?.[month] || [];
-        const paymentsSum = paymentsArr.reduce((s, p) => s + p.sum, 0);
-
-        monthData.push({
-          date,
-          chargesByService,
-          chargesSum,
-          paymentsArr,
-          paymentsSum
-        });
-
-        totalChargesSum += chargesSum;
-        totalPaymentsSum += paymentsSum;
-        totalChargesSumFull += chargesSum;
-        totalPaymentsSumFull += paymentsSum;
-      }
+    for (const item of periodMonths) {
+      const chargesByService = nach[accountId]?.[item.year]?.[item.month] || {};
+      const chargesSum = Object.values(chargesByService).reduce((sum, value) => sum + (Number(value) || 0), 0);
+      const paymentsArr = oplat[accountId]?.[item.year]?.[item.month] || [];
+      const paymentsSum = paymentsArr.reduce((sum, payment) => sum + (Number(payment.sum) || 0), 0);
+      monthData.push({ key: item.key, date: new Date(item.year, item.month - 1, 1, 12), chargesByService, chargesSum, paymentsArr, paymentsSum });
+      totalChargesSumFull += chargesSum;
+      totalPaymentsSumFull += paymentsSum;
     }
 
     const debitStart = calculateInitialDebit(accountId, start);
@@ -843,11 +937,6 @@ sortedArray.forEach(id => servicesWithCharges.add(id));
     const debitEnd = debitStart + totalChargesSumFull - totalPaymentsSumFull;
     const debtMonths = calculateDebtMonthsFromCache(accountId, debitEnd, end);
 
-    // Фильтр
-//    if ((filterValue === "paid-or-low-debt" && !(totalPaymentsSum > 0 || debitEnd < totalChargesSum * 3)) ||
-//        (filterValue === "paid" && totalPaymentsSum === 0) ||
-//        (filterValue === "overpaid" && debitEnd > 0) ||
-//        (filterValue === "debtors" && (totalPaymentsSum > 0 || debitEnd <= totalChargesSum * 3))) continue;
 
     const row = document.createElement("tr");
     row.setAttribute("data-kv", ls[accountId].kv);
@@ -895,66 +984,45 @@ function addRowHandler(row) {
 
 addRowHandler(row);    
     
+    if (appendix) row.dataset.debtGroup = debitStart > 0.005 && startDebtMonths > debtThreshold ? "1" : "0";
     row.appendChild(generateLsCell(accountId));
     row.innerHTML += `<td>${ls[accountId].fio}</td>`;
-    row.innerHTML += `<td>${ls[accountId].pl||0}</td>`;
-    row.innerHTML += `<td>${ls[accountId].pers||0}</td>`;
+    if (!appendix) {
+      row.innerHTML += `<td>${ls[accountId].pl||0}</td>`;
+      row.innerHTML += `<td>${ls[accountId].pers||0}</td>`;
+    }
     row.innerHTML += `<td>${debitStart.toFixedWithComma()}</td>`;
     row.innerHTML += `<td>${startDebtMonths}</td>`;
     totalStartDebt += debitStart;
     totalStartDebtMonths += startDebtMonths;
 
-    if (displayMode === "summarized") {
-      for (const serviceId of servicesWithCharges) {
-        const chargesByServiceSum = monthData.reduce((s, m) => s + (m.chargesByService[serviceId] || 0), 0);
-        row.innerHTML += `<td>${chargesByServiceSum.toFixedWithComma()}</td>`;
-        totalCharges[serviceId] = (totalCharges[serviceId] || 0) + chargesByServiceSum;
-      }
-  // собираем все оплаты всех месяцев в один массив
-  const allPayments = monthData.flatMap(m => m.paymentsArr || []);
-  const recentPaymentsSum = sumPaymentsInRange(accountId, recentPaymentsStart, end);
-
-  const paymentsSumRow = monthData.reduce((s, m) => s + m.paymentsSum, 0);
-  totalPayments["all"] = (totalPayments["all"] || 0) + paymentsSumRow;
-  totalRecentPayments += recentPaymentsSum;
-
-  // создаем ячейку с подробностями оплат
-  const paymentCell = generatePaymentCell(allPayments);
-  row.appendChild(paymentCell);
-      row.innerHTML += `<td v="${recentPaymentsSum}">${recentPaymentsSum ? recentPaymentsSum.toFixedWithComma() : "–"}</td>`;
-      row.innerHTML += `<td>${debitEnd.toFixedWithComma()}</td>`;
-      row.innerHTML += `<td>${debtMonths}</td>`;
-      totalEndDebt += debitEnd;
-      totalDebtMonths += debtMonths;
-      rowCount++;
-    } else {
-      monthData.forEach(m => {
-        let chargesAll;
-        if (displayMode.startsWith("service-")) {
-          chargesAll = m.chargesByService[serviceFilterId] || 0;
-        } else {
-          chargesAll = m.chargesSum;
-        }
-
-        if (displayMode !== "payments-only") {
-          row.innerHTML += `<td>${!chargesAll ? "–" : chargesAll.toFixedWithComma()}</td>`;
-        }
-
-        if (displayMode !== "charges-only" && !displayMode.startsWith("service-")) {
-          row.appendChild(generatePaymentCell(m.paymentsArr));
-        }
-
-        const monthKey = `${m.date.getFullYear()}-${m.date.getMonth() + 1}`;
-        totalCharges[monthKey] = (totalCharges[monthKey] || 0) + chargesAll;
-        totalPayments[monthKey] = (totalPayments[monthKey] || 0) + m.paymentsSum;
-      });
-
-      totalEndDebt += debitEnd;
-      totalDebtMonths += debtMonths;
-      rowCount++;
-      row.innerHTML += `<td>${debitEnd.toFixedWithComma()}</td>`;
-      row.innerHTML += `<td>${debtMonths}</td>`;
-    }
+    const recentPaymentsSum = byServices ? sumPaymentsInRange(accountId, recentPaymentsStart, end) : 0;
+    const chargesFor = month => appendix ? Object.entries(month.chargesByService).reduce((sum, [id, value]) => sum + ([12,17].includes(Number(id)) ? 0 : Number(value) || 0), 0) : serviceFilterId !== null ? (Number(month.chargesByService[serviceFilterId]) || 0) : month.chargesSum;
+    const periodCharged = monthData.reduce((sum, month) => sum + chargesFor(month), 0);
+    const allPayments = monthData.flatMap(month => month.paymentsArr);
+    periodColumns.forEach((column, index) => {
+      const month = column.monthKey ? monthData.find(item => item.key === column.monthKey) : null;
+      let value = 0;
+      let payments = null;
+      if (column.kind === "service") value = monthData.reduce((sum, month) => sum + (Number(month.chargesByService[column.serviceId]) || 0), 0);
+      if (column.kind === "monthCharge") value = chargesFor(month);
+      if (column.kind === "monthPayment") { value = month.paymentsSum; payments = month.paymentsArr; }
+      if (column.kind === "chargesTotal") value = periodCharged;
+      if (column.kind === "paymentsTotal") { value = totalPaymentsSumFull; payments = allPayments; }
+      if (column.kind === "recent") value = recentPaymentsSum;
+      const cell = payments ? generatePaymentCell(payments) : document.createElement("td");
+      if (!payments) cell.textContent = Math.abs(value) > 0.005 ? value.toFixedWithComma() : "–";
+      cell.dataset.listNumber = String(value);
+      cell.setAttribute("v", value);
+      if (column.detail) cell.classList.add("list-detail-column");
+      else if (column.group || column.kind === "paymentsTotal") cell.classList.add("list-total-column");
+      row.appendChild(cell);
+      columnTotals[index] += value;
+    });
+    totalEndDebt += debitEnd;
+    totalDebtMonths += debtMonths;
+    rowCount++;
+    row.innerHTML += `<td>${debitEnd.toFixedWithComma()}</td><td>${debtMonths}</td>`;
 
     tbody.appendChild(row);
   }
@@ -969,30 +1037,17 @@ const totalPers = Object.values(ls)
   footerRow.classList.add("itog");
   footerRow.innerHTML = `<td>${rowCount}</td><td>Разом</td><td>${totalPl.toFixedWithComma()}</td><td>${totalPers}</td><td>${totalStartDebt.toFixedWithComma()}</td><td>${rowCount ? (totalStartDebtMonths / rowCount).toFixed(1) : "–"}</td>`;
 
-  if (displayMode === "summarized") {
-    for (const serviceId of servicesWithCharges) {
-      footerRow.innerHTML += `<td>${(totalCharges[serviceId] || 0).toFixedWithComma()}</td>`;
-    }
-    const totalPaymentsSumAll = totalPayments["all"] || 0;
-    footerRow.innerHTML += `<td>${totalPaymentsSumAll.toFixedWithComma()}</td>`;
-    footerRow.innerHTML += `<td>${totalRecentPayments ? totalRecentPayments.toFixedWithComma() : "–"}</td>`;
-    footerRow.innerHTML += `<td>${totalEndDebt.toFixedWithComma()}</td>`;
-    footerRow.innerHTML += `<td>${rowCount ? (totalDebtMonths / rowCount).toFixed(1) : "–"}</td>`;
-  } else {
-    const monthKeys = Object.keys(totalCharges).sort();
-    monthKeys.forEach(k => {
-      if (displayMode !== "payments-only") {
-        const charges = totalCharges[k] || 0;
-        footerRow.innerHTML += `<td>${charges ? charges.toFixedWithComma() : "–"}</td>`;
-      }
-      if (displayMode !== "charges-only" && !displayMode.startsWith("service-")) {
-        const payments = totalPayments[k] || 0;
-        footerRow.innerHTML += `<td>${payments ? payments.toFixedWithComma() : "–"}</td>`;
-      }
-    });
-    footerRow.innerHTML += `<td>${totalEndDebt.toFixedWithComma()}</td>`;
-    footerRow.innerHTML += `<td>${rowCount ? (totalDebtMonths / rowCount).toFixed(1) : "–"}</td>`;
-  }
+  if (appendix) { footerRow.cells[3].remove(); footerRow.cells[2].remove(); }
+  periodColumns.forEach((column, index) => {
+    const cell = document.createElement("td");
+    const value = columnTotals[index];
+    cell.dataset.listNumber = String(value);
+    cell.textContent = Math.abs(value) > 0.005 ? value.toFixedWithComma() : "–";
+    if (column.detail) cell.classList.add("list-detail-column");
+    else if (column.group || column.kind === "paymentsTotal") cell.classList.add("list-total-column");
+    footerRow.appendChild(cell);
+  });
+  footerRow.innerHTML += `<td>${totalEndDebt.toFixedWithComma()}</td><td>${rowCount ? (totalDebtMonths / rowCount).toFixed(1) : "–"}</td>`;
 
   tbody.appendChild(footerRow);
 
@@ -1006,6 +1061,8 @@ if (headerOnly) {
 
 
   tableContainer.appendChild(table);
+  arrangeAppendixGroups(table);
+  if ([...previousFilters.values()].some(Boolean)) applyColumnFilter();
 
   initPosters();
   doRed();
@@ -1026,7 +1083,9 @@ function applyColumnFilter() {
 const rows = Array.from(table.tBodies[0].children).filter(row => 
   !row.classList.contains("itog") && 
   !row.classList.contains("header-row-clone") &&
-  !row.classList.contains("filter-row")
+  !row.classList.contains("filter-row") &&
+  !row.classList.contains("footer-header-clone") &&
+  !row.classList.contains("list-group-row")
 );
   const filterInputs = Array.from(
     table.querySelectorAll("thead .filter-row input")
@@ -1072,7 +1131,7 @@ const rows = Array.from(table.tBodies[0].children).filter(row =>
         if (!tableMatchesWildcardSearch(text, filter)) visible = false;
 
       } else {
-const normalized = text.replace(/[\s\u00A0]+/g, "").replace(",", ".");
+const normalized = cell.dataset.listNumber ?? text.replace(/[\s\u00A0]+/g, "").replace(",", ".");
 
 // если пусто — считаем это нулём
 const num = normalized === "" ? 0 : parseFloat(normalized);
@@ -1099,17 +1158,20 @@ const num = normalized === "" ? 0 : parseFloat(normalized);
   });
 
   updateTotals(table);
+  arrangeAppendixGroups(table);
 }
 
 function updateTotals(table) {
-  const footer = table.querySelector(".itog");
+  const footer = table.querySelector("tbody tr.itog:not(.header-row-clone)");
   if (!footer) return;
 
 const visibleRows = [...table.tBodies[0].rows]
   .filter(tr =>
     tr.style.display !== "none" &&
     !tr.classList.contains("itog") &&
-    !tr.classList.contains("header-row-clone")
+    !tr.classList.contains("header-row-clone") &&
+    !tr.classList.contains("footer-header-clone") &&
+    !tr.classList.contains("list-group-row")
   );
 
   const colCount = footer.cells.length;
@@ -1121,22 +1183,24 @@ const visibleRows = [...table.tBodies[0].rows]
   if (!visibleRows.length) {
     for (let colIndex = 2; colIndex < colCount; colIndex++) {
       footer.cells[colIndex].textContent = "–";
+      if (footer.cells[colIndex].dataset.listNumber !== undefined) footer.cells[colIndex].dataset.listNumber = "0";
     }
     return;
   }
 
   visibleRows.forEach(row => {
     for (let colIndex = 2; colIndex < colCount; colIndex++) { // начиная с 3-го столбца (индекс 2)
-      const text = row.cells[colIndex]?.textContent.replace(",", ".").replace(/[\s\u00A0]+/g, "");
+      const text = row.cells[colIndex]?.dataset.listNumber ?? row.cells[colIndex]?.textContent.replace(",", ".").replace(/[\s\u00A0]+/g, "");
       const val = parseFloat(text);
       if (!isNaN(val)) totals[colIndex] += val;
     }
   });
 
-  const avgColumns = new Set([5, colCount - 1]);
+  const avgColumns = new Set([...table.tHead.rows[0].cells].map((cell, index) => cell.dataset.columnKey === "base-5" || cell.dataset.columnKey === "debtMonths" ? index : -1).filter(index => index >= 0));
 
   for (let colIndex = 2; colIndex < colCount; colIndex++) {
     if (!isNaN(totals[colIndex])) {
+      if (footer.cells[colIndex].dataset.listNumber !== undefined) footer.cells[colIndex].dataset.listNumber = String(totals[colIndex]);
       if (avgColumns.has(colIndex)) {
         footer.cells[colIndex].textContent = (totals[colIndex] / visibleRows.length).toFixed(1);
       } else {
@@ -1337,7 +1401,7 @@ function initTable() {
       displayOptions += `<option value="service-${serviceId}">${us[serviceId]}</option>`;
     }
   });
-  displayOptions +='<option value="analiz">Анализ</option>';
+  displayOptions +='<option value="analiz">Анализ</option><option value="analiz-appendix">Анализ (Додаток)</option>';
   const mainHTML = `
     <div id="org" align="right"></div>
     <div id="filter-container">
@@ -1416,6 +1480,8 @@ function doRed() {
   const table = document.querySelector(".main");
   if (!table) return;
 
+  const openingDebtColumn = [...table.tHead.rows[0].cells].findIndex(cell => cell.dataset.columnKey === "base-4");
+  const openingIndex = openingDebtColumn >= 0 ? openingDebtColumn : 4;
   for (const row of table.rows) {
     const cells = row.cells;
     if (!cells.length) continue;
@@ -1428,14 +1494,14 @@ function doRed() {
       const colspan = parseInt(cell.getAttribute("colspan") || "1", 10);
 
       // 1️⃣ Третий визуальный столбец (индекс 2) — начальный долг
-      if (visualIndex <= 4 && visualIndex + colspan > 4) {
+      if (visualIndex <= openingIndex && visualIndex + colspan > openingIndex) {
         const value = parseFloat(cell.textContent);
         if (value > 0) cell.classList.add("red");
       }
 
       // 2️⃣ Столбцы между 4 и предпоследним визуальным — отрицательные суммы
       for (let v = 2; v < totalVisualCols - 2; v++) {
-        if (visualIndex!=4 && visualIndex <= v && visualIndex + colspan > v) {
+        if (visualIndex!==openingIndex && visualIndex <= v && visualIndex + colspan > v) {
           const value = parseFloat(cell.textContent);
           if (value < 0) cell.classList.add("red");
         }

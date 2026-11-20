@@ -1,6 +1,29 @@
 const ANALIZ_DEBT_THRESHOLDS = [0, 3, 6, 12, 24];
 const ANALIZ_DEFAULT_DEBT_THRESHOLD = 3;
-const ANALIZ_EXPANDED_CHARGES = { totalCharged: false, debtorCharged: false };
+const ANALIZ_CHARGE_PARAMS = {
+  totalCharged: "analizTotalChargesExpanded",
+  debtorCharged: "analizDebtorChargesExpanded"
+};
+const ANALIZ_EXPANDED_CHARGES = Object.fromEntries(
+  Object.entries(ANALIZ_CHARGE_PARAMS).map(([group, param]) => {
+    try {
+      return [group, typeof getParam === "function" && getParam(param) === "1"];
+    } catch (_) {
+      return [group, false];
+    }
+  })
+);
+
+function toggleAnalizChargeGroup(group) {
+  ANALIZ_EXPANDED_CHARGES[group] = !ANALIZ_EXPANDED_CHARGES[group];
+  try {
+    if (typeof setParam === "function") {
+      setParam(ANALIZ_CHARGE_PARAMS[group], ANALIZ_EXPANDED_CHARGES[group] ? "1" : "0");
+    }
+  } catch (error) {
+    console.warn("Не вдалося зберегти стан нарахувань", error);
+  }
+}
 
 function generateAnaliz(start, end) {
   const months = [];
@@ -323,7 +346,7 @@ function renderAnalizTable(data, monthsList, initialDebtThreshold) {
         th.setAttribute("role", "button");
         th.setAttribute("aria-expanded", String(expandedCharges[chargeToggle]));
         th.title = expandedCharges[chargeToggle] ? "Згорнути нарахування за послугами" : "Розгорнути нарахування за послугами";
-        const toggle = () => { expandedCharges[chargeToggle] = !expandedCharges[chargeToggle]; redraw(); };
+        const toggle = () => { toggleAnalizChargeGroup(chargeToggle); redraw(); };
         th.onclick = toggle;
         th.onkeydown = event => {
           if (event.key === "Enter" || event.key === " ") { event.preventDefault(); toggle(); }
