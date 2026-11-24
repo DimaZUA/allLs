@@ -938,6 +938,11 @@
     const actDate = actDateForMeter(meter);
     const snap = heatActRows(meter, actDate);
     const home = homeName(meter.home_code);
+    const entrance = meterLabel(meter).trim();
+    const address = valueByKey(homeMeta(meter.home_code), ["adr"]);
+    const account = valueByKey(meter, ["operator_account"]);
+    const heading = [home, address, entrance && `(${entrance})`, account && `о/р ${account}`]
+      .filter(Boolean).join(" ");
     const chair = homeChair(meter.home_code);
     const phone = homePhone(meter.home_code);
     const okpo = homeOkpo(meter.home_code);
@@ -949,7 +954,7 @@
     <div class="gr-sheet gr-sheet-landscape ma-act-sheet ma-act-heat-sheet">
       <div class="ma-act ma-act-heat">
         <h2>Відомість обліку споживання теплової енергії</h2>
-        <h3>${escapeHtml(home)}</h3>
+        <h3>${escapeHtml(heading)}</h3>
         <div class="ma-act-subtitle">Тип теплолічильника ${escapeHtml(meter.meter_type || meter.name || "")}</div>
         <div class="ma-act-line">
           <span>Дата первинного приймання ${escapeHtml(dateLabel(meter.contract_date || ""))}</span>
