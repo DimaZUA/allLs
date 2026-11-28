@@ -2,6 +2,8 @@
 (function () {
   "use strict";
 
+  const byFlor = new Set([36988222]);
+
   const TABLE = "meeting_protocols";
   const SECTION = "meeting_protocols";
   const MEETING_TYPES = [
@@ -975,10 +977,12 @@
       const fio = String(item.fio || item.owner || "").trim();
       const area = Number(String(item.pl || item.area || "0").replace(",", ".")) || 0;
       const pod = String(item.pod ?? item.podezd ?? item.entrance ?? item.pid ?? "").trim();
-      if (!byKv.has(kv)) byKv.set(kv, { account_id: id, kv, pod, fioList: [], area: 0 });
+      const floor = String(item.et ?? "").trim().replace(",", ".");
+      if (!byKv.has(kv)) byKv.set(kv, { account_id: id, kv, pod, floor, fioList: [], area: 0 });
       const row = byKv.get(kv);
       if (!row.account_id && id) row.account_id = id;
       if (!row.pod && pod) row.pod = pod;
+      if (!row.floor && floor) row.floor = floor;
       if (fio && !row.fioList.includes(fio)) row.fioList.push(fio);
       row.area += area;
     });
@@ -987,6 +991,7 @@
         account_id: row.account_id || accountIdByKv(homeData?.code, row.kv),
         kv: row.kv,
         pod: row.pod || "",
+        floor: row.floor,
         fio: row.fioList.join(", "),
         area: row.area,
         votes: voteBasis === "area" ? row.area : 1
@@ -1069,18 +1074,22 @@
     return Number.isFinite(n) ? n : 999999;
   }
 
-  function groupAppendixRowsByPod(rows) {
+  function groupAppendixRows(rows, groupByFloor) {
     const source = (rows || []).map((row, index) => Object.assign({ _seq: index + 1 }, row));
-    const byPod = new Map();
+    const groups = new Map();
+    const groupKey = groupByFloor ? "floor" : "pod";
+    const sortKey = groupByFloor
+      ? value => value && Number.isFinite(Number(value)) ? Number(value) : Infinity
+      : podSortKey;
     source.forEach(row => {
-      const pod = String(row.pod || "").trim() || "без під'їзду";
-      if (!byPod.has(pod)) byPod.set(pod, []);
-      byPod.get(pod).push(row);
+      const key = String(row[groupKey] || "").trim() || (groupByFloor ? "" : "без під'їзду");
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(row);
     });
-    return Array.from(byPod.entries())
-      .sort((a, b) => podSortKey(a[0]) - podSortKey(b[0]) || String(a[0]).localeCompare(String(b[0]), "uk"))
-      .map(([pod, items]) => ({
-        pod,
+    return Array.from(groups.entries())
+      .sort((a, b) => sortKey(a[0]) - sortKey(b[0]) || a[0].localeCompare(b[0], "uk"))
+      .map(([key, items]) => ({
+        title: groupByFloor ? (key ? `Поверх ${key.replace(".", ",")}` : "Поверх не вказано") : `Під'їзд ${key}`,
         items: items.sort((a, b) => parseKv(a.kv) - parseKv(b.kv) || String(a.kv).localeCompare(String(b.kv), "uk"))
       }));
   }
@@ -1138,18 +1147,19 @@
     return best;
   }
 
-  function paginateAppendixByPod(voters, renderPage, options) {
-    const groups = groupAppendixRowsByPod(voters);
+  function paginateAppendix(voters, item, renderPage, options) {
+    const groupByFloor = item.meeting_type === "general" && byFlor.has(Number(item.home_code));
+    const groups = groupAppendixRows(voters, groupByFloor);
     const pages = [];
     groups.forEach(group => {
       const groupPages = choosePodPagination(group.items, (rows, pageIndex, offset, opts) =>
-        renderPage(rows, pageIndex, offset, Object.assign({}, opts, { pod: group.pod })), options);
+        renderPage(rows, pageIndex, offset, Object.assign({}, opts, { groupTitle: group.title })), options);
       groupPages.forEach((page, groupPageIndex) => pages.push(Object.assign({}, page, {
-        pod: group.pod,
+        groupTitle: group.title,
         groupPageIndex
       })));
     });
-    return pages.length ? pages : [{ rows: [], offset: 0, pod: "", groupPageIndex: 0, rowHeight: (options && options.baseRowHeight) || 8 }];
+    return pages.length ? pages : [{ rows: [], offset: 0, groupTitle: "", groupPageIndex: 0, rowHeight: (options && options.baseRowHeight) || 8 }];
   }
 
   function renderVotingPages(home, homeName, voters, agenda, item) {
@@ -1160,7 +1170,7 @@
       const totalPages = opts && opts.totalPages;
       const rowHeight = opts && opts.rowHeight;
       const groupPageIndex = opts && Number.isFinite(opts.groupPageIndex) ? opts.groupPageIndex : pageIndex;
-      const podTitle = opts && opts.pod ? `<div class="mp-appendix-pod-title">Під'їзд ${escapeHtml(opts.pod)}</div>` : "";
+      const groupTitle = opts && opts.groupTitle ? `<div class="mp-appendix-pod-title">${escapeHtml(opts.groupTitle)}</div>` : "";
       const rows = pageRows.map((v, i) => `<tr>
         <td>${v._seq || offset + i + 1}</td>
         <td>${apartmentHtml(v.kv, v.account_id, item.home_code)}</td>
@@ -1171,7 +1181,7 @@
       return `<section class="gr-sheet mp-sheet ${landscape ? "gr-sheet-landscape mp-sheet-landscape" : ""} ${groupPageIndex ? "mp-appendix-continuation" : ""}" ${rowHeight ? `style="--mp-row-height:${rowHeight}mm"` : ""}>
         <div class="mp-page">
           ${renderProtocolHeader(home, "Лист голосування", protocolAppendixText(item))}
-          ${podTitle}
+          ${groupTitle}
           ${renderVotingAgenda(questions, item)}
           <div class="mp-voting-note">У графі питання власноруч зазначається: "за", "проти" або "утримався".</div>
           <table class="mp-print-table">
@@ -1182,7 +1192,7 @@
         </div>
       </section>`;
     };
-    const pages = paginateAppendixByPod(voters, renderPage, {
+    const pages = paginateAppendix(voters, item, renderPage, {
       baseRowHeight: landscape ? 7 : 8.5,
       minRowHeight: landscape ? 5.2 : 6,
       maxRowHeight: landscape ? 11 : 14
@@ -1190,7 +1200,7 @@
     return pages.map((page, pageIndex) => renderPage(page.rows, pageIndex, page.offset, {
       totalPages: pages.length,
       rowHeight: page.rowHeight,
-      pod: page.pod,
+      groupTitle: page.groupTitle,
       groupPageIndex: page.groupPageIndex
     })).join("");
   }
@@ -1200,7 +1210,7 @@
       const totalPages = opts && opts.totalPages;
       const rowHeight = opts && opts.rowHeight;
       const groupPageIndex = opts && Number.isFinite(opts.groupPageIndex) ? opts.groupPageIndex : pageIndex;
-      const podTitle = opts && opts.pod ? `<div class="mp-appendix-pod-title">Під'їзд ${escapeHtml(opts.pod)}</div>` : "";
+      const groupTitle = opts && opts.groupTitle ? `<div class="mp-appendix-pod-title">${escapeHtml(opts.groupTitle)}</div>` : "";
       const rows = pageRows.map((v, i) => `<tr>
         <td>${v._seq || offset + i + 1}</td>
         <td>${apartmentHtml(v.kv, v.account_id, item.home_code)}</td>
@@ -1211,7 +1221,7 @@
       return `<section class="gr-sheet mp-sheet ${groupPageIndex ? "mp-appendix-continuation" : ""}" ${rowHeight ? `style="--mp-row-height:${rowHeight}mm"` : ""}>
         <div class="mp-page">
           ${renderProtocolHeader(home, "Список реєстрації", protocolAppendixText(item))}
-          ${podTitle}
+          ${groupTitle}
           <table class="mp-print-table">
             <thead><tr><th>№</th><th>Кв.</th><th>П.І.Б.</th>${item.vote_basis === "area" ? "<th>Голосів</th>" : ""}<th>Підпис</th></tr></thead>
             <tbody>${rows}</tbody>
@@ -1220,11 +1230,11 @@
         </div>
       </section>`;
     };
-    const pages = paginateAppendixByPod(voters, renderPage, { baseRowHeight: 9, minRowHeight: 6, maxRowHeight: 16 });
+    const pages = paginateAppendix(voters, item, renderPage, { baseRowHeight: 9, minRowHeight: 6, maxRowHeight: 16 });
     return pages.map((page, pageIndex) => renderPage(page.rows, pageIndex, page.offset, {
       totalPages: pages.length,
       rowHeight: page.rowHeight,
-      pod: page.pod,
+      groupTitle: page.groupTitle,
       groupPageIndex: page.groupPageIndex
     })).join("");
   }
@@ -1234,7 +1244,7 @@
       const totalPages = opts && opts.totalPages;
       const rowHeight = opts && opts.rowHeight;
       const groupPageIndex = opts && Number.isFinite(opts.groupPageIndex) ? opts.groupPageIndex : pageIndex;
-      const podTitle = opts && opts.pod ? `<div class="mp-appendix-pod-title">Під'їзд ${escapeHtml(opts.pod)}</div>` : "";
+      const groupTitle = opts && opts.groupTitle ? `<div class="mp-appendix-pod-title">${escapeHtml(opts.groupTitle)}</div>` : "";
       const rows = pageRows.map((v, i) => `<tr>
         <td>${v._seq || offset + i + 1}</td>
         <td>${apartmentHtml(v.kv, v.account_id, item.home_code)}</td>
@@ -1246,7 +1256,7 @@
       return `<section class="gr-sheet mp-sheet ${groupPageIndex ? "mp-appendix-continuation" : ""}" ${rowHeight ? `style="--mp-row-height:${rowHeight}mm"` : ""}>
         <div class="mp-page">
           ${renderProtocolHeader(home, "Список вручення повідомлень", protocolAppendixText(item))}
-          ${podTitle}
+          ${groupTitle}
           <table class="mp-print-table">
             <thead><tr><th>№</th><th>Кв.</th><th>П.І.Б.</th><th>Дата отримання</th><th>Підпис</th><th>Примітка</th></tr></thead>
             <tbody>${rows}</tbody>
@@ -1255,11 +1265,11 @@
         </div>
       </section>`;
     };
-    const pages = paginateAppendixByPod(voters, renderPage, { baseRowHeight: 10, minRowHeight: 6.5, maxRowHeight: 18 });
+    const pages = paginateAppendix(voters, item, renderPage, { baseRowHeight: 10, minRowHeight: 6.5, maxRowHeight: 18 });
     return pages.map((page, pageIndex) => renderPage(page.rows, pageIndex, page.offset, {
       totalPages: pages.length,
       rowHeight: page.rowHeight,
-      pod: page.pod,
+      groupTitle: page.groupTitle,
       groupPageIndex: page.groupPageIndex
     })).join("");
   }
